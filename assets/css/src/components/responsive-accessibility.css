@@ -1,5 +1,5 @@
 /* Final responsive and accessibility layer for Zentrid shared shells. */
-.fleet-skip-link {
+.zentrid-skip-link {
   position: fixed;
   left: 16px;
   top: 12px;
@@ -14,7 +14,7 @@
   box-shadow: var(--shadow);
   transition: transform .16s ease;
 }
-.fleet-skip-link:focus { transform: translateY(0); }
+.zentrid-skip-link:focus { transform: translateY(0); }
 
 button:focus-visible,
 a:focus-visible,
@@ -37,10 +37,10 @@ a:focus-visible,
   border: 0 !important;
 }
 
-body.fleet-dialog-open,
-body.fleet-mobile-nav-open { overflow: hidden; }
+body.zentrid-dialog-open,
+body.zentrid-mobile-nav-open { overflow: hidden; }
 
-.fleet-sidebar-backdrop {
+.zentrid-sidebar-backdrop {
   position: fixed;
   inset: 0;
   z-index: 19;
@@ -50,7 +50,7 @@ body.fleet-mobile-nav-open { overflow: hidden; }
   backdrop-filter: blur(5px);
   cursor: default;
 }
-.fleet-sidebar-backdrop[hidden] { display: none !important; }
+.zentrid-sidebar-backdrop[hidden] { display: none !important; }
 
 .data-row,
 .data-row > *,
@@ -104,19 +104,19 @@ body.fleet-mobile-nav-open { overflow: hidden; }
 }
 
 @media (max-width: 768px) {
-  .fleet-responsive-table.data-table {
+  .zentrid-responsive-table.data-table {
     display: block !important;
     overflow: visible !important;
   }
-  .fleet-responsive-table > .data-head { display: none !important; }
-  .fleet-responsive-table > .data-row {
+  .zentrid-responsive-table > .data-head { display: none !important; }
+  .zentrid-responsive-table > .data-row {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 0 !important;
     padding: 7px 14px !important;
     margin-bottom: 12px;
   }
-  .fleet-responsive-table > .data-row > * {
+  .zentrid-responsive-table > .data-row > * {
     display: block !important;
     width: 100%;
     min-width: 0;
@@ -124,8 +124,8 @@ body.fleet-mobile-nav-open { overflow: hidden; }
     border-top: 1px solid rgba(148,163,184,.10);
     text-align: left;
   }
-  .fleet-responsive-table > .data-row > *:first-child { border-top: 0; }
-  .fleet-responsive-table > .data-row > *::before {
+  .zentrid-responsive-table > .data-row > *:first-child { border-top: 0; }
+  .zentrid-responsive-table > .data-row > *::before {
     content: attr(data-label);
     display: block;
     margin-bottom: 5px;
@@ -136,14 +136,14 @@ body.fleet-mobile-nav-open { overflow: hidden; }
     line-height: 1.35;
     text-transform: uppercase;
   }
-  .fleet-responsive-table > .data-row > .row-actions {
+  .zentrid-responsive-table > .data-row > .row-actions {
     display: flex !important;
     align-items: stretch !important;
     flex-wrap: wrap;
   }
-  .fleet-responsive-table > .data-row > .row-actions::before { flex-basis: 100%; }
-  .fleet-responsive-table > .data-row > .row-actions > button,
-  .fleet-responsive-table > .data-row > .row-actions > a { min-height: 44px; flex: 1 1 140px; }
+  .zentrid-responsive-table > .data-row > .row-actions::before { flex-basis: 100%; }
+  .zentrid-responsive-table > .data-row > .row-actions > button,
+  .zentrid-responsive-table > .data-row > .row-actions > a { min-height: 44px; flex: 1 1 140px; }
 
   .detail-tabs,
   .ui-dict-tabs {
@@ -193,7 +193,7 @@ body.fleet-mobile-nav-open { overflow: hidden; }
     position: fixed !important;
     left: 10px !important;
     right: 10px !important;
-    top: calc(var(--fleet-topbar-bottom, 118px) + 8px) !important;
+    top: calc(var(--zentrid-topbar-bottom, 118px) + 8px) !important;
     max-height: min(62dvh, 520px);
     overflow-y: auto;
   }
@@ -203,7 +203,7 @@ body.fleet-mobile-nav-open { overflow: hidden; }
     position: fixed !important;
     left: 10px !important;
     right: 10px !important;
-    top: calc(var(--fleet-topbar-bottom, 118px) + 8px) !important;
+    top: calc(var(--zentrid-topbar-bottom, 118px) + 8px) !important;
     width: auto !important;
     min-width: 0 !important;
     max-height: 65dvh;

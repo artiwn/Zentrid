@@ -1,5 +1,5 @@
 /* Zentrid v137: connectivity, retry and cross-tab session feedback. */
-.fleet-recovery-banner {
+.zentrid-recovery-banner {
   position: fixed;
   inset: auto 20px 20px auto;
   z-index: 1400;
@@ -16,30 +16,30 @@
   backdrop-filter: blur(16px);
 }
 
-.fleet-recovery-banner[hidden] { display: none; }
-.fleet-recovery-banner-icon { line-height: 1.2; color: var(--accent, #2563eb); }
-.fleet-recovery-banner > div { min-width: 0; display: grid; gap: 3px; }
-.fleet-recovery-banner strong,
-.fleet-recovery-banner small { overflow-wrap: anywhere; }
-.fleet-recovery-banner small { color: var(--muted, #64748b); line-height: 1.4; }
-.fleet-recovery-banner[data-state="offline"] { border-color: rgba(220, 38, 38, .35); }
-.fleet-recovery-banner[data-state="offline"] .fleet-recovery-banner-icon,
-.fleet-recovery-banner[data-state="warning"] .fleet-recovery-banner-icon { color: #dc2626; }
-.fleet-recovery-banner[data-state="retrying"] .fleet-recovery-banner-icon { color: #d97706; }
-.fleet-recovery-banner[data-state="restored"] .fleet-recovery-banner-icon,
-.fleet-recovery-banner[data-state="session"] .fleet-recovery-banner-icon { color: #059669; }
+.zentrid-recovery-banner[hidden] { display: none; }
+.zentrid-recovery-banner-icon { line-height: 1.2; color: var(--accent, #2563eb); }
+.zentrid-recovery-banner > div { min-width: 0; display: grid; gap: 3px; }
+.zentrid-recovery-banner strong,
+.zentrid-recovery-banner small { overflow-wrap: anywhere; }
+.zentrid-recovery-banner small { color: var(--muted, #64748b); line-height: 1.4; }
+.zentrid-recovery-banner[data-state="offline"] { border-color: rgba(220, 38, 38, .35); }
+.zentrid-recovery-banner[data-state="offline"] .zentrid-recovery-banner-icon,
+.zentrid-recovery-banner[data-state="warning"] .zentrid-recovery-banner-icon { color: #dc2626; }
+.zentrid-recovery-banner[data-state="retrying"] .zentrid-recovery-banner-icon { color: #d97706; }
+.zentrid-recovery-banner[data-state="restored"] .zentrid-recovery-banner-icon,
+.zentrid-recovery-banner[data-state="session"] .zentrid-recovery-banner-icon { color: #059669; }
 
-body[data-fleet-connectivity="offline"] .fleet-freshness-controls {
+body[data-zentrid-connectivity="offline"] .zentrid-freshness-controls {
   border-color: rgba(220, 38, 38, .28);
 }
 
 @media (max-width: 640px) {
-  .fleet-recovery-banner {
+  .zentrid-recovery-banner {
     inset: auto 12px 12px 12px;
     width: auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fleet-recovery-banner { transition: none; }
+  .zentrid-recovery-banner { transition: none; }
 }

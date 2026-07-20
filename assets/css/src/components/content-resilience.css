@@ -32,17 +32,17 @@
   flex: 0 0 auto;
 }
 
-.fleet-ux-state-copy {
+.zentrid-ux-state-copy {
   min-width: 0;
   max-width: 100%;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
-.fleet-ux-state-copy > strong,
-.fleet-ux-state-copy > span,
-.fleet-ux-state-copy > small,
-.fleet-ux-state-copy > p {
+.zentrid-ux-state-copy > strong,
+.zentrid-ux-state-copy > span,
+.zentrid-ux-state-copy > small,
+.zentrid-ux-state-copy > p {
   max-width: 100%;
   overflow-wrap: anywhere;
 }
