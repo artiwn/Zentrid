@@ -18,7 +18,7 @@ See [Pagination collision and edit restoration v140](docs/PAGINATION_EDIT_RESTOR
 - Vercel and local proxy builds send CSP, framing, MIME, referrer and permissions headers.
 - Dynamic links/forms are audited for unsafe protocols and reverse-tabnabbing.
 - Strict report-only CSP records remaining inline handler/style debt without breaking the prototype.
-- Safe release diagnostics include `FleetBrowserSecurity.snapshot()` without exporting credential values.
+- Safe release diagnostics include `ZentridBrowserSecurity.snapshot()` without exporting credential values.
 
 See [Security hardening and browser policy v139](docs/SECURITY_HARDENING_BROWSER_POLICY_V139.md).
 
@@ -200,7 +200,7 @@ Successful Tenant, Client, Plant and Provider Integration write actions now emit
 
 ## Tenant lifecycle actions (v111)
 
-Tenant Detail now performs real backend activate, deactivate and archive operations for Live API Tenant records through `assets/js/tenant-lifecycle.ts` and `FleetAPIMutations`. Mock and local records are gated, destructive actions require confirmation, retriable failures expose Retry, and successful mutations reload from the backend after repository cache invalidation. Run `npm run check:tenant-lifecycle` to verify the workflow. See `docs/TENANT_LIFECYCLE_V111.md`.
+Tenant Detail now performs real backend activate, deactivate and archive operations for Live API Tenant records through `assets/js/tenant-lifecycle.ts` and `ZentridAPIMutations`. Mock and local records are gated, destructive actions require confirmation, retriable failures expose Retry, and successful mutations reload from the backend after repository cache invalidation. Run `npm run check:tenant-lifecycle` to verify the workflow. See `docs/TENANT_LIFECYCLE_V111.md`.
 
 
 ## API Field Mapping Audit v128

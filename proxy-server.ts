@@ -1,23 +1,23 @@
 const express = require("express");
 const cors = require("cors");
 
-type FleetProxyHeaders = {
+type ZentridProxyHeaders = {
   accept?: string;
   authorization?: string;
 };
 
-type FleetProxyRequest = {
+type ZentridProxyRequest = {
   originalUrl: string;
   method: string;
-  headers: FleetProxyHeaders;
+  headers: ZentridProxyHeaders;
   body?: unknown;
 };
 
-type FleetProxyNext = () => void;
+type ZentridProxyNext = () => void;
 
-type FleetProxyResponse = {
+type ZentridProxyResponse = {
   json(payload: unknown): void;
-  status(code: number): FleetProxyResponse;
+  status(code: number): ZentridProxyResponse;
   setHeader(name: string, value: string): void;
   send(payload: string): void;
 };
@@ -46,7 +46,7 @@ const CONTENT_SECURITY_POLICY_REPORT_ONLY = CONTENT_SECURITY_POLICY
   .replace("script-src-attr 'unsafe-inline'", "script-src-attr 'none'")
   .replace("style-src-attr 'unsafe-inline'", "style-src-attr 'none'");
 
-app.use((_req: FleetProxyRequest, res: FleetProxyResponse, next: FleetProxyNext) => {
+app.use((_req: ZentridProxyRequest, res: ZentridProxyResponse, next: ZentridProxyNext) => {
   res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   res.setHeader("Content-Security-Policy-Report-Only", CONTENT_SECURITY_POLICY_REPORT_ONLY);
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -61,11 +61,11 @@ app.use((_req: FleetProxyRequest, res: FleetProxyResponse, next: FleetProxyNext)
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-app.get("/health", (_req: FleetProxyRequest, res: FleetProxyResponse) => {
+app.get("/health", (_req: ZentridProxyRequest, res: ZentridProxyResponse) => {
   res.json({ status: "ok", service: "Zentrid local proxy", port: PORT });
 });
 
-async function proxyRequest(targetBaseUrl: string, req: FleetProxyRequest, res: FleetProxyResponse): Promise<void> {
+async function proxyRequest(targetBaseUrl: string, req: ZentridProxyRequest, res: ZentridProxyResponse): Promise<void> {
   try {
     const requestBody = ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body || {});
     const response = await fetch(`${targetBaseUrl}${req.originalUrl}`, {
@@ -90,9 +90,9 @@ async function proxyRequest(targetBaseUrl: string, req: FleetProxyRequest, res: 
   }
 }
 
-app.use("/api/Auth", (req: FleetProxyRequest, res: FleetProxyResponse) => proxyRequest(AUTH_TARGET, req, res));
-app.use("/.well-known", (req: FleetProxyRequest, res: FleetProxyResponse) => proxyRequest(AUTH_TARGET, req, res));
-app.use("/api", (req: FleetProxyRequest, res: FleetProxyResponse) => proxyRequest(DATA_TARGET, req, res));
+app.use("/api/Auth", (req: ZentridProxyRequest, res: ZentridProxyResponse) => proxyRequest(AUTH_TARGET, req, res));
+app.use("/.well-known", (req: ZentridProxyRequest, res: ZentridProxyResponse) => proxyRequest(AUTH_TARGET, req, res));
+app.use("/api", (req: ZentridProxyRequest, res: ZentridProxyResponse) => proxyRequest(DATA_TARGET, req, res));
 
 // The compiled proxy lives inside dist, so __dirname is the generated application root.
 app.use(express.static(__dirname));
