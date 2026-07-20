@@ -23,15 +23,15 @@ const css = read('assets/css/src/components/data-source-indicators.css');
 const manifest = JSON.parse(read('assets/css/src/manifest.json') || '{"sources":[]}');
 
 ['live', 'mock', 'local', 'mixed'].forEach(origin => {
-  expect(dataSource.includes(`${origin}:`), `FleetDataSource label is missing: ${origin}.`);
+  expect(dataSource.includes(`${origin}:`), `ZentridDataSource label is missing: ${origin}.`);
   expect(css.includes(`.record-origin-chip.${origin}`), `Record origin CSS is missing: ${origin}.`);
 });
 
-expect(/window\.FleetDataSource\s*=/.test(dataSource), 'FleetDataSource runtime helper is missing.');
-expect(/function origin\(/.test(dataSource), 'FleetDataSource origin classifier is missing.');
-expect(/function summary\(/.test(dataSource), 'FleetDataSource summary classifier is missing.');
-expect(/function markLocal</.test(dataSource), 'FleetDataSource markLocal helper is missing.');
-expect(/function markChanged</.test(dataSource), 'FleetDataSource markChanged helper is missing.');
+expect(/window\.ZentridDataSource\s*=/.test(dataSource), 'ZentridDataSource runtime helper is missing.');
+expect(/function origin\(/.test(dataSource), 'ZentridDataSource origin classifier is missing.');
+expect(/function summary\(/.test(dataSource), 'ZentridDataSource summary classifier is missing.');
+expect(/function markLocal</.test(dataSource), 'ZentridDataSource markLocal helper is missing.');
+expect(/function markChanged</.test(dataSource), 'ZentridDataSource markChanged helper is missing.');
 expect(/function setDataSourceSummary\(/.test(liveBridge), 'Page-level data source summary renderer is missing.');
 expect(/function renderedDataOrigin\(/.test(liveBridge), 'Rendered record source inference is missing.');
 expect(/data-source-summary/.test(liveBridge), 'Live API bridge does not render the source summary.');
@@ -39,7 +39,7 @@ expect(((liveBridge + apiContracts).match(/dataOrigin:\s*'live'/g) || []).length
 
 const tenantSetter = liveBridge.match(/function setLiveTenants[\s\S]*?\n  }/i)?.[0] || '';
 expect(/window\.ZentridLiveTenants\s*=\s*rows/.test(tenantSetter), 'Live tenants are not stored in the in-memory live layer.');
-expect(!/localStorage|FleetLocalStore\.write/.test(tenantSetter), 'Live tenants must not overwrite localStorage.');
+expect(!/localStorage|ZentridLocalStore\.write/.test(tenantSetter), 'Live tenants must not overwrite localStorage.');
 expect(/window\.ZentridLiveIntegrations\s*=\s*integrations/.test(liveBridge), 'Live integrations are not stored in the in-memory live layer.');
 
 const component = 'components/data-source-indicators.css';
@@ -50,12 +50,12 @@ expect(componentIndex >= 0, `${component} is missing from CSS manifest.`);
 expect(liveStateIndex >= 0 && componentIndex === liveStateIndex + 1, `${component} must load immediately after ${liveStateComponent}.`);
 
 const activeRenderers = {
-  'assets/js/client-hierarchy.ts': ["FleetDataSource.badge(c, 'client')", "dataOrigin: 'local'"],
-  'assets/js/tenants.ts': ["FleetDataSource.badge(c, 'tenant')", "dataOrigin:'local'", 'ZentridLiveTenants'],
-  'assets/js/plants.ts': ["FleetDataSource.badge(p, 'plant')", "dataOrigin: 'local'"],
-  'assets/js/devices.ts': ["FleetDataSource.badge(d, 'device')", "dataOrigin:'local'"],
-  'assets/js/alerts.ts': ["FleetDataSource.badge(a, 'alert')", 'dataOrigin?: FleetDataOrigin'],
-  'assets/js/integrations.ts': ["FleetDataSource.badge(x, 'integration')", "dataOrigin: 'local'", 'ZentridLiveIntegrations']
+  'assets/js/client-hierarchy.ts': ["ZentridDataSource.badge(c, 'client')", "dataOrigin: 'local'"],
+  'assets/js/tenants.ts': ["ZentridDataSource.badge(c, 'tenant')", "dataOrigin:'local'", 'ZentridLiveTenants'],
+  'assets/js/plants.ts': ["ZentridDataSource.badge(p, 'plant')", "dataOrigin: 'local'"],
+  'assets/js/devices.ts': ["ZentridDataSource.badge(d, 'device')", "dataOrigin:'local'"],
+  'assets/js/alerts.ts': ["ZentridDataSource.badge(a, 'alert')", 'dataOrigin?: ZentridDataOrigin'],
+  'assets/js/integrations.ts': ["ZentridDataSource.badge(x, 'integration')", "dataOrigin: 'local'", 'ZentridLiveIntegrations']
 };
 for (const [relativePath, markers] of Object.entries(activeRenderers)) {
   const source = read(relativePath);
@@ -94,8 +94,8 @@ function runBehaviorChecks() {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
   }).outputText;
   vm.runInContext(compiled, context, { filename: 'data.js' });
-  const helper = windowObject.FleetDataSource;
-  expect(helper && typeof helper.origin === 'function', 'FleetDataSource did not initialize at runtime.');
+  const helper = windowObject.ZentridDataSource;
+  expect(helper && typeof helper.origin === 'function', 'ZentridDataSource did not initialize at runtime.');
   if (!helper) return;
 
   expect(helper.origin({ dataOrigin: 'live' }) === 'live', 'Explicit live origin is not preserved.');

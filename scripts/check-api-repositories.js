@@ -18,10 +18,10 @@ const liveBridge = read('assets/js/live-api-ui.ts');
 const globals = read('types/zentrid-globals.d.ts');
 
 [
-  'FleetRepositoryMapperContext', 'FleetRepositoryListResult', 'FleetRepositoryItemResult',
-  'FleetEntityReadRepositoryApi', 'FleetAPIRepositoriesApi'
+  'ZentridRepositoryMapperContext', 'ZentridRepositoryListResult', 'ZentridRepositoryItemResult',
+  'ZentridEntityReadRepositoryApi', 'ZentridAPIRepositoriesApi'
 ].forEach(name => expect(globals.includes(`interface ${name}`), `Global repository type is missing: ${name}.`));
-expect(globals.includes('declare const FleetAPIRepositories'), 'FleetAPIRepositories global declaration is missing.');
+expect(globals.includes('declare const ZentridAPIRepositories'), 'ZentridAPIRepositories global declaration is missing.');
 
 [
   'fetchCollectionPage', 'paginationFromPayload', 'mergePlantSources', 'uniqueByIdentity', 'mappedResult',
@@ -32,12 +32,12 @@ expect(globals.includes('declare const FleetAPIRepositories'), 'FleetAPIReposito
 ].forEach(token => expect(repositorySource.includes(token), `Repository implementation token is missing: ${token}.`));
 
 ['clients', 'tenants', 'plants', 'devices', 'alerts', 'integrations'].forEach(entity => {
-  expect(liveBridge.includes(`FleetAPIRepositories.${entity}.list(`), `Live bridge does not read ${entity} through FleetAPIRepositories.`);
+  expect(liveBridge.includes(`ZentridAPIRepositories.${entity}.list(`), `Live bridge does not read ${entity} through ZentridAPIRepositories.`);
 });
 
 const forbiddenLiveBridgeTokens = [
-  'FleetAPIContracts.clients.map', 'FleetAPIContracts.tenants.map', 'FleetAPIContracts.plants.map',
-  'FleetAPIContracts.devices.map', 'FleetAPIContracts.alerts.map', 'FleetAPIContracts.integrations.map',
+  'ZentridAPIContracts.clients.map', 'ZentridAPIContracts.tenants.map', 'ZentridAPIContracts.plants.map',
+  'ZentridAPIContracts.devices.map', 'ZentridAPIContracts.alerts.map', 'ZentridAPIContracts.integrations.map',
   'ZentridPlatformAPI.clients.list()', 'ZentridPlatformAPI.tenants.list()',
   'ZentridPlatformAPI.live.plants()', 'ZentridPlatformAPI.live.devices()',
   'ZentridPlatformAPI.live.alerts(', 'ZentridPlatformAPI.live.integrations(',
@@ -99,14 +99,14 @@ const requests = [];
 const sandbox = {
   AbortController,
   window: {}, console, String, Number, Boolean, Array, Object, Math, Set, Promise,
-  FleetAPI: {
+  ZentridAPI: {
     async request(path) {
       requests.push(path);
       if (path.startsWith('/api/plants?')) return { items: [livePlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/admin/plants?')) return { items: [adminPlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/devices?')) return { items: [{ id: 'D-1', sourceDeviceId: 'INV-1', sourcePlantId: 'EXT-P-1', deviceName: 'Inverter A', provider: 'Huawei' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/alerts?')) return { items: [{ id: 'A-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
-      throw new Error(`Unexpected FleetAPI path: ${path}`);
+      throw new Error(`Unexpected ZentridAPI path: ${path}`);
     }
   },
   ZentridPlatformAPI: {
@@ -124,15 +124,15 @@ const sandbox = {
     }
   }
 };
-sandbox.window.FleetAPI = sandbox.FleetAPI;
+sandbox.window.ZentridAPI = sandbox.ZentridAPI;
 sandbox.window.ZentridPlatformAPI = sandbox.ZentridPlatformAPI;
 vm.createContext(sandbox);
 const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
 vm.runInContext(ts.transpileModule(contractSource, { compilerOptions }).outputText, sandbox, { filename: 'api-contracts.js' });
-sandbox.FleetAPIContracts = sandbox.window.FleetAPIContracts;
+sandbox.ZentridAPIContracts = sandbox.window.ZentridAPIContracts;
 vm.runInContext(ts.transpileModule(repositorySource, { compilerOptions }).outputText, sandbox, { filename: 'api-repositories.js' });
-const repositories = sandbox.window.FleetAPIRepositories;
-expect(Boolean(repositories), 'FleetAPIRepositories did not initialize.');
+const repositories = sandbox.window.ZentridAPIRepositories;
+expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
 
 (async () => {
   if (repositories) {

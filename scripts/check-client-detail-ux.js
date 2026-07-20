@@ -26,8 +26,8 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'role="status"', 'aria-live="polite"', 'aria-busy="false"',
   'beforeunload', 'documentRecords', 'portalUsers'
 ].forEach(token => expect(detailSource.includes(token), `Client Detail UX token is missing: ${token}`));
-expect(!clients.includes("onclick=\"FleetLayout.toast('Add portal user mock')\""), 'Client Detail must not use a fake Add User success action.');
-expect(!clients.includes("onclick=\"FleetLayout.toast('Commercial model edit mock')\""), 'Client Detail must not use a fake commercial edit success action.');
+expect(!clients.includes("onclick=\"ZentridLayout.toast('Add portal user mock')\""), 'Client Detail must not use a fake Add User success action.');
+expect(!clients.includes("onclick=\"ZentridLayout.toast('Commercial model edit mock')\""), 'Client Detail must not use a fake commercial edit success action.');
 expect(clients.includes("clients[existingIndex] = { ...clients[existingIndex]!, ...client }"), 'Saved local overrides must replace built-in mock client records after reload.');
 expect(page.includes('form-ux.js'), 'Client Detail page must load shared form UX.');
 expect(page.includes('entity-detail-ux.js'), 'Detail page must load the shared Entity Detail UX foundation.');

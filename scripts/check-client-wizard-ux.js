@@ -24,7 +24,7 @@ const packageJson = JSON.parse(read('package.json') || '{}');
   'Temporary password must contain at least one letter and one number',
   'Enter a passport / personal document number or upload the client passport',
   'Enter a state registration document number or upload the registration document',
-  'FleetFormUX.setBusy', 'FleetFormUX.bindClearOnInput', 'role="dialog"', 'aria-current'
+  'ZentridFormUX.setBusy', 'ZentridFormUX.bindClearOnInput', 'role="dialog"', 'aria-current'
 ].forEach(token => expect(client.includes(token), `Client wizard UX token is missing: ${token}.`));
 
 expect(client.includes('data-create-type-fields="Individual"'), 'Individual identity group is missing.');

@@ -36,7 +36,7 @@ expect(page.indexOf('form-ux.js') < page.indexOf('entity-detail-ux.js'), 'Entity
 expect(page.indexOf('form-ux.js') < page.indexOf('client-hierarchy.js'), 'form-ux.js must load before client-hierarchy.js on Plant Detail.');
 expect(live.includes("dataOrigin: 'live'") && live.includes('lastSyncAt: plant.lastSyncAt'), 'Live Plant Detail records must preserve origin and freshness.');
 expect(data.includes("dataOrigin: p.dataOrigin || 'local'") && data.includes('sourceSystem: p.sourceSystem'), 'Local plant normalization must preserve source-aware metadata.');
-expect(hierarchy.includes('FleetClientModel.plants[existingIndex] = { ...FleetClientModel.plants[existingIndex]!, ...p }'), 'Saved local plant overrides must replace built-in records after reload.');
+expect(hierarchy.includes('ZentridClientModel.plants[existingIndex] = { ...ZentridClientModel.plants[existingIndex]!, ...p }'), 'Saved local plant overrides must replace built-in records after reload.');
 [
   '.plant-detail-control-v119', '.plant-detail-feedback-v119', '.plant-section-context-v119',
   '.plant-edit-grid-v119', '.plant-readonly-status-v119', '.plant-data-state-v119'

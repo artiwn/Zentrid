@@ -13,7 +13,7 @@ const cssManifest = JSON.parse(read('assets/css/src/manifest.json'));
 const packageJson = JSON.parse(read('package.json'));
 
 [
-  'FleetBrowserSecurity', 'isUnsafeUrl', 'noopener', 'noreferrer', 'securitypolicyviolation',
+  'ZentridBrowserSecurity', 'isUnsafeUrl', 'noopener', 'noreferrer', 'securitypolicyviolation',
   'storageFindings', 'openExternal', 'zentrid:security-blocked-navigation'
 ].forEach(token => assert(security.includes(token), `Security runtime token is missing: ${token}`));
 assert(api.includes("sessionStorage.setItem('zentrid_auth_storage_v139', 'sessionStorage')"), 'Auth vault must prefer sessionStorage.');

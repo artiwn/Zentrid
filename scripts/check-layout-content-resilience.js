@@ -20,9 +20,9 @@ const pkg = JSON.parse(read('package.json') || '{}');
 
 [
   'function ensureStateCopy',
-  "copy.className = 'fleet-ux-state-copy'",
+  "copy.className = 'zentrid-ux-state-copy'",
   'Array.from(element.childNodes)',
-  "element.dataset.fleetUxStateCopyWrapped = 'true'",
+  "element.dataset.zentridUxStateCopyWrapped = 'true'",
   'ensureStateCopy(element, icon)'
 ].forEach(token => expect(ux.includes(token), `State content wrapper token missing: ${token}`));
 
@@ -31,7 +31,7 @@ expect(registry.includes('<span>Page</span><input'), 'Page jump label is not str
 expect(registry.includes('aria-label="Rows per page"'), 'Rows-per-page select is missing an accessible name.');
 
 [
-  '.fleet-ux-state-copy small',
+  '.zentrid-ux-state-copy small',
   'align-self: center',
   'overflow-wrap: anywhere'
 ].forEach(token => expect(uxCss.includes(token), `State copy CSS token missing: ${token}`));
@@ -40,7 +40,7 @@ expect(registry.includes('aria-label="Rows per page"'), 'Rows-per-page select is
   '.panel-head > div',
   '.metric-grid > div',
   '.panel-head h1',
-  '.fleet-ux-state-copy'
+  '.zentrid-ux-state-copy'
 ].forEach(token => expect(resilienceCss.includes(token), `Content resilience CSS token missing: ${token}`));
 
 [

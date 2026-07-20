@@ -17,14 +17,14 @@ const css = read('assets/css/src/05-platform-core-patches.css');
 const packageJson = JSON.parse(read('package.json') || '{}');
 
 [
-  'FleetFormUX', 'validate(root', 'setControlError', 'renderSummary', 'focusFirst',
+  'ZentridFormUX', 'validate(root', 'setControlError', 'renderSummary', 'focusFirst',
   'snapshot(form', 'bindClearOnInput', 'setBusy'
 ].forEach(token => expect(formUx.includes(token), `Shared form UX token is missing: ${token}.`));
 
 [
   'tenantValidationSummary', 'validateStep', 'validateBeforeStep', 'customStepIssues',
   'attemptCloseWizard', 'window.confirm', 'normalizeDuplicateValue',
-  'Add at least one contact person', 'Primary contact', 'FleetFormUX.setBusy',
+  'Add at least one contact person', 'Primary contact', 'ZentridFormUX.setBusy',
   "tenantForm.onsubmit", "window.tenantWizardDocuments = []"
 ].forEach(token => expect(tenants.includes(token), `Tenant wizard UX token is missing: ${token}.`));
 

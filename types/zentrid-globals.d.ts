@@ -1,26 +1,26 @@
-interface FleetExpressApp {
+interface ZentridExpressApp {
   use(...args: unknown[]): void;
   get(...args: unknown[]): void;
   listen(port: string | number, callback?: () => void): void;
 }
-interface FleetExpressFactory {
-  (): FleetExpressApp;
+interface ZentridExpressFactory {
+  (): ZentridExpressApp;
   json(options?: { limit?: string }): unknown;
   static(root: string): unknown;
 }
-interface FleetCorsFactory {
+interface ZentridCorsFactory {
   (...args: unknown[]): unknown;
 }
-declare function require(id: 'express'): FleetExpressFactory;
-declare function require(id: 'cors'): FleetCorsFactory;
+declare function require(id: 'express'): ZentridExpressFactory;
+declare function require(id: 'cors'): ZentridCorsFactory;
 declare function require(id: string): unknown;
 declare const process: { env: Record<string, string | undefined> };
 declare const __dirname: string;
 
-type FleetLegacyCompat = any;
+type ZentridLegacyCompat = any;
 
 declare interface Window {
-  [key: string]: FleetLegacyCompat;
+  [key: string]: ZentridLegacyCompat;
 }
 
 declare interface Element {
@@ -28,12 +28,12 @@ declare interface Element {
 }
 
 declare interface EventTarget {
-  closest?: FleetLegacyCompat;
-  dataset?: FleetLegacyCompat;
+  closest?: ZentridLegacyCompat;
+  dataset?: ZentridLegacyCompat;
 }
 
 declare interface Event {
-  detail?: FleetLegacyCompat;
+  detail?: ZentridLegacyCompat;
 }
 
 // Legacy DOM conveniences used by the non-module prototype scripts.
@@ -63,7 +63,7 @@ declare interface EventTarget {
 
 // Additional legacy DOM conveniences for integration prototype scripts.
 declare interface Element {
-  matches?: FleetLegacyCompat;
+  matches?: ZentridLegacyCompat;
 }
 
 declare interface HTMLElement {
@@ -71,11 +71,11 @@ declare interface HTMLElement {
 }
 
 declare interface EventTarget {
-  matches?: FleetLegacyCompat;
+  matches?: ZentridLegacyCompat;
 }
 
 
-interface FleetDeviceCatalogLegacyApi {
+interface ZentridDeviceCatalogLegacyApi {
   catalog: Array<{ kind: string; vendor: string; model: string; rating: string; protocol: string; shared: string; individual: string }>;
   compatibility: Array<{ from: string; to: string; type: string; status: string; rule: string }>;
 }
@@ -90,14 +90,14 @@ interface SettlementCenterLegacyApi {
   closeDrawer(): void;
 }
 
-interface FleetCommercialAgreementsLegacyApi {
+interface ZentridCommercialAgreementsLegacyApi {
   toast(message: string): void;
   open(type: string, title: string, meta: string): void;
 }
 
 // Runtime globals produced by legacy non-module browser scripts.
-declare const FleetClientModel: FleetClientModelLegacyApi;
-declare const FleetDeviceCatalog: FleetDeviceCatalogLegacyApi;
+declare const ZentridClientModel: ZentridClientModelLegacyApi;
+declare const ZentridDeviceCatalog: ZentridDeviceCatalogLegacyApi;
 declare function renderClientsPage(): void;
 declare function renderClientDetailPage(): void;
 declare function renderClientPlantAssignmentPage(): void;
@@ -105,7 +105,7 @@ declare function renderClientOnboardingPage(): void;
 
 // Commercial / settlement prototype globals exposed by non-module scripts.
 declare const SettlementCenter: SettlementCenterLegacyApi;
-declare const FleetCommercialAgreementsV125: FleetCommercialAgreementsLegacyApi;
+declare const ZentridCommercialAgreementsV125: ZentridCommercialAgreementsLegacyApi;
 
 // Detail and registry renderers exposed by legacy page scripts.
 declare function renderPlantDetailPage(): void;
@@ -131,20 +131,20 @@ interface Window {
 
 
 // Narrow legacy API contracts used while the browser prototype is still non-module based.
-interface FleetLayoutDrawerApi {
+interface ZentridLayoutDrawerApi {
   (title: string, details?: Record<string, unknown>, bodyHtml?: string): void;
 }
 
-interface FleetLayoutLegacyApi {
+interface ZentridLayoutLegacyApi {
   mount(html: string): void;
   toast(message: string): void;
   pathFor(route: string): string;
   enhanceActionMenus?(root?: Document | Element | null): void;
-  drawer?: FleetLayoutDrawerApi;
+  drawer?: ZentridLayoutDrawerApi;
 }
 
 
-interface FleetClientLegacyClient {
+interface ZentridClientLegacyClient {
   id: string;
   name: string;
   code?: unknown;
@@ -173,7 +173,7 @@ interface FleetClientLegacyClient {
   documents?: unknown;
 }
 
-interface FleetClientLegacyPlant {
+interface ZentridClientLegacyPlant {
   id: string;
   clientId: string;
   name: string;
@@ -191,7 +191,7 @@ interface FleetClientLegacyPlant {
   operator?: unknown;
 }
 
-interface FleetClientLegacyDevice {
+interface ZentridClientLegacyDevice {
   id: string;
   plantId: string;
   name: string;
@@ -206,25 +206,25 @@ interface FleetClientLegacyDevice {
   children?: unknown;
 }
 
-interface FleetClientModelLegacyApi {
-  clients: FleetClientLegacyClient[];
-  plants: FleetClientLegacyPlant[];
-  devices: FleetClientLegacyDevice[];
+interface ZentridClientModelLegacyApi {
+  clients: ZentridClientLegacyClient[];
+  plants: ZentridClientLegacyPlant[];
+  devices: ZentridClientLegacyDevice[];
   badge(value: unknown): string;
-  getClient(id?: string | null): FleetClientLegacyClient | undefined;
-  getPlant(id?: string | null): FleetClientLegacyPlant | undefined;
-  plantsForClient(clientId: string): FleetClientLegacyPlant[];
-  devicesForPlant(plantId: string): FleetClientLegacyDevice[];
+  getClient(id?: string | null): ZentridClientLegacyClient | undefined;
+  getPlant(id?: string | null): ZentridClientLegacyPlant | undefined;
+  plantsForClient(clientId: string): ZentridClientLegacyPlant[];
+  devicesForPlant(plantId: string): ZentridClientLegacyDevice[];
   countsForClient(clientId: string): { plants: number; devices: number; capacity: string; alerts: number };
   selectClient(id: string): void;
   selectPlant(id: string): void;
-  selectedClient(): FleetClientLegacyClient;
-  selectedPlant(): FleetClientLegacyPlant;
+  selectedClient(): ZentridClientLegacyClient;
+  selectedPlant(): ZentridClientLegacyPlant;
 }
 
 interface Window {
-  FleetLayout: FleetLayoutLegacyApi;
-  FleetClientModel: FleetClientModelLegacyApi;
+  ZentridLayout: ZentridLayoutLegacyApi;
+  ZentridClientModel: ZentridClientModelLegacyApi;
 }
 
 // Additional page shell renderers used by strict page-script checks.
@@ -236,57 +236,57 @@ declare function renderProduction(): string;
 declare function wireProduction(): void;
 
 interface Window {
-  FleetDataSource: FleetDataSourceApi;
+  ZentridDataSource: ZentridDataSourceApi;
   ZentridLiveTenants?: Array<Record<string, unknown>>;
   ZentridLiveIntegrations?: Array<Record<string, unknown>>;
 }
 
-declare const FleetDataSource: FleetDataSourceApi;
+declare const ZentridDataSource: ZentridDataSourceApi;
 
-type FleetContractRecord = Record<string, FleetLegacyCompat>;
-interface FleetContractMapperContext {
+type ZentridContractRecord = Record<string, ZentridLegacyCompat>;
+interface ZentridContractMapperContext {
   safeText(value: unknown, fallback?: unknown): string;
-  firstOf(row: FleetContractRecord, keys: string[], fallback?: unknown): unknown;
-  displayName(row: FleetContractRecord, keys: string[], entityLabel: string, index: number, typeHint?: unknown): string;
+  firstOf(row: ZentridContractRecord, keys: string[], fallback?: unknown): unknown;
+  displayName(row: ZentridContractRecord, keys: string[], entityLabel: string, index: number, typeHint?: unknown): string;
   formatDate(value: unknown, fallback?: string): string;
   integrationVendor(value: unknown): string;
   integrationSoftware(value: unknown): string;
 }
-type FleetContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
-type FleetContractSeverity = 'error' | 'warning';
-interface FleetContractIssue {
-  entity: FleetContractEntity;
+type ZentridContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
+type ZentridContractSeverity = 'error' | 'warning';
+interface ZentridContractIssue {
+  entity: ZentridContractEntity;
   entityLabel: string;
   index: number;
-  severity: FleetContractSeverity;
+  severity: ZentridContractSeverity;
   code: 'INVALID_RECORD' | 'MISSING_REQUIRED_FIELD' | 'INVALID_FIELD_TYPE';
   field: string;
   aliases: string[];
   message: string;
 }
-interface FleetContractValidation {
-  entity: FleetContractEntity;
+interface ZentridContractValidation {
+  entity: ZentridContractEntity;
   valid: boolean;
-  issues: FleetContractIssue[];
+  issues: ZentridContractIssue[];
 }
-interface FleetContractDiagnosticSummary {
+interface ZentridContractDiagnosticSummary {
   total: number;
   errors: number;
   warnings: number;
-  affectedEntities: FleetContractEntity[];
+  affectedEntities: ZentridContractEntity[];
 }
 
-type FleetFieldFormat = 'identifier' | 'text' | 'status' | 'date' | 'count' | 'email' | 'phone' | 'relation' | 'power' | 'energy' | 'boolean' | 'raw';
-interface FleetFieldMappingDefinition {
+type ZentridFieldFormat = 'identifier' | 'text' | 'status' | 'date' | 'count' | 'email' | 'phone' | 'relation' | 'power' | 'energy' | 'boolean' | 'raw';
+interface ZentridFieldMappingDefinition {
   canonicalField: string;
   aliases: string[];
   uiTargets: string[];
-  format: FleetFieldFormat;
+  format: ZentridFieldFormat;
   fallback: string;
-  required?: FleetContractSeverity;
+  required?: ZentridContractSeverity;
 }
-interface FleetFieldAuditRecord {
-  entity: FleetContractEntity;
+interface ZentridFieldAuditRecord {
+  entity: ZentridContractEntity;
   index: number;
   mappedFields: string[];
   fallbackFields: string[];
@@ -295,8 +295,8 @@ interface FleetFieldAuditRecord {
   sourceByCanonical: Record<string, string>;
   rawFieldCount: number;
 }
-interface FleetFieldAuditEntitySummary {
-  entity: FleetContractEntity;
+interface ZentridFieldAuditEntitySummary {
+  entity: ZentridContractEntity;
   records: number;
   rawFields: number;
   mappedFields: number;
@@ -304,78 +304,78 @@ interface FleetFieldAuditEntitySummary {
   missingExpectedFields: number;
   unmappedFields: number;
 }
-interface FleetFieldAuditSummary {
+interface ZentridFieldAuditSummary {
   records: number;
   rawFields: number;
   mappedFields: number;
   fallbackFields: number;
   missingExpectedFields: number;
   unmappedFields: number;
-  affectedEntities: FleetContractEntity[];
-  byEntity: FleetFieldAuditEntitySummary[];
+  affectedEntities: ZentridContractEntity[];
+  byEntity: ZentridFieldAuditEntitySummary[];
 }
-interface FleetFieldAuditApi {
-  clear(entity?: FleetContractEntity): void;
-  manifest(entity?: FleetContractEntity): FleetFieldMappingDefinition[] | Record<FleetContractEntity, FleetFieldMappingDefinition[]>;
-  list(entity?: FleetContractEntity): FleetFieldAuditRecord[];
-  summary(entity?: FleetContractEntity): FleetFieldAuditSummary;
+interface ZentridFieldAuditApi {
+  clear(entity?: ZentridContractEntity): void;
+  manifest(entity?: ZentridContractEntity): ZentridFieldMappingDefinition[] | Record<ZentridContractEntity, ZentridFieldMappingDefinition[]>;
+  list(entity?: ZentridContractEntity): ZentridFieldAuditRecord[];
+  summary(entity?: ZentridContractEntity): ZentridFieldAuditSummary;
 }
-interface FleetContractDiagnosticsApi {
-  clear(entity?: FleetContractEntity): void;
-  report(issues: FleetContractIssue[]): void;
-  list(entity?: FleetContractEntity): FleetContractIssue[];
-  summary(entity?: FleetContractEntity): FleetContractDiagnosticSummary;
+interface ZentridContractDiagnosticsApi {
+  clear(entity?: ZentridContractEntity): void;
+  report(issues: ZentridContractIssue[]): void;
+  list(entity?: ZentridContractEntity): ZentridContractIssue[];
+  summary(entity?: ZentridContractEntity): ZentridContractDiagnosticSummary;
 }
-interface FleetEntityContractApi {
-  parse(value: unknown): FleetContractRecord | null;
-  validate(value: unknown, index?: number): FleetContractValidation;
-  map(value: unknown, index: number, context: FleetContractMapperContext): FleetContractRecord;
-  mapList(values: unknown[], context: FleetContractMapperContext): FleetContractRecord[];
+interface ZentridEntityContractApi {
+  parse(value: unknown): ZentridContractRecord | null;
+  validate(value: unknown, index?: number): ZentridContractValidation;
+  map(value: unknown, index: number, context: ZentridContractMapperContext): ZentridContractRecord;
+  mapList(values: unknown[], context: ZentridContractMapperContext): ZentridContractRecord[];
 }
-interface FleetAPIContractsApi {
-  clients: FleetEntityContractApi;
-  tenants: FleetEntityContractApi;
-  plants: FleetEntityContractApi;
-  devices: FleetEntityContractApi;
-  alerts: FleetEntityContractApi;
-  integrations: FleetEntityContractApi;
-  diagnostics: FleetContractDiagnosticsApi;
-  fieldAudit: FleetFieldAuditApi;
+interface ZentridAPIContractsApi {
+  clients: ZentridEntityContractApi;
+  tenants: ZentridEntityContractApi;
+  plants: ZentridEntityContractApi;
+  devices: ZentridEntityContractApi;
+  alerts: ZentridEntityContractApi;
+  integrations: ZentridEntityContractApi;
+  diagnostics: ZentridContractDiagnosticsApi;
+  fieldAudit: ZentridFieldAuditApi;
 }
-declare const FleetAPIContracts: FleetAPIContractsApi;
-interface Window { FleetAPIContracts: FleetAPIContractsApi; }
+declare const ZentridAPIContracts: ZentridAPIContractsApi;
+interface Window { ZentridAPIContracts: ZentridAPIContractsApi; }
 
 
 
-interface FleetDetailLazySnapshot {
+interface ZentridDetailLazySnapshot {
   page: string;
   resource: string;
   label: string;
   status: 'idle' | 'loading' | 'loaded' | 'error';
   errorMessage: string;
 }
-interface FleetDetailLazyResourceDefinition {
+interface ZentridDetailLazyResourceDefinition {
   key: string;
   tabs: string[];
   label: string;
   description?: string;
   loader: () => Promise<void> | void;
 }
-interface FleetDetailLazyTabsApi {
-  register(page: string, definitions: FleetDetailLazyResourceDefinition[]): void;
+interface ZentridDetailLazyTabsApi {
+  register(page: string, definitions: ZentridDetailLazyResourceDefinition[]): void;
   activate(page: string, tab: string): void;
   load(page: string, tabOrResource: string, force?: boolean): Promise<void>;
-  snapshot(page: string, tabOrResource: string): FleetDetailLazySnapshot | null;
+  snapshot(page: string, tabOrResource: string): ZentridDetailLazySnapshot | null;
   panel(page: string, tab: string, content: string): string;
   observe(page: string, key: string, callback: () => void): void;
   unobserve(page: string, key: string): void;
   reset(page: string, resourceKey?: string): void;
   dispose(page?: string): void;
 }
-declare const FleetDetailLazyTabs: FleetDetailLazyTabsApi;
-interface Window { FleetDetailLazyTabs: FleetDetailLazyTabsApi; }
+declare const ZentridDetailLazyTabs: ZentridDetailLazyTabsApi;
+interface Window { ZentridDetailLazyTabs: ZentridDetailLazyTabsApi; }
 
-interface FleetRegistryQueryState {
+interface ZentridRegistryQueryState {
   entity: 'clients' | 'plants' | 'devices' | 'alerts';
   page: number;
   pageSize: number;
@@ -384,7 +384,7 @@ interface FleetRegistryQueryState {
   sortDirection: 'asc' | 'desc' | '';
   params: Record<string, string>;
 }
-interface FleetRegistryPaginationState {
+interface ZentridRegistryPaginationState {
   page: number;
   pageSize: number;
   totalCount: number;
@@ -394,23 +394,23 @@ interface FleetRegistryPaginationState {
   server: boolean;
   source?: string;
 }
-interface FleetRegistryQueryApi {
-  read(entity: 'clients' | 'plants' | 'devices' | 'alerts'): FleetRegistryQueryState;
-  update(entity: 'clients' | 'plants' | 'devices' | 'alerts', patch: Record<string, string | number | boolean | null | undefined>, options?: { replace?: boolean; emit?: boolean }): FleetRegistryQueryState;
-  setPagination(entity: 'clients' | 'plants' | 'devices' | 'alerts', pagination: Partial<FleetRegistryPaginationState>): FleetRegistryPaginationState;
-  pagination(entity: 'clients' | 'plants' | 'devices' | 'alerts'): FleetRegistryPaginationState | null;
+interface ZentridRegistryQueryApi {
+  read(entity: 'clients' | 'plants' | 'devices' | 'alerts'): ZentridRegistryQueryState;
+  update(entity: 'clients' | 'plants' | 'devices' | 'alerts', patch: Record<string, string | number | boolean | null | undefined>, options?: { replace?: boolean; emit?: boolean }): ZentridRegistryQueryState;
+  setPagination(entity: 'clients' | 'plants' | 'devices' | 'alerts', pagination: Partial<ZentridRegistryPaginationState>): ZentridRegistryPaginationState;
+  pagination(entity: 'clients' | 'plants' | 'devices' | 'alerts'): ZentridRegistryPaginationState | null;
   pagerHtml(entity: 'clients' | 'plants' | 'devices' | 'alerts', fallbackTotal?: number): string;
   filterScopeHtml(entity: 'clients' | 'plants' | 'devices' | 'alerts'): string;
   activeCurrentPageFilters(entity: 'clients' | 'plants' | 'devices' | 'alerts'): string[];
   supportedPageSizes: number[];
 }
-declare const FleetRegistryQuery: FleetRegistryQueryApi;
-interface Window { FleetRegistryQuery: FleetRegistryQueryApi; }
+declare const ZentridRegistryQuery: ZentridRegistryQueryApi;
+interface Window { ZentridRegistryQuery: ZentridRegistryQueryApi; }
 
-interface FleetRepositoryMapperContext extends FleetContractMapperContext {
-  realDisplayName?(row: FleetContractRecord, entityLabel: string, typeHint?: unknown): string;
+interface ZentridRepositoryMapperContext extends ZentridContractMapperContext {
+  realDisplayName?(row: ZentridContractRecord, entityLabel: string, typeHint?: unknown): string;
 }
-interface FleetRepositoryPagination {
+interface ZentridRepositoryPagination {
   page: number;
   pageSize: number;
   totalCount: number;
@@ -418,9 +418,9 @@ interface FleetRepositoryPagination {
   hasPreviousPage: boolean;
   hasNextPage: boolean;
 }
-type FleetRepositoryCacheState = 'network' | 'fresh' | 'stale' | 'persistent';
-interface FleetRepositoryCacheMeta {
-  state: FleetRepositoryCacheState;
+type ZentridRepositoryCacheState = 'network' | 'fresh' | 'stale' | 'persistent';
+interface ZentridRepositoryCacheMeta {
+  state: ZentridRepositoryCacheState;
   key: string;
   ageMs: number;
   cachedAt: number;
@@ -429,19 +429,19 @@ interface FleetRepositoryCacheMeta {
   revalidating: boolean;
   fallback: boolean;
 }
-interface FleetRepositoryListResult {
-  entity: FleetContractEntity;
-  items: FleetContractRecord[];
-  rawItems: FleetContractRecord[];
+interface ZentridRepositoryListResult {
+  entity: ZentridContractEntity;
+  items: ZentridContractRecord[];
+  rawItems: ZentridContractRecord[];
   source: string;
   errors: unknown[];
-  pagination: FleetRepositoryPagination;
-  cache?: FleetRepositoryCacheMeta;
+  pagination: ZentridRepositoryPagination;
+  cache?: ZentridRepositoryCacheMeta;
 }
-interface FleetRepositoryItemResult extends FleetRepositoryListResult {
-  item: FleetContractRecord | null;
+interface ZentridRepositoryItemResult extends ZentridRepositoryListResult {
+  item: ZentridContractRecord | null;
 }
-interface FleetRepositoryReadOptions {
+interface ZentridRepositoryReadOptions {
   forceRefresh?: boolean;
   maxAgeMs?: number;
   staleMaxAgeMs?: number;
@@ -455,8 +455,8 @@ interface FleetRepositoryReadOptions {
   pageSize?: number;
   signal?: AbortSignal;
 }
-interface FleetRepositoryCacheSnapshotEntry {
-  entity: FleetContractEntity;
+interface ZentridRepositoryCacheSnapshotEntry {
+  entity: ZentridContractEntity;
   cached: boolean;
   persistent: boolean;
   inFlight: boolean;
@@ -474,126 +474,126 @@ interface FleetRepositoryCacheSnapshotEntry {
   cancellations: number;
   fallbacks: number;
 }
-interface FleetRepositoryCacheApi {
-  invalidate(entity?: FleetContractEntity): void;
-  invalidateMany(entities: FleetContractEntity[]): void;
-  snapshot(entity?: FleetContractEntity): FleetRepositoryCacheSnapshotEntry[];
-  clearPersistent(entity?: FleetContractEntity): void;
+interface ZentridRepositoryCacheApi {
+  invalidate(entity?: ZentridContractEntity): void;
+  invalidateMany(entities: ZentridContractEntity[]): void;
+  snapshot(entity?: ZentridContractEntity): ZentridRepositoryCacheSnapshotEntry[];
+  clearPersistent(entity?: ZentridContractEntity): void;
 }
-interface FleetRepositoryCoordinatorApi {
+interface ZentridRepositoryCoordinatorApi {
   cancel(group: string): void;
   cancelAll(): void;
-  snapshot(): Array<{ group: string; entity: FleetContractEntity; key: string; aborted: boolean }>;
+  snapshot(): Array<{ group: string; entity: ZentridContractEntity; key: string; aborted: boolean }>;
 }
 
 interface ZentridDataMutationDetail {
   action: string;
   path: string;
   method: string;
-  entities: FleetContractEntity[];
+  entities: ZentridContractEntity[];
   completedAt: string;
 }
-interface FleetEntityReadRepositoryApi {
-  list(options?: FleetRepositoryReadOptions): Promise<FleetRepositoryListResult>;
-  get(id: string, options?: FleetRepositoryReadOptions): Promise<FleetRepositoryItemResult>;
+interface ZentridEntityReadRepositoryApi {
+  list(options?: ZentridRepositoryReadOptions): Promise<ZentridRepositoryListResult>;
+  get(id: string, options?: ZentridRepositoryReadOptions): Promise<ZentridRepositoryItemResult>;
 }
-interface FleetIntegrationReadRepositoryApi extends FleetEntityReadRepositoryApi {
-  summary(options?: FleetRepositoryReadOptions): Promise<FleetRepositoryListResult>;
+interface ZentridIntegrationReadRepositoryApi extends ZentridEntityReadRepositoryApi {
+  summary(options?: ZentridRepositoryReadOptions): Promise<ZentridRepositoryListResult>;
 }
-interface FleetAPIRepositoriesApi {
-  configure(context: FleetRepositoryMapperContext): void;
+interface ZentridAPIRepositoriesApi {
+  configure(context: ZentridRepositoryMapperContext): void;
   isConfigured(): boolean;
-  cache: FleetRepositoryCacheApi;
-  coordinator: FleetRepositoryCoordinatorApi;
-  clients: FleetEntityReadRepositoryApi;
-  tenants: FleetEntityReadRepositoryApi;
-  plants: FleetEntityReadRepositoryApi;
-  devices: FleetEntityReadRepositoryApi;
-  alerts: FleetEntityReadRepositoryApi;
-  integrations: FleetIntegrationReadRepositoryApi;
+  cache: ZentridRepositoryCacheApi;
+  coordinator: ZentridRepositoryCoordinatorApi;
+  clients: ZentridEntityReadRepositoryApi;
+  tenants: ZentridEntityReadRepositoryApi;
+  plants: ZentridEntityReadRepositoryApi;
+  devices: ZentridEntityReadRepositoryApi;
+  alerts: ZentridEntityReadRepositoryApi;
+  integrations: ZentridIntegrationReadRepositoryApi;
 }
-declare const FleetAPIRepositories: FleetAPIRepositoriesApi;
-interface Window { FleetAPIRepositories: FleetAPIRepositoriesApi; }
+declare const ZentridAPIRepositories: ZentridAPIRepositoriesApi;
+interface Window { ZentridAPIRepositories: ZentridAPIRepositoriesApi; }
 
-interface FleetMutationMeta {
+interface ZentridMutationMeta {
   operationId: string;
   action: string;
   path: string;
   method: string;
-  entities: FleetContractEntity[];
+  entities: ZentridContractEntity[];
   startedAt: string;
   completedAt: string;
   durationMs: number;
 }
-type FleetMutationErrorKind = 'timeout' | 'cancelled' | 'unauthorized' | 'forbidden' | 'validation' | 'conflict' | 'rate-limit' | 'server' | 'network' | 'unknown';
-interface FleetMutationNormalizedError {
-  kind: FleetMutationErrorKind;
+type ZentridMutationErrorKind = 'timeout' | 'cancelled' | 'unauthorized' | 'forbidden' | 'validation' | 'conflict' | 'rate-limit' | 'server' | 'network' | 'unknown';
+interface ZentridMutationNormalizedError {
+  kind: ZentridMutationErrorKind;
   message: string;
   status: number;
   code: string;
   path: string;
   retriable: boolean;
 }
-interface FleetMutationSuccess<T = unknown> {
+interface ZentridMutationSuccess<T = unknown> {
   ok: true;
   data: T;
   message: string;
-  meta: FleetMutationMeta;
+  meta: ZentridMutationMeta;
 }
-interface FleetMutationFailure {
+interface ZentridMutationFailure {
   ok: false;
   data: null;
   message: string;
-  error: FleetMutationNormalizedError;
-  meta: FleetMutationMeta;
+  error: ZentridMutationNormalizedError;
+  meta: ZentridMutationMeta;
 }
-type FleetMutationResult<T = unknown> = FleetMutationSuccess<T> | FleetMutationFailure;
-interface FleetMutationCreateApi {
-  create(payload: unknown): Promise<FleetMutationResult>;
+type ZentridMutationResult<T = unknown> = ZentridMutationSuccess<T> | ZentridMutationFailure;
+interface ZentridMutationCreateApi {
+  create(payload: unknown): Promise<ZentridMutationResult>;
 }
-interface FleetAPIMutationsApi {
-  run<T>(descriptor: { action: string; path: string; method: string; entities: FleetContractEntity[]; successMessage: string }, operation: () => Promise<T>): Promise<FleetMutationResult<T>>;
-  isSuccess<T>(result: FleetMutationResult<T>): result is FleetMutationSuccess<T>;
-  isFailure<T>(result: FleetMutationResult<T>): result is FleetMutationFailure;
-  unwrap<T>(result: FleetMutationResult<T>): T;
-  clients: FleetMutationCreateApi;
-  tenants: FleetMutationCreateApi & {
-    activate(id: string): Promise<FleetMutationResult>;
-    deactivate(id: string): Promise<FleetMutationResult>;
-    archive(id: string): Promise<FleetMutationResult>;
+interface ZentridAPIMutationsApi {
+  run<T>(descriptor: { action: string; path: string; method: string; entities: ZentridContractEntity[]; successMessage: string }, operation: () => Promise<T>): Promise<ZentridMutationResult<T>>;
+  isSuccess<T>(result: ZentridMutationResult<T>): result is ZentridMutationSuccess<T>;
+  isFailure<T>(result: ZentridMutationResult<T>): result is ZentridMutationFailure;
+  unwrap<T>(result: ZentridMutationResult<T>): T;
+  clients: ZentridMutationCreateApi;
+  tenants: ZentridMutationCreateApi & {
+    activate(id: string): Promise<ZentridMutationResult>;
+    deactivate(id: string): Promise<ZentridMutationResult>;
+    archive(id: string): Promise<ZentridMutationResult>;
   };
-  plants: FleetMutationCreateApi;
-  integrations: FleetMutationCreateApi & {
-    validate(id: string): Promise<FleetMutationResult>;
-    testConnection(id: string): Promise<FleetMutationResult>;
-    testSampleData(id: string): Promise<FleetMutationResult>;
-    activate(id: string): Promise<FleetMutationResult>;
-    suspend(id: string): Promise<FleetMutationResult>;
-    archive(id: string): Promise<FleetMutationResult>;
-    failed(id: string): Promise<FleetMutationResult>;
+  plants: ZentridMutationCreateApi;
+  integrations: ZentridMutationCreateApi & {
+    validate(id: string): Promise<ZentridMutationResult>;
+    testConnection(id: string): Promise<ZentridMutationResult>;
+    testSampleData(id: string): Promise<ZentridMutationResult>;
+    activate(id: string): Promise<ZentridMutationResult>;
+    suspend(id: string): Promise<ZentridMutationResult>;
+    archive(id: string): Promise<ZentridMutationResult>;
+    failed(id: string): Promise<ZentridMutationResult>;
   };
 }
-declare const FleetAPIMutations: FleetAPIMutationsApi;
-interface Window { FleetAPIMutations: FleetAPIMutationsApi; }
+declare const ZentridAPIMutations: ZentridAPIMutationsApi;
+interface Window { ZentridAPIMutations: ZentridAPIMutationsApi; }
 
 
-interface FleetTenantLifecycleApi {
+interface ZentridTenantLifecycleApi {
   render(record: Record<string, unknown>): string;
   wire(record: Record<string, unknown>): void;
   isBackendManaged(record: Record<string, unknown>): boolean;
 }
 
-declare const FleetTenantLifecycle: FleetTenantLifecycleApi;
-interface Window { FleetTenantLifecycle: FleetTenantLifecycleApi; }
+declare const ZentridTenantLifecycle: ZentridTenantLifecycleApi;
+interface Window { ZentridTenantLifecycle: ZentridTenantLifecycleApi; }
 
 
-interface FleetApiDiagnosticPagination {
+interface ZentridApiDiagnosticPagination {
   page: number | null;
   pageSize: number | null;
   totalCount: number | null;
   totalPages: number | null;
 }
-interface FleetApiDiagnosticEndpoint {
+interface ZentridApiDiagnosticEndpoint {
   key: string;
   path: string;
   method: string;
@@ -603,13 +603,13 @@ interface FleetApiDiagnosticEndpoint {
   durationMs: number;
   responseBytes: number;
   rows: number | null;
-  pagination: FleetApiDiagnosticPagination;
+  pagination: ZentridApiDiagnosticPagination;
   contentType: string;
   requestId: string;
   shapeHash: string;
   shape: string[];
 }
-interface FleetApiDiagnosticDelta {
+interface ZentridApiDiagnosticDelta {
   available: boolean;
   tone: 'success' | 'warning' | 'danger' | 'neutral';
   durationDeltaMs: number;
@@ -619,24 +619,24 @@ interface FleetApiDiagnosticDelta {
   shapeChanged: boolean;
   summary: string;
 }
-interface FleetApiDiagnosticsApi {
+interface ZentridApiDiagnosticsApi {
   endpointKey(result: Pick<ZentridRawRequestResult, 'method' | 'path'>): string;
-  pagination(value: unknown): FleetApiDiagnosticPagination;
+  pagination(value: unknown): ZentridApiDiagnosticPagination;
   redact(value: unknown): unknown;
   shape(value: unknown): string[];
   hash(input: string): string;
-  endpoint(result: ZentridRawRequestResult): FleetApiDiagnosticEndpoint;
-  compare(current: FleetApiDiagnosticEndpoint, previous?: FleetApiDiagnosticEndpoint): FleetApiDiagnosticDelta;
-  captureRun(results: ZentridRawRequestResult[]): Record<string, FleetApiDiagnosticDelta>;
+  endpoint(result: ZentridRawRequestResult): ZentridApiDiagnosticEndpoint;
+  compare(current: ZentridApiDiagnosticEndpoint, previous?: ZentridApiDiagnosticEndpoint): ZentridApiDiagnosticDelta;
+  captureRun(results: ZentridRawRequestResult[]): Record<string, ZentridApiDiagnosticDelta>;
   safeSnapshot(result: ZentridRawRequestResult): Record<string, unknown>;
-  diagnosticsText(result: ZentridRawRequestResult, delta?: FleetApiDiagnosticDelta): string;
+  diagnosticsText(result: ZentridRawRequestResult, delta?: ZentridApiDiagnosticDelta): string;
   clear(): void;
   contractCatalog: Array<{ entity: string; fixture: string; endpoint: string }>;
 }
-declare const FleetAPIDiagnostics: FleetApiDiagnosticsApi;
-interface Window { FleetAPIDiagnostics: FleetApiDiagnosticsApi; }
+declare const ZentridAPIDiagnostics: ZentridApiDiagnosticsApi;
+interface Window { ZentridAPIDiagnostics: ZentridApiDiagnosticsApi; }
 
-interface FleetRuntimeStabilitySnapshot {
+interface ZentridRuntimeStabilitySnapshot {
   timers: number;
   frames: number;
   idles: number;
@@ -644,7 +644,7 @@ interface FleetRuntimeStabilitySnapshot {
   longTasks: number;
   longTaskDurationMs: number;
 }
-interface FleetRuntimeStabilityApi {
+interface ZentridRuntimeStabilityApi {
   debounce(key: string, callback: () => void, delayMs?: number): void;
   frame(key: string, callback: () => void): void;
   idle(key: string, callback: () => void, timeout?: number): void;
@@ -652,14 +652,14 @@ interface FleetRuntimeStabilityApi {
   registerCleanup(key: string, cleanup: () => void): void;
   unregisterCleanup(key: string): void;
   dispose(): void;
-  snapshot(): FleetRuntimeStabilitySnapshot;
+  snapshot(): ZentridRuntimeStabilitySnapshot;
 }
-declare const FleetRuntimeStability: FleetRuntimeStabilityApi;
-interface Window { FleetRuntimeStability: FleetRuntimeStabilityApi; }
+declare const ZentridRuntimeStability: ZentridRuntimeStabilityApi;
+interface Window { ZentridRuntimeStability: ZentridRuntimeStabilityApi; }
 
-type FleetFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
-type FleetFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
-interface FleetFreshnessSyncInput {
+type ZentridFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
+type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
+interface ZentridFreshnessSyncInput {
   liveState: string;
   title?: string;
   message?: string;
@@ -667,12 +667,12 @@ interface FleetFreshnessSyncInput {
   details?: string;
   updatedAt?: string;
   cacheAgeMs?: number;
-  status?: FleetFreshnessStatus;
-  resource?: FleetFreshnessResource;
+  status?: ZentridFreshnessStatus;
+  resource?: ZentridFreshnessResource;
 }
-interface FleetFreshnessSnapshot {
-  resource: FleetFreshnessResource;
-  status: FleetFreshnessStatus;
+interface ZentridFreshnessSnapshot {
+  resource: ZentridFreshnessResource;
+  status: ZentridFreshnessStatus;
   updatedAt: string | null;
   ageMs: number | null;
   autoRefreshMs: number;
@@ -682,43 +682,43 @@ interface FleetFreshnessSnapshot {
   online: boolean;
   visible: boolean;
 }
-interface FleetDataFreshnessApi {
-  sync(input: FleetFreshnessSyncInput): FleetFreshnessSnapshot;
+interface ZentridDataFreshnessApi {
+  sync(input: ZentridFreshnessSyncInput): ZentridFreshnessSnapshot;
   markRefreshComplete(success?: boolean): void;
   requestRefresh(reason: 'manual' | 'retry' | 'auto'): void;
   setAutoRefresh(intervalMs: number): void;
-  snapshot(resource?: FleetFreshnessResource): FleetFreshnessSnapshot;
-  inferResource(): FleetFreshnessResource;
+  snapshot(resource?: ZentridFreshnessResource): ZentridFreshnessSnapshot;
+  inferResource(): ZentridFreshnessResource;
   intervals: number[];
 }
-declare const FleetDataFreshness: FleetDataFreshnessApi;
-interface Window { FleetDataFreshness: FleetDataFreshnessApi; }
+declare const ZentridDataFreshness: ZentridDataFreshnessApi;
+interface Window { ZentridDataFreshness: ZentridDataFreshnessApi; }
 
 
-type FleetFormReadinessMode = 'api' | 'local' | 'unavailable' | 'readonly';
-interface FleetFormReadinessIssue { field: string; message: string; code: string; }
-interface FleetFormFileDescriptor { field: string; name: string; type: string; size: number; lastModified: number; }
-interface FleetFormSerialization {
+type ZentridFormReadinessMode = 'api' | 'local' | 'unavailable' | 'readonly';
+interface ZentridFormReadinessIssue { field: string; message: string; code: string; }
+interface ZentridFormFileDescriptor { field: string; name: string; type: string; size: number; lastModified: number; }
+interface ZentridFormSerialization {
   payload: Record<string, unknown>;
-  files: FleetFormFileDescriptor[];
-  issues: FleetFormReadinessIssue[];
-  meta: { formId: string; contract: string; mode: FleetFormReadinessMode; endpoint: string; method: string; serializedAt: string; fieldCount: number; };
+  files: ZentridFormFileDescriptor[];
+  issues: ZentridFormReadinessIssue[];
+  meta: { formId: string; contract: string; mode: ZentridFormReadinessMode; endpoint: string; method: string; serializedAt: string; fieldCount: number; };
 }
-interface FleetFormReadinessSnapshot { formId: string; contract: string; mode: FleetFormReadinessMode; endpoint: string; method: string; dirty: boolean; issueCount: number; fileCount: number; }
-interface FleetFormReadinessApi {
+interface ZentridFormReadinessSnapshot { formId: string; contract: string; mode: ZentridFormReadinessMode; endpoint: string; method: string; dirty: boolean; issueCount: number; fileCount: number; }
+interface ZentridFormReadinessApi {
   enhance(form: HTMLFormElement): void;
   enhanceAll(root?: ParentNode): void;
   isDirty(form: HTMLFormElement): boolean;
   markCommitted(form: HTMLFormElement): void;
-  serialize(form: HTMLFormElement): FleetFormSerialization;
-  setMode(form: HTMLFormElement, mode: FleetFormReadinessMode, note?: string): void;
-  snapshot(): FleetFormReadinessSnapshot[];
-  updatePreview(form: HTMLFormElement): FleetFormSerialization;
-  validate(form: HTMLFormElement): FleetFormSerialization;
+  serialize(form: HTMLFormElement): ZentridFormSerialization;
+  setMode(form: HTMLFormElement, mode: ZentridFormReadinessMode, note?: string): void;
+  snapshot(): ZentridFormReadinessSnapshot[];
+  updatePreview(form: HTMLFormElement): ZentridFormSerialization;
+  validate(form: HTMLFormElement): ZentridFormSerialization;
 }
-interface Window { FleetFormReadiness: FleetFormReadinessApi; }
+interface Window { ZentridFormReadiness: ZentridFormReadinessApi; }
 
-interface FleetSessionResilienceSnapshot {
+interface ZentridSessionResilienceSnapshot {
   tabId: string;
   online: boolean;
   channel: 'broadcast-channel' | 'storage-fallback';
@@ -726,16 +726,16 @@ interface FleetSessionResilienceSnapshot {
   lastEvent: string;
   lastEventAt: string | null;
 }
-interface FleetSessionResilienceApi {
-  snapshot(): FleetSessionResilienceSnapshot;
-  broadcastInvalidation(entities: FleetContractEntity[]): void;
+interface ZentridSessionResilienceApi {
+  snapshot(): ZentridSessionResilienceSnapshot;
+  broadcastInvalidation(entities: ZentridContractEntity[]): void;
   dispose(): void;
 }
-declare const FleetSessionResilience: FleetSessionResilienceApi;
-interface Window { FleetSessionResilience: FleetSessionResilienceApi; }
+declare const ZentridSessionResilience: ZentridSessionResilienceApi;
+interface Window { ZentridSessionResilience: ZentridSessionResilienceApi; }
 
 
-interface FleetReleaseManifest {
+interface ZentridReleaseManifest {
   schemaVersion: number;
   app: string;
   version: string;
@@ -748,8 +748,8 @@ interface FleetReleaseManifest {
   commit: string | null;
   commitShort: string | null;
 }
-interface FleetReleaseSnapshot {
-  release: FleetReleaseManifest;
+interface ZentridReleaseSnapshot {
+  release: ZentridReleaseManifest;
   collectedAt: string;
   health: 'healthy' | 'attention' | 'offline';
   route: string;
@@ -772,26 +772,26 @@ interface FleetReleaseSnapshot {
   recentIssues: Array<Record<string, unknown>>;
   recentEvents: Array<Record<string, unknown>>;
 }
-interface FleetReleaseObservabilityApi {
-  snapshot(): FleetReleaseSnapshot;
+interface ZentridReleaseObservabilityApi {
+  snapshot(): ZentridReleaseSnapshot;
   copySafeReport(): Promise<boolean>;
   downloadReport(): void;
   openPanel(): void;
   closePanel(): void;
   checkForUpdate(manual?: boolean): Promise<boolean>;
   clearIssues(): void;
-  manifest(): FleetReleaseManifest;
+  manifest(): ZentridReleaseManifest;
 }
-declare const FleetReleaseObservability: FleetReleaseObservabilityApi;
-interface Window { FleetReleaseObservability: FleetReleaseObservabilityApi; }
+declare const ZentridReleaseObservability: ZentridReleaseObservabilityApi;
+interface Window { ZentridReleaseObservability: ZentridReleaseObservabilityApi; }
 
 
-interface FleetBrowserSecurityFinding {
+interface ZentridBrowserSecurityFinding {
   area: 'localStorage' | 'sessionStorage';
   key: string;
   classification: 'persistent-secret' | 'session-secret';
 }
-interface FleetBrowserSecuritySnapshot {
+interface ZentridBrowserSecuritySnapshot {
   policy: 'enforced-compatible';
   anchorsAudited: number;
   anchorsHardened: number;
@@ -801,15 +801,15 @@ interface FleetBrowserSecuritySnapshot {
   inlineHandlers: number;
   inlineStyles: number;
   cspViolations: number;
-  storageFindings: FleetBrowserSecurityFinding[];
+  storageFindings: ZentridBrowserSecurityFinding[];
   authStorage: 'sessionStorage' | 'fallback';
   referrerPolicy: string;
 }
-interface FleetBrowserSecurityApi {
+interface ZentridBrowserSecurityApi {
   audit(root?: ParentNode): void;
-  snapshot(): FleetBrowserSecuritySnapshot;
+  snapshot(): ZentridBrowserSecuritySnapshot;
   openExternal(url: string): WindowProxy | null;
   isUnsafeUrl(url: string): boolean;
 }
-declare const FleetBrowserSecurity: FleetBrowserSecurityApi;
-interface Window { FleetBrowserSecurity: FleetBrowserSecurityApi; }
+declare const ZentridBrowserSecurity: ZentridBrowserSecurityApi;
+interface Window { ZentridBrowserSecurity: ZentridBrowserSecurityApi; }

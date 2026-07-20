@@ -18,8 +18,8 @@ const liveCss = read('assets/css/src/components/live-data-states.css');
 const globals = read('types/zentrid-globals.d.ts');
 
 [
-  'FleetContractIssue', 'FleetContractValidation', 'FleetContractDiagnosticSummary',
-  'FleetContractDiagnosticsApi'
+  'ZentridContractIssue', 'ZentridContractValidation', 'ZentridContractDiagnosticSummary',
+  'ZentridContractDiagnosticsApi'
 ].forEach(name => expect(globals.includes(`interface ${name}`), `Global diagnostic type is missing: ${name}.`));
 
 [
@@ -66,8 +66,8 @@ const compiled = ts.transpileModule(contractSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
 }).outputText;
 vm.runInContext(compiled, sandbox, { filename: 'api-contracts.js' });
-const contracts = sandbox.window.FleetAPIContracts;
-expect(Boolean(contracts && contracts.diagnostics), 'FleetAPIContracts diagnostics API did not initialize.');
+const contracts = sandbox.window.ZentridAPIContracts;
+expect(Boolean(contracts && contracts.diagnostics), 'ZentridAPIContracts diagnostics API did not initialize.');
 
 if (contracts && contracts.diagnostics) {
   const validDevice = contracts.devices.validate({

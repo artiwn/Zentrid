@@ -23,7 +23,7 @@ const globals = read('types/zentrid-globals.d.ts');
 const packageJson = JSON.parse(read('package.json') || '{}');
 
 [
-  'FleetDetailLazySnapshot', 'FleetDetailLazyResourceDefinition', 'FleetDetailLazyTabsApi'
+  'ZentridDetailLazySnapshot', 'ZentridDetailLazyResourceDefinition', 'ZentridDetailLazyTabsApi'
 ].forEach(token => expect(globals.includes(`interface ${token}`), `Missing lazy-detail global type: ${token}.`));
 [
   "type DetailLazyStatus = 'idle' | 'loading' | 'loaded' | 'error'", 'function register(', 'function activate(',
@@ -37,19 +37,19 @@ const packageJson = JSON.parse(read('package.json') || '{}');
 const deviceDetailSection = live.slice(live.indexOf('async function applyDeviceDetail'), live.indexOf('async function applyPlantDetail'));
 const plantDetailSection = live.slice(live.indexOf('async function applyPlantDetail'), live.indexOf('async function applyAlertDetail'));
 const integrationDetailSection = live.slice(live.indexOf('async function applyIntegrationDetail'), live.indexOf('async function applyClients'));
-expect(!deviceDetailSection.includes('void FleetAPIRepositories.plants.list'), 'Device Detail still starts the old eager parent-plant request.');
-expect(!deviceDetailSection.includes('void FleetAPIRepositories.alerts.list'), 'Device Detail still starts the old eager alert request.');
-expect(!plantDetailSection.includes('void FleetAPIRepositories.devices.list'), 'Plant Detail still starts the old eager device relation request.');
-expect(!plantDetailSection.includes('void FleetAPIRepositories.alerts.list'), 'Plant Detail still starts the old eager alert relation request.');
-expect(!integrationDetailSection.includes('void FleetAPIRepositories.integrations.summary'), 'Integration Detail still starts the old eager operational summary request.');
+expect(!deviceDetailSection.includes('void ZentridAPIRepositories.plants.list'), 'Device Detail still starts the old eager parent-plant request.');
+expect(!deviceDetailSection.includes('void ZentridAPIRepositories.alerts.list'), 'Device Detail still starts the old eager alert request.');
+expect(!plantDetailSection.includes('void ZentridAPIRepositories.devices.list'), 'Plant Detail still starts the old eager device relation request.');
+expect(!plantDetailSection.includes('void ZentridAPIRepositories.alerts.list'), 'Plant Detail still starts the old eager alert relation request.');
+expect(!integrationDetailSection.includes('void ZentridAPIRepositories.integrations.summary'), 'Integration Detail still starts the old eager operational summary request.');
 [
-  "FleetDetailLazyTabs?.panel('plant'", "FleetDetailLazyTabs?.activate('plant'", "FleetDetailLazyTabs?.observe('plant'"
+  "ZentridDetailLazyTabs?.panel('plant'", "ZentridDetailLazyTabs?.activate('plant'", "ZentridDetailLazyTabs?.observe('plant'"
 ].forEach(token => expect(plants.includes(token), `Plant Detail is missing lazy integration: ${token}.`));
 [
-  "FleetDetailLazyTabs?.panel('device'", "FleetDetailLazyTabs?.activate('device'", "FleetDetailLazyTabs?.observe('device'", 'deviceDetailActiveTab'
+  "ZentridDetailLazyTabs?.panel('device'", "ZentridDetailLazyTabs?.activate('device'", "ZentridDetailLazyTabs?.observe('device'", 'deviceDetailActiveTab'
 ].forEach(token => expect(devices.includes(token), `Device Detail is missing lazy integration: ${token}.`));
 [
-  "FleetDetailLazyTabs?.panel('integration'", "FleetDetailLazyTabs?.activate('integration'", "FleetDetailLazyTabs?.observe('integration'", 'integrationDetailActiveTab'
+  "ZentridDetailLazyTabs?.panel('integration'", "ZentridDetailLazyTabs?.activate('integration'", "ZentridDetailLazyTabs?.observe('integration'", 'integrationDetailActiveTab'
 ].forEach(token => expect(integrations.includes(token), `Integration Detail is missing lazy integration: ${token}.`));
 [
   '.detail-lazy-panel', '.detail-lazy-state-card', '.detail-lazy-spinner', 'prefers-reduced-motion'
@@ -87,8 +87,8 @@ async function runtimeCheck() {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
   }).outputText;
   vm.runInContext(compiled, sandbox, { filename: 'detail-lazy-tabs.js' });
-  const api = sandbox.window.FleetDetailLazyTabs;
-  expect(Boolean(api), 'FleetDetailLazyTabs did not initialize.');
+  const api = sandbox.window.ZentridDetailLazyTabs;
+  expect(Boolean(api), 'ZentridDetailLazyTabs did not initialize.');
   if (!api) return;
 
   let loads = 0;

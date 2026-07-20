@@ -21,19 +21,19 @@ const globals = read('types/zentrid-globals.d.ts');
 const packageJson = JSON.parse(read('package.json') || '{}');
 
 [
-  'FleetTenantLifecycle', 'data-tenant-lifecycle-action', 'FleetAPIMutations.tenants.activate',
-  'FleetAPIMutations.tenants.deactivate', 'FleetAPIMutations.tenants.archive',
+  'ZentridTenantLifecycle', 'data-tenant-lifecycle-action', 'ZentridAPIMutations.tenants.activate',
+  'ZentridAPIMutations.tenants.deactivate', 'ZentridAPIMutations.tenants.archive',
   'Live API tenant records', 'result.error.retriable', 'window.confirm', 'window.location.reload()'
 ].forEach(token => expect(source.includes(token), `Tenant lifecycle token is missing: ${token}.`));
-expect(tenantSource.includes("window.FleetTenantLifecycle?.render(c)"), 'Tenant Detail does not render the lifecycle module.');
-expect(tenantSource.includes('window.FleetTenantLifecycle?.wire(tenant)'), 'Tenant Detail does not wire the lifecycle module.');
+expect(tenantSource.includes("window.ZentridTenantLifecycle?.render(c)"), 'Tenant Detail does not render the lifecycle module.');
+expect(tenantSource.includes('window.ZentridTenantLifecycle?.wire(tenant)'), 'Tenant Detail does not wire the lifecycle module.');
 expect(tenantDetailHtml.includes('tenant-lifecycle.js'), 'Tenant Detail does not load tenant-lifecycle.js.');
 expect(tenantDetailHtml.indexOf('api-mutations.js') < tenantDetailHtml.indexOf('tenant-lifecycle.js'), 'api-mutations.js must load before tenant-lifecycle.js.');
 expect(tenantDetailHtml.indexOf('layout.js') < tenantDetailHtml.indexOf('tenant-lifecycle.js'), 'layout.js must load before tenant-lifecycle.js.');
 expect(tenantDetailHtml.indexOf('tenant-lifecycle.js') < tenantDetailHtml.indexOf('tenants.js'), 'tenant-lifecycle.js must load before tenants.js.');
 expect(Array.isArray(manifest.sources) && manifest.sources.includes('components/tenant-lifecycle.css'), 'Tenant lifecycle CSS is missing from the manifest.');
 expect(css.includes('.tenant-lifecycle-v111') && css.includes('@media (max-width: 760px)'), 'Tenant lifecycle responsive styles are incomplete.');
-expect(globals.includes('interface FleetTenantLifecycleApi'), 'FleetTenantLifecycle global type is missing.');
+expect(globals.includes('interface ZentridTenantLifecycleApi'), 'ZentridTenantLifecycle global type is missing.');
 expect(packageJson.scripts?.['check:tenant-lifecycle'] === 'node scripts/check-tenant-lifecycle.js', 'Package script check:tenant-lifecycle is missing.');
 expect(String(packageJson.scripts?.verify || '').includes('check:tenant-lifecycle'), 'verify does not run Tenant lifecycle checks.');
 expect(String(packageJson.scripts?.['verify:vercel'] || '').includes('check:tenant-lifecycle'), 'verify:vercel does not run Tenant lifecycle checks.');
@@ -87,10 +87,10 @@ const sessionStorage = {
 };
 
 const windowObject = {
-  FleetDataSource: {
+  ZentridDataSource: {
     origin(record) { return String(record?.dataOrigin || 'mock'); }
   },
-  FleetAPIMutations: null,
+  ZentridAPIMutations: null,
   confirm(messageText) { confirmations.push(messageText); return true; },
   setTimeout(callback) { reloadScheduled = true; windowObject.pendingReload = callback; return 1; },
   location: { reload() {} }
@@ -107,19 +107,19 @@ const mutationApi = {
     async archive(id) { mutationCalls.push(['archive', id]); return { ok: true, data: { id }, message: 'Tenant archived successfully.', meta: {} }; }
   }
 };
-windowObject.FleetAPIMutations = mutationApi;
+windowObject.ZentridAPIMutations = mutationApi;
 
 const documentObject = {
   getElementById(id) { return dom[id] || null; },
   createElement() { return new FakeElement(); }
 };
-const FleetLayout = { toast(messageText) { toasts.push(messageText); } };
+const ZentridLayout = { toast(messageText) { toasts.push(messageText); } };
 const sandbox = {
   window: windowObject,
   document: documentObject,
   sessionStorage,
-  FleetAPIMutations: mutationApi,
-  FleetLayout,
+  ZentridAPIMutations: mutationApi,
+  ZentridLayout,
   Element: FakeElement,
   HTMLElement: FakeElement,
   HTMLButtonElement: FakeElement,
@@ -138,8 +138,8 @@ const sandbox = {
 vm.createContext(sandbox);
 const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
 vm.runInContext(ts.transpileModule(source, { compilerOptions }).outputText, sandbox, { filename: 'tenant-lifecycle.js' });
-const lifecycle = windowObject.FleetTenantLifecycle;
-expect(Boolean(lifecycle), 'FleetTenantLifecycle did not initialize.');
+const lifecycle = windowObject.ZentridTenantLifecycle;
+expect(Boolean(lifecycle), 'ZentridTenantLifecycle did not initialize.');
 
 (async () => {
   if (lifecycle) {
@@ -167,7 +167,7 @@ expect(Boolean(lifecycle), 'FleetTenantLifecycle did not initialize.');
     expect(typeof container.listeners.click === 'function', 'Tenant lifecycle click handler was not wired.');
     await container.listeners.click({ target: deactivateButton });
     await new Promise(resolve => setImmediate(resolve));
-    expect(mutationCalls.some(([action, id]) => action === 'deactivate' && id === 'T-1'), 'Deactivate action did not call FleetAPIMutations.');
+    expect(mutationCalls.some(([action, id]) => action === 'deactivate' && id === 'T-1'), 'Deactivate action did not call ZentridAPIMutations.');
     expect(confirmations.some(value => value.includes('Deactivate Live Active')), 'Deactivate confirmation was not shown.');
     expect(toasts.includes('Tenant deactivated successfully.'), 'Successful lifecycle result did not show a toast.');
     expect(reloadScheduled, 'Successful lifecycle result did not schedule a backend refresh reload.');

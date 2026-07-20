@@ -16,7 +16,7 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'credentials: Object.fromEntries', "'Configured'", 'location.href = \'integration-detail.html\'',
   'role="dialog"', 'aria-current="step"', 'Local prototype'
 ].forEach(token => expect(integrations.includes(token), `Integration wizard UX token is missing: ${token}`));
-expect(!integrations.includes("show(step + 1); FleetLayout.toast('Step saved')"), 'Integration wizard still allows unvalidated Next navigation.');
+expect(!integrations.includes("show(step + 1); ZentridLayout.toast('Step saved')"), 'Integration wizard still allows unvalidated Next navigation.');
 expect(!integrations.includes("? value : 'Configured value'"), 'Blank credential values must not be saved as configured.');
 expect(page.includes('form-ux.js'), 'Integrations page must load shared form UX.');
 expect(page.indexOf('layout.js') < page.indexOf('form-ux.js'), 'layout.js must load before form-ux.js.');

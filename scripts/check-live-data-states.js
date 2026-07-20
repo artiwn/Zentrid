@@ -154,9 +154,9 @@ async function renderStateScenario(mode) {
   };
   const windowObject = {
     ZentridPlatformAPI: platform,
-    FleetAPI: { request },
-    FleetAPIRepositories: repositories,
-    FleetDataSource: { label: value => ({ live: 'Live API', mock: 'Mock data', local: 'Local changes', mixed: 'Mixed sources' })[value] || value },
+    ZentridAPI: { request },
+    ZentridAPIRepositories: repositories,
+    ZentridDataSource: { label: value => ({ live: 'Live API', mock: 'Mock data', local: 'Local changes', mixed: 'Mixed sources' })[value] || value },
     setTimeout,
     clearTimeout
   };
@@ -165,9 +165,9 @@ async function renderStateScenario(mode) {
     document,
     location: { pathname: '/pages/devices.html', search: '' },
     ZentridPlatformAPI: platform,
-    FleetAPI: windowObject.FleetAPI,
-    FleetAPIRepositories: repositories,
-    FleetDataSource: windowObject.FleetDataSource,
+    ZentridAPI: windowObject.ZentridAPI,
+    ZentridAPIRepositories: repositories,
+    ZentridDataSource: windowObject.ZentridDataSource,
     console,
     setTimeout,
     clearTimeout,

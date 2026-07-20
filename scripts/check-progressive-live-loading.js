@@ -20,9 +20,9 @@ expect(repositories.includes('const pageSize = [20, 50, 100].includes(requestedS
 expect(!repositories.includes('pageRequests.push'), 'Initial repositories must not fan out across many pages.');
 expect(!repositories.includes('Math.min(collectionTotalPages'), 'Initial repositories still try to load all collection pages.');
 expect(repositories.includes("fetchCollectionPage('/api/admin/provider-integrations'"), 'Fast integration registry endpoint is not paged through the repository.');
-expect(repositories.includes('async summary(options: FleetRepositoryReadOptions'), 'Slow integration summary is not exposed separately.');
+expect(repositories.includes('async summary(options: ZentridRepositoryReadOptions'), 'Slow integration summary is not exposed separately.');
 expect(repositories.includes("'/api/integrations'") && repositories.includes("cacheVariant: 'summary'"), 'Integration summary does not accept paged cached background reads.');
-expect(globals.includes('interface FleetIntegrationReadRepositoryApi'), 'Global integration summary repository type is missing.');
+expect(globals.includes('interface ZentridIntegrationReadRepositoryApi'), 'Global integration summary repository type is missing.');
 expect(globals.includes('timeoutMs?: number;'), 'Repository read options do not expose timeoutMs.');
 
 expect(platformApi.includes('alerts(options?: ZentridRequestOptions)'), 'Live API alert method does not accept request options.');
@@ -32,7 +32,7 @@ expect(platformApi.includes("integrations: (options: ZentridRequestOptions = {})
 expect(liveBridge.includes('const SLOW_ENDPOINT_TIMEOUT_MS = 90_000;'), 'Slow background timeout is missing.');
 expect(liveBridge.includes('Core dashboard data is ready.'), 'Overview progressive state message is missing.');
 expect(liveBridge.includes('without blocking the registry'), 'Registry progressive loading message is missing.');
-expect(liveBridge.includes('FleetAPIRepositories.integrations.summary({ ...detailReadOptions') && liveBridge.includes('timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS'), 'Slow integration summary is not loaded in the background.');
+expect(liveBridge.includes('ZentridAPIRepositories.integrations.summary({ ...detailReadOptions') && liveBridge.includes('timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS'), 'Slow integration summary is not loaded in the background.');
 expect(liveBridge.includes("detailReadOptions('overview:alerts', 100, forceRefresh)") && liveBridge.includes('timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS'), 'Slow alerts are not loaded in the background.');
 expect(liveBridge.includes('mergeIntegrationSummaries'), 'Integration registry is not enriched progressively.');
 expect(liveBridge.includes('renderOverviewLiveSnapshot(payload);'), 'Overview is not rerendered as background data arrives.');
@@ -40,14 +40,14 @@ expect(liveBridge.includes('renderOverviewLiveSnapshot(payload);'), 'Overview is
 const plantsStart = liveBridge.indexOf('async function applyPlants');
 const plantsEnd = liveBridge.indexOf('async function applyDevices', plantsStart);
 const plantsBlock = liveBridge.slice(plantsStart, plantsEnd);
-expect(plantsBlock.indexOf('render();') < plantsBlock.indexOf('FleetAPIRepositories.alerts.list'), 'Plant Registry still waits for alerts before first render.');
-expect(plantsBlock.indexOf('render();') < plantsBlock.indexOf('FleetAPIRepositories.devices.list'), 'Plant Registry still waits for devices before first render.');
+expect(plantsBlock.indexOf('render();') < plantsBlock.indexOf('ZentridAPIRepositories.alerts.list'), 'Plant Registry still waits for alerts before first render.');
+expect(plantsBlock.indexOf('render();') < plantsBlock.indexOf('ZentridAPIRepositories.devices.list'), 'Plant Registry still waits for devices before first render.');
 
 const devicesStart = liveBridge.indexOf('async function applyDevices');
 const devicesEnd = liveBridge.indexOf('async function applyAlerts', devicesStart);
 const devicesBlock = liveBridge.slice(devicesStart, devicesEnd);
-expect(devicesBlock.indexOf('render();') < devicesBlock.indexOf('FleetAPIRepositories.alerts.list'), 'Device Registry still waits for alerts before first render.');
-expect(devicesBlock.indexOf('render();') < devicesBlock.indexOf('FleetAPIRepositories.plants.list'), 'Device Registry still waits for plants before first render.');
+expect(devicesBlock.indexOf('render();') < devicesBlock.indexOf('ZentridAPIRepositories.alerts.list'), 'Device Registry still waits for alerts before first render.');
+expect(devicesBlock.indexOf('render();') < devicesBlock.indexOf('ZentridAPIRepositories.plants.list'), 'Device Registry still waits for plants before first render.');
 
 [
   'managingTenant', 'phoneNumber1', 'accountActivation',

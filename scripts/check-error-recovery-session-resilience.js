@@ -30,7 +30,7 @@ assert(authGuard.includes("window.addEventListener('pageshow'"), 'Auth guard mus
 assert(repositorySource.includes("'zentrid:cache-recovered'"), 'Repository cache must report corrupt/expired persistent recovery.');
 assert(repositorySource.includes('validPersistedResult'), 'Repository cache must validate persisted result shape.');
 assert(manifest.sources.includes('components/session-resilience.css'), 'Session resilience CSS is missing from the CSS manifest.');
-['.fleet-recovery-banner', '[data-state="offline"]', '@media (max-width: 640px)'].forEach(token => {
+['.zentrid-recovery-banner', '[data-state="offline"]', '@media (max-width: 640px)'].forEach(token => {
   assert(css.includes(token), `Session resilience CSS is missing ${token}.`);
 });
 assert(packageJson.scripts['check:error-recovery-session-resilience'], 'package.json must expose the v137 regression check.');
@@ -121,8 +121,8 @@ async function verifyApiRecovery() {
   vm.createContext(sandbox);
   const js = ts.transpileModule(apiSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   vm.runInContext(js, sandbox, { filename: 'api-client.js' });
-  const api = windowObject.FleetAPI;
-  assert(api && typeof api.request === 'function', 'FleetAPI must initialize in the recovery harness.');
+  const api = windowObject.ZentridAPI;
+  assert(api && typeof api.request === 'function', 'ZentridAPI must initialize in the recovery harness.');
 
   const beforeGet = fetchCalls;
   const getResult = await api.request('/api/test', { method: 'GET', auth: false, retryDelayMs: 1, retry: 2 });
@@ -160,7 +160,7 @@ function verifySessionRuntime() {
   }
   const windowObject = {
     ZentridAuth: { getSession: () => ({ accessToken: '', roles: [], expiresAt: '', user: null }) },
-    FleetAPIRepositories: {
+    ZentridAPIRepositories: {
       cache: {
         invalidate() { invalidations.push('all'); },
         invalidateMany(entities) { invalidations.push([...entities]); }
@@ -201,8 +201,8 @@ function verifySessionRuntime() {
   vm.createContext(sandbox);
   const js = ts.transpileModule(sessionSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   vm.runInContext(js, sandbox, { filename: 'session-resilience.js' });
-  const runtime = windowObject.FleetSessionResilience;
-  assert(runtime && typeof runtime.snapshot === 'function', 'FleetSessionResilience must initialize.');
+  const runtime = windowObject.ZentridSessionResilience;
+  assert(runtime && typeof runtime.snapshot === 'function', 'ZentridSessionResilience must initialize.');
   runtime.broadcastInvalidation(['clients']);
   assert(invalidations.some(value => Array.isArray(value) && value.includes('clients')), 'Manual cross-tab invalidation must invalidate local cache.');
   assert(channelMessages.some(value => value.type === 'cache-invalidate'), 'Manual invalidation must publish a cross-tab message.');

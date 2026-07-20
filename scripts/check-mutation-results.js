@@ -17,15 +17,15 @@ const globals = read('types/zentrid-globals.d.ts');
 const packageJson = JSON.parse(read('package.json') || '{}');
 
 [
-  'FleetMutationResult', 'FleetMutationSuccess', 'FleetMutationFailure',
-  'FleetMutationNormalizedError', 'FleetAPIMutationsApi'
+  'ZentridMutationResult', 'ZentridMutationSuccess', 'ZentridMutationFailure',
+  'ZentridMutationNormalizedError', 'ZentridAPIMutationsApi'
 ].forEach(name => expect(globals.includes(name), `Global mutation result type is missing: ${name}.`));
 [
   "'zentrid:mutation-result'", 'normalizeError', 'defaultErrorMessage', 'isRetriable',
   'ZentridPlatformAPI.clients.create', 'ZentridPlatformAPI.tenants.activate',
   'ZentridPlatformAPI.plantRegistry.create', 'ZentridPlatformAPI.providerIntegrations.activate'
 ].forEach(token => expect(source.includes(token), `Mutation result implementation token is missing: ${token}.`));
-expect(!source.includes('FleetAPI.request('), 'Mutation result layer must use ZentridPlatformAPI instead of bypassing the mutation foundation.');
+expect(!source.includes('ZentridAPI.request('), 'Mutation result layer must use ZentridPlatformAPI instead of bypassing the mutation foundation.');
 expect(packageJson.scripts?.['check:mutation-results'] === 'node scripts/check-mutation-results.js', 'Package script check:mutation-results is missing.');
 expect(String(packageJson.scripts?.verify || '').includes('check:mutation-results'), 'verify does not run mutation result checks.');
 expect(String(packageJson.scripts?.['verify:vercel'] || '').includes('check:mutation-results'), 'verify:vercel does not run mutation result checks.');
@@ -118,8 +118,8 @@ const sandbox = {
 vm.createContext(sandbox);
 const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
 vm.runInContext(ts.transpileModule(source, { compilerOptions }).outputText, sandbox, { filename: 'api-mutations.js' });
-const mutations = sandbox.window.FleetAPIMutations;
-expect(Boolean(mutations), 'FleetAPIMutations did not initialize.');
+const mutations = sandbox.window.ZentridAPIMutations;
+expect(Boolean(mutations), 'ZentridAPIMutations did not initialize.');
 
 (async () => {
   if (mutations) {

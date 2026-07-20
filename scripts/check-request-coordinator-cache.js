@@ -29,8 +29,8 @@ const packageJson = read('package.json');
   'applyClients(true)', 'applyPlants(true)', 'applyDevices(true)', 'applyAlerts(true)'
 ].forEach(token => expect(liveSource.includes(token), `Live cache integration token is missing: ${token}.`));
 [
-  'FleetRepositoryCacheMeta', 'staleMaxAgeMs?: number;', 'requestGroup?: string;',
-  'coordinator: FleetRepositoryCoordinatorApi', 'clearPersistent'
+  'ZentridRepositoryCacheMeta', 'staleMaxAgeMs?: number;', 'requestGroup?: string;',
+  'coordinator: ZentridRepositoryCoordinatorApi', 'clearPersistent'
 ].forEach(token => expect(globals.includes(token), `Global request/cache type is missing: ${token}.`));
 expect(packageJson.includes('check:request-coordinator-cache'), 'Package scripts do not expose check:request-coordinator-cache.');
 
@@ -82,7 +82,7 @@ function createSandbox(storage, requestHandler, directHandler = requestHandler) 
       return true;
     }
   };
-  const FleetAPI = { request: requestHandler };
+  const ZentridAPI = { request: requestHandler };
   const ZentridPlatformAPI = {
     clients: { list: directHandler },
     tenants: { list: directHandler },
@@ -95,7 +95,7 @@ function createSandbox(storage, requestHandler, directHandler = requestHandler) 
       integrations: directHandler
     }
   };
-  Object.assign(window, { FleetAPI, ZentridPlatformAPI });
+  Object.assign(window, { ZentridAPI, ZentridPlatformAPI });
   return {
     sandbox: {
       window,
@@ -105,7 +105,7 @@ function createSandbox(storage, requestHandler, directHandler = requestHandler) 
       console,
       setTimeout,
       clearTimeout,
-      FleetAPI,
+      ZentridAPI,
       ZentridPlatformAPI
     },
     listeners
@@ -116,9 +116,9 @@ function loadRepositories(environment) {
   const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
   vm.createContext(environment.sandbox);
   vm.runInContext(ts.transpileModule(read('assets/js/api-contracts.ts'), { compilerOptions }).outputText, environment.sandbox, { filename: 'api-contracts.js' });
-  environment.sandbox.FleetAPIContracts = environment.sandbox.window.FleetAPIContracts;
+  environment.sandbox.ZentridAPIContracts = environment.sandbox.window.ZentridAPIContracts;
   vm.runInContext(ts.transpileModule(repositorySource, { compilerOptions }).outputText, environment.sandbox, { filename: 'api-repositories.js' });
-  const repositories = environment.sandbox.window.FleetAPIRepositories;
+  const repositories = environment.sandbox.window.ZentridAPIRepositories;
   repositories.configure(context);
   return repositories;
 }

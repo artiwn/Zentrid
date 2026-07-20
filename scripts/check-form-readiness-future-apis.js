@@ -15,7 +15,7 @@ const packageJson = JSON.parse(read('package.json'));
 
 [
   "'api'", "'local'", "'unavailable'", "'readonly'",
-  'beforeunload', 'fleetDisabledByReadiness', 'API not available',
+  'beforeunload', 'zentridDisabledByReadiness', 'API not available',
   'zentrid:form-dirty-change', 'zentrid:form-committed',
   'dataset.nullable', 'dataset.emptyPolicy', 'dataset.dtoType', 'dataset.dtoKey',
   'credential', 'redacted', 'DTO preview'
@@ -24,7 +24,7 @@ const packageJson = JSON.parse(read('package.json'));
 const cssIndex = manifest.sources.indexOf('components/form-readiness.css');
 const primitiveIndex = manifest.sources.indexOf('components/form-primitives.css');
 assert(cssIndex === primitiveIndex + 1, 'Form readiness CSS must load immediately after form primitives.');
-['.fleet-form-readiness', '.fleet-form-validation-summary', '.fleet-form-contract-preview', 'form.is-dirty', '@media (max-width: 480px)']
+['.zentrid-form-readiness', '.zentrid-form-validation-summary', '.zentrid-form-contract-preview', 'form.is-dirty', '@media (max-width: 480px)']
   .forEach(token => assert(css.includes(token), `Form readiness CSS is missing ${token}.`));
 
 const annotatedSources = {
@@ -38,8 +38,8 @@ const annotatedSources = {
 Object.entries(annotatedSources).forEach(([relative, tokens]) => {
   const content = read(relative);
   tokens.forEach(token => assert(content.includes(token), `${relative} is missing ${token}.`));
-  assert(content.includes('data-fleet-form-readiness="local"'), `${relative} must declare local form readiness.`);
-  assert(content.includes('FleetFormReadiness?.markCommitted'), `${relative} must clear dirty state after a successful local save.`);
+  assert(content.includes('data-zentrid-form-readiness="local"'), `${relative} must declare local form readiness.`);
+  assert(content.includes('ZentridFormReadiness?.markCommitted'), `${relative} must clear dirty state after a successful local save.`);
 });
 
 const pages = [
@@ -85,7 +85,7 @@ class FakeTextarea {
 class FakeForm {
   constructor(controls) {
     this.id = 'fixtureForm'; this.name = ''; this.method = 'post'; this.controls = controls;
-    this.dataset = { fleetFormReadiness: 'local', fleetFormContract: 'FixtureContract', fleetFormEndpoint: '/api/fixture', fleetFormMethod: 'POST' };
+    this.dataset = { zentridFormReadiness: 'local', zentridFormContract: 'FixtureContract', zentridFormEndpoint: '/api/fixture', zentridFormMethod: 'POST' };
   }
   querySelectorAll(selector) { return selector === 'input, select, textarea' ? this.controls : []; }
 }
@@ -111,8 +111,8 @@ const context = {
 try {
   const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   vm.runInNewContext(js, context, { filename: 'form-readiness.js' });
-  const api = windowObject.FleetFormReadiness;
-  assert(api && typeof api.serialize === 'function', 'FleetFormReadiness API must initialize.');
+  const api = windowObject.ZentridFormReadiness;
+  assert(api && typeof api.serialize === 'function', 'ZentridFormReadiness API must initialize.');
   const form = new FakeForm([
     new FakeInput({ name: 'name', value: '  Solar North  ', required: true }),
     new FakeInput({ name: 'capacityKw', value: '125.5', type: 'number', dataset: { dtoType: 'number' } }),

@@ -16,11 +16,11 @@ const distCheck = read('scripts/check-dist.js');
 
 [
   'release-manifest.json', "window.addEventListener('error'", "window.addEventListener('unhandledrejection'",
-  'copySafeReport', 'downloadReport', 'checkForUpdate', 'SENSITIVE_KEY', 'FleetReleaseObservability',
+  'copySafeReport', 'downloadReport', 'checkForUpdate', 'SENSITIVE_KEY', 'ZentridReleaseObservability',
   'performance.getEntriesByType', 'recentIssues', 'recentEvents'
 ].forEach(token => assert(source.includes(token), `Release observability token is missing: ${token}`));
 [
-  '.fleet-release-chip', '.fleet-release-panel', '.fleet-release-notice', '.fleet-release-summary',
+  '.zentrid-release-chip', '.zentrid-release-panel', '.zentrid-release-notice', '.zentrid-release-summary',
   '@media (max-width: 720px)'
 ].forEach(token => assert(css.includes(token), `Release observability CSS is missing ${token}.`));
 assert(cssManifest.sources.includes('components/release-observability.css'), 'Release observability CSS is missing from the CSS manifest.');

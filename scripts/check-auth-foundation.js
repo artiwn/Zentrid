@@ -101,7 +101,7 @@ async function runBehaviorChecks() {
   vm.runInContext(compiled, context, { filename: 'api-client.js' });
 
   const auth = windowObject.ZentridAuth;
-  const api = windowObject.FleetAPI;
+  const api = windowObject.ZentridAPI;
   expect(Boolean(auth && api), 'API client globals were not initialized.');
   if (!auth || !api) return;
 

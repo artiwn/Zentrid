@@ -19,7 +19,7 @@ const globals = read('types/zentrid-globals.d.ts');
 const packageJson = JSON.parse(read('package.json') || '{}');
 
 [
-  'FleetFieldMappingDefinition', 'FleetFieldAuditRecord', 'FleetFieldAuditSummary', 'FleetFieldAuditApi'
+  'ZentridFieldMappingDefinition', 'ZentridFieldAuditRecord', 'ZentridFieldAuditSummary', 'ZentridFieldAuditApi'
 ].forEach(name => expect(globals.includes(`interface ${name}`), `Missing global field-audit type: ${name}.`));
 [
   'FIELD_MAPPING_MANIFEST', 'auditFieldMapping', 'flattenLeafPaths', 'sourceByCanonical',
@@ -65,8 +65,8 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
 }).outputText;
 vm.runInContext(compiled, sandbox, { filename: 'api-contracts.js' });
-const contracts = sandbox.window.FleetAPIContracts;
-expect(Boolean(contracts?.fieldAudit), 'FleetAPIContracts.fieldAudit did not initialize.');
+const contracts = sandbox.window.ZentridAPIContracts;
+expect(Boolean(contracts?.fieldAudit), 'ZentridAPIContracts.fieldAudit did not initialize.');
 
 if (contracts?.fieldAudit) {
   const fixtures = {

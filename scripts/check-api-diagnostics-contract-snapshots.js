@@ -39,7 +39,7 @@ const packageJson = JSON.parse(read('package.json') || '{}');
 ].forEach(token => expect(css.includes(token), `Missing API diagnostic CSS selector: ${token}.`));
 expect(page.indexOf('api-diagnostics.js') < page.indexOf('platform-api.js'), 'api-diagnostics.js must load before platform-api.js.');
 expect(page.indexOf('api-contracts.js') < page.indexOf('api-console.js'), 'api-contracts.js must load before api-console.js.');
-expect(globals.includes('interface FleetApiDiagnosticsApi'), 'Missing FleetApiDiagnosticsApi global type.');
+expect(globals.includes('interface ZentridApiDiagnosticsApi'), 'Missing ZentridApiDiagnosticsApi global type.');
 expect(packageJson.scripts?.['check:api-diagnostics-contract-snapshots'] === 'node scripts/check-api-diagnostics-contract-snapshots.js', 'Missing package check script.');
 
 const fixturePaths = {
@@ -69,8 +69,8 @@ const sandbox = {
 };
 vm.createContext(sandbox);
 vm.runInContext(ts.transpileModule(diagnosticSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText, sandbox, { filename: 'api-diagnostics.js' });
-const diagnostics = sandbox.window.FleetAPIDiagnostics;
-expect(Boolean(diagnostics), 'FleetAPIDiagnostics did not initialize.');
+const diagnostics = sandbox.window.ZentridAPIDiagnostics;
+expect(Boolean(diagnostics), 'ZentridAPIDiagnostics did not initialize.');
 if (diagnostics) {
   const base = { ok: true, status: 200, statusText: 'OK', ms: 100, path: '/api/devices', method: 'GET', source: 'test', count: 1, data: fixtures.devices, bodyText: JSON.stringify(fixtures.devices), error: '', responseBytes: 900, contentType: 'application/json', requestId: 'req-1', pagination: { page: 1, pageSize: 20, totalCount: 1, totalPages: 1 } };
   const first = diagnostics.captureRun([base]);
@@ -90,7 +90,7 @@ const contractSource = read('assets/js/api-contracts.ts');
 const contractSandbox = { window: {}, console, String, Number, Boolean, Array, Object, Math, Set, Map, Date };
 vm.createContext(contractSandbox);
 vm.runInContext(ts.transpileModule(contractSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText, contractSandbox, { filename: 'api-contracts.js' });
-const contracts = contractSandbox.window.FleetAPIContracts;
+const contracts = contractSandbox.window.ZentridAPIContracts;
 const firstOf = (row, keys, fallback = '') => {
   for (const key of keys) {
     let value = row;
@@ -118,7 +118,7 @@ if (contracts?.fieldAudit) {
   expect(summary.missingExpectedFields === 0, `Contract snapshots have ${summary.missingExpectedFields} missing expected field(s).`);
   expect(summary.unmappedFields === 0, `Contract snapshots have ${summary.unmappedFields} unmapped field(s).`);
 } else {
-  failures.push('FleetAPIContracts.fieldAudit did not initialize for snapshot validation.');
+  failures.push('ZentridAPIContracts.fieldAudit did not initialize for snapshot validation.');
 }
 
 if (failures.length) {

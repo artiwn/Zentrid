@@ -41,7 +41,7 @@ pages.forEach(relative => {
 const indicatorIndex = manifest.sources.indexOf('components/data-source-indicators.css');
 const freshnessCssIndex = manifest.sources.indexOf('components/data-freshness-controls.css');
 assert(freshnessCssIndex === indicatorIndex + 1, 'Freshness CSS must load immediately after data-source indicators.');
-['.fleet-freshness-controls', '.fleet-freshness-badge.cached', '.fleet-auto-refresh', '@media (max-width: 640px)'].forEach(token => {
+['.zentrid-freshness-controls', '.zentrid-freshness-badge.cached', '.zentrid-auto-refresh', '@media (max-width: 640px)'].forEach(token => {
   assert(css.includes(token), `Freshness CSS is missing ${token}.`);
 });
 assert(packageJson.scripts['check:data-freshness-refresh-controls'], 'package.json must expose the v135 regression check.');
@@ -49,7 +49,7 @@ assert(packageJson.scripts['check:data-freshness-refresh-controls'], 'package.js
 // Execute the browser runtime in a deterministic lightweight DOM harness.
 class FakeElement {
   constructor() { this.dataset = {}; this.children = []; this.innerHTML = ''; this.disabled = false; }
-  querySelector(selector) { return selector === '.fleet-freshness-controls' ? this.children.find(item => item.className === 'fleet-freshness-controls') || null : null; }
+  querySelector(selector) { return selector === '.zentrid-freshness-controls' ? this.children.find(item => item.className === 'zentrid-freshness-controls') || null : null; }
   append(child) { this.children.push(child); }
   closest() { return null; }
 }
@@ -98,12 +98,12 @@ windowObject.window = windowObject;
 const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
 try {
   vm.runInNewContext(js, context, { filename: 'data-freshness-controls.js' });
-  const api = windowObject.FleetDataFreshness;
+  const api = windowObject.ZentridDataFreshness;
   assert(api && typeof api.sync === 'function', 'Freshness browser API must initialize.');
   const snapshot = api.sync({ liveState: 'partial', message: 'Saved page is visible', details: 'persistent cache', status: 'cached', cacheAgeMs: 12_000 });
   assert(snapshot.status === 'cached', 'Cache-backed sync must remain cached.');
   assert(snapshot.ageMs >= 11_000, 'Cache age must be preserved.');
-  assert(banner.children.some(item => item.className === 'fleet-freshness-controls'), 'Freshness controls must be attached to the live banner.');
+  assert(banner.children.some(item => item.className === 'zentrid-freshness-controls'), 'Freshness controls must be attached to the live banner.');
   api.requestRefresh('manual');
   assert(dispatched.some(event => event.type === 'zentrid:data-refresh-request' && event.detail.forceRefresh === true), 'Manual refresh must request forceRefresh.');
   api.markRefreshComplete(true);

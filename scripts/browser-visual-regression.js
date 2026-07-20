@@ -79,7 +79,7 @@ const auditExpression = `(() => {
     if (el.children.length===0 && (el.textContent||'').trim().length>12 && el.scrollWidth > el.clientWidth + 3 && s.overflowX==='hidden' && s.textOverflow!=='ellipsis') clipped.push({ element:label(el), text:(el.textContent||'').trim().slice(0,80), clientWidth:el.clientWidth, scrollWidth:el.scrollWidth });
     if (innerWidth <= 768 && el.matches('button,a[href],input,select,textarea,[role="button"]') && !el.hasAttribute('disabled') && r.width < 30 && r.height < 30) tinyTargets.push({ element:label(el), width:Math.round(r.width), height:Math.round(r.height) });
   }
-  const stateCopies=[...document.querySelectorAll('.fleet-ux-state-copy')].filter(visible).map(el=>({element:label(el),width:Math.round(el.getBoundingClientRect().width)})).filter(item=>item.width < (innerWidth<=480?110:150));
+  const stateCopies=[...document.querySelectorAll('.zentrid-ux-state-copy')].filter(visible).map(el=>({element:label(el),width:Math.round(el.getBoundingClientRect().width)})).filter(item=>item.width < (innerWidth<=480?110:150));
   const sidebar=document.querySelector('.sidebar'); const main=document.querySelector('.main-content'); let shellOverlap=null;
   if (sidebar && main && visible(sidebar) && visible(main) && innerWidth>980) { const a=sidebar.getBoundingClientRect(), b=main.getBoundingClientRect(); if (a.right > b.left + 2) shellOverlap={sidebarRight:Math.round(a.right),mainLeft:Math.round(b.left)}; }
   return {

@@ -26,18 +26,18 @@ const packageJson = JSON.parse(read('package.json') || '{}');
   'invalidateMany', 'mutationEntities', "window.addEventListener('zentrid:data-mutated'"
 ].forEach(token => expect(repositorySource.includes(token), `Repository mutation invalidation token is missing: ${token}.`));
 expect(globals.includes('interface ZentridDataMutationDetail'), 'Global mutation detail contract is missing.');
-expect(globals.includes('invalidateMany(entities: FleetContractEntity[])'), 'Repository cache API does not expose invalidateMany().');
+expect(globals.includes('invalidateMany(entities: ZentridContractEntity[])'), 'Repository cache API does not expose invalidateMany().');
 expect(packageJson.scripts?.['check:mutation-invalidation'] === 'node scripts/check-mutation-cache-invalidation.js', 'Package script check:mutation-invalidation is missing.');
 expect(String(packageJson.scripts?.verify || '').includes('check:mutation-invalidation'), 'verify does not run mutation invalidation checks.');
 expect(String(packageJson.scripts?.['verify:vercel'] || '').includes('check:mutation-invalidation'), 'verify:vercel does not run mutation invalidation checks.');
 
 const directWritePatterns = [
-  /create:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/,
-  /activate:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/,
-  /deactivate:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/,
-  /suspend:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/,
-  /archive:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/,
-  /failed:\s*\([^)]*\)\s*=>\s*FleetAPI\.request/
+  /create:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/,
+  /activate:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/,
+  /deactivate:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/,
+  /suspend:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/,
+  /archive:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/,
+  /failed:\s*\([^)]*\)\s*=>\s*ZentridAPI\.request/
 ];
 directWritePatterns.forEach(pattern => expect(!pattern.test(platformSource), `A platform write method bypasses mutationRequest(): ${pattern}.`));
 
@@ -79,7 +79,7 @@ class TestCustomEvent {
   constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
 }
 
-const FleetAPI = {
+const ZentridAPI = {
   async request(path, options = {}) {
     const method = String(options.method || 'GET').toUpperCase();
     calls.push({ path, method });
@@ -105,7 +105,7 @@ const sandbox = {
   AbortController,
   window: windowObject,
   CustomEvent: TestCustomEvent,
-  FleetAPI,
+  ZentridAPI,
   ZentridAuth: {
     me: async () => ({}), validate: async () => ({}), refresh: async () => ({}),
     request: async () => ({}), getSession: () => ({}), getAccessToken: () => ''
@@ -131,20 +131,20 @@ const sandbox = {
   Promise,
   encodeURIComponent
 };
-sandbox.window.FleetAPI = FleetAPI;
+sandbox.window.ZentridAPI = ZentridAPI;
 vm.createContext(sandbox);
 const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
 vm.runInContext(ts.transpileModule(platformSource, { compilerOptions }).outputText, sandbox, { filename: 'platform-api.js' });
 sandbox.ZentridPlatformAPI = sandbox.window.ZentridPlatformAPI;
 vm.runInContext(ts.transpileModule(contractSource, { compilerOptions }).outputText, sandbox, { filename: 'api-contracts.js' });
-sandbox.FleetAPIContracts = sandbox.window.FleetAPIContracts;
+sandbox.ZentridAPIContracts = sandbox.window.ZentridAPIContracts;
 vm.runInContext(ts.transpileModule(repositorySource, { compilerOptions }).outputText, sandbox, { filename: 'api-repositories.js' });
 const platform = sandbox.window.ZentridPlatformAPI;
-const repositories = sandbox.window.FleetAPIRepositories;
+const repositories = sandbox.window.ZentridAPIRepositories;
 
 (async () => {
   expect(Boolean(platform), 'ZentridPlatformAPI did not initialize.');
-  expect(Boolean(repositories), 'FleetAPIRepositories did not initialize.');
+  expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
   if (platform && repositories) {
     repositories.configure(context);
 

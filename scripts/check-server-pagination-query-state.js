@@ -21,14 +21,14 @@ const alerts = read('assets/js/alerts.ts');
 const css = read('assets/css/src/80-auth-and-api-console.css');
 
 [
-  "type FleetRegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts'",
+  "type ZentridRegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts'",
   "search.get('page')", "search.get('pageSize')", "history[method]",
   "zentrid:registry-query-change", "window.addEventListener('popstate'",
   'data-registry-page-size', 'data-registry-page-jump', 'filterScopeHtml'
 ].forEach(token => expect(query.includes(token), `Registry query-state token missing: ${token}`));
 
 [
-  'page?: number;', 'pageSize?: number;', 'pagination: FleetRepositoryPagination;',
+  'page?: number;', 'pageSize?: number;', 'pagination: ZentridRepositoryPagination;',
   'requestCacheKey', 'fetchCollectionPage', 'paginationFromPayload',
   '?page=${page}&size=${pageSize}'
 ].forEach(token => expect(repositories.includes(token), `Repository pagination token missing: ${token}`));
@@ -59,8 +59,8 @@ expect(alerts.includes("update('alerts'"), 'Alert Registry does not persist filt
   expect(queryIndex < html.indexOf(consumer), `${file} must load registry query state before ${consumer}.`);
 });
 
-expect(globals.includes('interface FleetRegistryQueryApi'), 'Global FleetRegistryQuery API type is missing.');
-expect(globals.includes('interface FleetRepositoryPagination'), 'Global repository pagination type is missing.');
+expect(globals.includes('interface ZentridRegistryQueryApi'), 'Global ZentridRegistryQuery API type is missing.');
+expect(globals.includes('interface ZentridRepositoryPagination'), 'Global repository pagination type is missing.');
 expect(css.includes('.registry-pagination-actions'), 'Registry pagination CSS is missing.');
 expect(css.includes('.registry-filter-scope'), 'Current-page filter scope CSS is missing.');
 

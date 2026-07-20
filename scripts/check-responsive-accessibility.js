@@ -22,19 +22,19 @@ const manifest = JSON.parse(read('assets/css/src/manifest.json') || '{}');
 const pkg = JSON.parse(read('package.json') || '{}');
 
 [
-  'const FleetResponsiveAccessibility', 'ensureSkipLink', 'fleetMainContent',
-  'enhanceTables', 'fleet-responsive-table', 'cell.dataset.label',
+  'const ZentridResponsiveAccessibility', 'ensureSkipLink', 'zentridMainContent',
+  'enhanceTables', 'zentrid-responsive-table', 'cell.dataset.label',
   'enhanceInteractiveRows', 'enhanceTablists', 'ArrowRight', 'ArrowLeft',
   'enhanceMenus', 'aria-haspopup', 'aria-expanded', 'role',
-  'enhanceSidebar', 'fleet-sidebar-backdrop', 'closeSidebar',
+  'enhanceSidebar', 'zentrid-sidebar-backdrop', 'closeSidebar',
   'enhanceDialogs', 'trapDialogFocus', 'aria-modal', 'closeActiveDialog',
   'enhanceForms', 'aria-required', 'aria-invalid', 'MutationObserver',
-  'Object.assign(window, { FleetResponsiveAccessibility })'
+  'Object.assign(window, { ZentridResponsiveAccessibility })'
 ].forEach(token => expect(runtime.includes(token), `Responsive/accessibility runtime token is missing: ${token}`));
 
 [
-  '.fleet-skip-link', ':focus-visible', '.fleet-sidebar-backdrop',
-  '.fleet-responsive-table', 'content: attr(data-label)',
+  '.zentrid-skip-link', ':focus-visible', '.zentrid-sidebar-backdrop',
+  '.zentrid-responsive-table', 'content: attr(data-label)',
   '@media (max-width: 920px)', '@media (max-width: 768px)', '@media (max-width: 620px)',
   '100dvh', 'env(safe-area-inset-bottom)', 'min-height: 44px',
   '@media (pointer: coarse)', '@media (prefers-reduced-motion: reduce)',

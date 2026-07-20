@@ -18,18 +18,18 @@ const liveBridge = read('assets/js/live-api-ui.ts');
 const globals = read('types/zentrid-globals.d.ts');
 
 [
-  'FleetClientDto', 'FleetTenantDto', 'FleetPlantDto', 'FleetDeviceDto',
-  'FleetAlertDto', 'FleetIntegrationDto', 'FleetContractMapperContext'
+  'ZentridClientDto', 'ZentridTenantDto', 'ZentridPlantDto', 'ZentridDeviceDto',
+  'ZentridAlertDto', 'ZentridIntegrationDto', 'ZentridContractMapperContext'
 ].forEach(name => expect(contractSource.includes(`interface ${name}`) || contractSource.includes(`type ${name}`), `Contract type is missing: ${name}.`));
 
 ['clients', 'tenants', 'plants', 'devices', 'alerts', 'integrations'].forEach(entity => {
   expect(new RegExp(`const ${entity}\\s*=\\s*createContract`).test(contractSource), `Entity contract is missing: ${entity}.`);
-  expect(liveBridge.includes(`FleetAPIRepositories.${entity}.list(`), `Live bridge does not delegate ${entity} reads to FleetAPIRepositories.`);
+  expect(liveBridge.includes(`ZentridAPIRepositories.${entity}.list(`), `Live bridge does not delegate ${entity} reads to ZentridAPIRepositories.`);
 });
-expect(repositorySource.includes('const contract = FleetAPIContracts[entity]'), 'Repository layer does not delegate mapping to FleetAPIContracts.');
+expect(repositorySource.includes('const contract = ZentridAPIContracts[entity]'), 'Repository layer does not delegate mapping to ZentridAPIContracts.');
 expect(!/function normalizeId\(/.test(liveBridge), 'Legacy normalizeId helper still exists in the live bridge.');
-expect(globals.includes('interface FleetAPIContractsApi'), 'Global FleetAPIContracts type is missing.');
-expect(globals.includes('declare const FleetAPIContracts'), 'FleetAPIContracts global declaration is missing.');
+expect(globals.includes('interface ZentridAPIContractsApi'), 'Global ZentridAPIContracts type is missing.');
+expect(globals.includes('declare const ZentridAPIContracts'), 'ZentridAPIContracts global declaration is missing.');
 
 function htmlFiles() {
   const files = ['index.html'];
@@ -82,8 +82,8 @@ const compiled = ts.transpileModule(contractSource, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
 }).outputText;
 vm.runInContext(compiled, sandbox, { filename: 'api-contracts.js' });
-const contracts = sandbox.window.FleetAPIContracts;
-expect(Boolean(contracts), 'FleetAPIContracts did not initialize.');
+const contracts = sandbox.window.ZentridAPIContracts;
+expect(Boolean(contracts), 'ZentridAPIContracts did not initialize.');
 
 if (contracts) {
   expect(contracts.clients.parse(null) === null, 'Client parser must reject null.');
@@ -126,7 +126,7 @@ if (contracts) {
   expect(realDevice.model === 'Generated-DeyeCloud-Inverter' && realDevice.capacity === '50 kW' && realDevice.firmware === 'generated-1.0.0' && realDevice.parent === 'LOGGER-1', 'Actual Device vendorExtensions aliases are not mapped.');
 
   const realAlert = contracts.alerts.map({ id: 'A-LIVE', provider: 'DeyeCloud', sourceAlertId: 'ALARM-1', title: 'Alarm 1', message: 'Generated alarm', severity: 'Critical', vendorExtensions: { alarmCode: 'ALARM-1', alarmType: 'Operational', reason: 'Generated reason', solution: 'Inspect source' } }, 0, context);
-  expect(realAlert.fleetCode === 'ALARM-1' && realAlert.category === 'Operational' && realAlert.probableCause === 'Generated reason' && realAlert.recommendation === 'Inspect source', 'Actual Alert vendorExtensions aliases are not mapped.');
+  expect(realAlert.zentridCode === 'ALARM-1' && realAlert.category === 'Operational' && realAlert.probableCause === 'Generated reason' && realAlert.recommendation === 'Inspect source', 'Actual Alert vendorExtensions aliases are not mapped.');
 
   const registryIntegration = contracts.integrations.map({ id: 'I-LIVE', integrationName: 'Deye Registry', integrationCode: 'INT-001', providerName: 'DeyeCloud', vendorName: 'DeyeCloud', integrationStatus: 'Failed', createdAtUtc: '2026-07-14T10:18:55Z' }, 0, context);
   expect(registryIntegration.id === 'I-LIVE' && registryIntegration.code === 'INT-001' && registryIntegration.status === 'Failed' && registryIntegration.vendor === 'DeyeCloud', 'Actual Provider Integration registry aliases are not mapped.');

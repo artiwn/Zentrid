@@ -10,15 +10,15 @@ const hierarchy = read('assets/js/client-hierarchy.ts');
 const integrations = read('assets/js/integrations.ts');
 const pkg = JSON.parse(read('package.json') || '{}');
 [
-  'const FleetEntityDetailUX', 'backendManaged', 'freshness', 'modeCopy',
+  'const ZentridEntityDetailUX', 'backendManaged', 'freshness', 'modeCopy',
   'confirmDiscard', 'bindBeforeUnload', 'setFeedback', 'clearFeedback',
   'sectionMode', 'beforeUnloadGuards', "event.returnValue = ''"
 ].forEach(token => expect(foundation.includes(token), `Entity Detail UX foundation token is missing: ${token}`));
 [
-  [tenants, "FleetEntityDetailUX.origin(record, 'tenant')", "FleetEntityDetailUX.bindBeforeUnload('tenant-detail'"],
-  [hierarchy, "FleetEntityDetailUX.origin(record, 'client')", "FleetEntityDetailUX.bindBeforeUnload('client-detail'"],
-  [hierarchy, "FleetEntityDetailUX.origin(record, 'plant')", "FleetEntityDetailUX.bindBeforeUnload('plant-detail'"],
-  [integrations, "FleetEntityDetailUX.origin(record, 'integration')", "FleetEntityDetailUX.bindBeforeUnload('integration-detail'"]
+  [tenants, "ZentridEntityDetailUX.origin(record, 'tenant')", "ZentridEntityDetailUX.bindBeforeUnload('tenant-detail'"],
+  [hierarchy, "ZentridEntityDetailUX.origin(record, 'client')", "ZentridEntityDetailUX.bindBeforeUnload('client-detail'"],
+  [hierarchy, "ZentridEntityDetailUX.origin(record, 'plant')", "ZentridEntityDetailUX.bindBeforeUnload('plant-detail'"],
+  [integrations, "ZentridEntityDetailUX.origin(record, 'integration')", "ZentridEntityDetailUX.bindBeforeUnload('integration-detail'"]
 ].forEach(([source, originToken, guardToken]) => {
   expect(source.includes(originToken), `Detail implementation does not delegate source handling: ${originToken}`);
   expect(source.includes(guardToken), `Detail implementation does not delegate unsaved-change protection: ${guardToken}`);

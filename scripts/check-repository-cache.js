@@ -23,9 +23,9 @@ const globals = read('types/zentrid-globals.d.ts');
 ].forEach(token => expect(repositorySource.includes(token), `Repository cache token is missing: ${token}.`));
 
 [
-  'FleetRepositoryReadOptions', 'FleetRepositoryCacheSnapshotEntry', 'FleetRepositoryCacheApi'
+  'ZentridRepositoryReadOptions', 'ZentridRepositoryCacheSnapshotEntry', 'ZentridRepositoryCacheApi'
 ].forEach(name => expect(globals.includes(`interface ${name}`), `Global cache type is missing: ${name}.`));
-expect(globals.includes('cache: FleetRepositoryCacheApi'), 'FleetAPIRepositoriesApi does not expose the cache API.');
+expect(globals.includes('cache: ZentridRepositoryCacheApi'), 'ZentridAPIRepositoriesApi does not expose the cache API.');
 
 function firstOf(row, keys, fallback = '') {
   for (const key of keys) {
@@ -61,7 +61,7 @@ const sandbox = {
   console,
   setTimeout,
   clearTimeout,
-  FleetAPI: {
+  ZentridAPI: {
     async request(path) {
       if (path.startsWith('/api/admin/clients?')) {
         clientCalls += 1;
@@ -81,7 +81,7 @@ const sandbox = {
       if (path.startsWith('/api/plants?')) return { items: [] };
       if (path.startsWith('/api/admin/plants?')) return { items: [] };
       if (path.startsWith('/api/devices?')) return { items: [] };
-      throw new Error(`Unexpected FleetAPI path: ${path}`);
+      throw new Error(`Unexpected ZentridAPI path: ${path}`);
     }
   },
   ZentridPlatformAPI: {
@@ -108,15 +108,15 @@ const sandbox = {
     providerIntegrations: { async list() { return { items: [] }; } }
   }
 };
-sandbox.window.FleetAPI = sandbox.FleetAPI;
+sandbox.window.ZentridAPI = sandbox.ZentridAPI;
 sandbox.window.ZentridPlatformAPI = sandbox.ZentridPlatformAPI;
 vm.createContext(sandbox);
 const compilerOptions = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None };
 vm.runInContext(ts.transpileModule(contractSource, { compilerOptions }).outputText, sandbox, { filename: 'api-contracts.js' });
-sandbox.FleetAPIContracts = sandbox.window.FleetAPIContracts;
+sandbox.ZentridAPIContracts = sandbox.window.ZentridAPIContracts;
 vm.runInContext(ts.transpileModule(repositorySource, { compilerOptions }).outputText, sandbox, { filename: 'api-repositories.js' });
-const repositories = sandbox.window.FleetAPIRepositories;
-expect(Boolean(repositories), 'FleetAPIRepositories did not initialize.');
+const repositories = sandbox.window.ZentridAPIRepositories;
+expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
 
 (async () => {
   if (repositories) {

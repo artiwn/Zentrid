@@ -19,10 +19,10 @@ const manifest = JSON.parse(read('assets/css/src/manifest.json') || '{}');
 const pkg = JSON.parse(read('package.json') || '{}');
 
 [
-  'const FleetUX', 'statusDefinitions', 'statusTone', 'statusLabel', 'applyStatuses',
+  'const ZentridUX', 'statusDefinitions', 'statusTone', 'statusLabel', 'applyStatuses',
   'enhanceStates', 'stateMarkup', 'renderState', 'inferTone', 'confirmAction',
   'role="alertdialog"', 'aria-modal="true"', 'trapConfirmFocus', 'MutationObserver',
-  'Object.assign(window, { FleetUX })'
+  'Object.assign(window, { ZentridUX })'
 ].forEach(token => expect(foundation.includes(token), `Global UX foundation token is missing: ${token}`));
 
 for (const status of ['Active', 'Inactive', 'Suspended', 'Archived', 'Normal', 'Warning', 'Fault', 'Offline', 'In Progress', 'Completed', 'Failed']) {
@@ -30,17 +30,17 @@ for (const status of ['Active', 'Inactive', 'Suspended', 'Archived', 'Normal', '
 }
 
 [
-  'toast(message: string, requestedTone?: FleetUXTone)', 'FleetUX.inferTone(message)',
+  'toast(message: string, requestedTone?: ZentridUXTone)', 'ZentridUX.inferTone(message)',
   "t.setAttribute('role', tone === 'danger' ? 'alert' : 'status')", 'toast-close',
   "tone === 'danger' ? 5200 : 3200"
 ].forEach(token => expect(layout.includes(token), `Semantic toast token is missing: ${token}`));
 
-expect(lifecycle.includes('await FleetUX.confirmAction'), 'Tenant lifecycle does not use the shared confirmation dialog.');
+expect(lifecycle.includes('await ZentridUX.confirmAction'), 'Tenant lifecycle does not use the shared confirmation dialog.');
 expect(integrations.includes('async function confirmIntegrationDetailAction'), 'Integration lifecycle confirmation is not asynchronous.');
-expect(integrations.includes('return FleetUX.confirmAction'), 'Integration lifecycle does not use the shared confirmation dialog.');
+expect(integrations.includes('return ZentridUX.confirmAction'), 'Integration lifecycle does not use the shared confirmation dialog.');
 expect(integrations.includes('await confirmIntegrationDetailAction(record, action)'), 'Integration action handler does not await confirmation.');
 
-for (const token of ['.fleet-ux-state', '.fleet-ux-confirm-overlay', '.toast.success', '.toast.warning', '.toast.danger', '[data-fleet-status]']) {
+for (const token of ['.zentrid-ux-state', '.zentrid-ux-confirm-overlay', '.toast.success', '.toast.warning', '.toast.danger', '[data-zentrid-status]']) {
   expect(css.includes(token), `Global UX style is missing: ${token}`);
 }
 expect(Array.isArray(manifest.sources) && manifest.sources.includes('components/ux-consistency.css'), 'Global UX stylesheet is missing from the CSS manifest.');

@@ -33,18 +33,18 @@ const pkg = JSON.parse(read('package.json') || '{}');
   "function registerCleanup(key: string",
   "PerformanceObserver",
   "window.addEventListener('pagehide', dispose",
-  "data-fleet-single-action",
+  "data-zentrid-single-action",
   "longTaskDurationMs"
 ].forEach(token => expect(runtime.includes(token), `Runtime stability token missing: ${token}`));
 
 [
   "pendingRoots = new Set<HTMLElement>()",
-  "FleetRuntimeStability.frame('ux-consistency:mutations'",
+  "ZentridRuntimeStability.frame('ux-consistency:mutations'",
   "registerCleanup('ux-consistency:observer'"
 ].forEach(token => expect(ux.includes(token), `UX observer batching token missing: ${token}`));
 
 [
-  "FleetRuntimeStability.frame('responsive-accessibility:mutations'",
+  "ZentridRuntimeStability.frame('responsive-accessibility:mutations'",
   "registerCleanup('responsive-accessibility:observer'",
   "function stopObserving()"
 ].forEach(token => expect(responsive.includes(token), `Responsive observer lifecycle token missing: ${token}`));
@@ -56,23 +56,23 @@ expect(lazy.includes('function dispose(page?: string)'), 'Lazy detail page dispo
 expect(lazy.includes("window.addEventListener('pagehide', () => dispose()"), 'Lazy detail state is not disposed on pagehide.');
 
 const searchChecks = [
-  [clients, "FleetRuntimeStability.debounce('registry:clients:search'", 'clients'],
-  [plants, "FleetRuntimeStability.debounce('registry:plants:search'", 'plants'],
-  [devices, "FleetRuntimeStability.debounce('registry:devices:search'", 'devices'],
-  [alerts, "FleetRuntimeStability.debounce('registry:alerts:search'", 'alerts'],
-  [tenants, "FleetRuntimeStability.debounce('registry:tenants:search'", 'tenants'],
-  [integrations, "FleetRuntimeStability.debounce('registry:integrations:search'", 'integrations']
+  [clients, "ZentridRuntimeStability.debounce('registry:clients:search'", 'clients'],
+  [plants, "ZentridRuntimeStability.debounce('registry:plants:search'", 'plants'],
+  [devices, "ZentridRuntimeStability.debounce('registry:devices:search'", 'devices'],
+  [alerts, "ZentridRuntimeStability.debounce('registry:alerts:search'", 'alerts'],
+  [tenants, "ZentridRuntimeStability.debounce('registry:tenants:search'", 'tenants'],
+  [integrations, "ZentridRuntimeStability.debounce('registry:integrations:search'", 'integrations']
 ];
 searchChecks.forEach(([source, token, name]) => expect(source.includes(token), `${name} search is not using shared debounce.`));
 [
-  [clients, 'FleetRuntimeStability.replaceHtml(target', 'clients'],
-  [plants, 'FleetRuntimeStability.replaceHtml(table', 'plants'],
-  [devices, 'FleetRuntimeStability.replaceHtml(table', 'devices'],
-  [alerts, 'FleetRuntimeStability.replaceHtml(host', 'alerts'],
-  [integrations, 'FleetRuntimeStability.replaceHtml(integrationTable', 'integrations']
+  [clients, 'ZentridRuntimeStability.replaceHtml(target', 'clients'],
+  [plants, 'ZentridRuntimeStability.replaceHtml(table', 'plants'],
+  [devices, 'ZentridRuntimeStability.replaceHtml(table', 'devices'],
+  [alerts, 'ZentridRuntimeStability.replaceHtml(host', 'alerts'],
+  [integrations, 'ZentridRuntimeStability.replaceHtml(integrationTable', 'integrations']
 ].forEach(([source, token, name]) => expect(source.includes(token), `${name} render does not preserve interaction state.`));
 
-expect(globals.includes('interface FleetRuntimeStabilityApi'), 'FleetRuntimeStability global type is missing.');
+expect(globals.includes('interface ZentridRuntimeStabilityApi'), 'ZentridRuntimeStability global type is missing.');
 expect(globals.includes('cancelAll(): void;'), 'Repository coordinator cancelAll type is missing.');
 expect(globals.includes('unobserve(page: string, key: string): void;'), 'Lazy detail unobserve type is missing.');
 
