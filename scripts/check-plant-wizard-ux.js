@@ -1,0 +1,16 @@
+const fs = require('fs');
+const assert = require('assert');
+const plants = fs.readFileSync('assets/js/plants.ts','utf8');
+const tenants = fs.readFileSync('assets/js/tenants.ts','utf8');
+const clients = fs.readFileSync('assets/js/client-hierarchy.ts','utf8');
+const plantPage = fs.readFileSync('pages/plants.html','utf8');
+assert(plants.includes('validateAssetStep'), 'Plant wizard must validate each step');
+assert(plants.includes('validateAllAssetSteps'), 'Plant wizard must validate all steps before create');
+assert(plants.includes('plantDuplicateIssues'), 'Plant wizard must prevent duplicate plant names');
+assert(plants.includes('Creating Plant…'), 'Plant wizard must expose a busy create state');
+assert(plants.includes("queryCreateContext().get('create') === '1'"), 'Plant wizard must support contextual auto-open');
+assert(plants.includes("location.href = 'plant-detail.html'"), 'Plant creation must open Plant Detail');
+assert(tenants.includes('view=solar&create=1&tenant='), 'Tenant Detail must use the unified Plant wizard');
+assert(clients.includes('view=solar&create=1&client='), 'Client Detail must use the unified Plant wizard');
+assert(plantPage.includes('form-ux.js'), 'Plants page must load shared form UX');
+console.log('Plant wizard UX checks passed.');
