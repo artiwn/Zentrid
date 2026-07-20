@@ -1,0 +1,1119 @@
+/* Incident Governance — Bitrix operational control layer */
+.incident-hero .muted,
+.incident-panel .muted,
+.incident-route-card p,
+.incident-drawer-section p,
+.incident-drawer-section small {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.incident-kpi-grid.module-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.incident-kpi.module-card {
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, .16);
+}
+.incident-kpi.module-card:hover {
+  border-color: rgba(34, 211, 238, .38);
+  transform: translateY(-1px);
+}
+.incident-kpi-danger {
+  box-shadow: inset 0 0 0 1px rgba(251, 113, 133, .08), 0 18px 42px rgba(2, 8, 23, .14);
+}
+.incident-tabs {
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+.incident-filterbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.incident-filterbar h2 { margin: 0 0 4px; }
+.incident-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.incident-table .data-head,
+.incident-table .data-row {
+  grid-template-columns: minmax(220px, 1.45fr) minmax(150px, .92fr) minmax(180px, 1.05fr) minmax(150px, .88fr) minmax(160px, .92fr) 96px;
+}
+.incident-table .data-row > div,
+.incident-sync-table .data-row > div {
+  min-width: 0;
+}
+.incident-table strong,
+.incident-sync-table strong,
+.incident-route-card strong,
+.incident-drawer-grid strong {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.incident-table small,
+.incident-sync-table small {
+  line-height: 1.45;
+}
+.incident-route-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.incident-route-card {
+  border: 1px solid rgba(148, 163, 184, .14);
+  background: rgba(15, 23, 42, .52);
+  border-radius: 18px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.incident-route-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.incident-mini-grid.info-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.incident-mini-grid.info-grid div {
+  min-width: 0;
+}
+.incident-sync-layout {
+  align-items: stretch;
+}
+.incident-sync-table .data-head,
+.incident-sync-table .data-row {
+  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.2fr) minmax(150px, 1fr) 120px 120px;
+}
+.incident-flow-map {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.incident-flow-map > div {
+  border: 1px solid rgba(148, 163, 184, .14);
+  background: rgba(15, 23, 42, .48);
+  border-radius: 18px;
+  padding: 16px;
+  min-width: 0;
+}
+.incident-flow-map span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: rgba(34, 211, 238, .14);
+  color: #67e8f9;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+.incident-flow-map strong,
+.incident-flow-map small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.incident-detail-drawer.detail-drawer {
+  width: min(620px, 94vw);
+}
+.incident-drawer-grid.drawer-metrics.rich {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.incident-drawer-section {
+  border: 1px solid rgba(148, 163, 184, .14);
+  background: rgba(255,255,255,.035);
+  border-radius: 16px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.incident-drawer-section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.incident-drawer-section p {
+  margin: 0 0 6px;
+  color: #dbeafe;
+  font-weight: 800;
+}
+.incident-drawer-actions.drawer-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+@media (max-width: 1180px) {
+  .incident-kpi-grid.module-grid,
+  .incident-route-grid,
+  .incident-flow-map {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .incident-table .data-head,
+  .incident-table .data-row,
+  .incident-sync-table .data-head,
+  .incident-sync-table .data-row {
+    grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) minmax(160px, 1fr);
+  }
+  .incident-table .data-head span:nth-child(n+4),
+  .incident-table .data-row > div:nth-child(n+4),
+  .incident-sync-table .data-head span:nth-child(n+4),
+  .incident-sync-table .data-row > div:nth-child(n+4) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .incident-filterbar,
+  .incident-route-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .incident-kpi-grid.module-grid,
+  .incident-route-grid,
+  .incident-flow-map,
+  .incident-drawer-grid.drawer-metrics.rich,
+  .incident-drawer-actions.drawer-action-grid,
+  .incident-mini-grid.info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Incident Governance — align with side workspace pattern */
+.incident-workspace-v92 {
+  margin-top: 18px;
+}
+.incident-main-card-v92 {
+  min-width: 0;
+}
+.incident-side-card.production-side-card-v92 button {
+  height: auto;
+  min-height: 58px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  white-space: normal;
+  line-height: 1.25;
+  overflow: hidden;
+}
+.incident-side-card.production-side-card-v92 button strong,
+.incident-side-card.production-side-card-v92 button small {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.incident-side-card.production-side-card-v92 button strong {
+  color: inherit;
+  font-size: 13px;
+}
+.incident-side-card.production-side-card-v92 button small {
+  color: rgba(203,216,231,.72);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.incident-side-card.production-side-card-v92 button.active small {
+  color: rgba(6,17,31,.72);
+}
+.production-side-card-v92 button,
+.production-side-card-v92 button * {
+  overflow-wrap: anywhere;
+  word-break: normal;
+  min-width: 0;
+}
+.incident-panel,
+.incident-route-card,
+.incident-flow-map > div,
+.incident-drawer-section,
+.incident-detail-drawer,
+.incident-detail-drawer * {
+  min-width: 0;
+  max-width: 100%;
+}
+.incident-route-head {
+  min-width: 0;
+}
+.incident-route-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.incident-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.incident-form-grid label {
+  display: grid;
+  gap: 7px;
+  color: #cbd8e7;
+  font-size: 12px;
+  font-weight: 900;
+  min-width: 0;
+}
+.incident-form-grid select,
+.incident-form-grid input,
+.incident-form-grid textarea,
+.workorder-filterbar input,
+.workorder-filterbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(148,163,184,.18);
+  border-radius: 14px;
+  background: rgba(2,6,23,.45);
+  color: #eaf4ff;
+  padding: 0 12px;
+  outline: none;
+}
+.incident-flow-map.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1180px) {
+  .incident-workspace-v92.production-workspace-v92 {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .incident-workspace-v92.production-workspace-v92 {
+    grid-template-columns: 1fr;
+  }
+  .incident-side-card.production-side-card-v92 {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .incident-side-card.production-side-card-v92 h3 {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  .incident-side-card.production-side-card-v92,
+  .incident-form-grid,
+  .incident-flow-map.compact {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Incident Governance quick polish: side menu labels only + safe wrapping in route cards */
+.incident-side-card.production-side-card-v92 button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 46px;
+  padding: 11px 14px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.incident-side-card.production-side-card-v92 button small,
+.incident-side-card.production-side-card-v92 button strong {
+  display: inline;
+}
+.incident-side-card.production-side-card-v92 button small {
+  display: none !important;
+}
+.incident-route-card,
+.incident-route-card *,
+.incident-mini-grid.info-grid,
+.incident-mini-grid.info-grid > div {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.incident-route-card p,
+.incident-route-card strong,
+.incident-route-card small,
+.incident-route-card span,
+.incident-mini-grid.info-grid > div > span,
+.incident-mini-grid.info-grid > div > strong,
+.incident-mini-grid.info-grid > div > small {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.35;
+}
+.incident-mini-grid.info-grid > div > strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 14px;
+}
+.incident-route-head strong {
+  display: block;
+}
+@media (max-width: 1280px) {
+  .incident-mini-grid.info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* Incident Detail Workspace */
+.incident-detail-hero .inline-badges,
+.inline-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.incident-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.incident-detail-kpis {
+  margin-bottom: 18px;
+}
+.incident-detail-kpis .module-card,
+.incident-detail-panel,
+.incident-detail-info-grid > div,
+.incident-detail-callout,
+.incident-routing-chain > div,
+.incident-detail-timeline > div {
+  min-width: 0;
+}
+.incident-detail-kpis strong,
+.incident-detail-panel strong,
+.incident-detail-panel p,
+.incident-detail-panel small,
+.incident-detail-panel span,
+.incident-detail-table .data-row > div,
+.incident-routing-chain small,
+.incident-detail-timeline small {
+  overflow-wrap: anywhere;
+  word-break: normal;
+  min-width: 0;
+}
+.incident-detail-side button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.incident-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.incident-detail-callout {
+  margin-top: 12px;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(15, 23, 42, .42);
+}
+.incident-detail-callout h3 {
+  margin: 0 0 8px;
+}
+.incident-detail-callout p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.incident-detail-timeline,
+.incident-routing-chain {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.incident-detail-timeline > div,
+.incident-routing-chain > div {
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, .42);
+}
+.incident-detail-timeline span,
+.incident-routing-chain span {
+  display: inline-flex;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+.incident-detail-timeline strong,
+.incident-routing-chain strong {
+  display: block;
+  margin-bottom: 5px;
+}
+.incident-detail-table .data-head,
+.incident-detail-table .data-row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, .8fr) minmax(0, .8fr);
+}
+.incident-detail-table .data-head:has(span:nth-child(3):last-child),
+.incident-detail-table .data-row:has(> div:nth-child(3):last-child) {
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.8fr) minmax(0, .8fr);
+}
+@media (max-width: 1100px) {
+  .incident-detail-info-grid,
+  .incident-detail-timeline,
+  .incident-routing-chain {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .incident-detail-info-grid,
+  .incident-detail-timeline,
+  .incident-routing-chain {
+    grid-template-columns: 1fr;
+  }
+  .incident-detail-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Incident Detail text overflow hardening */
+.incident-detail-workspace,
+.incident-detail-workspace *,
+.incident-detail-panel,
+.incident-detail-panel * {
+  box-sizing: border-box;
+}
+
+.incident-detail-workspace,
+.incident-main-card-v92,
+.incident-detail-panel,
+.incident-detail-panel .panel-head,
+.incident-detail-panel .panel-head > div,
+.incident-detail-info-grid,
+.incident-detail-info-grid > div,
+.incident-detail-panel .info-stack,
+.incident-detail-panel .info-card,
+.incident-detail-table,
+.incident-detail-table .data-row,
+.incident-detail-table .data-row > div,
+.incident-detail-timeline > div,
+.incident-routing-chain > div,
+.incident-detail-callout {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.incident-detail-info-grid > div,
+.incident-detail-panel .info-card,
+.incident-detail-callout,
+.incident-detail-timeline > div,
+.incident-routing-chain > div {
+  overflow: hidden;
+}
+
+.incident-detail-info-grid > div span,
+.incident-detail-info-grid > div strong,
+.incident-detail-panel .info-card span,
+.incident-detail-panel .info-card strong,
+.incident-detail-panel .info-card small,
+.incident-detail-panel .panel-head h2,
+.incident-detail-panel .panel-head p,
+.incident-detail-callout h3,
+.incident-detail-callout p,
+.incident-detail-timeline span,
+.incident-detail-timeline strong,
+.incident-detail-timeline small,
+.incident-routing-chain span,
+.incident-routing-chain strong,
+.incident-routing-chain small,
+.incident-detail-table strong,
+.incident-detail-table small,
+.incident-detail-table span {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.incident-detail-table .badge,
+.incident-detail-panel .badge,
+.incident-detail-hero .badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* Work Order Oversight — Bitrix execution governance workspace */
+.workorder-workspace-v92,
+.workorder-detail-workspace {
+  margin-top: 18px;
+}
+.workorder-main-card-v92,
+.workorder-panel,
+.workorder-panel *,
+.workorder-detail-panel,
+.workorder-detail-panel * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.workorder-side-card.production-side-card-v92 button {
+  min-height: 46px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-align: left;
+}
+.workorder-kpi-card strong,
+.workorder-kpi-card small,
+.workorder-panel h2,
+.workorder-panel p,
+.workorder-panel strong,
+.workorder-panel small,
+.workorder-panel span,
+.workorder-detail-panel h2,
+.workorder-detail-panel p,
+.workorder-detail-panel strong,
+.workorder-detail-panel small,
+.workorder-detail-panel span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+.workorder-filterbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(160px, .35fr) minmax(190px, .42fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 14px 0 16px;
+}
+.workorder-table .data-head,
+.workorder-table .data-row {
+  grid-template-columns: minmax(210px, 1.2fr) minmax(170px, .9fr) minmax(150px, .72fr) minmax(160px, .78fr) minmax(190px, 1fr) minmax(108px, .5fr);
+}
+.workorder-table .data-row > div,
+.workorder-sync-table .data-row > div,
+.workorder-evidence-table .data-row > div,
+.workorder-detail-table .data-row > div {
+  min-width: 0;
+  overflow: hidden;
+}
+.workorder-table .data-row strong,
+.workorder-table .data-row small,
+.workorder-sync-table .data-row strong,
+.workorder-sync-table .data-row small,
+.workorder-evidence-table .data-row strong,
+.workorder-evidence-table .data-row small,
+.workorder-detail-table .data-row strong,
+.workorder-detail-table .data-row small {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+.workorder-table .badge,
+.workorder-sync-table .badge,
+.workorder-evidence-table .badge,
+.workorder-detail-table .badge,
+.workorder-detail-hero .badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  white-space: normal;
+}
+.workorder-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.workorder-column {
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(15,23,42,.32);
+}
+.workorder-column h3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  color: #eaf4ff;
+  font-size: 14px;
+}
+.workorder-column h3 span {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(125,211,252,.14);
+  color: #7dd3fc;
+  font-size: 12px;
+}
+.workorder-board-card {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 16px;
+  background: rgba(2,6,23,.28);
+  color: #eaf4ff;
+  padding: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.workorder-board-card:hover {
+  border-color: rgba(125,211,252,.36);
+  background: rgba(14,165,233,.08);
+}
+.workorder-board-card strong,
+.workorder-board-card small {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.workorder-flow-map {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.workorder-flow-map > div {
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15,23,42,.32);
+  overflow: hidden;
+}
+.workorder-flow-map span,
+.workorder-flow-map strong,
+.workorder-flow-map small,
+.workorder-detail-info-grid > div span,
+.workorder-detail-info-grid > div strong {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+.workorder-form-grid .full {
+  grid-column: 1 / -1;
+}
+.workorder-detail-side button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.workorder-detail-kpis .module-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.workorder-detail-timeline > div {
+  min-width: 0;
+  overflow: hidden;
+}
+@media (max-width: 1180px) {
+  .workorder-table .data-head,
+  .workorder-table .data-row,
+  .workorder-sync-table .data-head,
+  .workorder-sync-table .data-row,
+  .workorder-evidence-table .data-head,
+  .workorder-evidence-table .data-row {
+    grid-template-columns: 1fr;
+  }
+  .workorder-board,
+  .workorder-flow-map {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workorder-filterbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .workorder-board,
+  .workorder-flow-map,
+  .workorder-filterbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Work Order Oversight — layout hardening fix */
+.workorder-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.workorder-detail-info-grid > div {
+  min-width: 0;
+  overflow: hidden;
+}
+.workorder-detail-info-grid > div span,
+.workorder-detail-info-grid > div strong {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+.workorder-detail-table .data-head,
+.workorder-detail-table .data-row {
+  display: grid;
+  grid-template-columns: minmax(120px, .85fr) minmax(260px, 1.5fr) minmax(130px, .75fr) minmax(130px, .75fr);
+  gap: 12px;
+  align-items: center;
+}
+.workorder-sync-table .data-head,
+.workorder-sync-table .data-row {
+  display: grid;
+  grid-template-columns: minmax(150px, .9fr) minmax(150px, .9fr) minmax(120px, .65fr) minmax(130px, .7fr) minmax(220px, 1.4fr) minmax(92px, .5fr);
+}
+.workorder-evidence-table .data-head,
+.workorder-evidence-table .data-row {
+  display: grid;
+  grid-template-columns: minmax(130px, .75fr) minmax(150px, .8fr) minmax(115px, .6fr) minmax(170px, .9fr) minmax(240px, 1.4fr) minmax(100px, .5fr);
+}
+.workorder-detail-panel .panel-head,
+.workorder-panel .panel-head {
+  min-width: 0;
+}
+.workorder-detail-panel .panel-head > div,
+.workorder-panel .panel-head > div {
+  min-width: 0;
+}
+@media (max-width: 1180px) {
+  .workorder-detail-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workorder-detail-table .data-head,
+  .workorder-detail-table .data-row,
+  .workorder-sync-table .data-head,
+  .workorder-sync-table .data-row,
+  .workorder-evidence-table .data-head,
+  .workorder-evidence-table .data-row {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .workorder-detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Work Order Detail — final visual polish for info panels */
+.workorder-detail-panel {
+  padding: 22px;
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+.workorder-detail-panel .panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.workorder-detail-panel .panel-head h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.workorder-detail-panel .panel-head p {
+  margin: 0;
+  color: var(--muted, #9fb0c7);
+  line-height: 1.5;
+}
+
+.workorder-detail-info-grid {
+  align-items: stretch;
+}
+
+.workorder-detail-info-grid > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 92px;
+  padding: 15px 16px;
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, .72), rgba(2, 6, 23, .34));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
+}
+
+.workorder-detail-info-grid > div span {
+  color: var(--muted, #9fb0c7);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.workorder-detail-info-grid > div strong {
+  color: #eaf4ff;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.workorder-detail-callout {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(34, 211, 238, .18);
+  border-radius: 18px;
+  background: rgba(8, 145, 178, .08);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workorder-detail-callout h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.workorder-detail-callout p {
+  margin: 0;
+  color: var(--muted, #9fb0c7);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.workorder-detail-panel .small-btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 760px) {
+  .workorder-detail-panel {
+    padding: 16px;
+  }
+
+  .workorder-detail-panel .panel-head {
+    flex-direction: column;
+  }
+
+  .workorder-detail-panel .panel-head .small-btn {
+    width: 100%;
+  }
+}
+
+/* SOP Templates workspace polish */
+.sop-workspace-v92,
+.sop-detail-workspace-v92 {
+  align-items: start;
+}
+
+.sop-side-card button,
+.sop-detail-side button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.25;
+}
+
+.sop-main-card-v92,
+.sop-detail-main-card-v92,
+.sop-panel,
+.sop-detail-panel,
+.sop-detail-info-grid,
+.sop-table,
+.sop-detail-table,
+.sop-table .data-row > *,
+.sop-detail-table .data-row > *,
+.sop-table strong,
+.sop-detail-table strong,
+.sop-table small,
+.sop-detail-table small,
+.sop-detail-info-grid > div,
+.sop-detail-info-grid strong,
+.sop-detail-info-grid span,
+.sop-rule-card,
+.sop-rule-card strong,
+.sop-rule-card small,
+.sop-card-foot,
+.sop-callout,
+.sop-flow-map,
+.sop-workflow-list,
+.sop-version-list {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+}
+
+.sop-filterbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(160px, 220px) minmax(180px, 260px) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 18px 0;
+}
+
+.sop-filterbar input,
+.sop-filterbar select {
+  min-width: 0;
+}
+
+.sop-table .data-head,
+.sop-table .data-row {
+  grid-template-columns: minmax(220px, 1.35fr) minmax(170px, 1fr) minmax(180px, 1fr) minmax(170px, .9fr) minmax(150px, .75fr) minmax(96px, .45fr);
+}
+
+.sop-detail-table .data-head,
+.sop-detail-table .data-row {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.sop-rule-grid,
+.sop-analytics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sop-rule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sop-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.sop-flow-map {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, .28);
+}
+
+.sop-flow-map span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, .1);
+  border: 1px solid rgba(14, 165, 233, .22);
+  color: #e5f6ff;
+  font-weight: 800;
+}
+
+.sop-flow-map b {
+  color: #38bdf8;
+}
+
+.sop-form-grid textarea {
+  min-height: 96px;
+}
+
+.sop-detail-kpis .module-card strong,
+.sop-kpis .module-card strong {
+  overflow-wrap: anywhere;
+}
+
+.sop-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.sop-detail-info-grid > div {
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, .16);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, .35);
+}
+
+.sop-detail-info-grid span {
+  display: block;
+  margin-bottom: 7px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.sop-detail-info-grid strong {
+  display: block;
+  color: #eef6ff;
+  line-height: 1.35;
+}
+
+.sop-workflow-list > div,
+.sop-version-list > div {
+  position: relative;
+}
+
+.sop-version-list em.badge {
+  align-self: flex-start;
+  font-style: normal;
+  margin-top: 6px;
+}
+
+@media (max-width: 980px) {
+  .sop-filterbar {
+    grid-template-columns: 1fr;
+  }
+  .sop-table .data-head,
+  .sop-table .data-row,
+  .sop-detail-table .data-head,
+  .sop-detail-table .data-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* SOP drawer forms: separate builders for template, mapping, escalation and evidence */
+.sop-drawer-intro,
+.sop-drawer-callout,
+.sop-form-grid,
+.sop-form-grid label,
+.sop-form-grid input,
+.sop-form-grid select,
+.sop-form-grid textarea {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+}
+
+.sop-drawer-intro {
+  margin: 4px 0 18px;
+  color: #9fb0c6;
+  line-height: 1.55;
+}
+
+.sop-form-grid label {
+  line-height: 1.35;
+}
+
+.sop-form-grid textarea {
+  resize: vertical;
+}
+
