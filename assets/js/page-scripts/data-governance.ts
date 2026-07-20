@@ -47,14 +47,14 @@ const normalizationDomains: NormalizationDomainCard[] = [
 
     function badge(v: string): string { return `<span class="badge ${v === 'Active' ? 'success' : 'warning'}">${v}</span>`; }
 
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero production-hero">
         <div>
           <p class="eyebrow">Global Admin · Data Governance</p>
           <h1>Data Governance Center</h1>
           <p class="muted">This page shows what Zentrid has normalized, which normalized contract controls the UI, and which naming/unit rules must be followed across all pages.</p>
         </div>
-        <button class="freshness-card" onclick="FleetLayout.toast('Normalization governance snapshot refreshed')">
+        <button class="freshness-card" onclick="ZentridLayout.toast('Normalization governance snapshot refreshed')">
           <span class="pulse"></span>
           <div><strong>Normalization Snapshot</strong><small>UI fields · screens · alerts · units linked</small></div>
         </button>

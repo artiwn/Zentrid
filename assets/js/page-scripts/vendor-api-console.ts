@@ -1,2 +1,2 @@
-FleetLayout.mount(renderVendorApiConsole());
+ZentridLayout.mount(renderVendorApiConsole());
 wireVendorApiConsole();

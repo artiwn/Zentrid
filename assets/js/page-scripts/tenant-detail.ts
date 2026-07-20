@@ -1,2 +1,2 @@
-FleetLayout.mount(renderTenantDetail());
+ZentridLayout.mount(renderTenantDetail());
     wireTenantDetail();

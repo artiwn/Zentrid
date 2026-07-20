@@ -1,2 +1,2 @@
-FleetLayout.mount('<div id="rbacDetailRoot"></div>');
-    FleetRBAC.renderDetail();
+ZentridLayout.mount('<div id="rbacDetailRoot"></div>');
+    ZentridRBAC.renderDetail();

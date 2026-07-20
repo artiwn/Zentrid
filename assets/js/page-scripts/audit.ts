@@ -173,7 +173,7 @@ const auditTabsV104: Array<[AuditTabKey, string]> = [
       d.querySelectorAll('.drawer-close,.drawer-close-2').forEach(b => b.onclick = () => d.classList.remove('open'));
     }
 
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero">
         <div>
           <p class="eyebrow">Global Admin · Platform Governance</p>

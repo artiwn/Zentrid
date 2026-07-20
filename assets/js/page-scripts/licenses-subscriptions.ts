@@ -1,4 +1,4 @@
 (() => {
-FleetLayout.mount(CommercialLicensing.render());
+ZentridLayout.mount(CommercialLicensing.render());
 
 })();

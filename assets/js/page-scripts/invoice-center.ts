@@ -1,3 +1,3 @@
 (() => {
-  FleetLayout.mount(window.FinancialOperations.render('invoices'));
+  ZentridLayout.mount(window.FinancialOperations.render('invoices'));
 })();

@@ -76,7 +76,7 @@ const accountingRecords: EnergyAccountingRecordV58[] = [
         accountingRecords.push(rec);
         document.getElementById('accountingRecordsTable')?.insertAdjacentHTML('beforeend', accountingRecordRow(rec));
         window.EnergyAccounting.closeModal();
-        FleetLayout.toast(`Correction draft ${rec.id} created · Δ ${diff.toLocaleString()} kWh`);
+        ZentridLayout.toast(`Correction draft ${rec.id} created · Δ ${diff.toLocaleString()} kWh`);
       },
       runAccounting(){
         const modal = ensurePanel('energyAccountingModal');
@@ -89,13 +89,13 @@ const accountingRecords: EnergyAccountingRecordV58[] = [
         const drawer = ensurePanel('energyAccountingDrawer','detail-drawer');
         drawer.innerHTML = `<button class="drawer-close" type="button" onclick="EnergyAccounting.closeDrawer()">×</button><p class="eyebrow">Accounting Run</p><h2>${runId}</h2><p class="muted">Run completed in demo mode. In production this would create versioned accounting records and validation logs.</p><div class="info-grid"><div><span>Period</span><strong>${fieldValue('runPeriod') || 'June 2026'}</strong></div><div><span>Scope</span><strong>${fieldValue('runScope') || 'All Plants'}</strong></div><div><span>Policy</span><strong>${fieldValue('runPolicy') || 'Block missing meter data'}</strong></div><div><span>Status</span><strong>${fieldValue('runStatus') || 'Under Review'}</strong></div></div><div class="modal-actions"><button class="primary-action" type="button" onclick="location.href='settlement-center.html'">Open Settlement Center</button></div>`;
         drawer.classList.add('open');
-        FleetLayout.toast('Monthly energy accounting run completed');
+        ZentridLayout.toast('Monthly energy accounting run completed');
       },
       closeModal(){ closePanel('energyAccountingModal'); },
       closeDrawer(){ closePanel('energyAccountingDrawer'); }
     };
 
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Energy Accounting</h1><p class="muted">Validated energy layer between Production and Billing. It stores accounting records, quality state, period close and settlement readiness before any invoice can be generated.</p></div><div class="toolbar"><button class="secondary-action" onclick="location.href='commercial-models.html'">Back to Commercial Models</button><button class="primary-action" onclick="EnergyAccounting.runAccounting()">Run Accounting</button></div></section>
       <section class="module-grid commercial-kpis-v78"><article class="kpi-card"><span>Produced</span><strong>${n(total('produced'))} kWh</strong><small>Current accounting period</small></article><article class="kpi-card"><span>Exported</span><strong>${n(total('exported'))} kWh</strong><small>Settlement candidate energy</small></article><article class="kpi-card"><span>Self-consumed</span><strong>${n(total('self'))} kWh</strong><small>Internal consumption offset</small></article><article class="kpi-card"><span>Accounting Status</span><strong>3 / 4 ready</strong><small>Validated, approved or locked</small></article></section>
       <section class="panel glass-card"><div class="panel-head"><div><h2>Production → Accounting → Settlement → Billing</h2><p>Billing should not consume raw production numbers directly. It should consume approved accounting records or settlement records.</p></div><span class="badge success">New bridge layer</span></div><div class="commercial-governance-flow-v99 energy-flow-v160"><article><span>01</span><strong>Production</strong><small>Raw and normalized telemetry</small></article><article><span>02</span><strong>Metering Validation</strong><small>Meter source, completeness, quality</small></article><article><span>03</span><strong>Accounting Record</strong><small>Produced, consumed, export, import</small></article><article><span>04</span><strong>Period Close</strong><small>Open → Review → Approved → Locked</small></article><article><span>05</span><strong>Settlement Ready</strong><small>Energy can be priced and invoiced</small></article></div></section>

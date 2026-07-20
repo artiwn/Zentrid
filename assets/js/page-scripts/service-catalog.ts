@@ -1,6 +1,6 @@
 (() => {
 interface ServiceCatalogRow { [key: string]: string; }
-interface FleetServiceCatalogWindowApi { toast(msg: string): void; open(type: string, title: string, meta: string): void; }
+interface ZentridServiceCatalogWindowApi { toast(msg: string): void; open(type: string, title: string, meta: string): void; }
 const serviceCatalog: ServiceCatalogRow[] = [
       {code:'SRV-MON', name:'Fleet Monitoring', category:'Operations', package:'Core Operations', billing:'Subscription', sla:'Standard', status:'Active'},
       {code:'SRV-PM', name:'Preventive Maintenance', category:'Maintenance', package:'O&M Care', billing:'Per plant / schedule', sla:'Premium', status:'Active'},
@@ -53,7 +53,7 @@ const serviceCatalog: ServiceCatalogRow[] = [
       return 'info';
     }
     function status(v: unknown): string{ return `<span class="badge ${tone(v)}">${v}</span>`; }
-    function actions(label: string, call: string): string{ return `<div class="row-actions kebabified service-catalog-actions-cell-v125"><button class="small-btn" type="button" onclick="FleetServiceCatalogV125.${call}">${label}</button></div>`; }
+    function actions(label: string, call: string): string{ return `<div class="row-actions kebabified service-catalog-actions-cell-v125"><button class="small-btn" type="button" onclick="ZentridServiceCatalogV125.${call}">${label}</button></div>`; }
     function table(heads: string[], rows: string[], cls = 'service-catalog-table-v125'): string{ return `<div class="data-table ${cls}"><div class="data-head">${heads.map(h=>`<span>${h}</span>`).join('')}</div>${rows.join('')}</div>`; }
     function title(h: string, p: string, btn?: string): string{ return `<div class="section-title-v17 service-title-v125"><div><h2>${h}</h2><p class="muted">${p}</p></div>${btn||''}</div>`; }
     function kpis(): string{
@@ -65,7 +65,7 @@ const serviceCatalog: ServiceCatalogRow[] = [
       </section>`;
     }
     function overview(): string{
-      return title('Service Catalog Overview','Define what Zentrid sells or provides: services, packages, SLA mappings, availability and lifecycle.',`<button class="primary-action" onclick="FleetServiceCatalogV125.toast('Service editor opened')">Create Service</button>`)+
+      return title('Service Catalog Overview','Define what Zentrid sells or provides: services, packages, SLA mappings, availability and lifecycle.',`<button class="primary-action" onclick="ZentridServiceCatalogV125.toast('Service editor opened')">Create Service</button>`)+
       kpis()+
       `<div class="service-flow-v125">
         <article><span>01</span><strong>Service</strong><small>Operational or commercial capability</small></article>
@@ -83,46 +83,46 @@ const serviceCatalog: ServiceCatalogRow[] = [
       </div>`;
     }
     function services(): string{
-      return title('Service Catalog','Master list of services that can be sold, bundled, mapped to SLA and connected to agreements.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('New service form opened')">Add Service</button>`)+
+      return title('Service Catalog','Master list of services that can be sold, bundled, mapped to SLA and connected to agreements.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('New service form opened')">Add Service</button>`)+
       table(['Service','Category / Package','Billing Logic','SLA','Status','Actions'], serviceCatalog.map(s=>`<div class="data-row service-catalog-row-v125"><div><strong>${s.name}</strong><small>${s.code}</small></div><div><strong>${s.category}</strong><small>${s.package}</small></div><div><strong>${s.billing}</strong><small>Commercial mapping</small></div><div>${status(s.sla)}</div><div>${status(s.status)}</div>${actions('Open',`open('Service','${s.name}','${s.category} · ${s.package}')`)}</div>`));
     }
     function categoryTab(): string{
-      return title('Service Categories','Organize service responsibility, visibility and lifecycle by business domain.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('Category editor opened')">Add Category</button>`)+
+      return title('Service Categories','Organize service responsibility, visibility and lifecycle by business domain.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('Category editor opened')">Add Category</button>`)+
       table(['Category','Owner','Services','Visibility','Status','Actions'], categories.map(c=>`<div class="data-row service-catalog-row-v125"><div><strong>${c.name}</strong><small>${c.lifecycle}</small></div><div><strong>${c.owner}</strong><small>Owner team</small></div><div><strong>${c.services}</strong><small>Linked services</small></div><div><strong>${c.visibility}</strong><small>Portal scope</small></div><div>${status(c.status)}</div>${actions('Open',`open('Service Category','${c.name}','${c.owner} · ${c.visibility}')`)}</div>`));
     }
     function packageTab(): string{
-      return title('Service Packages','Reusable bundles that later connect to pricing models, subscriptions and agreements.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('Package builder opened')">Add Package</button>`)+
+      return title('Service Packages','Reusable bundles that later connect to pricing models, subscriptions and agreements.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('Package builder opened')">Add Package</button>`)+
       table(['Package','Included Services','Target Segment','Pricing','Status','Actions'], packages.map(p=>`<div class="data-row service-package-row-v125"><div><strong>${p.name}</strong><small>Service package</small></div><div><small>${p.includes}</small></div><div><strong>${p.target}</strong><small>Commercial scope</small></div><div><strong>${p.price}</strong><small>Pricing dependency</small></div><div>${status(p.status)}</div>${actions('Open',`open('Service Package','${p.name}','${p.includes}')`)}</div>`), 'service-package-table-v125');
     }
     function slaTab(): string{
-      return title('Service SLA Mapping','Connect service catalog entries to response and resolution commitments for operations.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('SLA mapping editor opened')">Add SLA Mapping</button>`)+
+      return title('Service SLA Mapping','Connect service catalog entries to response and resolution commitments for operations.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('SLA mapping editor opened')">Add SLA Mapping</button>`)+
       table(['Service','Severity','Response','Resolution','Escalation','Actions'], slaMapping.map(s=>`<div class="data-row service-catalog-row-v125"><div><strong>${s.service}</strong><small>Mapped service</small></div><div>${status(s.severity)}</div><div><strong>${s.response}</strong><small>Response time</small></div><div><strong>${s.resolution}</strong><small>Resolution target</small></div><div><strong>${s.escalation}</strong><small>${s.status}</small></div>${actions('Open',`open('SLA Mapping','${s.service}','${s.severity} · ${s.response} / ${s.resolution}')`)}</div>`));
     }
     function availabilityTab(): string{
-      return title('Service Availability','Define where each service is available by tenant, country, client segment and data dependency.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('Availability rule editor opened')">Add Rule</button>`)+
+      return title('Service Availability','Define where each service is available by tenant, country, client segment and data dependency.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('Availability rule editor opened')">Add Rule</button>`)+
       table(['Service','Tenants','Countries','Clients','Dependency','Status'], availability.map(a=>`<div class="data-row service-catalog-row-v125"><div><strong>${a.service}</strong><small>Service</small></div><div><strong>${a.tenants}</strong><small>Tenant scope</small></div><div><strong>${a.countries}</strong><small>Geo scope</small></div><div><strong>${a.clients}</strong><small>Client segment</small></div><div><strong>${a.dependency}</strong><small>Required condition</small></div><div>${status(a.status)}</div></div>`));
     }
     function lifecycleTab(): string{
-      return title('Service Lifecycle','Control service versions, ownership, review state and next release actions.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('Lifecycle change request opened')">Create Change</button>`)+
+      return title('Service Lifecycle','Control service versions, ownership, review state and next release actions.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('Lifecycle change request opened')">Create Change</button>`)+
       table(['Service','Version','Stage','Next Action','Owner','Actions'], lifecycle.map(l=>`<div class="data-row service-catalog-row-v125"><div><strong>${l.service}</strong><small>${l.version}</small></div><div><strong>${l.version}</strong><small>Catalog version</small></div><div>${status(l.stage)}</div><div><strong>${l.next}</strong><small>Next step</small></div><div><strong>${l.owner}</strong><small>${l.status}</small></div>${actions('Open',`open('Lifecycle Record','${l.service}','${l.stage} · ${l.next}')`)}</div>`));
     }
     function auditLog(): string{
-      return title('Audit Log','Immutable trace of service catalog, package and SLA configuration changes.',`<button class="secondary-action" onclick="FleetServiceCatalogV125.toast('Service catalog audit export prepared')">Export Audit</button>`)+
+      return title('Audit Log','Immutable trace of service catalog, package and SLA configuration changes.',`<button class="secondary-action" onclick="ZentridServiceCatalogV125.toast('Service catalog audit export prepared')">Export Audit</button>`)+
       table(['Timestamp','Actor','Action','Entity','Status','Actions'], audit.map(a=>`<div class="data-row service-catalog-row-v125"><div><strong>${a.time}</strong><small>Timestamp</small></div><div><strong>${a.actor}</strong><small>Actor</small></div><div><strong>${a.action}</strong><small>Action</small></div><div><strong>${a.entity}</strong><small>Entity</small></div><div>${status(a.status)}</div>${actions('Open',`open('Audit Record','${a.action}','${a.entity}')`)}</div>`));
     }
     function content(tab: string): string{
       return tab==='services'?services():tab==='categories'?categoryTab():tab==='packages'?packageTab():tab==='sla'?slaTab():tab==='availability'?availabilityTab():tab==='lifecycle'?lifecycleTab():tab==='audit'?auditLog():overview();
     }
-    window.FleetServiceCatalogV125 = {
-      toast(msg: string): void{ if(window.FleetLayout && FleetLayout.toast) FleetLayout.toast(msg); else alert(msg); },
+    window.ZentridServiceCatalogV125 = {
+      toast(msg: string): void{ if(window.ZentridLayout && ZentridLayout.toast) ZentridLayout.toast(msg); else alert(msg); },
       open(type: string, title: string, meta: string): void{
-        const layout = FleetLayout as unknown as FleetLayoutLegacyApi;
-        if(window.FleetLayout && layout.drawer){
+        const layout = ZentridLayout as unknown as ZentridLayoutLegacyApi;
+        if(window.ZentridLayout && layout.drawer){
           layout.drawer(type, {Title:title, Context:meta, Status:'Mock detail'}, '<div class="drawer-action-grid"><button>Edit Draft</button><button>Validate</button><button>Map Pricing</button><button>View Audit</button></div>');
         } else this.toast(type+': '+title);
       }
     };
-    FleetLayout.mount(`<section class="page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Service Catalog</h1><p class="muted">Services, categories, packages, SLA mapping, availability, lifecycle and audit for commercial operations.</p></div><button class="secondary-action" onclick="location.href='commercial-agreements.html'">Back to Agreements</button></section><section class="plant-workspace-v17 service-catalog-workspace-v125"><aside class="glass-card plant-side-card-v17 service-catalog-side-v125"><h3>Service Workspace</h3><button class="active" data-service-catalog-tab="overview">Overview</button><button data-service-catalog-tab="services">Service Catalog</button><button data-service-catalog-tab="categories">Service Categories</button><button data-service-catalog-tab="packages">Service Packages</button><button data-service-catalog-tab="sla">Service SLA Mapping</button><button data-service-catalog-tab="availability">Service Availability</button><button data-service-catalog-tab="lifecycle">Service Lifecycle</button><button data-service-catalog-tab="audit">Audit Log</button></aside><section class="glass-card plant-main-card-v17 service-catalog-main-card-v125" id="serviceCatalogContent">${content('overview')}</section></section>`);
+    ZentridLayout.mount(`<section class="page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Service Catalog</h1><p class="muted">Services, categories, packages, SLA mapping, availability, lifecycle and audit for commercial operations.</p></div><button class="secondary-action" onclick="location.href='commercial-agreements.html'">Back to Agreements</button></section><section class="plant-workspace-v17 service-catalog-workspace-v125"><aside class="glass-card plant-side-card-v17 service-catalog-side-v125"><h3>Service Workspace</h3><button class="active" data-service-catalog-tab="overview">Overview</button><button data-service-catalog-tab="services">Service Catalog</button><button data-service-catalog-tab="categories">Service Categories</button><button data-service-catalog-tab="packages">Service Packages</button><button data-service-catalog-tab="sla">Service SLA Mapping</button><button data-service-catalog-tab="availability">Service Availability</button><button data-service-catalog-tab="lifecycle">Service Lifecycle</button><button data-service-catalog-tab="audit">Audit Log</button></aside><section class="glass-card plant-main-card-v17 service-catalog-main-card-v125" id="serviceCatalogContent">${content('overview')}</section></section>`);
     document.addEventListener('click', (e: MouseEvent)=>{
       const b = (e.target instanceof Element ? e.target.closest('[data-service-catalog-tab]') : null) as HTMLElement | null;
       if(!b) return;

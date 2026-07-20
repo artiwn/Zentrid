@@ -1,2 +1,2 @@
-FleetLayout.mount(renderIntegrations());
+ZentridLayout.mount(renderIntegrations());
     wireIntegrations();

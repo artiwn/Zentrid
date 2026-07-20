@@ -1,2 +1,2 @@
-FleetLayout.mount(renderDeviceDetail());
+ZentridLayout.mount(renderDeviceDetail());
     wireDeviceDetail();

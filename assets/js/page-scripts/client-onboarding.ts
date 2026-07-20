@@ -1,12 +1,12 @@
 export {};
-FleetLayout.mount(`
+ZentridLayout.mount(`
       <section class="page-hero placeholder-page">
         <div>
           <p class="eyebrow">Global Admin · Global Admin</p>
           <h1>Client Onboarding</h1>
           <p class="muted">Placeholder page. The sidebar route is reserved, but this module will be filled only after the scope is confirmed.</p>
         </div>
-        <button class="freshness-card" onclick="FleetLayout.toast('Placeholder: no invented data added')">
+        <button class="freshness-card" onclick="ZentridLayout.toast('Placeholder: no invented data added')">
           <span class="pulse"></span>
           <div><strong>Scope pending</strong><small>No mock operational content</small></div>
         </button>

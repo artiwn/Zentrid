@@ -1,4 +1,4 @@
-FleetLayout.mount(`
+ZentridLayout.mount(`
 <section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Management</p><h1>Discovery Review</h1><p class="muted">This workspace is intentionally cleared for the next product pass. The menu item remains available, but detailed data and actions are hidden until the workflow is finalized.</p></div><button class="freshness-card" type="button" onclick="location.href='clients.html'"><span class="pulse"></span><div><strong>Back to Client Registry</strong><small>Continue from the main registry</small></div></button></section>
 <section class="panel glass-card empty-state-panel"><div class="panel-head"><div><h2>Pending UX Definition</h2><p class="muted">No operational information is shown here for now.</p></div></div><div class="empty-state-card"><strong>Discovery review workflow hidden</strong><small>We will rebuild discovery review after deciding how vendor discovery should create or link tenants, clients and plants.</small></div></section>
 `);

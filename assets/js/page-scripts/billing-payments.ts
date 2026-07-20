@@ -306,7 +306,7 @@ window.BillingConfiguration = (() => {
       }
 
       function mount() {
-        FleetLayout.mount(`<section class="page-hero billing-page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Billing Management</h1><p class="muted">Usage records, rating rules, invoice generation, tax calculation, ERP sync and immutable calculation snapshots.</p></div><button class="secondary-action" type="button" onclick="location.href='tariff-plans.html'">Open Tariff Plans</button></section><section class="plant-workspace-v17 billing-workspace-v100 billing-config-workspace"><aside class="glass-card plant-side-card-v17 billing-side-nav"><h3>Billing Management</h3><button class="${state.activeTab==='overview'?'active':''}" data-billing-tab="overview">Overview</button><button class="${state.activeTab==='dashboard'?'active':''}" data-billing-tab="dashboard">Billing Dashboard</button><button class="${state.activeTab==='cycles'?'active':''}" data-billing-tab="cycles">Billing Cycles</button><button class="${state.activeTab==='usage'?'active':''}" data-billing-tab="usage">Usage Records</button><button class="${state.activeTab==='invoices'?'active':''}" data-billing-tab="invoices">Invoices</button><button class="${state.activeTab==='rules'?'active':''}" data-billing-tab="rules">Rating Rules</button><button class="${state.activeTab==='taxes'?'active':''}" data-billing-tab="taxes">Taxes & Currency</button><button class="${state.activeTab==='credit'?'active':''}" data-billing-tab="credit">Credit Management</button><button class="${state.activeTab==='dunning'?'active':''}" data-billing-tab="dunning">Dunning Management</button><button class="${state.activeTab==='revenue'?'active':''}" data-billing-tab="revenue">Revenue Recognition</button><button class="${state.activeTab==='erp'?'active':''}" data-billing-tab="erp">ERP Integration</button><button class="${state.activeTab==='audit'?'active':''}" data-billing-tab="audit">Audit</button></aside><section class="plant-main-card-v17 billing-main-card" id="billingContent">${tabContent(state.activeTab)}</section></section>`);
+        ZentridLayout.mount(`<section class="page-hero billing-page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Billing Management</h1><p class="muted">Usage records, rating rules, invoice generation, tax calculation, ERP sync and immutable calculation snapshots.</p></div><button class="secondary-action" type="button" onclick="location.href='tariff-plans.html'">Open Tariff Plans</button></section><section class="plant-workspace-v17 billing-workspace-v100 billing-config-workspace"><aside class="glass-card plant-side-card-v17 billing-side-nav"><h3>Billing Management</h3><button class="${state.activeTab==='overview'?'active':''}" data-billing-tab="overview">Overview</button><button class="${state.activeTab==='dashboard'?'active':''}" data-billing-tab="dashboard">Billing Dashboard</button><button class="${state.activeTab==='cycles'?'active':''}" data-billing-tab="cycles">Billing Cycles</button><button class="${state.activeTab==='usage'?'active':''}" data-billing-tab="usage">Usage Records</button><button class="${state.activeTab==='invoices'?'active':''}" data-billing-tab="invoices">Invoices</button><button class="${state.activeTab==='rules'?'active':''}" data-billing-tab="rules">Rating Rules</button><button class="${state.activeTab==='taxes'?'active':''}" data-billing-tab="taxes">Taxes & Currency</button><button class="${state.activeTab==='credit'?'active':''}" data-billing-tab="credit">Credit Management</button><button class="${state.activeTab==='dunning'?'active':''}" data-billing-tab="dunning">Dunning Management</button><button class="${state.activeTab==='revenue'?'active':''}" data-billing-tab="revenue">Revenue Recognition</button><button class="${state.activeTab==='erp'?'active':''}" data-billing-tab="erp">ERP Integration</button><button class="${state.activeTab==='audit'?'active':''}" data-billing-tab="audit">Audit</button></aside><section class="plant-main-card-v17 billing-main-card" id="billingContent">${tabContent(state.activeTab)}</section></section>`);
         document.addEventListener('click', handleClick);
       }
 
@@ -357,7 +357,7 @@ window.BillingConfiguration = (() => {
         state.activeTab = 'invoices';
         closeModal();
         rerender();
-        FleetLayout.toast('Invoice draft created');
+        ZentridLayout.toast('Invoice draft created');
       }
 
       function openChargeModal() {
@@ -377,7 +377,7 @@ window.BillingConfiguration = (() => {
         closeModal();
         save();
         rerender();
-        FleetLayout.toast('Charge added');
+        ZentridLayout.toast('Charge added');
       }
 
       function openCycleModal() {
@@ -389,7 +389,7 @@ window.BillingConfiguration = (() => {
         closeModal();
         state.activeTab = 'cycles';
         rerender();
-        FleetLayout.toast('Billing cycle created');
+        ZentridLayout.toast('Billing cycle created');
       }
 
       function openTaxModal() {
@@ -401,7 +401,7 @@ window.BillingConfiguration = (() => {
         closeModal();
         state.activeTab = 'taxes';
         rerender();
-        FleetLayout.toast('Tax rule added');
+        ZentridLayout.toast('Tax rule added');
       }
 
       function openSimulatorModal() {
@@ -436,7 +436,7 @@ window.BillingConfiguration = (() => {
         closeModal();
         state.activeTab = 'credit';
         rerender();
-        FleetLayout.toast('Credit profile updated');
+        ZentridLayout.toast('Credit profile updated');
       }
 
       function addDeposit() {
@@ -445,7 +445,7 @@ window.BillingConfiguration = (() => {
         row.deposit += 1000;
         state.activeTab = 'credit';
         rerender();
-        FleetLayout.toast('Deposit added to customer profile');
+        ZentridLayout.toast('Deposit added to customer profile');
       }
 
       function configureDunning() {
@@ -461,7 +461,7 @@ window.BillingConfiguration = (() => {
         state.activeTab = 'dunning';
         save();
         rerender();
-        FleetLayout.toast('Dunning policy updated');
+        ZentridLayout.toast('Dunning policy updated');
       }
 
       function editDunning(stage: string): void {
@@ -480,14 +480,14 @@ window.BillingConfiguration = (() => {
         closeModal();
         save();
         rerender();
-        FleetLayout.toast(`${stage} dunning stage updated`);
+        ZentridLayout.toast(`${stage} dunning stage updated`);
       }
 
       function recognizeRevenue() {
         state.revenueRecognition = state.revenueRecognition.map(r => ({ ...r, status: r.status === 'Pending' ? 'Recognized' : r.status }));
         save();
         rerender();
-        FleetLayout.toast('Revenue recognition batch prepared');
+        ZentridLayout.toast('Revenue recognition batch prepared');
       }
 
       function val(id: string): string {
@@ -509,7 +509,7 @@ window.BillingConfiguration = (() => {
         inv.trace.push({ step: `Status: ${status}`, amount: 0, note: message || `Invoice moved to ${status}` });
         save();
         rerender();
-        FleetLayout.toast(`${inv.id} ${status}`);
+        ZentridLayout.toast(`${inv.id} ${status}`);
       }
 
       function approveInvoice(id: string): void { setInvoiceStatus(id, 'Approved', 'Invoice approved by billing admin'); }
@@ -525,7 +525,7 @@ window.BillingConfiguration = (() => {
         inv.status = flow[Math.min(idx + 1, flow.length - 1)] || 'Approved';
         save();
         rerender();
-        FleetLayout.toast(`${inv.id} moved to ${inv.status}`);
+        ZentridLayout.toast(`${inv.id} moved to ${inv.status}`);
       }
 
       function openSnapshot(id: string): void {
@@ -544,7 +544,7 @@ window.BillingConfiguration = (() => {
         if (cycle.progress >= 100) cycle.status = 'Closed';
         save();
         rerender();
-        FleetLayout.toast('Billing cycle recalculated');
+        ZentridLayout.toast('Billing cycle recalculated');
       }
 
       function addUsageRecord() {
@@ -552,11 +552,11 @@ window.BillingConfiguration = (() => {
         state.usageRecords.unshift({ id, client: 'New Enterprise Customer', category: 'Storage', metric: 'Telemetry retention', quantity: 1, unit: 'TB-month', source: 'Data Storage', status: 'Review' });
         save();
         rerender();
-        FleetLayout.toast('Usage record added for review');
+        ZentridLayout.toast('Usage record added for review');
       }
 
       function testRating() {
-        FleetLayout.toast('Rating test passed: no pricing conflicts');
+        ZentridLayout.toast('Rating test passed: no pricing conflicts');
       }
 
       function syncErp(system: string): void {
@@ -564,14 +564,14 @@ window.BillingConfiguration = (() => {
         if (item) item.status = 'Ready';
         save();
         rerender();
-        FleetLayout.toast(`${system} sync completed`);
+        ZentridLayout.toast(`${system} sync completed`);
       }
 
       function exportBatch() {
         state.integrations = state.integrations.map(i => ({ ...i, status: i.status === 'Review' ? 'Ready' : i.status }));
         save();
         rerender();
-        FleetLayout.toast('ERP export batch prepared');
+        ZentridLayout.toast('ERP export batch prepared');
       }
 
       return { mount, closeModal, openInvoiceModal, saveInvoice, openChargeModal, saveCharge, openCycleModal, saveCycle, openTaxModal, saveTaxRule, openSimulatorModal, runSimulation, openCreditModal, saveCreditAdjustment, addDeposit, configureDunning, saveDunningPolicy, editDunning, saveDunningStage, recognizeRevenue, selectInvoice, approveInvoice, sendInvoice, markInvoicePaid, cancelInvoice, advanceInvoice, openSnapshot, runBillingCycle, addUsageRecord, testRating, syncErp, exportBatch };
