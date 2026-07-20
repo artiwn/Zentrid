@@ -1,4 +1,4 @@
-type FleetSidebarGroup = {
+type ZentridSidebarGroup = {
   key: string;
   icon?: string;
   name: string;
@@ -8,7 +8,7 @@ type FleetSidebarGroup = {
   system?: boolean;
 };
 
-type FleetNavItem = {
+type ZentridNavItem = {
   icon: string;
   label: string;
   href: string;
@@ -16,24 +16,24 @@ type FleetNavItem = {
   dynamicGroupKey?: string;
 };
 
-type FleetNavGroup = {
+type ZentridNavGroup = {
   section: string;
-  items: FleetNavItem[];
+  items: ZentridNavItem[];
 };
 
-type FleetMenuItem = {
+type ZentridMenuItem = {
   label: string;
   value: string;
   action?: string;
 };
 
-type FleetContextState = {
+type ZentridContextState = {
   tenant: string;
   time: string;
   region: string;
 };
 
-type FleetSearchItem = {
+type ZentridSearchItem = {
   type: string;
   label: string;
   meta: string;
@@ -41,7 +41,7 @@ type FleetSearchItem = {
   keywords?: string[];
 };
 
-type FleetScoredSearchItem = FleetSearchItem & { score: number };
+type ZentridScoredSearchItem = ZentridSearchItem & { score: number };
 
 type FloatingKebabMenu = HTMLElement & {
   __zentridHome?: {
@@ -58,12 +58,12 @@ function layoutErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const FleetLayout = (() => {
+const ZentridLayout = (() => {
   const basePath = window.location.pathname.includes('/pages/') ? '../' : '';
   const current = window.location.pathname.split('/').pop() || 'index.html';
 
-  function sidebarGroupItems(): FleetSidebarGroup[] {
-    const defaults: FleetSidebarGroup[] = [
+  function sidebarGroupItems(): ZentridSidebarGroup[] {
+    const defaults: ZentridSidebarGroup[] = [
       { key:'plants', icon:'☀️', name:'Plants', type:'Plant', status:'Active', show:true, system:true },
       { key:'chargers', icon:'🔌', name:'Chargers', type:'EV Charging', status:'Draft', show:false },
       { key:'smart-home', icon:'🏠', name:'Smart Home', type:'Smart Home', status:'Draft', show:false },
@@ -76,7 +76,7 @@ const FleetLayout = (() => {
     return defaults;
   }
 
-  function customSidebarItems(): FleetNavItem[] {
+  function customSidebarItems(): ZentridNavItem[] {
     return sidebarGroupItems()
       .filter(g => g.show && g.key !== 'plants')
       .map(g => ({
@@ -91,7 +91,7 @@ const FleetLayout = (() => {
   const managedGroups = sidebarGroupItems();
   const plantGroup = managedGroups.find(g => g.key === 'plants');
 
-  const tenantManagementItems: FleetNavItem[] = [
+  const tenantManagementItems: ZentridNavItem[] = [
     { icon: '🏢', label: 'Tenant Registry', href: basePath + 'pages/tenants.html', key: 'tenants.html' },
     { icon: '👤', label: 'Client Registry', href: basePath + 'pages/clients.html', key: 'clients.html' },
     ...(plantGroup?.show !== false ? [{ icon: '☀️', label: 'Plants', href: basePath + 'pages/plants.html?view=solar', key: 'plants.html' }] : []),
@@ -102,7 +102,7 @@ const FleetLayout = (() => {
     ...customSidebarItems()
   ];
 
-  const nav: FleetNavGroup[] = [
+  const nav: ZentridNavGroup[] = [
     { section: 'Dashboard', items: [
       { icon: '🏠', label: 'Platform Overview', href: basePath + 'index.html', key: 'index.html' },
       { icon: '🔗', label: 'Platform API Console', href: basePath + 'pages/api-console.html', key: 'api-console.html' },
@@ -140,7 +140,7 @@ const FleetLayout = (() => {
     ] }
   ];
 
-  const state: FleetContextState = {
+  const state: ZentridContextState = {
     tenant: localStorage.getItem('zentrid_tenant') || 'All Tenants',
     time: localStorage.getItem('zentrid_time') || 'Last 24h',
     region: localStorage.getItem('zentrid_region') || 'All Regions'
@@ -187,7 +187,7 @@ const FleetLayout = (() => {
     return `
       <aside class="sidebar" id="sidebar">
         <button class="brand" id="goHome" type="button">
-          <div class="brand-mark">F</div>
+          <div class="brand-mark">Z</div>
           <div>
             <div class="brand-name">Zentrid</div>
             <div class="brand-subtitle">Global Admin Console</div>
@@ -209,7 +209,7 @@ const FleetLayout = (() => {
       </aside>`;
   }
 
-  function menu(id: string, items: FleetMenuItem[]): string {
+  function menu(id: string, items: ZentridMenuItem[]): string {
     return `<div class="dropdown-menu" id="${id}">${items.map(x => `<button type="button" data-value="${x.value}" data-action="${x.action || ''}">${x.label}</button>`).join('')}</div>`;
   }
 
@@ -288,7 +288,7 @@ const FleetLayout = (() => {
       </header>`;
   }
 
-  function toast(message: string, requestedTone?: FleetUXTone): void {
+  function toast(message: string, requestedTone?: ZentridUXTone): void {
     let t = document.getElementById('toast');
     if (!t) {
       t = document.createElement('div');
@@ -298,8 +298,8 @@ const FleetLayout = (() => {
       t.setAttribute('aria-atomic', 'true');
       document.body.appendChild(t);
     }
-    const tone = requestedTone || (typeof FleetUX !== 'undefined' ? FleetUX.inferTone(message) : 'info');
-    const iconByTone: Record<FleetUXTone, string> = { info:'i', success:'✓', warning:'△', danger:'!', neutral:'•' };
+    const tone = requestedTone || (typeof ZentridUX !== 'undefined' ? ZentridUX.inferTone(message) : 'info');
+    const iconByTone: Record<ZentridUXTone, string> = { info:'i', success:'✓', warning:'△', danger:'!', neutral:'•' };
     t.className = `toast ${tone}`;
     t.setAttribute('role', tone === 'danger' ? 'alert' : 'status');
     t.replaceChildren();
@@ -486,7 +486,7 @@ const FleetLayout = (() => {
       .replace(/\s+/g, ' ')
       .trim();
 
-    const navIndex: FleetSearchItem[] = nav.flatMap(group => group.items.map(item => ({
+    const navIndex: ZentridSearchItem[] = nav.flatMap(group => group.items.map(item => ({
       type: group.section,
       label: item.label,
       meta: `Section · ${group.section}`,
@@ -494,7 +494,7 @@ const FleetLayout = (() => {
       keywords: [group.section, item.label, item.key.replace('.html', '')]
     })));
 
-    const globalSearchIndex: FleetSearchItem[] = [
+    const globalSearchIndex: ZentridSearchItem[] = [
       ...navIndex,
       { type: 'Tenant', label: 'Tenant Alpha Energy', meta: 'Tenant Registry · Armenia · Platinum · Pending setup', action: 'tenants', keywords: ['tenant', 'alpha', 'energy', 'tenant alpha energy', 'company', 'legal entity', 'plants'] },
       { type: 'Tenant', label: 'Tenant North Operations', meta: 'Tenant Registry · O&M partner · Active', action: 'tenants', keywords: ['tenant north operations', 'north', 'operator', 'o&m'] },
@@ -532,7 +532,7 @@ const FleetLayout = (() => {
       { type: 'Settings', label: 'Platform Settings', meta: 'Platform Governance · Global configuration', action: 'settings', keywords: ['settings', 'platform settings', 'configuration'] }
     ];
 
-    function scoreSearchItem(item: FleetSearchItem, query: string): number {
+    function scoreSearchItem(item: ZentridSearchItem, query: string): number {
       const text = normalizeSearch(`${item.type} ${item.label} ${item.meta} ${(item.keywords || []).join(' ')}`);
       const label = normalizeSearch(item.label);
       const tokens = text.split(' ').filter(Boolean);
@@ -553,7 +553,7 @@ const FleetLayout = (() => {
       return score;
     }
 
-    function findSearchResults(value: string, limit = 8): { query: string; exact: FleetScoredSearchItem[]; partial: FleetScoredSearchItem[] } {
+    function findSearchResults(value: string, limit = 8): { query: string; exact: ZentridScoredSearchItem[]; partial: ZentridScoredSearchItem[] } {
       const query = normalizeSearch(value);
       if (!query) return { query, exact: [], partial: [] };
       const ranked = globalSearchIndex
@@ -588,7 +588,7 @@ const FleetLayout = (() => {
       box.classList.toggle('full-mode', fullMode);
     }
 
-    function searchButtonHtml(item: FleetSearchItem): string {
+    function searchButtonHtml(item: ZentridSearchItem): string {
       return `<button data-action="${item.action}" data-search-label="${item.label.replace(/"/g, '&quot;')}" type="button"><span>${item.type}</span><strong>${item.label}</strong><small>${item.meta}</small></button>`;
     }
 
@@ -779,7 +779,7 @@ const FleetLayout = (() => {
     window.addEventListener('scroll', () => closeActionMenus(), true);
   }
 
-  function mount(content: string): FleetContextState {
+  function mount(content: string): ZentridContextState {
     const app = document.getElementById('app');
     if (!app) throw new Error('Zentrid app root not found');
     app.innerHTML = `${sidebar()}<div class="workspace">${header()}<main class="main-content">${content}</main></div>`;

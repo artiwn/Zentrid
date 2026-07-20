@@ -1,18 +1,18 @@
 /* Zentrid API contract and mapping layer.
    Backend DTO compatibility belongs here; page renderers consume normalized view models. */
 (function () {
-  type ContractRecord = Record<string, FleetLegacyCompat>;
+  type ContractRecord = Record<string, ZentridLegacyCompat>;
 
-  interface FleetApiBaseDto extends ContractRecord {
+  interface ZentridApiBaseDto extends ContractRecord {
     id?: unknown;
     status?: unknown;
     provider?: unknown;
     vendorExtensions?: ContractRecord;
   }
 
-  interface FleetClientDto extends FleetApiBaseDto { plants?: unknown[]; }
-  interface FleetTenantDto extends FleetApiBaseDto {}
-  interface FleetPlantDto extends FleetApiBaseDto {
+  interface ZentridClientDto extends ZentridApiBaseDto { plants?: unknown[]; }
+  interface ZentridTenantDto extends ZentridApiBaseDto {}
+  interface ZentridPlantDto extends ZentridApiBaseDto {
     sourcePlantId?: unknown;
     currentPowerKw?: unknown;
     installedPowerKw?: unknown;
@@ -21,14 +21,14 @@
     lastDataAt?: unknown;
     dataQualityStatus?: unknown;
   }
-  interface FleetDeviceDto extends FleetApiBaseDto {
+  interface ZentridDeviceDto extends ZentridApiBaseDto {
     sourceDeviceId?: unknown;
     sourcePlantId?: unknown;
     serialNumber?: unknown;
     lastSeenAt?: unknown;
     dataQualityStatus?: unknown;
   }
-  interface FleetAlertDto extends FleetApiBaseDto {
+  interface ZentridAlertDto extends ZentridApiBaseDto {
     sourceAlertId?: unknown;
     sourcePlantId?: unknown;
     sourceDeviceId?: unknown;
@@ -38,7 +38,7 @@
     occurredAtUtc?: unknown;
     lastSyncAt?: unknown;
   }
-  interface FleetIntegrationDto extends FleetApiBaseDto {
+  interface ZentridIntegrationDto extends ZentridApiBaseDto {
     providerType?: unknown;
     vendor?: unknown;
     displayName?: unknown;
@@ -59,7 +59,7 @@
     lastErrorMessage?: unknown;
   }
 
-  type FleetContractMapperContext = {
+  type ZentridContractMapperContext = {
     safeText(value: unknown, fallback?: unknown): string;
     firstOf(row: ContractRecord, keys: string[], fallback?: unknown): unknown;
     displayName(row: ContractRecord, keys: string[], entityLabel: string, index: number, typeHint?: unknown): string;
@@ -68,63 +68,63 @@
     integrationSoftware(value: unknown): string;
   };
 
-  type FleetContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
-  type FleetContractSeverity = 'error' | 'warning';
-  type FleetContractExpectedType = 'scalar' | 'number';
-  type FleetContractIssueCode = 'INVALID_RECORD' | 'MISSING_REQUIRED_FIELD' | 'INVALID_FIELD_TYPE';
+  type ZentridContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
+  type ZentridContractSeverity = 'error' | 'warning';
+  type ZentridContractExpectedType = 'scalar' | 'number';
+  type ZentridContractIssueCode = 'INVALID_RECORD' | 'MISSING_REQUIRED_FIELD' | 'INVALID_FIELD_TYPE';
 
-  type FleetContractIssue = {
-    entity: FleetContractEntity;
+  type ZentridContractIssue = {
+    entity: ZentridContractEntity;
     entityLabel: string;
     index: number;
-    severity: FleetContractSeverity;
-    code: FleetContractIssueCode;
+    severity: ZentridContractSeverity;
+    code: ZentridContractIssueCode;
     field: string;
     aliases: string[];
     message: string;
   };
 
-  type FleetContractValidation = {
-    entity: FleetContractEntity;
+  type ZentridContractValidation = {
+    entity: ZentridContractEntity;
     valid: boolean;
-    issues: FleetContractIssue[];
+    issues: ZentridContractIssue[];
   };
 
-  type FleetContractRequirement = {
+  type ZentridContractRequirement = {
     field: string;
     aliases: string[];
-    severity: FleetContractSeverity;
-    expected: FleetContractExpectedType;
+    severity: ZentridContractSeverity;
+    expected: ZentridContractExpectedType;
   };
 
-  type FleetContractDefinition = {
-    entity: FleetContractEntity;
+  type ZentridContractDefinition = {
+    entity: ZentridContractEntity;
     label: string;
-    requirements: FleetContractRequirement[];
+    requirements: ZentridContractRequirement[];
     optionalNumbers?: string[];
   };
 
-  type FleetContractDiagnosticSummary = {
+  type ZentridContractDiagnosticSummary = {
     total: number;
     errors: number;
     warnings: number;
-    affectedEntities: FleetContractEntity[];
+    affectedEntities: ZentridContractEntity[];
   };
 
 
-  type FleetFieldFormat = 'identifier' | 'text' | 'status' | 'date' | 'count' | 'email' | 'phone' | 'relation' | 'power' | 'energy' | 'boolean' | 'raw';
+  type ZentridFieldFormat = 'identifier' | 'text' | 'status' | 'date' | 'count' | 'email' | 'phone' | 'relation' | 'power' | 'energy' | 'boolean' | 'raw';
 
-  type FleetFieldMappingDefinition = {
+  type ZentridFieldMappingDefinition = {
     canonicalField: string;
     aliases: string[];
     uiTargets: string[];
-    format: FleetFieldFormat;
+    format: ZentridFieldFormat;
     fallback: string;
-    required?: FleetContractSeverity;
+    required?: ZentridContractSeverity;
   };
 
-  type FleetFieldAuditRecord = {
-    entity: FleetContractEntity;
+  type ZentridFieldAuditRecord = {
+    entity: ZentridContractEntity;
     index: number;
     mappedFields: string[];
     fallbackFields: string[];
@@ -134,8 +134,8 @@
     rawFieldCount: number;
   };
 
-  type FleetFieldAuditEntitySummary = {
-    entity: FleetContractEntity;
+  type ZentridFieldAuditEntitySummary = {
+    entity: ZentridContractEntity;
     records: number;
     rawFields: number;
     mappedFields: number;
@@ -144,29 +144,29 @@
     unmappedFields: number;
   };
 
-  type FleetFieldAuditSummary = {
+  type ZentridFieldAuditSummary = {
     records: number;
     rawFields: number;
     mappedFields: number;
     fallbackFields: number;
     missingExpectedFields: number;
     unmappedFields: number;
-    affectedEntities: FleetContractEntity[];
-    byEntity: FleetFieldAuditEntitySummary[];
+    affectedEntities: ZentridContractEntity[];
+    byEntity: ZentridFieldAuditEntitySummary[];
   };
 
-  type FleetEntityContract<TDto extends FleetApiBaseDto> = {
+  type ZentridEntityContract<TDto extends ZentridApiBaseDto> = {
     parse(value: unknown): TDto | null;
-    validate(value: unknown, index?: number): FleetContractValidation;
-    map(value: unknown, index: number, context: FleetContractMapperContext): ContractRecord;
-    mapList(values: unknown[], context: FleetContractMapperContext): ContractRecord[];
+    validate(value: unknown, index?: number): ZentridContractValidation;
+    map(value: unknown, index: number, context: ZentridContractMapperContext): ContractRecord;
+    mapList(values: unknown[], context: ZentridContractMapperContext): ContractRecord[];
   };
 
   function isRecord(value: unknown): value is ContractRecord {
     return Boolean(value && typeof value === 'object' && !Array.isArray(value));
   }
 
-  function parseDto<TDto extends FleetApiBaseDto>(value: unknown): TDto | null {
+  function parseDto<TDto extends ZentridApiBaseDto>(value: unknown): TDto | null {
     return isRecord(value) ? value as TDto : null;
   }
 
@@ -187,7 +187,7 @@
     return null;
   }
 
-  function matchesExpectedType(value: unknown, expected: FleetContractExpectedType): boolean {
+  function matchesExpectedType(value: unknown, expected: ZentridContractExpectedType): boolean {
     if (expected === 'number') {
       if (typeof value === 'number') return Number.isFinite(value);
       return typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value));
@@ -195,11 +195,11 @@
     return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
   }
 
-  const diagnosticIssues: FleetContractIssue[] = [];
+  const diagnosticIssues: ZentridContractIssue[] = [];
   const diagnosticFingerprints = new Set<string>();
 
   const diagnostics = {
-    clear(entity?: FleetContractEntity): void {
+    clear(entity?: ZentridContractEntity): void {
       if (!entity) {
         diagnosticIssues.splice(0, diagnosticIssues.length);
         diagnosticFingerprints.clear();
@@ -211,7 +211,7 @@
       diagnosticFingerprints.clear();
       diagnosticIssues.forEach(issue => diagnosticFingerprints.add(`${issue.entity}|${issue.index}|${issue.code}|${issue.field}|${issue.message}`));
     },
-    report(issues: FleetContractIssue[]): void {
+    report(issues: ZentridContractIssue[]): void {
       issues.forEach(issue => {
         const fingerprint = `${issue.entity}|${issue.index}|${issue.code}|${issue.field}|${issue.message}`;
         if (diagnosticFingerprints.has(fingerprint)) return;
@@ -219,10 +219,10 @@
         diagnosticIssues.push(issue);
       });
     },
-    list(entity?: FleetContractEntity): FleetContractIssue[] {
+    list(entity?: ZentridContractEntity): ZentridContractIssue[] {
       return diagnosticIssues.filter(issue => !entity || issue.entity === entity).map(issue => ({ ...issue, aliases: [...issue.aliases] }));
     },
-    summary(entity?: FleetContractEntity): FleetContractDiagnosticSummary {
+    summary(entity?: ZentridContractEntity): ZentridContractDiagnosticSummary {
       const issues = diagnosticIssues.filter(issue => !entity || issue.entity === entity);
       return {
         total: issues.length,
@@ -233,7 +233,7 @@
     }
   };
 
-  function validateContract(value: unknown, index: number, definition: FleetContractDefinition): FleetContractValidation {
+  function validateContract(value: unknown, index: number, definition: ZentridContractDefinition): ZentridContractValidation {
     if (!isRecord(value)) {
       return {
         entity: definition.entity,
@@ -251,7 +251,7 @@
       };
     }
 
-    const issues: FleetContractIssue[] = [];
+    const issues: ZentridContractIssue[] = [];
     definition.requirements.forEach(requirement => {
       const matched = firstAlias(value, requirement.aliases);
       if (!matched) {
@@ -301,7 +301,7 @@
     return { entity: definition.entity, valid: !issues.some(issue => issue.severity === 'error'), issues };
   }
 
-  function createContract<TDto extends FleetApiBaseDto>(definition: FleetContractDefinition, mapper: (dto: TDto, index: number, context: FleetContractMapperContext) => ContractRecord): FleetEntityContract<TDto> {
+  function createContract<TDto extends ZentridApiBaseDto>(definition: ZentridContractDefinition, mapper: (dto: TDto, index: number, context: ZentridContractMapperContext) => ContractRecord): ZentridEntityContract<TDto> {
     return {
       parse: parseDto<TDto>,
       validate(value, index = 0) {
@@ -327,11 +327,11 @@
     };
   }
 
-  function requirement(field: string, aliases: string[], severity: FleetContractSeverity = 'error', expected: FleetContractExpectedType = 'scalar'): FleetContractRequirement {
+  function requirement(field: string, aliases: string[], severity: ZentridContractSeverity = 'error', expected: ZentridContractExpectedType = 'scalar'): ZentridContractRequirement {
     return { field, aliases, severity, expected };
   }
 
-  const CONTRACT_DEFINITIONS: Record<FleetContractEntity, FleetContractDefinition> = {
+  const CONTRACT_DEFINITIONS: Record<ZentridContractEntity, ZentridContractDefinition> = {
     clients: {
       entity: 'clients', label: 'Client',
       requirements: [
@@ -386,11 +386,11 @@
     }
   };
 
-  function field(canonicalField: string, aliases: string[], uiTargets: string[], format: FleetFieldFormat, fallback = '—', required?: FleetContractSeverity): FleetFieldMappingDefinition {
+  function field(canonicalField: string, aliases: string[], uiTargets: string[], format: ZentridFieldFormat, fallback = '—', required?: ZentridContractSeverity): ZentridFieldMappingDefinition {
     return { canonicalField, aliases, uiTargets, format, fallback, ...(required ? { required } : {}) };
   }
 
-  const FIELD_MAPPING_MANIFEST: Record<FleetContractEntity, FleetFieldMappingDefinition[]> = {
+  const FIELD_MAPPING_MANIFEST: Record<ZentridContractEntity, ZentridFieldMappingDefinition[]> = {
     clients: [
       field('id', ['id', 'clientId', 'canonicalId', 'sourceEntityId', 'externalId'], ['Client Registry row ID', 'Client Detail identity'], 'identifier', 'Generated live ID', 'warning'),
       field('code', ['clientCode', 'code', 'externalId'], ['Client Registry code', 'Client Detail code'], 'identifier', 'ID'),
@@ -525,7 +525,7 @@
     ]
   };
 
-  const fieldAuditRecords = new Map<string, FleetFieldAuditRecord>();
+  const fieldAuditRecords = new Map<string, ZentridFieldAuditRecord>();
 
   function flattenLeafPaths(value: unknown, prefix = '', output: string[] = []): string[] {
     if (!isRecord(value)) return output;
@@ -541,7 +541,7 @@
     return alias === path || path.startsWith(`${alias}.`) || alias.startsWith(`${path}.`);
   }
 
-  function auditFieldMapping(entity: FleetContractEntity, value: unknown, index: number): FleetFieldAuditRecord {
+  function auditFieldMapping(entity: ZentridContractEntity, value: unknown, index: number): ZentridFieldAuditRecord {
     const row = isRecord(value) ? value : {};
     const definitions = FIELD_MAPPING_MANIFEST[entity];
     const rawFields = flattenLeafPaths(row);
@@ -563,7 +563,7 @@
 
     const knownAliases = definitions.flatMap(definition => definition.aliases);
     const unmappedFields = rawFields.filter(path => !knownAliases.some(alias => aliasCoversPath(alias, path)));
-    const record: FleetFieldAuditRecord = {
+    const record: ZentridFieldAuditRecord = {
       entity,
       index,
       mappedFields,
@@ -578,7 +578,7 @@
   }
 
   const fieldAudit = {
-    clear(entity?: FleetContractEntity): void {
+    clear(entity?: ZentridContractEntity): void {
       if (!entity) {
         fieldAuditRecords.clear();
         return;
@@ -587,11 +587,11 @@
         if (key.startsWith(`${entity}|`)) fieldAuditRecords.delete(key);
       });
     },
-    manifest(entity?: FleetContractEntity): Record<FleetContractEntity, FleetFieldMappingDefinition[]> | FleetFieldMappingDefinition[] {
+    manifest(entity?: ZentridContractEntity): Record<ZentridContractEntity, ZentridFieldMappingDefinition[]> | ZentridFieldMappingDefinition[] {
       if (entity) return FIELD_MAPPING_MANIFEST[entity].map(item => ({ ...item, aliases: [...item.aliases], uiTargets: [...item.uiTargets] }));
-      return Object.fromEntries((Object.keys(FIELD_MAPPING_MANIFEST) as FleetContractEntity[]).map(name => [name, FIELD_MAPPING_MANIFEST[name].map(item => ({ ...item, aliases: [...item.aliases], uiTargets: [...item.uiTargets] }))])) as Record<FleetContractEntity, FleetFieldMappingDefinition[]>;
+      return Object.fromEntries((Object.keys(FIELD_MAPPING_MANIFEST) as ZentridContractEntity[]).map(name => [name, FIELD_MAPPING_MANIFEST[name].map(item => ({ ...item, aliases: [...item.aliases], uiTargets: [...item.uiTargets] }))])) as Record<ZentridContractEntity, ZentridFieldMappingDefinition[]>;
     },
-    list(entity?: FleetContractEntity): FleetFieldAuditRecord[] {
+    list(entity?: ZentridContractEntity): ZentridFieldAuditRecord[] {
       return [...fieldAuditRecords.values()]
         .filter(record => !entity || record.entity === entity)
         .map(record => ({
@@ -603,7 +603,7 @@
           sourceByCanonical: { ...record.sourceByCanonical }
         }));
     },
-    summary(entity?: FleetContractEntity): FleetFieldAuditSummary {
+    summary(entity?: ZentridContractEntity): ZentridFieldAuditSummary {
       const records = [...fieldAuditRecords.values()].filter(record => !entity || record.entity === entity);
       const entities = [...new Set(records.map(record => record.entity))];
       const byEntity = entities.map(name => {
@@ -631,14 +631,14 @@
     }
   };
 
-  function normalizedId(row: ContractRecord, fallback: string, context: FleetContractMapperContext): string {
+  function normalizedId(row: ContractRecord, fallback: string, context: ZentridContractMapperContext): string {
     return context.safeText(context.firstOf(row, [
       'id', 'tenantId', 'clientId', 'plantId', 'deviceId', 'integrationId',
       'canonicalId', 'sourceEntityId', 'sourcePlantId', 'sourceDeviceId', 'sourceAlertId'
     ]), fallback);
   }
 
-  const clients = createContract<FleetClientDto>(CONTRACT_DEFINITIONS.clients, (row, index, context) => {
+  const clients = createContract<ZentridClientDto>(CONTRACT_DEFINITIONS.clients, (row, index, context) => {
     const id = normalizedId(row, `LIVE-CLIENT-${index + 1}`, context);
     const name = context.displayName(row, [
       'vendorExtensions.clientName', 'vendorExtensions.displayName', 'vendorExtensions.name',
@@ -686,7 +686,7 @@
     };
   });
 
-  const tenants = createContract<FleetTenantDto>(CONTRACT_DEFINITIONS.tenants, (row, index, context) => {
+  const tenants = createContract<ZentridTenantDto>(CONTRACT_DEFINITIONS.tenants, (row, index, context) => {
     const id = normalizedId(row, `LIVE-TENANT-${index + 1}`, context);
     const name = context.displayName(row, [
       'vendorExtensions.tenantName', 'vendorExtensions.displayName', 'vendorExtensions.name',
@@ -722,7 +722,7 @@
     };
   });
 
-  const plants = createContract<FleetPlantDto>(CONTRACT_DEFINITIONS.plants, (row, index, context) => {
+  const plants = createContract<ZentridPlantDto>(CONTRACT_DEFINITIONS.plants, (row, index, context) => {
     const provider = context.safeText(context.firstOf(row, ['provider', 'sourceScheme', 'adminRecord.sourceScheme'], 'Backend'));
     const name = context.displayName(row, [
       'adminName', 'liveName', 'vendorExtensions.plantName', 'vendorExtensions.stationName',
@@ -776,7 +776,7 @@
     };
   });
 
-  const devices = createContract<FleetDeviceDto>(CONTRACT_DEFINITIONS.devices, (row, index, context) => {
+  const devices = createContract<ZentridDeviceDto>(CONTRACT_DEFINITIONS.devices, (row, index, context) => {
     const provider = context.safeText(context.firstOf(row, ['provider', 'vendorExtensions.provider'], 'Backend'));
     const deviceType = context.safeText(context.firstOf(row, ['deviceType', 'vendorExtensions.deviceType', 'type'], 'Device'));
     const name = context.displayName(row, [
@@ -820,7 +820,7 @@
     };
   });
 
-  const alerts = createContract<FleetAlertDto>(CONTRACT_DEFINITIONS.alerts, (row, index, context) => {
+  const alerts = createContract<ZentridAlertDto>(CONTRACT_DEFINITIONS.alerts, (row, index, context) => {
     const provider = context.safeText(row.provider, 'Backend');
     const severity = context.safeText(row.severity, 'Unknown');
     const alertDeviceType = context.safeText(context.firstOf(row, ['vendorExtensions.deviceType', 'deviceType'], 'Alert'));
@@ -831,7 +831,7 @@
     return {
       dataOrigin: 'live',
       id: context.safeText(row.id, `LIVE-ALERT-${index + 1}`),
-      fleetCode: context.safeText(context.firstOf(row, ['vendorExtensions.fleetCode', 'vendorExtensions.alarmCode'], '')),
+      zentridCode: context.safeText(context.firstOf(row, ['vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], '')),
       vendorRawCode: context.safeText(row.sourceAlertId, ''),
       vendorCode: context.safeText(row.sourceAlertId, ''),
       vendorMessage: context.safeText(row.message, ''), severity,
@@ -860,7 +860,7 @@
     };
   });
 
-  const integrations = createContract<FleetIntegrationDto>(CONTRACT_DEFINITIONS.integrations, (row, index, context) => {
+  const integrations = createContract<ZentridIntegrationDto>(CONTRACT_DEFINITIONS.integrations, (row, index, context) => {
     const provider = context.integrationVendor(context.firstOf(row, ['provider', 'providerType', 'providerName', 'vendorName', 'vendor', 'producerVendorTemplate', 'displayName', 'integrationName', 'name'], 'Unknown'));
     const status = context.safeText(context.firstOf(row, ['status', 'integrationStatus'], 'Unknown'));
     return {
@@ -892,5 +892,5 @@
     };
   });
 
-  window.FleetAPIContracts = { clients, tenants, plants, devices, alerts, integrations, diagnostics, fieldAudit };
+  window.ZentridAPIContracts = { clients, tenants, plants, devices, alerts, integrations, diagnostics, fieldAudit };
 })();

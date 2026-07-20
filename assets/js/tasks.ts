@@ -1,21 +1,21 @@
-type FleetTaskTone = 'danger' | 'warning' | 'success';
+type ZentridTaskTone = 'danger' | 'warning' | 'success';
 
-type FleetTaskStatus = 'New' | 'Assigned' | 'In Progress' | 'Scheduled' | 'Completed' | 'Closed' | string;
-type FleetTaskPriority = 'P1' | 'P2' | 'P3' | 'P4' | string;
+type ZentridTaskStatus = 'New' | 'Assigned' | 'In Progress' | 'Scheduled' | 'Completed' | 'Closed' | string;
+type ZentridTaskPriority = 'P1' | 'P2' | 'P3' | 'P4' | string;
 
-interface FleetTaskChecklistItem {
+interface ZentridTaskChecklistItem {
   text: string;
   done: boolean;
 }
 
-type FleetTaskChecklistInput = string | Partial<FleetTaskChecklistItem>;
+type ZentridTaskChecklistInput = string | Partial<ZentridTaskChecklistItem>;
 
-interface FleetTaskRecord {
+interface ZentridTaskRecord {
   id: string;
   type: string;
   title: string;
-  status: FleetTaskStatus;
-  priority: FleetTaskPriority;
+  status: ZentridTaskStatus;
+  priority: ZentridTaskPriority;
   assignee: string;
   team: string;
   due: string;
@@ -31,23 +31,23 @@ interface FleetTaskRecord {
   updated: string;
   description: string;
   evidence: string[];
-  checklist: FleetTaskChecklistItem[];
+  checklist: ZentridTaskChecklistItem[];
   notes: string[];
 }
 
-type FleetTaskDraft = Omit<FleetTaskRecord, 'checklist' | 'evidence' | 'notes'> & {
+type ZentridTaskDraft = Omit<ZentridTaskRecord, 'checklist' | 'evidence' | 'notes'> & {
   evidence?: string[];
-  checklist?: FleetTaskChecklistInput[];
+  checklist?: ZentridTaskChecklistInput[];
   notes?: string[];
 };
 
-interface FleetTaskDeviceContext {
+interface ZentridTaskDeviceContext {
   id: string;
   name: string;
   type: string;
 }
 
-interface FleetTaskAlertContext {
+interface ZentridTaskAlertContext {
   id: string;
   title: string;
   deviceId: string;
@@ -57,19 +57,19 @@ interface FleetTaskAlertContext {
   description: string;
 }
 
-interface FleetTaskPlantContext {
+interface ZentridTaskPlantContext {
   id: string;
   name: string;
-  devices: FleetTaskDeviceContext[];
-  alerts: FleetTaskAlertContext[];
+  devices: ZentridTaskDeviceContext[];
+  alerts: ZentridTaskAlertContext[];
 }
 
-interface FleetTaskClientContext {
+interface ZentridTaskClientContext {
   client: string;
-  plants: FleetTaskPlantContext[];
+  plants: ZentridTaskPlantContext[];
 }
 
-interface FleetAlertTaskSource {
+interface ZentridAlertTaskSource {
   id: string;
   title: string;
   device?: string;
@@ -85,7 +85,7 @@ interface FleetAlertTaskSource {
   telemetry?: string;
 }
 
-interface FleetTaskFormValues {
+interface ZentridTaskFormValues {
   [key: string]: string;
   client: string;
   plantId: string;
@@ -111,12 +111,12 @@ function taskString(value: FormDataEntryValue | string | null | undefined): stri
   return typeof value === 'string' ? value : '';
 }
 
-function taskFormValues(form: HTMLFormElement): FleetTaskFormValues {
+function taskFormValues(form: HTMLFormElement): ZentridTaskFormValues {
   const raw = Object.fromEntries(new FormData(form).entries());
-  return raw as unknown as FleetTaskFormValues;
+  return raw as unknown as ZentridTaskFormValues;
 }
 
-const FleetTasksBase: FleetTaskDraft[] = [
+const ZentridTasksBase: ZentridTaskDraft[] = [
   {
     id: 'TASK-0144', type: 'Remote Check', title: 'Review BESS rack temperature trend', status: 'In Progress', priority: 'P2', assignee: 'BESS Specialist', team: 'Operations', due: 'Today · 14:30', sla: '1h 12m remaining',
     client: 'North Region Ops', plantId: 'PLT-000501', plant: 'Armavir BESS Solar', deviceId: 'DEV-BESS-0002', device: 'BESS-RACK-02', alertId: 'ALT-2044', source: 'Alert', created: '08:28', updated: '09:02',
@@ -158,7 +158,7 @@ const taskTeams: string[] = ['Operations', 'Field Service', 'Data Operations', '
 const taskAssignees: string[] = ['Unassigned', 'Operations Team', 'Field Team A', 'Field Team B', 'BESS Specialist', 'Data Operations', 'Support Manager'];
 
 
-const taskContextCatalog: FleetTaskClientContext[] = [
+const taskContextCatalog: ZentridTaskClientContext[] = [
   {
     client: 'ABC Solar Energy LLC',
     plants: [
@@ -249,40 +249,40 @@ const taskContextCatalog: FleetTaskClientContext[] = [
 ];
 
 function contextClientNames(): string[] { return taskContextCatalog.map(c => c.client); }
-function contextForClient(client: string): FleetTaskClientContext { return taskContextCatalog.find(c => c.client === client) || taskFirst(taskContextCatalog, 'client'); }
-function contextPlant(client: string, plantId?: string | null): FleetTaskPlantContext {
+function contextForClient(client: string): ZentridTaskClientContext { return taskContextCatalog.find(c => c.client === client) || taskFirst(taskContextCatalog, 'client'); }
+function contextPlant(client: string, plantId?: string | null): ZentridTaskPlantContext {
   const ctx = contextForClient(client);
   return ctx.plants.find(p => p.id === plantId) || taskFirst(ctx.plants, 'plant');
 }
-function contextDevice(client: string, plantId?: string | null, deviceId?: string | null): FleetTaskDeviceContext {
+function contextDevice(client: string, plantId?: string | null, deviceId?: string | null): ZentridTaskDeviceContext {
   const plant = contextPlant(client, plantId);
   return plant.devices.find(d => d.id === deviceId) || plant.devices[0] || { id: 'DEV-MANUAL', name: 'No device selected', type: 'Device' };
 }
-function contextAlert(client: string, plantId?: string | null, alertId?: string | null): FleetTaskAlertContext | null {
+function contextAlert(client: string, plantId?: string | null, alertId?: string | null): ZentridTaskAlertContext | null {
   const plant = contextPlant(client, plantId);
   return plant.alerts.find(a => a.id === alertId) || null;
 }
-function taskTypeForAlert(alert?: FleetTaskAlertContext | null): string {
+function taskTypeForAlert(alert?: ZentridTaskAlertContext | null): string {
   if (!alert) return 'Remote Check';
   return alert.type || (alert.severity === 'Critical' ? 'Field Inspection' : 'Remote Check');
 }
-function titleForContext(plant: FleetTaskPlantContext, device: FleetTaskDeviceContext, alert?: FleetTaskAlertContext | null): string {
+function titleForContext(plant: ZentridTaskPlantContext, device: ZentridTaskDeviceContext, alert?: ZentridTaskAlertContext | null): string {
   if (alert) return `${alert.title} — ${device.name}`;
   if (device?.name) return `Check ${device.name} at ${plant.name}`;
   return `Operational check for ${plant.name}`;
 }
 
 function nowLabel(): string { return new Date().toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }); }
-function taskTone(value: unknown): FleetTaskTone {
+function taskTone(value: unknown): ZentridTaskTone {
   const v = String(value || '').toLowerCase();
   if (v.includes('p1') || v.includes('escalated') || v.includes('overdue')) return 'danger';
   if (v.includes('p2') || v.includes('assigned') || v.includes('progress') || v.includes('scheduled')) return 'warning';
   return 'success';
 }
-function normalizeChecklist(items?: FleetTaskChecklistInput[]): FleetTaskChecklistItem[] {
+function normalizeChecklist(items?: ZentridTaskChecklistInput[]): ZentridTaskChecklistItem[] {
   return (items || []).map((item, index) => typeof item === 'string' ? { text: item, done: index === 0 } : { text: item.text || '', done: Boolean(item.done) });
 }
-function normalizeTask(t: FleetTaskDraft | FleetTaskRecord): FleetTaskRecord {
+function normalizeTask(t: ZentridTaskDraft | ZentridTaskRecord): ZentridTaskRecord {
   return {
     ...t,
     evidence: Array.isArray(t.evidence) ? t.evidence : [],
@@ -293,16 +293,16 @@ function normalizeTask(t: FleetTaskDraft | FleetTaskRecord): FleetTaskRecord {
 }
 function seedTasksIfNeeded() {
   if (!localStorage.getItem(taskStoreKey)) {
-    localStorage.setItem(taskStoreKey, JSON.stringify(FleetTasksBase.map(normalizeTask)));
+    localStorage.setItem(taskStoreKey, JSON.stringify(ZentridTasksBase.map(normalizeTask)));
   }
 }
-function storedTasks(): FleetTaskRecord[] {
+function storedTasks(): ZentridTaskRecord[] {
   seedTasksIfNeeded();
-  try { return JSON.parse(localStorage.getItem(taskStoreKey) || '[]').map(normalizeTask); } catch { return FleetTasksBase.map(normalizeTask); }
+  try { return JSON.parse(localStorage.getItem(taskStoreKey) || '[]').map(normalizeTask); } catch { return ZentridTasksBase.map(normalizeTask); }
 }
-function saveStoredTasks(items: FleetTaskRecord[]) { localStorage.setItem(taskStoreKey, JSON.stringify(items.map(normalizeTask))); }
-function allTasks(): FleetTaskRecord[] { return storedTasks(); }
-function saveTask(task: FleetTaskDraft | FleetTaskRecord): FleetTaskRecord {
+function saveStoredTasks(items: ZentridTaskRecord[]) { localStorage.setItem(taskStoreKey, JSON.stringify(items.map(normalizeTask))); }
+function allTasks(): ZentridTaskRecord[] { return storedTasks(); }
+function saveTask(task: ZentridTaskDraft | ZentridTaskRecord): ZentridTaskRecord {
   const items = allTasks();
   const idx = items.findIndex(t => t.id === task.id);
   const normalized = normalizeTask({ ...task, updated: nowLabel() });
@@ -310,7 +310,7 @@ function saveTask(task: FleetTaskDraft | FleetTaskRecord): FleetTaskRecord {
   saveStoredTasks(items);
   return normalized;
 }
-function selectedTask(): FleetTaskRecord {
+function selectedTask(): ZentridTaskRecord {
   const params = new URLSearchParams(location.search);
   const id = params.get('id') || localStorage.getItem('zentrid_selected_task') || allTasks()[0]?.id;
   const tasks = allTasks();
@@ -325,7 +325,7 @@ function newTaskId(type: string = 'TASK'): string {
   const existing = allTasks().filter(t => t.id.startsWith(prefix)).length + 160;
   return `${prefix}-${String(existing).padStart(4, '0')}`;
 }
-function createTaskFromAlert(alert?: FleetAlertTaskSource | null) {
+function createTaskFromAlert(alert?: ZentridAlertTaskSource | null) {
   if (!alert) return;
   const exists = allTasks().find(t => t.alertId === alert.id);
   if (exists) return openTask(exists.id);
@@ -357,7 +357,7 @@ function createTaskFromAlert(alert?: FleetAlertTaskSource | null) {
   openTask(task.id);
 }
 
-function filteredTasks(): FleetTaskRecord[] {
+function filteredTasks(): ZentridTaskRecord[] {
   const status = document.getElementById('taskStatusFilter')?.value || 'All';
   const priority = document.getElementById('taskPriorityFilter')?.value || 'All';
   const q = (document.getElementById('taskSearch')?.value || '').toLowerCase().trim();
@@ -374,7 +374,7 @@ function refreshTasksPage() {
   if (kpis) kpis.innerHTML = taskKpis(items);
   if (rows) rows.innerHTML = renderTaskRows(items);
 }
-function taskKpis(items: FleetTaskRecord[] = filteredTasks()): string {
+function taskKpis(items: ZentridTaskRecord[] = filteredTasks()): string {
   return `<section class="kpi-grid compact-kpis">
     <article class="kpi-card cyan"><div class="kpi-label">Open Work</div><div class="kpi-value">${items.filter(t => !['Completed','Closed'].includes(t.status)).length}</div><div class="kpi-delta">Tasks and work orders</div></article>
     <article class="kpi-card yellow"><div class="kpi-label">Assigned</div><div class="kpi-value">${items.filter(t => ['Assigned','In Progress','Scheduled'].includes(t.status)).length}</div><div class="kpi-delta">Owner visible</div></article>
@@ -382,7 +382,7 @@ function taskKpis(items: FleetTaskRecord[] = filteredTasks()): string {
     <article class="kpi-card green"><div class="kpi-label">Completed</div><div class="kpi-value">${items.filter(t => ['Completed','Closed'].includes(t.status)).length}</div><div class="kpi-delta">Closed evidence</div></article>
   </section>`;
 }
-function renderTaskRows(items: FleetTaskRecord[] = filteredTasks()): string {
+function renderTaskRows(items: ZentridTaskRecord[] = filteredTasks()): string {
   return items.map(t => `<div class="data-row task-row">
     <div><strong>${t.title}</strong><small>${t.id} · ${t.type} · Source: ${t.source} ${t.alertId !== '—' ? '· ' + t.alertId : ''}</small></div>
     <div><strong>${t.client}</strong><small>${t.plant} · ${t.device}</small></div>
@@ -398,7 +398,7 @@ function renderCreateTaskModal(): string {
   const firstAlert = firstPlant.alerts[0] || null;
   return `<div class="modal" id="taskModal"><div class="modal-card compact-modal"><button class="modal-close" type="button" onclick="closeTaskModal()">x</button>
     <h2>Create Task / Work Order</h2><p class="muted">Select the operational context first. Zentrid will auto-fill plant, device, alert and suggested work details.</p>
-    <form id="taskCreateForm" class="workflow-form" data-fleet-form-readiness="local" data-fleet-form-contract="TaskCreateDraft" data-fleet-form-method="POST" data-fleet-form-api-note="Task creation remains local until a backend mutation contract is confirmed.">
+    <form id="taskCreateForm" class="workflow-form" data-zentrid-form-readiness="local" data-zentrid-form-contract="TaskCreateDraft" data-zentrid-form-method="POST" data-zentrid-form-api-note="Task creation remains local until a backend mutation contract is confirmed.">
       <div class="form-grid">
         <label>Client<select name="client" id="taskClientSelect">${contextClientNames().map(x => `<option>${x}</option>`).join('')}</select></label>
         <label>Plant<select name="plantId" id="taskPlantSelect"></select></label>
@@ -421,7 +421,7 @@ function renderCreateTaskModal(): string {
 function renderTasksPage(): string {
   return `<section class="page-hero">
     <div><p class="eyebrow">Global Admin · Workflow</p><h1>Tasks & Work Orders</h1><p class="muted">Convert alerts into assigned operational work with owners, SLA, evidence and resolution status.</p></div>
-    <button class="freshness-card" onclick="FleetLayout.toast('Task queue refreshed')"><span class="pulse"></span><div><strong>Queue live</strong><small>${allTasks().length} records · updated now</small></div></button>
+    <button class="freshness-card" onclick="ZentridLayout.toast('Task queue refreshed')"><span class="pulse"></span><div><strong>Queue live</strong><small>${allTasks().length} records · updated now</small></div></button>
   </section>
   <section class="context-bar glass-card">
     <div><span>Workflow scope</span><strong>Alerts → Tasks → Work Orders</strong></div>
@@ -463,7 +463,7 @@ function wireTasksPage() {
       checklist: alert ? ['Review alert details', 'Check latest telemetry', 'Assign owner', 'Add resolution evidence', 'Close task'] : ['Review context', 'Assign owner', 'Execute work', 'Add evidence', 'Close task'],
       notes: [`Created from ${alert ? 'selected alert context' : 'manual context selection'}.`]
     });
-    saveTask(task); window.FleetFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement); closeTaskModal(); refreshTasksPage(); FleetLayout.toast(`${task.id} created`);
+    saveTask(task); window.ZentridFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement); closeTaskModal(); refreshTasksPage(); ZentridLayout.toast(`${task.id} created`);
   });
 }
 function populateTaskContextSelects() {
@@ -524,13 +524,13 @@ function wireTaskCreateContext() {
 }
 function openTaskModal() { document.getElementById('taskModal')?.classList.add('open'); }
 function closeTaskModal() { document.getElementById('taskModal')?.classList.remove('open'); }
-function resetTaskDemo() { localStorage.removeItem(taskStoreKey); refreshTasksPage(); FleetLayout.toast('Task demo data reset'); }
+function resetTaskDemo() { localStorage.removeItem(taskStoreKey); refreshTasksPage(); ZentridLayout.toast('Task demo data reset'); }
 
-function assignTaskModalMarkup(t: FleetTaskRecord): string {
+function assignTaskModalMarkup(t: ZentridTaskRecord): string {
   return `<div class="modal open" id="assignTaskModal"><div class="modal-card compact-modal"><button class="modal-close" type="button" onclick="closeAssignTaskModal()">x</button>
     <h2>Assign Task</h2><p class="muted">Choose who owns this work item and when it should be completed.</p>
     <div class="timeline-mini"><strong>${t.id}</strong><p>${t.title}</p><small>${t.client} · ${t.plant} · ${t.device}</small></div>
-    <form id="assignTaskForm" class="workflow-form" data-fleet-form-readiness="local" data-fleet-form-contract="TaskAssignmentDraft" data-fleet-form-method="POST" data-fleet-form-api-note="Task assignment remains local until a backend mutation contract is confirmed.">
+    <form id="assignTaskForm" class="workflow-form" data-zentrid-form-readiness="local" data-zentrid-form-contract="TaskAssignmentDraft" data-zentrid-form-method="POST" data-zentrid-form-api-note="Task assignment remains local until a backend mutation contract is confirmed.">
       <div class="form-grid">
         <label>Assignee<select name="assignee" required>${taskAssignees.filter(x => x !== 'Unassigned').map(x => `<option ${x === t.assignee ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
         <label>Team<select name="team">${taskTeams.map(x => `<option ${x === t.team ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
@@ -561,9 +561,9 @@ function quickAssignTask(id: string) {
       status: t.status === 'New' ? 'Assigned' : t.status,
       notes
     });
-    window.FleetFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement);
+    window.ZentridFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement);
     closeAssignTaskModal();
-    FleetLayout.toast(`${id} assigned to ${updated.assignee}`);
+    ZentridLayout.toast(`${id} assigned to ${updated.assignee}`);
     if (location.pathname.endsWith('task-detail.html')) rerenderTaskDetail(id); else refreshTasksPage();
   });
 }
@@ -572,10 +572,10 @@ function quickAdvanceTask(id: string) {
   const flow = ['New', 'Assigned', 'In Progress', 'Completed', 'Closed'];
   const next = flow[Math.min(flow.indexOf(t.status) + 1, flow.length - 1)] || 'Assigned';
   saveTask({ ...t, status: next, notes: [...(t.notes || []), `Status changed to ${next}.`] });
-  refreshTasksPage(); FleetLayout.toast(`${id} → ${next}`);
+  refreshTasksPage(); ZentridLayout.toast(`${id} → ${next}`);
 }
 
-function taskDetailTab(t: FleetTaskRecord, tab: string): string {
+function taskDetailTab(t: ZentridTaskRecord, tab: string): string {
   if (tab === 'summary') return `<div class="split-grid">
     <div class="panel-lite"><h3>Work Summary</h3><div class="info-grid">
       <div><span>Status</span><strong>${t.status}</strong></div><div><span>Priority</span><strong>${t.priority}</strong></div>
@@ -592,7 +592,7 @@ function taskDetailTab(t: FleetTaskRecord, tab: string): string {
   if (tab === 'checklist') return `<div class="panel-lite"><h3>Execution Checklist</h3><div class="check-list task-check-list-v86">${(t.checklist || []).map((c, i) => `<label class="check-row ${c.done ? 'success checked' : 'warning'}"><span class="check-indicator ${c.done ? 'success' : 'warning'}">${c.done ? '✓' : '•'}</span><div><strong>${i + 1}. ${c.text}</strong><small>${c.done ? 'Completed' : 'Required before close'}</small></div><span class="check-status ${c.done ? 'success' : 'warning'}">${c.done ? 'Done' : 'Pending'}</span><button onclick="toggleChecklist('${t.id}', ${i})">${c.done ? 'Reopen' : 'Mark Done'}</button></label>`).join('')}</div><div class="inline-add"><input id="taskChecklistInput" placeholder="Add checklist step..."/><button onclick="addChecklistStep('${t.id}')">Add Step</button></div></div>`;
   return `<div class="split-grid"><div class="panel-lite"><h3>Workflow Actions</h3><div class="vertical-actions"><button onclick="quickAssignTask('${t.id}')">Assign Owner</button><button onclick="setTaskStatus('${t.id}','In Progress')">Start Work</button><button onclick="setTaskStatus('${t.id}','Completed')">Complete Work</button><button onclick="setTaskStatus('${t.id}','Closed')">Close Task</button><button onclick="setTaskStatus('${t.id}','Scheduled')">Schedule Visit</button><button class="danger-action" onclick="escalateTask('${t.id}')">Escalate</button></div></div><div class="panel-lite"><h3>Status Rules</h3><div class="timeline-mini"><p><strong>New</strong> → Assigned → In Progress → Completed → Closed.</p><p>Closing should include evidence and a resolution note. For the prototype this is stored in localStorage.</p></div></div></div>`;
 }
-function renderTaskDetail(t: FleetTaskRecord): string {
+function renderTaskDetail(t: ZentridTaskRecord): string {
   return `<section class="page-hero"><div><p class="eyebrow">Workflow · Task Detail</p><h1>${t.id}</h1><p class="muted">${t.title}</p></div><div class="hero-actions"><button class="secondary-action" onclick="location.href='tasks-work-orders.html'">Back to Queue</button><button class="primary-action" onclick="setTaskStatus('${t.id}','In Progress')">Start Work</button></div></section>
   <section class="context-bar glass-card"><div><span>Status</span><strong>${t.status}</strong></div><div><span>Priority</span><strong>${t.priority}</strong></div><div><span>Assignee</span><strong>${t.assignee}</strong></div><div><span>SLA</span><strong>${t.sla}</strong></div></section>
   <section class="panel glass-card"><div class="detail-tabs"><button class="active" data-tab="summary">Summary</button><button data-tab="context">Context & Evidence</button><button data-tab="checklist">Checklist</button><button data-tab="actions">Actions</button></div><div id="taskDetailContent">${taskDetailTab(t, 'summary')}</div></section>`;
@@ -609,27 +609,27 @@ function wireTaskDetail() {
   });
   bindTaskDetailActions(t);
 }
-function bindTaskDetailActions(t: FleetTaskRecord) {
+function bindTaskDetailActions(t: ZentridTaskRecord) {
   document.getElementById('openTaskPlant')?.addEventListener('click', () => { localStorage.setItem('zentrid_selected_plant', t.plantId); location.href = 'plant-detail.html'; });
   document.getElementById('openTaskDevice')?.addEventListener('click', () => { localStorage.setItem('zentrid_selected_device', t.deviceId); location.href = 'device-detail.html'; });
   document.getElementById('openTaskAlert')?.addEventListener('click', () => { localStorage.setItem('zentrid_selected_alert', t.alertId); location.href = `alert-detail.html?id=${encodeURIComponent(t.alertId)}`; });
 }
 function rerenderTaskDetail(id: string) {
   const t = allTasks().find(x => x.id === id) || selectedTask();
-  FleetLayout.mount(renderTaskDetail(t));
+  ZentridLayout.mount(renderTaskDetail(t));
   wireTaskDetail();
 }
 function setTaskStatus(id: string, status: string) {
   const t = allTasks().find(x => x.id === id); if (!t) return;
   const note = `Status changed to ${status}.`;
   saveTask({ ...t, status, notes: [...(t.notes || []), note] });
-  FleetLayout.toast(`${id} → ${status}`);
+  ZentridLayout.toast(`${id} → ${status}`);
   if (location.pathname.endsWith('task-detail.html')) rerenderTaskDetail(id); else refreshTasksPage();
 }
 function escalateTask(id: string) {
   const t = allTasks().find(x => x.id === id); if (!t) return;
   saveTask({ ...t, priority: 'P1', sla: 'Escalated', notes: [...(t.notes || []), 'Task escalated to P1.'] });
-  FleetLayout.toast(`${id} escalated`);
+  ZentridLayout.toast(`${id} escalated`);
   if (location.pathname.endsWith('task-detail.html')) rerenderTaskDetail(id); else refreshTasksPage();
 }
 function addTaskNote(id: string) {
@@ -664,9 +664,9 @@ function addChecklistStep(id: string) {
 }
 
 if (location.pathname.endsWith('task-detail.html')) {
-  FleetLayout.mount(renderTaskDetail(selectedTask()));
+  ZentridLayout.mount(renderTaskDetail(selectedTask()));
   wireTaskDetail();
 } else if (location.pathname.endsWith('tasks-work-orders.html')) {
-  FleetLayout.mount(renderTasksPage());
+  ZentridLayout.mount(renderTasksPage());
   wireTasksPage();
 }

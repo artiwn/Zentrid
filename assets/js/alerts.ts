@@ -2,7 +2,7 @@ type AlertTone = 'danger' | 'warning' | 'success';
 type AlertCheckTone = 'success' | 'danger' | 'muted' | 'warning';
 type AlertDetailTabId = 'summary' | 'classification' | 'case' | 'sop' | 'timeline' | 'related' | 'activity' | 'actions';
 
-interface FleetAlertMeta {
+interface ZentridAlertMeta {
   category: string;
   name: string;
   severity: string;
@@ -12,15 +12,15 @@ interface FleetAlertMeta {
   vendorMappings: string[];
 }
 
-interface FleetAlertDictionaryModel {
+interface ZentridAlertDictionaryModel {
   categories: string[];
-  codes: Record<string, FleetAlertMeta>;
+  codes: Record<string, ZentridAlertMeta>;
 }
 
-interface FleetAlertRecord {
+interface ZentridAlertRecord {
   id: string;
-  dataOrigin?: FleetDataOrigin;
-  fleetCode?: string;
+  dataOrigin?: ZentridDataOrigin;
+  zentridCode?: string;
   vendorRawCode?: string;
   vendorCode?: string;
   vendorMessage?: string;
@@ -74,7 +74,7 @@ interface AlertPageSliceState {
   page: number;
   start: number;
   end: number;
-  rows: FleetAlertRecord[];
+  rows: ZentridAlertRecord[];
 }
 
 interface AlertCheckRowInput {
@@ -151,7 +151,7 @@ interface AlertDetailModel {
   suggestion: string[];
 }
 
-const FleetAlertDictionary: FleetAlertDictionaryModel = {
+const ZentridAlertDictionary: ZentridAlertDictionaryModel = {
   categories:['Grid','PV / DC Side','Battery / BMS','Inverter','Communication','Metering','Safety','Optimizers','EV Charger','Configuration'],
   codes:{
     'FL-GRD-OV': { category:'Grid', name:'Grid Overvoltage', severity:'Fault', deviceScope:'Inverter / Grid Interface', policy:'Verify grid voltage, check utility fluctuation, contact client if recurring, escalate after repeated occurrences.', meaning:'Grid voltage is above accepted threshold.', vendorMappings:['Deye F42/F13','Huawei 2034','GoodWe 3','Sofar ID01/ID001','Solis 1010','Peimar IE09/IE11'] },
@@ -170,9 +170,9 @@ const FleetAlertDictionary: FleetAlertDictionaryModel = {
     'FL-SAF-FIRE': { category:'Safety', name:'Fire Suppression Triggered', severity:'Critical', deviceScope:'BESS / Safety System', policy:'Immediate escalation, notify responsible parties, require closure evidence.', meaning:'Fire suppression or safety system was triggered.', vendorMappings:['Sofar ID105','Solax FSS Trigger','SunGrow FSS Alert'] }
   }
 };
-function alertCodeMeta(a?: Partial<FleetAlertRecord>): FleetAlertMeta { const code=a?.fleetCode; return (code ? FleetAlertDictionary.codes[code] : undefined) || { category:a?.category || 'Unmapped', name:a?.title || 'Unknown alert', severity:a?.severity || 'Unknown', deviceScope:a?.deviceType || '—', policy:'No canonical policy configured yet.', meaning:a?.description || 'No unified explanation configured.', vendorMappings:[] }; }
-function vendorCodeLabel(a?: Partial<FleetAlertRecord>): string { return `${a?.vendor || 'Vendor'} ${a?.vendorRawCode || a?.vendorCode || '—'}`; }
-function vendorMappingStatus(a?: Partial<FleetAlertRecord>): string { const meta = alertCodeMeta(a); const raw = `${a?.vendor || ''} ${a?.vendorRawCode || a?.vendorCode || ''}`.toLowerCase(); return (meta.vendorMappings || []).some(x => raw && x.toLowerCase().includes(String(a?.vendorRawCode || a?.vendorCode || '').toLowerCase())) ? 'Mapped' : 'Mapped by policy'; }
+function alertCodeMeta(a?: Partial<ZentridAlertRecord>): ZentridAlertMeta { const code=a?.zentridCode; return (code ? ZentridAlertDictionary.codes[code] : undefined) || { category:a?.category || 'Unmapped', name:a?.title || 'Unknown alert', severity:a?.severity || 'Unknown', deviceScope:a?.deviceType || '—', policy:'No canonical policy configured yet.', meaning:a?.description || 'No unified explanation configured.', vendorMappings:[] }; }
+function vendorCodeLabel(a?: Partial<ZentridAlertRecord>): string { return `${a?.vendor || 'Vendor'} ${a?.vendorRawCode || a?.vendorCode || '—'}`; }
+function vendorMappingStatus(a?: Partial<ZentridAlertRecord>): string { const meta = alertCodeMeta(a); const raw = `${a?.vendor || ''} ${a?.vendorRawCode || a?.vendorCode || ''}`.toLowerCase(); return (meta.vendorMappings || []).some(x => raw && x.toLowerCase().includes(String(a?.vendorRawCode || a?.vendorCode || '').toLowerCase())) ? 'Mapped' : 'Mapped by policy'; }
 
 function checkStatusClass(status?: string): AlertCheckTone {
   const v = String(status || '').toLowerCase();
@@ -189,12 +189,12 @@ function renderCheckRow({ label, hint = '', status = 'Pending', checked = false,
     : `<span class="check-indicator ${cls}">${cls === 'success' ? '✓' : cls === 'danger' ? '!' : cls === 'muted' ? '–' : '•'}</span>`;
   return `<label class="check-row ${cls} ${checked ? 'checked' : ''}">${control}<div><strong>${label}</strong><small>${hint}</small></div><span class="check-status ${cls}">${status}</span>${req}</label>`;
 }
-function renderMappingValidation(a: FleetAlertRecord): string {
+function renderMappingValidation(a: ZentridAlertRecord): string {
   const meta = alertCodeMeta(a);
   const mapped = vendorMappingStatus(a);
   const items = [
     { label:'Vendor code received', hint: vendorCodeLabel(a), status: a.vendorRawCode || a.vendorCode ? 'Done' : 'Missing', checked: !!(a.vendorRawCode || a.vendorCode), required:true },
-    { label:'Zentrid code assigned', hint: a.fleetCode || 'No canonical code', status: a.fleetCode ? 'Done' : 'Missing', checked: !!a.fleetCode, required:true },
+    { label:'Zentrid code assigned', hint: a.zentridCode || 'No canonical code', status: a.zentridCode ? 'Done' : 'Missing', checked: !!a.zentridCode, required:true },
     { label:'Mapping found in dictionary', hint: (meta.vendorMappings || []).slice(0,3).join(' · ') || 'No known mapping', status: mapped, checked: true, required:true },
     { label:'Policy available', hint: meta.policy || 'No policy configured', status: meta.policy ? 'Done' : 'Missing', checked: !!meta.policy, required:true },
     { label:'SLA / case workflow', hint: `${a.priority || 'P?'} · ${a.sla || 'No SLA'}`, status: a.sla ? 'Done' : 'Pending', checked: !!a.sla }
@@ -202,9 +202,9 @@ function renderMappingValidation(a: FleetAlertRecord): string {
   return `<div class="check-list validation-check-list-v86">${items.map(renderCheckRow).join('')}</div>`;
 }
 
-const FleetAlerts: FleetAlertRecord[] = [
+const ZentridAlerts: ZentridAlertRecord[] = [
   {
-    id: 'ALT-2031', fleetCode: 'FL-COM-RS', vendorRawCode: '2010', vendorCode: 'Solis 2010', vendorMessage: 'EPM Comm. Fail', severity: 'Fault', priority: 'P1', title: 'RS485 Communication Error', status: 'Open', category: 'Communication',
+    id: 'ALT-2031', zentridCode: 'FL-COM-RS', vendorRawCode: '2010', vendorCode: 'Solis 2010', vendorMessage: 'EPM Comm. Fail', severity: 'Fault', priority: 'P1', title: 'RS485 Communication Error', status: 'Open', category: 'Communication',
     tenant: 'Tenant Alpha Energy', plantId: 'PLT-000421', plant: 'Plant A', deviceId: 'DEV-INV-00432', device: 'INV-00432', deviceType: 'Inverter / Meter Link', vendor: 'Solis', source: 'SolisCloud', integration: 'Tenant Alpha Energy — Solis SolisCloud',
     created: '08:12', updated: '08:21', age: '18 min', sla: '24 min remaining', owner: 'Unassigned', telemetry: 'RS485 link stale · Last data: 18 min ago',
     description: 'Vendor sent raw alert code 2010: EPM communication failure. Zentrid mapped it to FL-COM-RS.',
@@ -214,7 +214,7 @@ const FleetAlerts: FleetAlertRecord[] = [
     related: { telemetryMetric: 'Communication Status', caseId: 'CASE-0098', taskId: '—' }
   },
   {
-    id: 'ALT-2034', fleetCode: 'FL-GRD-OV', vendorRawCode: '2034', vendorCode: 'Huawei 2034', vendorMessage: 'Grid Overvoltage', severity: 'Fault', priority: 'P1', title: 'Grid Overvoltage', status: 'Open', category: 'Grid',
+    id: 'ALT-2034', zentridCode: 'FL-GRD-OV', vendorRawCode: '2034', vendorCode: 'Huawei 2034', vendorMessage: 'Grid Overvoltage', severity: 'Fault', priority: 'P1', title: 'Grid Overvoltage', status: 'Open', category: 'Grid',
     tenant: 'Tenant Alpha Energy', plantId: 'PLT-000421', plant: 'Plant A', deviceId: 'DEV-INV-00432', device: 'INV-00432', deviceType: 'Inverter', vendor: 'Huawei', source: 'FusionSolar', integration: 'Tenant Alpha Energy — Huawei FusionSolar',
     created: '08:18', updated: '08:26', age: '12 min', sla: '31 min remaining', owner: 'Grid Operations', telemetry: 'AC voltage peak: 259 V · Last sample: 2 min ago',
     description: 'Vendor sent raw alert code 2034: Grid Overvoltage. Zentrid mapped it to FL-GRD-OV.',
@@ -224,7 +224,7 @@ const FleetAlerts: FleetAlertRecord[] = [
     related: { telemetryMetric: 'AC Voltage', caseId: 'CASE-0099', taskId: 'TASK-0139' }
   },
   {
-    id: 'ALT-2044', fleetCode: 'FL-BAT-OT', vendorRawCode: '3105', vendorCode: 'Huawei 3105', vendorMessage: 'Battery Overtemperature', severity: 'Fault', priority: 'P2', title: 'Battery Overtemperature', status: 'Acknowledged', category: 'Battery / BMS',
+    id: 'ALT-2044', zentridCode: 'FL-BAT-OT', vendorRawCode: '3105', vendorCode: 'Huawei 3105', vendorMessage: 'Battery Overtemperature', severity: 'Fault', priority: 'P2', title: 'Battery Overtemperature', status: 'Acknowledged', category: 'Battery / BMS',
     tenant: 'Tenant North Operations', plantId: 'PLT-000501', plant: 'Armavir BESS Solar', deviceId: 'DEV-BESS-0002', device: 'BESS-RACK-02', deviceType: 'Battery', vendor: 'Huawei', source: 'FusionSolar / LUNA2000 ESS', integration: 'Tenant North Operations — Huawei FusionSolar',
     created: '08:23', updated: '08:37', age: '29 min', sla: '1h 42m remaining', owner: 'BESS Specialist', telemetry: 'Rack temp: 47.6 °C · SOC: 71% · Last data: 4 min ago',
     description: 'Vendor sent raw alert code 3105: Battery Overtemperature. Zentrid mapped it to FL-BAT-OT.',
@@ -234,7 +234,7 @@ const FleetAlerts: FleetAlertRecord[] = [
     related: { telemetryMetric: 'Temperature', caseId: 'CASE-0101', taskId: 'TASK-0144' }
   },
   {
-    id: 'ALT-2050', fleetCode: 'FL-COM-SRV', vendorRawCode: 'NET Red', vendorCode: 'Solax NET Red', vendorMessage: 'Cloud Disconnect', severity: 'Warning', priority: 'P3', title: 'Cloud / Server Connection Error', status: 'Open', category: 'Communication',
+    id: 'ALT-2050', zentridCode: 'FL-COM-SRV', vendorRawCode: 'NET Red', vendorCode: 'Solax NET Red', vendorMessage: 'Cloud Disconnect', severity: 'Warning', priority: 'P3', title: 'Cloud / Server Connection Error', status: 'Open', category: 'Communication',
     tenant: 'Tenant Gamma Grid', plantId: 'PLT-000611', plant: 'Madrid East', deviceId: 'DEV-GW-019', device: 'GW-019', deviceType: 'Gateway', vendor: 'Solax', source: 'SolaxCloud / DataHub', integration: 'Tenant Gamma Grid — Solax SolaxCloud',
     created: '08:36', updated: '08:44', age: '13 min', sla: '3h 18m remaining', owner: 'Integration Team', telemetry: 'Last normalized record older than freshness window',
     description: 'Vendor sent raw status NET Red: Cloud disconnect. Zentrid mapped it to FL-COM-SRV.',
@@ -244,7 +244,7 @@ const FleetAlerts: FleetAlertRecord[] = [
     related: { telemetryMetric: 'Data Freshness', caseId: '—', taskId: '—' }
   },
   {
-    id: 'ALT-2062', fleetCode: 'FL-INV-INT', vendorRawCode: '31', vendorCode: 'GoodWe 31', vendorMessage: 'Internal Comm Error', severity: 'Fault', priority: 'P1', title: 'Internal Hardware Fault', status: 'Escalated', category: 'Inverter',
+    id: 'ALT-2062', zentridCode: 'FL-INV-INT', vendorRawCode: '31', vendorCode: 'GoodWe 31', vendorMessage: 'Internal Comm Error', severity: 'Fault', priority: 'P1', title: 'Internal Hardware Fault', status: 'Escalated', category: 'Inverter',
     tenant: 'Tenant Delta Enterprise', plantId: 'PLT-000720', plant: 'Lyon PV Park', deviceId: 'DEV-INV-021', device: 'INV-021', deviceType: 'Inverter', vendor: 'GoodWe', source: 'SEMS Portal', integration: 'Tenant Delta Enterprise — GoodWe SEMS Portal',
     created: '08:44', updated: '09:02', age: '31 min', sla: 'Escalated', owner: 'Operations Team', telemetry: 'Active power dropped 42% after alert code was received',
     description: 'Vendor sent raw alert code 31: Internal Comm Error. Zentrid mapped it to FL-INV-INT.',
@@ -254,7 +254,7 @@ const FleetAlerts: FleetAlertRecord[] = [
     related: { telemetryMetric: 'Current Power', caseId: 'CASE-0105', taskId: 'TASK-0150' }
   },
   {
-    id: 'ALT-2074', fleetCode: 'FL-MTR-COM', vendorRawCode: '2011', vendorCode: 'Solis 2011', vendorMessage: 'Meter_Comm_FAIL', severity: 'Fault', priority: 'P4', title: 'Meter Communication Lost', status: 'Open', category: 'Metering',
+    id: 'ALT-2074', zentridCode: 'FL-MTR-COM', vendorRawCode: '2011', vendorCode: 'Solis 2011', vendorMessage: 'Meter_Comm_FAIL', severity: 'Fault', priority: 'P4', title: 'Meter Communication Lost', status: 'Open', category: 'Metering',
     tenant: 'Tenant Alpha Energy', plantId: 'PLT-000817', plant: 'Plant B', deviceId: 'DEV-MTR-008', device: 'MTR-008', deviceType: 'Meter', vendor: 'Solis', source: 'SolisCloud', integration: 'Tenant Alpha Energy — Solis SolisCloud',
     created: '09:05', updated: '09:07', age: '4 min', sla: '5h remaining', owner: 'Unassigned', telemetry: 'Meter interval record delayed by 11 min',
     description: 'Vendor sent raw alert code 2011: Meter communication failure. Zentrid mapped it to FL-MTR-COM.',
@@ -286,7 +286,7 @@ function setAlertContextFromQuery(): void {
 }
 function clearAlertContext(): void { localStorage.removeItem('zentrid_alert_context'); }
 
-function filteredAlerts(): FleetAlertRecord[] {
+function filteredAlerts(): ZentridAlertRecord[] {
   const ctx = getAlertContext();
   const severity = document.getElementById('severityFilter')?.value || ctx.severity || 'All';
   const status = document.getElementById('statusFilter')?.value || ctx.status || 'All';
@@ -294,7 +294,7 @@ function filteredAlerts(): FleetAlertRecord[] {
   const plant = document.getElementById('plantFilter')?.value || 'All';
   const vendor = document.getElementById('vendorFilter')?.value || 'All';
   const q = (document.getElementById('alertSearch')?.value || '').trim().toLowerCase();
-  return FleetAlerts.filter(a =>
+  return ZentridAlerts.filter(a =>
     (!ctx.plantId || a.plantId === ctx.plantId) &&
     (!ctx.deviceId || a.deviceId === ctx.deviceId) &&
     (severity === 'All' || alertCodeMeta(a).severity === severity) &&
@@ -302,11 +302,11 @@ function filteredAlerts(): FleetAlertRecord[] {
     (tenant === 'All' || a.tenant === tenant) &&
     (plant === 'All' || a.plant === plant || a.plantId === plant) &&
     (vendor === 'All' || a.vendor === vendor) &&
-    (!q || `${a.title} ${a.plant} ${a.device} ${a.tenant} ${a.vendor} ${a.id} ${a.category} ${a.fleetCode || ''} ${a.vendorCode || ''} ${a.vendorRawCode || ''} ${a.vendorMessage || ''}`.toLowerCase().includes(q))
+    (!q || `${a.title} ${a.plant} ${a.device} ${a.tenant} ${a.vendor} ${a.id} ${a.category} ${a.zentridCode || ''} ${a.vendorCode || ''} ${a.vendorRawCode || ''} ${a.vendorMessage || ''}`.toLowerCase().includes(q))
   );
 }
 
-function alertKpis(items: FleetAlertRecord[] = filteredAlerts()): string {
+function alertKpis(items: ZentridAlertRecord[] = filteredAlerts()): string {
   const critical = items.filter(a => alertCodeMeta(a).severity === 'Critical').length;
   const fault = items.filter(a => alertCodeMeta(a).severity === 'Fault').length;
   const warning = items.filter(a => alertCodeMeta(a).severity === 'Warning').length;
@@ -334,7 +334,7 @@ function renderAlertContextBanner(): string {
 
 function renderAlertFilters(): string {
   const ctx = getAlertContext();
-  const queryState = window.FleetRegistryQuery?.read('alerts');
+  const queryState = window.ZentridRegistryQuery?.read('alerts');
   const selected = {
     severity: queryState?.params.severity || ctx.severity || 'All',
     status: queryState?.params.alertStatus || ctx.status || 'All',
@@ -349,18 +349,18 @@ function renderAlertFilters(): string {
       <label>Severity<select id="severityFilter">${['All','Critical','Fault','Warning'].map(x => opt(x, selected.severity)).join('')}</select></label>
       <label>Status<select id="statusFilter">${['All','Open','Acknowledged','Escalated','Resolved'].map(x => opt(x, selected.status)).join('')}</select></label>
       <label>Tenant<select id="tenantFilter">${['All','Tenant Alpha Energy','Tenant North Operations','Tenant Gamma Grid','Tenant Delta Enterprise'].map(x => opt(x, selected.tenant)).join('')}</select></label>
-      <label>Plant<select id="plantFilter">${['All', ...Array.from(new Set(FleetAlerts.map(a => a.plant)))].map(x => opt(x, selected.plant)).join('')}</select></label>
+      <label>Plant<select id="plantFilter">${['All', ...Array.from(new Set(ZentridAlerts.map(a => a.plant)))].map(x => opt(x, selected.plant)).join('')}</select></label>
       <label>Vendor<select id="vendorFilter">${['All','Huawei','Sungrow','Solis','GoodWe','Deye'].map(x => opt(x, selected.vendor)).join('')}</select></label>
       <label>Search<input id="alertSearch" value="${String(selected.search).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by alert, plant, device..." /></label>
     </section>
-    <div id="alertFilterScopeV126">${window.FleetRegistryQuery?.filterScopeHtml('alerts') || ''}</div>`;
+    <div id="alertFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('alerts') || ''}</div>`;
 }
 
-function alertRow(a: FleetAlertRecord): string {
+function alertRow(a: ZentridAlertRecord): string {
   const meta = alertCodeMeta(a);
   return `
     <div class="data-row alert-row" data-alert-id="${a.id}">
-      <div>${FleetDataSource.badge(a, 'alert')}<strong>${a.fleetCode || '—'}</strong><small>Vendor: ${vendorCodeLabel(a)}</small></div>
+      <div>${ZentridDataSource.badge(a, 'alert')}<strong>${a.zentridCode || '—'}</strong><small>Vendor: ${vendorCodeLabel(a)}</small></div>
       <div><strong>${meta.name || a.title}</strong><small>${a.id} · ${meta.category || a.category} · ${a.priority}</small></div>
       <div><strong>${a.plant}</strong><small>${a.tenant} · ${a.device}</small></div>
       <div><strong>${a.vendor}</strong><small>${a.source}</small></div>
@@ -372,8 +372,8 @@ function alertRow(a: FleetAlertRecord): string {
 }
 
 var ZentridAlertPager: AlertPagerState = window.ZentridAlertPager || (window.ZentridAlertPager = { page: 1, size: 50 });
-function alertPageSlice(items: FleetAlertRecord[]): AlertPageSliceState {
-  const serverPagination = window.FleetRegistryQuery?.pagination('alerts');
+function alertPageSlice(items: ZentridAlertRecord[]): AlertPageSliceState {
+  const serverPagination = window.ZentridRegistryQuery?.pagination('alerts');
   if (serverPagination) {
     return {
       total: serverPagination.totalCount,
@@ -391,16 +391,16 @@ function alertPageSlice(items: FleetAlertRecord[]): AlertPageSliceState {
   return { total, pages, page: ZentridAlertPager.page, start, end: Math.min(start + ZentridAlertPager.size, total), rows: items.slice(start, start + ZentridAlertPager.size) };
 }
 function alertPagerHtml(state: AlertPageSliceState): string {
-  const serverPagination = window.FleetRegistryQuery?.pagination('alerts');
-  if (serverPagination) return window.FleetRegistryQuery?.pagerHtml('alerts', state.rows.length) || '';
+  const serverPagination = window.ZentridRegistryQuery?.pagination('alerts');
+  if (serverPagination) return window.ZentridRegistryQuery?.pagerHtml('alerts', state.rows.length) || '';
   if (state.total <= ZentridAlertPager.size) return `<div class="pagination-bar"><span>Showing ${state.total} row(s)</span></div>`;
   return `<div class="pagination-bar"><span>Showing ${state.start + 1}-${state.end} of ${state.total}</span><div class="row-actions"><button data-alert-page="prev" ${state.page<=1?'disabled':''}>Prev</button><strong>Page ${state.page} / ${state.pages}</strong><button data-alert-page="next" ${state.page>=state.pages?'disabled':''}>Next</button></div></div>`;
 }
-function renderAlertRowsPage(items: FleetAlertRecord[]): string {
+function renderAlertRowsPage(items: ZentridAlertRecord[]): string {
   const state = alertPageSlice(items);
   return `${alertPagerHtml(state)}<div class="data-table alerts-table"><div class="data-head alert-head"><span>Alert Codes</span><span>Alert</span><span>Plant / Device</span><span>Source</span><span>Severity</span><span>Status</span><span>SLA</span><span>Actions</span></div><div id="alertsRows">${state.rows.length ? state.rows.map(alertRow).join('') : '<div class="empty-state">No alerts match current filters.</div>'}</div></div>${alertPagerHtml(state)}`;
 }
-function renderAlertsTable(items: FleetAlertRecord[] = filteredAlerts()): string {
+function renderAlertsTable(items: ZentridAlertRecord[] = filteredAlerts()): string {
   return `
     <section class="panel glass-card">
       <div class="panel-head">
@@ -411,10 +411,10 @@ function renderAlertsTable(items: FleetAlertRecord[] = filteredAlerts()): string
     </section>`;
 }
 
-function renderAlertDetailContentLegacy(a: FleetAlertRecord): string {
+function renderAlertDetailContentLegacy(a: ZentridAlertRecord): string {
   return `
     <section class="page-hero">
-      <div><p class="eyebrow">Alert Detail ${FleetDataSource.badge(a, 'alert', true)}</p><h1>${a.title}</h1><p class="muted">${a.id} · ${a.tenant} · ${a.plant} · ${a.device}</p></div>
+      <div><p class="eyebrow">Alert Detail ${ZentridDataSource.badge(a, 'alert', true)}</p><h1>${a.title}</h1><p class="muted">${a.id} · ${a.tenant} · ${a.plant} · ${a.device}</p></div>
       <div class="hero-actions"><button class="freshness-card" id="detailAck"><span class="pulse"></span><div><strong>Acknowledge</strong><small>${a.status}</small></div></button><button class="freshness-card" onclick="location.href='alerts.html'"><span class="pulse"></span><div><strong>Back to Alerts</strong><small>Operational inbox</small></div></button></div>
     </section>
     <section class="kpi-grid detail-kpis alert-detail-kpis">
@@ -431,19 +431,19 @@ function renderAlertDetailContentLegacy(a: FleetAlertRecord): string {
     </section>`;
 }
 
-function alertDetailTabLegacy(a: FleetAlertRecord, tab: AlertDetailTabId | string): string {
+function alertDetailTabLegacy(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
   if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.fleetCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
+  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
   if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
   return `<div class="split-grid"><div class="panel-lite"><h3>What happened?</h3><p class="detail-copy">${a.description}</p><div class="timeline-mini"><p><strong>Probable cause:</strong> ${a.probableCause}</p><p><strong>Recommended action:</strong> ${a.recommendation}</p></div></div><div class="panel-lite"><h3>Current Context</h3><div class="info-grid"><div><span>Status</span><strong>${a.status}</strong></div><div><span>Priority</span><strong>${a.priority}</strong></div><div><span>Category</span><strong>${a.category}</strong></div><div><span>Age</span><strong>${a.age}</strong></div><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div></div></div></div>`;
 }
 
-function selectedAlert(): FleetAlertRecord {
-  const firstAlert = FleetAlerts[0];
+function selectedAlert(): ZentridAlertRecord {
+  const firstAlert = ZentridAlerts[0];
   if (!firstAlert) throw new Error('Alerts registry requires a default alert.');
   const params = new URLSearchParams(location.search);
   const id = params.get('id') || localStorage.getItem('zentrid_selected_alert') || firstAlert.id;
-  return FleetAlerts.find(x => x.id === id) ?? firstAlert;
+  return ZentridAlerts.find(x => x.id === id) ?? firstAlert;
 }
 
 function openAlert(id: string): void {
@@ -452,21 +452,21 @@ function openAlert(id: string): void {
 }
 
 function applyAlertFilters(resetPage = true): void {
-  if (resetPage && !window.FleetRegistryQuery?.pagination('alerts')) ZentridAlertPager.page = 1;
+  if (resetPage && !window.ZentridRegistryQuery?.pagination('alerts')) ZentridAlertPager.page = 1;
   const kpiWrap = document.getElementById('alertKpiWrap');
   const host = document.getElementById('alertsTableHost');
   const items = filteredAlerts();
-  if (kpiWrap) FleetRuntimeStability.replaceHtml(kpiWrap, alertKpis(items));
-  if (host) FleetRuntimeStability.replaceHtml(host, renderAlertRowsPage(items));
+  if (kpiWrap) ZentridRuntimeStability.replaceHtml(kpiWrap, alertKpis(items));
+  if (host) ZentridRuntimeStability.replaceHtml(host, renderAlertRowsPage(items));
   const severity = document.getElementById('severityFilter')?.value || 'All';
   const status = document.getElementById('statusFilter')?.value || 'All';
   const tenant = document.getElementById('tenantFilter')?.value || 'All';
   const plant = document.getElementById('plantFilter')?.value || 'All';
   const vendor = document.getElementById('vendorFilter')?.value || 'All';
   const search = (document.getElementById('alertSearch')?.value || '').trim();
-  window.FleetRegistryQuery?.update('alerts', { search: search || null, severity: severity === 'All' ? null : severity, alertStatus: status === 'All' ? null : status, tenant: tenant === 'All' ? null : tenant, plant: plant === 'All' ? null : plant, vendor: vendor === 'All' ? null : vendor }, { replace: true, emit: false });
+  window.ZentridRegistryQuery?.update('alerts', { search: search || null, severity: severity === 'All' ? null : severity, alertStatus: status === 'All' ? null : status, tenant: tenant === 'All' ? null : tenant, plant: plant === 'All' ? null : plant, vendor: vendor === 'All' ? null : vendor }, { replace: true, emit: false });
   const scope = document.getElementById('alertFilterScopeV126');
-  if (scope) scope.innerHTML = window.FleetRegistryQuery?.filterScopeHtml('alerts') || '';
+  if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('alerts') || '';
 }
 
 function renderAlertsPage(): string {
@@ -474,7 +474,7 @@ function renderAlertsPage(): string {
   return `
     <section class="page-hero">
       <div><p class="eyebrow">Global Admin · Tenant Management</p><h1>Alerts</h1><p class="muted">Normalized alert list across plants, devices, vendors and tenants. Filter by plant, status, severity, tenant or source.</p></div>
-      <button class="freshness-card" onclick="FleetLayout.toast('Alerts data refreshed')"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Updated 1 min ago</small></div></button>
+      <button class="freshness-card" onclick="ZentridLayout.toast('Alerts data refreshed')"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Updated 1 min ago</small></div></button>
     </section>
     ${renderAlertContextBanner()}
     <div id="alertKpiWrap">${alertKpis()}</div>
@@ -487,7 +487,7 @@ function wireAlertsPage(): void {
     const target = e.target instanceof Element ? e.target : null;
     if (!target) return;
     const ack = target.closest('[data-action="ack"]');
-    if (ack) { e.stopPropagation(); FleetLayout.toast(`Alert ${ack.dataset.id} acknowledged`); return; }
+    if (ack) { e.stopPropagation(); ZentridLayout.toast(`Alert ${ack.dataset.id} acknowledged`); return; }
     const open = target.closest('[data-action="open-alert"]') || target.closest('.alerts-table .data-row');
     if (open) {
       const id = open.dataset.id || open.dataset.alertId || open.closest('[data-alert-id]')?.dataset.alertId;
@@ -495,17 +495,17 @@ function wireAlertsPage(): void {
       return;
     }
     const pageBtn = target.closest('[data-alert-page]');
-    if (pageBtn && !window.FleetRegistryQuery?.pagination('alerts')) { ZentridAlertPager.page += pageBtn.dataset.alertPage === 'next' ? 1 : -1; applyAlertFilters(false); return; }
+    if (pageBtn && !window.ZentridRegistryQuery?.pagination('alerts')) { ZentridAlertPager.page += pageBtn.dataset.alertPage === 'next' ? 1 : -1; applyAlertFilters(false); return; }
     if (target.closest('#resetAlertFilters')) {
       ['severityFilter','statusFilter','tenantFilter','plantFilter','vendorFilter'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'All'; });
       const s = document.getElementById('alertSearch'); if (s) s.value = '';
-      window.FleetRegistryQuery?.update('alerts', { search: null, severity: null, alertStatus: null, tenant: null, plant: null, vendor: null }, { replace: true, emit: false });
+      window.ZentridRegistryQuery?.update('alerts', { search: null, severity: null, alertStatus: null, tenant: null, plant: null, vendor: null }, { replace: true, emit: false });
       applyAlertFilters(true);
     }
     if (target.closest('#clearAlertContext')) { clearAlertContext(); location.reload(); }
-    if (target.closest('#exportAlerts')) FleetLayout.toast('Alert export queued');
+    if (target.closest('#exportAlerts')) ZentridLayout.toast('Alert export queued');
   });
-  document.getElementById('alertSearch')?.addEventListener('input', () => FleetRuntimeStability.debounce('registry:alerts:search', () => applyAlertFilters(true), 220));
+  document.getElementById('alertSearch')?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:alerts:search', () => applyAlertFilters(true), 220));
   ['severityFilter','statusFilter','tenantFilter','plantFilter','vendorFilter'].forEach(id => document.getElementById(id)?.addEventListener('change', () => applyAlertFilters(true)));
 }
 
@@ -513,7 +513,7 @@ function wireAlertDetailPage(): void {
   const a = selectedAlert();
   document.getElementById('detailAck')?.addEventListener('click', () => {
     saveAlertRuntimeState(a, { acknowledged: true });
-    FleetLayout.toast(`${a.id} acknowledged`);
+    ZentridLayout.toast(`${a.id} acknowledged`);
     rerenderActiveAlertTab(a);
   });
   document.querySelectorAll('.alert-detail-nav-v71 button').forEach(btn => btn.onclick = () => {
@@ -526,7 +526,7 @@ function wireAlertDetailPage(): void {
   bindAlertDetailActions(a);
 }
 
-function bindAlertDetailActions(a: FleetAlertRecord): void {
+function bindAlertDetailActions(a: ZentridAlertRecord): void {
   const plant = document.getElementById('openAlertPlant');
   if (plant) plant.onclick = () => { localStorage.setItem('zentrid_selected_plant', a.plantId); location.href = 'plant-detail.html'; };
   const device = document.getElementById('openAlertDevice');
@@ -559,14 +559,14 @@ function bindAlertDetailActions(a: FleetAlertRecord): void {
     },
     openAlertCase: () => {
       localStorage.setItem('zentrid_incident_context', JSON.stringify({ alertId: a.id, caseId: alertIncidentModel(a).caseId, plant: a.plant, device: a.device }));
-      FleetLayout.toast(`Case context saved for ${a.id}`);
+      ZentridLayout.toast(`Case context saved for ${a.id}`);
       return false;
     }
   };
   Object.entries(handlers).forEach(([id, fn]) => {
     document.querySelectorAll(`#${id}`).forEach(btn => btn.onclick = () => {
       const result = fn();
-      if (result !== false) FleetLayout.toast(`${btn.textContent?.trim() || 'Action'} updated for ${a.id}`);
+      if (result !== false) ZentridLayout.toast(`${btn.textContent?.trim() || 'Action'} updated for ${a.id}`);
       rerenderActiveAlertTab(a);
     });
   });
@@ -588,7 +588,7 @@ function bindAlertDetailActions(a: FleetAlertRecord): void {
       const key = btn.dataset.evidence;
       ev.has(key) ? ev.delete(key) : ev.add(key);
       saveAlertRuntimeState(a, { evidence: Array.from(ev) });
-      FleetLayout.toast(`${key} evidence updated`);
+      ZentridLayout.toast(`${key} evidence updated`);
       rerenderActiveAlertTab(a);
     };
   });
@@ -600,22 +600,22 @@ function bindAlertDetailActions(a: FleetAlertRecord): void {
 }
 
 
-function alertRuntimeState(a: FleetAlertRecord): AlertRuntimeState {
+function alertRuntimeState(a: ZentridAlertRecord): AlertRuntimeState {
   try { return JSON.parse(localStorage.getItem(`zentrid_alert_runtime_${a.id}`) || '{}'); }
   catch { return {}; }
 }
-function saveAlertRuntimeState(a: FleetAlertRecord, patch: Partial<AlertRuntimeState>): AlertRuntimeState {
+function saveAlertRuntimeState(a: ZentridAlertRecord, patch: Partial<AlertRuntimeState>): AlertRuntimeState {
   const next = Object.assign({}, alertRuntimeState(a), patch || {});
   localStorage.setItem(`zentrid_alert_runtime_${a.id}`, JSON.stringify(next));
   return next;
 }
-function rerenderActiveAlertTab(a: FleetAlertRecord): void {
+function rerenderActiveAlertTab(a: ZentridAlertRecord): void {
   const active = document.querySelector('.alert-detail-nav-v71 button.active')?.dataset.tab || 'summary';
   const host = document.getElementById('alertDetailContent');
   if (host) host.innerHTML = alertDetailTab(a, active);
   bindAlertDetailActions(a);
 }
-function alertDisplayStatus(a: FleetAlertRecord): string {
+function alertDisplayStatus(a: ZentridAlertRecord): string {
   const st = alertRuntimeState(a);
   if (st.resolved) return 'Resolved';
   if (st.escalated) return 'Escalated';
@@ -623,7 +623,7 @@ function alertDisplayStatus(a: FleetAlertRecord): string {
   return a.status;
 }
 
-function alertIncidentModel(a: FleetAlertRecord): AlertIncidentModel {
+function alertIncidentModel(a: ZentridAlertRecord): AlertIncidentModel {
   const hasCase = a.related?.caseId && a.related.caseId !== '—';
   const hasTask = a.related?.taskId && a.related.taskId !== '—';
   const openLike = ['Open','Escalated'].includes(a.status);
@@ -647,7 +647,7 @@ function alertIncidentModel(a: FleetAlertRecord): AlertIncidentModel {
   };
 }
 
-function alertIncidentCaseBlock(a: FleetAlertRecord): string {
+function alertIncidentCaseBlock(a: ZentridAlertRecord): string {
   const c = alertIncidentModel(a);
   return `
     <section class="alert-incident-case glass-card">
@@ -672,7 +672,7 @@ function alertIncidentCaseBlock(a: FleetAlertRecord): string {
     </section>`;
 }
 
-function alertCaseTimeline(a: FleetAlertRecord): string {
+function alertCaseTimeline(a: ZentridAlertRecord): string {
   const c = alertIncidentModel(a);
   const rows = [
     ['Detected', a.created, 'Alert normalized from source platform'],
@@ -685,7 +685,7 @@ function alertCaseTimeline(a: FleetAlertRecord): string {
 }
 
 
-function alertSopModel(a: FleetAlertRecord): AlertSopModel {
+function alertSopModel(a: ZentridAlertRecord): AlertSopModel {
   const hay = `${a.title} ${a.category} ${a.description}`.toLowerCase();
   const outage = hay.includes('outage') || hay.includes('offline') || hay.includes('communication') || hay.includes('no telemetry');
   const voltage = hay.includes('voltage') || hay.includes('fault') || hay.includes('electrical');
@@ -753,7 +753,7 @@ function alertSopModel(a: FleetAlertRecord): AlertSopModel {
   };
 }
 
-function alertSopChecklistBlock(a: FleetAlertRecord): string {
+function alertSopChecklistBlock(a: ZentridAlertRecord): string {
   const sop = alertSopModel(a);
   const runtime = alertRuntimeState(a);
   const evidenceDone = new Set(runtime.evidence || []);
@@ -789,7 +789,7 @@ function alertSopChecklistBlock(a: FleetAlertRecord): string {
     </section>`;
 }
 // v68 — richer Alert Detail based on GoodWe-style alert detail structure
-function alertDetailModel(a: FleetAlertRecord): AlertDetailModel {
+function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
   const isGoodWeGrid = a.vendor === 'GoodWe' || /grid|voltage|inverter/i.test(`${a.title} ${a.category}`);
   const isRecovered = String(a.status || '').toLowerCase().includes('resolved') || a.id === 'ALT-2074';
   const reasonGridVoltage = [
@@ -837,7 +837,7 @@ function alertDetailModel(a: FleetAlertRecord): AlertDetailModel {
   };
 }
 
-function alertDetailHero(a: FleetAlertRecord, m: AlertDetailModel): string {
+function alertDetailHero(a: ZentridAlertRecord, m: AlertDetailModel): string {
   const levelClass = m.levelLabel === 'Fault' ? 'danger' : 'warning';
   const statusClass = m.occurrenceStatus === 'Recovered' ? 'success' : 'danger';
   return `
@@ -855,7 +855,7 @@ function alertDetailHero(a: FleetAlertRecord, m: AlertDetailModel): string {
         <div><span>Devices / Components</span><strong>${m.component}</strong></div>
         <div><span>Duration</span><strong>${m.duration}</strong></div>
         <div><span>Alert Type</span><strong>${m.alertType}</strong></div>
-        <div><span>Zentrid Alert Code</span><strong>${a.fleetCode || '—'}</strong></div>
+        <div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div>
         <div><span>Unified Category</span><strong>${alertCodeMeta(a).category}</strong></div>
         <div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div>
         <div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div>
@@ -869,16 +869,16 @@ function alertReasonBlock(title: string, icon: string, items: string[]): string 
   return `<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>${icon}</span><h3>${title}</h3></div><ol class="alert-numbered-list">${items.map(x => `<li>${x}</li>`).join('')}</ol></section>`;
 }
 
-function alertCurveBlock(a: FleetAlertRecord, m: AlertDetailModel): string {
+function alertCurveBlock(a: ZentridAlertRecord, m: AlertDetailModel): string {
   return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${m.curveMetric} around alert time</small></div><div class="alert-curve-visual"><div class="curve-line"></div>${m.samples.map((x,i)=>`<div class="curve-point" style="left:${16+i*24}%; bottom:${28+(i%3)*16}%"><span>${x}</span></div>`).join('')}</div></section>`;
 }
 
-function renderAlertDetailContent(a: FleetAlertRecord): string {
+function renderAlertDetailContent(a: ZentridAlertRecord): string {
   const m = alertDetailModel(a);
   return `
     <section class="page-hero alert-detail-page-hero">
-      <div><p class="eyebrow">Global Admin · Alerts ${FleetDataSource.badge(a, 'alert', true)}</p><h1>Alert Details</h1><p class="muted">Source-normalized alert workspace with incident, SOP, timeline and related objects.</p></div>
-      <button class="freshness-card" onclick="FleetLayout.toast('Alert detail refreshed')"><span class="pulse"></span><div><strong>Refresh</strong><small>${a.updated} · ${a.source}</small></div></button>
+      <div><p class="eyebrow">Global Admin · Alerts ${ZentridDataSource.badge(a, 'alert', true)}</p><h1>Alert Details</h1><p class="muted">Source-normalized alert workspace with incident, SOP, timeline and related objects.</p></div>
+      <button class="freshness-card" onclick="ZentridLayout.toast('Alert detail refreshed')"><span class="pulse"></span><div><strong>Refresh</strong><small>${a.updated} · ${a.source}</small></div></button>
     </section>
     ${alertDetailHero(a, m)}
     <section class="kpi-grid detail-kpis alert-detail-kpis">
@@ -901,21 +901,21 @@ function renderAlertDetailContent(a: FleetAlertRecord): string {
     </section>`;
 }
 
-function alertDetailTab(a: FleetAlertRecord, tab: AlertDetailTabId | string): string {
+function alertDetailTab(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
   const m = alertDetailModel(a);
-  if (tab === 'classification') { const meta = alertCodeMeta(a); return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Zentrid Unified Code</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.fleetCode || '—'}</strong></div><div><span>Unified Name</span><strong>${meta.name}</strong></div><div><span>Category</span><strong>${meta.category}</strong></div><div><span>Severity</span><strong>${meta.severity}</strong></div><div><span>Device Scope</span><strong>${meta.deviceScope}</strong></div><div><span>Meaning</span><strong>${meta.meaning}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor}</strong></div><div><span>Source Platform</span><strong>${a.source}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || a.title}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Known Mapping</span><strong>${(meta.vendorMappings || []).join(' · ') || '—'}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Policy</span><strong>${meta.policy}</strong></div></div><div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button><button id="actionTask">Create Case from Policy</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`; }
+  if (tab === 'classification') { const meta = alertCodeMeta(a); return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Zentrid Unified Code</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Unified Name</span><strong>${meta.name}</strong></div><div><span>Category</span><strong>${meta.category}</strong></div><div><span>Severity</span><strong>${meta.severity}</strong></div><div><span>Device Scope</span><strong>${meta.deviceScope}</strong></div><div><span>Meaning</span><strong>${meta.meaning}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor}</strong></div><div><span>Source Platform</span><strong>${a.source}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || a.title}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Known Mapping</span><strong>${(meta.vendorMappings || []).join(' · ') || '—'}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Policy</span><strong>${meta.policy}</strong></div></div><div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button><button id="actionTask">Create Case from Policy</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`; }
   if (tab === 'case') return `<div class="split-grid incident-case-tab"><div class="panel-lite"><h3>Case Timeline</h3>${alertCaseTimeline(a)}</div><div class="panel-lite"><h3>Case Context</h3><div class="info-grid"><div><span>Case ID</span><strong>${alertIncidentModel(a).caseId}</strong></div><div><span>Status</span><strong>${alertIncidentModel(a).caseStatus}</strong></div><div><span>Responsible</span><strong>${alertIncidentModel(a).assignee}</strong></div><div><span>Due</span><strong>${alertIncidentModel(a).due}</strong></div><div><span>Task</span><strong>${alertIncidentModel(a).taskId}</strong></div><div><span>Work Order</span><strong>${alertIncidentModel(a).workOrder}</strong></div></div><div class="vertical-actions incident-tab-actions"><button id="actionAssign">Assign Responsible</button><button id="actionTask">Create Task / Work Order</button><button id="openAlertCase">Open Case Workspace</button></div></div></div>`;
   if (tab === 'sop') return alertSopChecklistBlock(a);
   if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.fleetCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
+  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
   if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
-  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${alertCodeMeta(a).category}</strong></div><div><span>Canonical Severity</span><strong>${alertCodeMeta(a).severity}</strong></div><div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Case</span><strong>${a.related.caseId}</strong></div><div><span>Task</span><strong>${a.related.taskId}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.fleetCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Workflow Policy</span><strong>${alertCodeMeta(a).policy}</strong></div></div></section></div>`;
+  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${alertCodeMeta(a).category}</strong></div><div><span>Canonical Severity</span><strong>${alertCodeMeta(a).severity}</strong></div><div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Case</span><strong>${a.related.caseId}</strong></div><div><span>Task</span><strong>${a.related.taskId}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Workflow Policy</span><strong>${alertCodeMeta(a).policy}</strong></div></div></section></div>`;
 }
 
 if (location.pathname.endsWith('alert-detail.html')) {
-  FleetLayout.mount(renderAlertDetailContent(selectedAlert()));
+  ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
   wireAlertDetailPage();
 } else {
-  FleetLayout.mount(renderAlertsPage());
+  ZentridLayout.mount(renderAlertsPage());
   wireAlertsPage();
 }

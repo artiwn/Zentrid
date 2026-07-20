@@ -417,7 +417,7 @@ var integrations: IntegrationRecord[] = JSON.parse(localStorage.getItem('zentrid
   {id:'INT-00092',code:'INT-SUNGROW-002',name:'Tenant North Operations — Sungrow iSolarCloud',tenant:'Tenant North Operations',vendor:'Sungrow',software:'iSolarCloud',status:'Inactive',health:'Warning',auth:'Valid',discovery:'Completed With Warnings',plants:58,devices:790,metrics:174,alerts:31,lastSync:'18 min ago',assignedTenants:'12 Tenants',activeIntegrations:12,version:'v1.9.0',apiVersion:'2024-08',mappingVersion:'Solar Core v1.7',authType:'App Key Authentication',discoveryEnabled:'Yes',baseUrl:'https://gateway.isolarcloud.com',createdBy:'Global Admin',createdAt:'2026-05-18',updatedBy:'Integration Admin',updatedAt:'2026-06-03',lastActivity:'18 min ago',lastSuccessfulSync:'18 min ago',vendorName:'Sungrow iSolarCloud',allowedIpWhitelist:'198.51.100.12, 198.51.100.44',domainWhitelist:'gateway.isolarcloud.com',rateLimit:'800',rateLimitPeriod:'Hour',syncFrequency:'15 min',syncStartTime:'00:10',lastSyncTimestampField:'timestamp',partnerVendorId:'SUN-GLB-1180',accountId:'ISC-442918',contactPhoneNumber:'+44 20 5550 9182',contactName:'Emily Carter',contactRole:'Ms.',technicalContactEmail:'isolar.support@vendorcloud.example',technicalContactPhone:'+44 20 5550 9183',supportEmail:'support@vendorcloud.example'},
   {id:'INT-00093',code:'INT-SOLIS-003',name:'Tenant Gamma Grid — Solis SolisCloud',tenant:'Tenant Gamma Grid',vendor:'Solis',software:'SolisCloud',status:'Inactive',health:'Failed',auth:'Expired',discovery:'Failed',plants:0,devices:0,metrics:0,alerts:0,lastSync:'54 min ago',assignedTenants:'4 Tenants',activeIntegrations:4,version:'v1.3.6',apiVersion:'2024-03',mappingVersion:'Solar Core v1.5',authType:'API Key Authentication',discoveryEnabled:'No',baseUrl:'https://www.soliscloud.com',createdBy:'Global Admin',createdAt:'2026-04-28',updatedBy:'Integration Admin',updatedAt:'2026-05-29',lastActivity:'54 min ago',lastSuccessfulSync:'Previous period',vendorName:'SolisCloud',allowedIpWhitelist:'192.0.2.15, 192.0.2.29',domainWhitelist:'www.soliscloud.com',rateLimit:'500',rateLimitPeriod:'Hour',syncFrequency:'30 min',syncStartTime:'00:20',lastSyncTimestampField:'lastUpdateTime',partnerVendorId:'SOLIS-OPS-5031',accountId:'SC-907144',contactPhoneNumber:'+1 555 672 4400',contactName:'Laura Smith',contactRole:'Ms.',technicalContactEmail:'solis.support@vendorcloud.example',technicalContactPhone:'+1 555 672 4401',supportEmail:'support@vendorcloud.example'}
 ];
-function saveInts(): void{ if (window.ZentridLiveIntegrations === integrations) { window.ZentridLiveIntegrations = integrations; return; } if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.integrations, integrations); else localStorage.setItem('zentrid_demo_integrations', JSON.stringify(integrations)); }
+function saveInts(): void{ if (window.ZentridLiveIntegrations === integrations) { window.ZentridLiveIntegrations = integrations; return; } if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.integrations, integrations); else localStorage.setItem('zentrid_demo_integrations', JSON.stringify(integrations)); }
 
 function integrationTenants(): IntegrationTenantOption[]{
   const stored = JSON.parse(localStorage.getItem('zentrid_demo_tenants') || 'null');
@@ -480,7 +480,7 @@ function connectorConfig(x: Partial<IntegrationRecord>): IntegrationConfig{
 function integrationRowActions(record: IntegrationRecord): string{
   const id = record.id;
   const status = connectorStatus(record);
-  const origin = FleetDataSource.origin(record, 'integration');
+  const origin = ZentridDataSource.origin(record, 'integration');
   return `<div class="archive-actions-cell integration-row-actions">
     <div class="kebab-wrap">
       <button class="kebab-btn" data-action="menu" aria-label="Open connector actions" title="Actions">⋮</button>
@@ -492,7 +492,7 @@ function integrationRowActions(record: IntegrationRecord): string{
   </div>`;
 }
 function integrationRows(rows: IntegrationRecord[]): string{
-  return `<div class="data-table integration-table integration-table-actions"><div class="data-head"><span>Connector</span><span>Vendor / Type</span><span>Assigned Tenants</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>${rows.map(x => { const cStatus = connectorStatus(x); return `<div class="data-row clickable-row" data-id="${x.id}" role="button" tabindex="0"><div>${FleetDataSource.badge(x, 'integration')}<strong>${x.vendor} ${x.software}</strong><small>${x.code}<br>${x.id}</small></div><div><strong>${x.vendor}</strong><small>${resolveIntegrationVendorTemplate(x.vendor || 'Other').method}</small></div><div><strong>${assignedTenantsLabel(x)}</strong><small>${x.tenant || 'Platform scope'}</small></div><div class="integration-health-cell"><span class="badge ${statusCls(cStatus)}">${cStatus}</span><small>Lifecycle controlled by Global Admin</small></div><div><strong>${x.lastActivity || x.lastSync || '—'}</strong><small>Last successful sync: ${x.lastSuccessfulSync || x.lastSync || '—'}</small></div>${integrationRowActions(x)}</div>`; }).join('')}</div>`;
+  return `<div class="data-table integration-table integration-table-actions"><div class="data-head"><span>Connector</span><span>Vendor / Type</span><span>Assigned Tenants</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>${rows.map(x => { const cStatus = connectorStatus(x); return `<div class="data-row clickable-row" data-id="${x.id}" role="button" tabindex="0"><div>${ZentridDataSource.badge(x, 'integration')}<strong>${x.vendor} ${x.software}</strong><small>${x.code}<br>${x.id}</small></div><div><strong>${x.vendor}</strong><small>${resolveIntegrationVendorTemplate(x.vendor || 'Other').method}</small></div><div><strong>${assignedTenantsLabel(x)}</strong><small>${x.tenant || 'Platform scope'}</small></div><div class="integration-health-cell"><span class="badge ${statusCls(cStatus)}">${cStatus}</span><small>Lifecycle controlled by Global Admin</small></div><div><strong>${x.lastActivity || x.lastSync || '—'}</strong><small>Last successful sync: ${x.lastSuccessfulSync || x.lastSync || '—'}</small></div>${integrationRowActions(x)}</div>`; }).join('')}</div>`;
 }
 function renderIntegrations(): string{
   const tenant = localStorage.getItem('zentrid_integration_tenant') || 'All Tenants';
@@ -518,7 +518,7 @@ function integrationWizard(_tenant?: string): string{
     <div id="integrationValidationSummary" class="form-validation-summary" role="alert" tabindex="-1" hidden></div>
     <div class="setup-layout">
       <div class="setup-rail" aria-label="Connector setup steps">${steps.map((name,index)=>`<button type="button" class="${index===0?'active':''}" data-step="${index}" ${index===0?'aria-current="step"':''}><b>${index+1}</b><span>${name}</span></button>`).join('')}</div>
-      <form id="intForm" class="form-grid setup-form" novalidate data-fleet-form-readiness="local" data-fleet-form-contract="ProviderIntegrationCreateDraft" data-fleet-form-endpoint="/api/admin/provider-integrations" data-fleet-form-method="POST" data-fleet-form-api-note="Credentials are redacted in preview; the current wizard continues to create a local connector draft.">
+      <form id="intForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="ProviderIntegrationCreateDraft" data-zentrid-form-endpoint="/api/admin/provider-integrations" data-zentrid-form-method="POST" data-zentrid-form-api-note="Credentials are redacted in preview; the current wizard continues to create a local connector draft.">
         <div class="wizard-step active" data-integration-step="general">
           <label class="full">Integration Name *<input name="name" id="integrationName" required minlength="3" maxlength="120" placeholder="Auto-generated from Vendor"></label>
           <label>Integration Code <input id="integrationCode" disabled value="Auto-generated"></label>
@@ -767,7 +767,7 @@ function openArchivedIntegrationDetail(id: unknown): void{
     <section class="archive-detail-section-v58">
       <div class="section-title-v58"><h3>Related Documents</h3><p>Mock archive evidence and export artifacts.</p></div>
       <div class="archive-doc-list-v58">
-        ${docs.map((d, i) => `<article><strong>${d}</strong><small>${i === 0 ? 'Migration / archive evidence' : i === 1 ? 'Approval record' : 'Technical export package'}</small><button onclick="FleetLayout.toast('Opening ${d}')">Open</button></article>`).join('')}
+        ${docs.map((d, i) => `<article><strong>${d}</strong><small>${i === 0 ? 'Migration / archive evidence' : i === 1 ? 'Approval record' : 'Technical export package'}</small><button onclick="ZentridLayout.toast('Opening ${d}')">Open</button></article>`).join('')}
       </div>
     </section>
 
@@ -778,7 +778,7 @@ function openArchivedIntegrationDetail(id: unknown): void{
     </div>
   </div>`;
   document.body.appendChild(modal);
-  FleetLayout.enhanceActionMenus?.(modal);
+  ZentridLayout.enhanceActionMenus?.(modal);
 }
 function closeArchiveMenus(): void{
   document.querySelectorAll('.kebab-menu.open').forEach(m => m.classList.remove('open'));
@@ -789,7 +789,7 @@ function renderArchivedIntegrations(): string{
   const restored = 11;
   const permanent = 3;
   const thisMonth = archived.filter(x => String(x.archivedAt || '').startsWith('2026-06')).length || 6;
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Integration Governance</p><h1>Integration Archive</h1><p class="muted">Historical connector records preserved for audit, lineage, restore decisions and metadata export. This is not live monitoring.</p></div><div class="hero-actions"><button class="freshness-card" onclick="FleetLayout.toast('Archive export prepared')" data-permission-action="export" data-permission-resource="integration"><span class="pulse"></span><div><strong>Export Archive</strong><small>CSV + metadata</small></div></button></div></section>
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Integration Governance</p><h1>Integration Archive</h1><p class="muted">Historical connector records preserved for audit, lineage, restore decisions and metadata export. This is not live monitoring.</p></div><div class="hero-actions"><button class="freshness-card" onclick="ZentridLayout.toast('Archive export prepared')" data-permission-action="export" data-permission-resource="integration"><span class="pulse"></span><div><strong>Export Archive</strong><small>CSV + metadata</small></div></button></div></section>
   <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Archived Integrations</span><strong>${archived.length}</strong><small>Inactive preserved connectors</small></article><article class="kpi-card"><span>Archived This Month</span><strong>${thisMonth}</strong><small>Lifecycle changes</small></article><article class="kpi-card"><span>Restored</span><strong>${restored}</strong><small>Previously reactivated</small></article><article class="kpi-card"><span>Permanent Removals</span><strong>${permanent}</strong><small>Approved purge events</small></article></section>
   <section class="panel glass-card"><div class="panel-head"><div><h2>Archived Connector Records</h2><p>Each record keeps tenant, vendor, archive reason, last successful sync, retention policy and restore availability.</p></div><div class="toolbar"><input id="archiveSearch" placeholder="Search archived integration, vendor, tenant, reason..."/><select id="archiveVendorFilter"><option>All Vendors</option><option>Huawei</option><option>Sungrow</option><option>SolarEdge</option><option>Tesla</option><option>GoodWe</option></select></div></div><div id="archivedIntegrationTable">${archivedIntegrationRows(archived)}</div></section>`;
 }
@@ -826,8 +826,8 @@ function wireArchivedIntegrations(): void{
     }
 
     closeArchiveMenus();
-    if (action === 'restore') { e.stopPropagation(); FleetLayout.toast('Restore request created for archived integration'); return; }
-    if (action === 'export') { e.stopPropagation(); FleetLayout.toast('Archive metadata export prepared'); return; }
+    if (action === 'restore') { e.stopPropagation(); ZentridLayout.toast('Restore request created for archived integration'); return; }
+    if (action === 'export') { e.stopPropagation(); ZentridLayout.toast('Archive metadata export prepared'); return; }
     localStorage.setItem('zentrid_selected_integration', id);
     openArchivedIntegrationDetail(id);
   });
@@ -837,9 +837,9 @@ function wireArchivedIntegrations(): void{
     if (!(target instanceof Element)) return;
     if (!target.closest('.kebab-wrap')) closeArchiveMenus();
     if (target.closest('[data-close="archive-detail"]')) document.getElementById('archiveDetailModal')?.remove();
-    if (target.closest('[data-archive-action="restore"]')) FleetLayout.toast('Restore request created for archived integration');
-    if (target.closest('[data-archive-action="export"]')) FleetLayout.toast('Archive metadata export prepared');
-    if (target.closest('[data-archive-action="history"]')) FleetLayout.toast('Opening archive history');
+    if (target.closest('[data-archive-action="restore"]')) ZentridLayout.toast('Restore request created for archived integration');
+    if (target.closest('[data-archive-action="export"]')) ZentridLayout.toast('Archive metadata export prepared');
+    if (target.closest('[data-archive-action="history"]')) ZentridLayout.toast('Opening archive history');
   });
 }
 function wireIntegrationArchive(): void{ return wireArchivedIntegrations(); }
@@ -907,7 +907,7 @@ function wireIntegrations(): void{
     setCheckState('connectionResult', 'Not tested');
     setCheckState('discoveryStatus', 'Not tested');
     setCheckState('readyAuth', 'Pending');
-    if (wasTested) FleetLayout.toast(message);
+    if (wasTested) ZentridLayout.toast(message);
     if (integrationElement<HTMLInputElement>('integrationStatus')?.value === 'Active') setWizardIntegrationStatus('Inactive');
     updateLifecycleButtons();
   };
@@ -928,7 +928,7 @@ function wireIntegrations(): void{
     step = Math.max(0, Math.min(steps.length - 1, index));
     updateNavigation();
   };
-  const whitelistIssues = (control: HTMLTextAreaElement | null, type: 'ip' | 'domain'): FleetFormIssue[] => {
+  const whitelistIssues = (control: HTMLTextAreaElement | null, type: 'ip' | 'domain'): ZentridFormIssue[] => {
     if (!control || !control.value.trim()) return [];
     const entries = control.value.split(/[\n,]+/).map(value => value.trim()).filter(Boolean);
     const ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/;
@@ -941,8 +941,8 @@ function wireIntegrations(): void{
     });
     return invalid ? [{ control, message: type === 'ip' ? `“${invalid}” is not a valid IPv4 address or CIDR.` : `“${invalid}” is not a valid domain or wildcard domain.` }] : [];
   };
-  const stepIssues = (index: number): FleetFormIssue[] => {
-    const issues: FleetFormIssue[] = [];
+  const stepIssues = (index: number): ZentridFormIssue[] => {
+    const issues: ZentridFormIssue[] = [];
     if (index === 0) {
       const name = integrationName.value.trim().toLowerCase();
       if (name && integrations.some(item => !isArchivedIntegration(item) && String(item.name || '').trim().toLowerCase() === name)) {
@@ -972,40 +972,40 @@ function wireIntegrations(): void{
     }
     return issues;
   };
-  const validateStep = (index: number, focus = true): FleetFormValidationResult => {
+  const validateStep = (index: number, focus = true): ZentridFormValidationResult => {
     const section = steps[index];
     if (!section) return { valid: true, issues: [] };
-    const result = FleetFormUX.validate(section, stepIssues(index), summary, `Complete ${rails[index]?.textContent?.trim() || 'this step'} before continuing`);
+    const result = ZentridFormUX.validate(section, stepIssues(index), summary, `Complete ${rails[index]?.textContent?.trim() || 'this step'} before continuing`);
     rails[index]?.classList.toggle('has-error', !result.valid);
     rails[index]?.classList.toggle('completed', result.valid);
-    if (!result.valid && focus) FleetFormUX.focusFirst(result, summary);
+    if (!result.valid && focus) ZentridFormUX.focusFirst(result, summary);
     return result;
   };
-  const validateAll = (): FleetFormValidationResult => {
-    const allIssues: FleetFormIssue[] = [];
+  const validateAll = (): ZentridFormValidationResult => {
+    const allIssues: ZentridFormIssue[] = [];
     steps.forEach((section, index) => {
-      const result = FleetFormUX.validate(section, stepIssues(index));
+      const result = ZentridFormUX.validate(section, stepIssues(index));
       rails[index]?.classList.toggle('has-error', !result.valid);
       rails[index]?.classList.toggle('completed', result.valid);
       allIssues.push(...result.issues);
     });
-    FleetFormUX.renderSummary(summary, allIssues, 'Complete the connector configuration before creating it');
+    ZentridFormUX.renderSummary(summary, allIssues, 'Complete the connector configuration before creating it');
     const firstInvalid = steps.findIndex((_, index) => rails[index]?.classList.contains('has-error'));
     const result = { valid: allIssues.length === 0, issues: allIssues };
     if (!result.valid) {
       show(Math.max(0, firstInvalid));
-      FleetFormUX.focusFirst(result, summary);
+      ZentridFormUX.focusFirst(result, summary);
     }
     return result;
   };
   const canCloseWizard = (): boolean => {
-    if (wizardBusy || FleetFormUX.snapshot(intForm) === initialSnapshot) return true;
+    if (wizardBusy || ZentridFormUX.snapshot(intForm) === initialSnapshot) return true;
     return window.confirm('Discard the connector information entered in this wizard?');
   };
   const closeWizard = () => {
     if (!canCloseWizard()) return;
     modal.classList.remove('open');
-    FleetFormUX.clearErrors(intForm, summary);
+    ZentridFormUX.clearErrors(intForm, summary);
   };
   const resetWizard = async () => {
     intForm.reset();
@@ -1017,21 +1017,21 @@ function wireIntegrations(): void{
     hydrateVendor();
     updateIntegrationName(true);
     resetChecks('');
-    FleetFormUX.clearErrors(intForm, summary);
+    ZentridFormUX.clearErrors(intForm, summary);
     rails.forEach(rail => rail.classList.remove('completed', 'has-error'));
     updateNavigation();
-    initialSnapshot = FleetFormUX.snapshot(intForm);
+    initialSnapshot = ZentridFormUX.snapshot(intForm);
   };
   const setDesiredStatus = (status: 'Active' | 'Inactive' | 'Archived') => {
     setWizardIntegrationStatus(status);
     updateLifecycleButtons();
-    FleetLayout.toast(`Connector will be created as ${status}`);
+    ZentridLayout.toast(`Connector will be created as ${status}`);
   };
   const renderFilteredRows = () => {
     const query = intSearch.value.toLowerCase().trim();
     const vendor = vendorFilter.value;
     const rows = integrations.filter(item => !isArchivedIntegration(item)).filter(item => (vendor === 'All Vendors' || item.vendor === vendor) && `${item.name} ${item.vendor} ${item.tenant}`.toLowerCase().includes(query));
-    FleetRuntimeStability.replaceHtml(integrationTable, rows.length ? integrationRows(rows) : '<div class="empty-state"><strong>No matching connectors</strong><span>Try another keyword or vendor.</span></div>');
+    ZentridRuntimeStability.replaceHtml(integrationTable, rows.length ? integrationRows(rows) : '<div class="empty-state"><strong>No matching connectors</strong><span>Try another keyword or vendor.</span></div>');
   };
   const openIntegrationDetail = (id: string) => {
     localStorage.setItem('zentrid_selected_integration', id);
@@ -1039,9 +1039,9 @@ function wireIntegrations(): void{
   };
 
   loadLiveProviderTemplates();
-  FleetFormUX.bindClearOnInput(intForm, summary);
+  ZentridFormUX.bindClearOnInput(intForm, summary);
   requireIntegrationElement<HTMLButtonElement>('openIntegrationWizard').onclick = async () => {
-    if (!FleetActionPermissions.guard({ action:'create', resource:'integration' })) return;
+    if (!ZentridActionPermissions.guard({ action:'create', resource:'integration' })) return;
     modal.classList.add('open');
     await resetWizard();
     integrationName.focus();
@@ -1067,7 +1067,7 @@ function wireIntegrations(): void{
     updateIntegrationName(true);
     resetChecks('Vendor template changed. Run the connection checks again.');
     updateReview();
-    FleetLayout.toast('Vendor template applied');
+    ZentridLayout.toast('Vendor template applied');
   };
   integrationName.addEventListener('input', () => { integrationName.dataset.touched = '1'; updateReview(); });
   intForm.addEventListener('input', event => {
@@ -1082,7 +1082,7 @@ function wireIntegrations(): void{
     const result = validateStep(1);
     if (!result.valid || wizardBusy) return;
     wizardBusy = true;
-    FleetFormUX.setBusy(connectionButton, true, 'Testing…');
+    ZentridFormUX.setBusy(connectionButton, true, 'Testing…');
     setCheckState('connectionResult', 'Testing locally…', 'testing');
     try {
       await new Promise(resolve => window.setTimeout(resolve, 250));
@@ -1091,24 +1091,24 @@ function wireIntegrations(): void{
       connectionPassed = true;
       setCheckState('connectionResult', `Passed · endpoint reachable · port ${template.port}`, 'passed');
       requireIntegrationElement('authResult').textContent = `Status: Connection passed locally for ${vendor}`;
-      FleetLayout.toast('Local connection check passed');
+      ZentridLayout.toast('Local connection check passed');
     } finally {
       wizardBusy = false;
-      FleetFormUX.setBusy(connectionButton, false);
+      ZentridFormUX.setBusy(connectionButton, false);
       updateReview();
     }
   };
   sampleButton.onclick = async () => {
     if (!connectionPassed) {
-      const issue: FleetFormIssue = { message: 'Run and pass Test Connection before testing sample data.' };
-      FleetFormUX.renderSummary(summary, [issue], 'Connection check required');
+      const issue: ZentridFormIssue = { message: 'Run and pass Test Connection before testing sample data.' };
+      ZentridFormUX.renderSummary(summary, [issue], 'Connection check required');
       show(1);
-      FleetFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
+      ZentridFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
       return;
     }
     if (wizardBusy) return;
     wizardBusy = true;
-    FleetFormUX.setBusy(sampleButton, true, 'Testing…');
+    ZentridFormUX.setBusy(sampleButton, true, 'Testing…');
     setCheckState('discoveryStatus', 'Testing locally…', 'testing');
     setCheckState('readyAuth', 'Testing…', 'testing');
     try {
@@ -1118,10 +1118,10 @@ function wireIntegrations(): void{
       setCheckState('discoveryStatus', 'Passed · sample payload available', 'passed');
       setCheckState('readyAuth', 'Passed', 'passed');
       requireIntegrationElement('authResult').textContent = `Status: Valid · ${vendor} sample data received locally`;
-      FleetLayout.toast('Local sample-data check passed');
+      ZentridLayout.toast('Local sample-data check passed');
     } finally {
       wizardBusy = false;
-      FleetFormUX.setBusy(sampleButton, false);
+      ZentridFormUX.setBusy(sampleButton, false);
       updateReview();
     }
   };
@@ -1133,15 +1133,15 @@ function wireIntegrations(): void{
     requireIntegrationElement('alertsFound').textContent = String(discovery.alerts);
     requireIntegrationElement('readyDiscovery').textContent = 'Local preview';
   };
-  requireIntegrationElement<HTMLButtonElement>('approveDiscovery').onclick = () => FleetLayout.toast('Discovery approval remains local until backend onboarding APIs are available.');
+  requireIntegrationElement<HTMLButtonElement>('approveDiscovery').onclick = () => ZentridLayout.toast('Discovery approval remains local until backend onboarding APIs are available.');
   activateButton.onclick = () => {
     const validation = validateAll();
     if (!validation.valid) return;
     if (!connectionPassed || !sampleDataPassed) {
-      const issue: FleetFormIssue = { message: 'Activation requires passed Connection and Sample Data checks.' };
-      FleetFormUX.renderSummary(summary, [issue], 'Connector is not ready for activation');
+      const issue: ZentridFormIssue = { message: 'Activation requires passed Connection and Sample Data checks.' };
+      ZentridFormUX.renderSummary(summary, [issue], 'Connector is not ready for activation');
       show(1);
-      FleetFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
+      ZentridFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
       return;
     }
     setDesiredStatus('Active');
@@ -1156,7 +1156,7 @@ function wireIntegrations(): void{
     setDesiredStatus('Archived');
   };
 
-  intSearch.oninput = () => FleetRuntimeStability.debounce('registry:integrations:search', renderFilteredRows, 220);
+  intSearch.oninput = () => ZentridRuntimeStability.debounce('registry:integrations:search', renderFilteredRows, 220);
   vendorFilter.onchange = renderFilteredRows;
   integrationTable.onclick = event => {
     const target = event.target;
@@ -1188,9 +1188,9 @@ function wireIntegrations(): void{
         return;
       }
       if (action === 'archive') {
-        const origin = FleetDataSource.origin(item, 'integration');
+        const origin = ZentridDataSource.origin(item, 'integration');
         if (origin === 'live' || origin === 'mixed') {
-          FleetLayout.toast('Backend archive is not available yet. Live connector was not changed.');
+          ZentridLayout.toast('Backend archive is not available yet. Live connector was not changed.');
           return;
         }
         if (!window.confirm(`Archive “${item.name || item.id}”? The connector will move to Integration Archive.`)) return;
@@ -1199,10 +1199,10 @@ function wireIntegrations(): void{
         item.archivedAt = new Date().toISOString().slice(0,10);
         item.archivedBy = 'Global Admin';
         item.archiveReason = 'Archived from Connector Registry';
-        Object.assign(item, FleetDataSource.markChanged(item, 'integration'));
+        Object.assign(item, ZentridDataSource.markChanged(item, 'integration'));
         saveInts();
         renderFilteredRows();
-        FleetLayout.toast('Connector archived locally');
+        ZentridLayout.toast('Connector archived locally');
       }
       return;
     }
@@ -1220,19 +1220,19 @@ function wireIntegrations(): void{
   });
 
   saveButton.onclick = () => {
-    if (!FleetActionPermissions.guard({ action:'create', resource:'integration' })) return;
+    if (!ZentridActionPermissions.guard({ action:'create', resource:'integration' })) return;
     const validation = validateAll();
     if (!validation.valid || wizardBusy) return;
     const status = integrationElement<HTMLInputElement>('integrationStatus')?.value || 'Inactive';
     if (status === 'Active' && (!connectionPassed || !sampleDataPassed)) {
-      const issue: FleetFormIssue = { message: 'An Active connector requires passed Connection and Sample Data checks.' };
-      FleetFormUX.renderSummary(summary, [issue], 'Connector is not ready for activation');
+      const issue: ZentridFormIssue = { message: 'An Active connector requires passed Connection and Sample Data checks.' };
+      ZentridFormUX.renderSummary(summary, [issue], 'Connector is not ready for activation');
       show(1);
-      FleetFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
+      ZentridFormUX.focusFirst({ valid: false, issues: [issue] }, summary);
       return;
     }
     wizardBusy = true;
-    FleetFormUX.setBusy(saveButton, true, 'Creating Connector…');
+    ZentridFormUX.setBusy(saveButton, true, 'Creating Connector…');
     try {
       const formData = new FormData(intForm);
       const formText = (key: string): string => {
@@ -1306,15 +1306,15 @@ function wireIntegrations(): void{
       }
       integrations.unshift(record);
       saveInts();
-      initialSnapshot = FleetFormUX.snapshot(intForm);
-      window.FleetFormReadiness?.markCommitted(intForm);
+      initialSnapshot = ZentridFormUX.snapshot(intForm);
+      window.ZentridFormReadiness?.markCommitted(intForm);
       localStorage.setItem('zentrid_selected_integration', id);
       modal.classList.remove('open');
-      FleetLayout.toast('Connector created locally');
+      ZentridLayout.toast('Connector created locally');
       location.href = 'integration-detail.html';
     } finally {
       wizardBusy = false;
-      FleetFormUX.setBusy(saveButton, false);
+      ZentridFormUX.setBusy(saveButton, false);
     }
   };
 
@@ -1349,12 +1349,12 @@ function integrationDetailEscape(value: unknown): string {
     .replaceAll("'", '&#039;');
 }
 
-function integrationDetailOrigin(record: IntegrationRecord): FleetDataOrigin {
-  return FleetEntityDetailUX.origin(record, 'integration');
+function integrationDetailOrigin(record: IntegrationRecord): ZentridDataOrigin {
+  return ZentridEntityDetailUX.origin(record, 'integration');
 }
 
 function integrationDetailBackendManaged(record: IntegrationRecord): boolean {
-  return FleetEntityDetailUX.backendManaged(record, 'integration');
+  return ZentridEntityDetailUX.backendManaged(record, 'integration');
 }
 
 function integrationDetailStatus(record: IntegrationRecord): string {
@@ -1362,7 +1362,7 @@ function integrationDetailStatus(record: IntegrationRecord): string {
 }
 
 function integrationDetailIsArchived(record: IntegrationRecord): boolean {
-  return FleetEntityDetailUX.archived(integrationDetailStatus(record)) || Boolean(record.archived);
+  return ZentridEntityDetailUX.archived(integrationDetailStatus(record)) || Boolean(record.archived);
 }
 
 function integrationDetailPassed(value: unknown): boolean {
@@ -1434,7 +1434,7 @@ function renderIntegrationDetailControls(record: IntegrationRecord): string {
   return `<section class="panel glass-card integration-detail-control-v116" id="integrationDetailControl" aria-busy="false">
     <div class="panel-head">
       <div><h2>Connector Controls</h2><p>Run configuration checks and permitted lifecycle transitions without changing the connector setup form.</p></div>
-      <div class="integration-detail-state-v116"><span class="badge ${statusCls(status)}">${integrationDetailEscape(status)}</span>${FleetDataSource.badge(record, 'integration', true)}<span class="permission-profile-v121" data-permission-summary data-permission-resource="integration"></span></div>
+      <div class="integration-detail-state-v116"><span class="badge ${statusCls(status)}">${integrationDetailEscape(status)}</span>${ZentridDataSource.badge(record, 'integration', true)}<span class="permission-profile-v121" data-permission-summary data-permission-resource="integration"></span></div>
     </div>
     <div id="integrationDetailFeedback" class="integration-detail-feedback-v116" role="status" aria-live="polite" tabindex="-1" hidden></div>
     <div class="integration-detail-control-grid-v116">
@@ -1462,7 +1462,7 @@ function renderIntegrationDetail(): string{
   const cfg = connectorConfig(x);
   const status = integrationDetailStatus(x);
   const canEdit = integrationDetailCanEdit(x);
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry <span id="integrationDetailOriginBadge">${FleetDataSource.badge(x, 'integration', true)}</span></p><h1 id="integrationDetailHeroTitle">${x.vendor} ${x.software}</h1><p class="muted">Connector detail mirrors Integration Parameters. The same sections and field names are used so Global Admin can review what was configured without switching mental models.</p></div><div class="hero-actions"><button class="freshness-card" id="backIntegrationRegistry" type="button"><span class="pulse"></span><div><strong>Back to Registry</strong><small>Connector list</small></div></button></div></section>
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry <span id="integrationDetailOriginBadge">${ZentridDataSource.badge(x, 'integration', true)}</span></p><h1 id="integrationDetailHeroTitle">${x.vendor} ${x.software}</h1><p class="muted">Connector detail mirrors Integration Parameters. The same sections and field names are used so Global Admin can review what was configured without switching mental models.</p></div><div class="hero-actions"><button class="freshness-card" id="backIntegrationRegistry" type="button"><span class="pulse"></span><div><strong>Back to Registry</strong><small>Connector list</small></div></button></div></section>
   <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Status</span><strong id="integrationDetailStatusValue">${status}</strong><small>Registry lifecycle state</small></article><article class="kpi-card"><span>Vendor Name</span><strong id="integrationDetailVendorValue">${x.vendorName || x.vendor}</strong><small>${x.software}</small></article><article class="kpi-card"><span>Base URL / Host Address</span><strong id="integrationDetailBaseUrlValue">${cfg.baseUrl}</strong><small>Connection endpoint</small></article><article class="kpi-card"><span>Sync Frequency</span><strong id="integrationDetailSyncValue">${x.syncFrequency || '5 min'}</strong><small>Starts ${x.syncStartTime || '00:00'}</small></article><article class="kpi-card"><span>Contact Name</span><strong id="integrationDetailContactValue">${x.contactName || 'Not configured'}</strong><small>${x.contactPhoneNumber || 'No contact phone'}</small></article></section>
   <div id="integrationDetailControlHost">${renderIntegrationDetailControls(x)}</div>
   <section class="client-layout-v17 detail-layout-standard">
@@ -1538,7 +1538,7 @@ function detailNote(title: string, copy: unknown): string{
 }
 
 function integrationLazyTab(tab: string, content: string): string {
-  return window.FleetDetailLazyTabs?.panel('integration', tab, content) || content;
+  return window.ZentridDetailLazyTabs?.panel('integration', tab, content) || content;
 }
 
 function integrationDetailTab(x: IntegrationRecord, tab: string, editable = integrationDetailEditMode): string{
@@ -1603,7 +1603,7 @@ function integrationDetailHasUnsavedEdits(): boolean {
 }
 
 function integrationDetailConfirmDiscard(message = 'Discard unsaved connector changes?'): boolean {
-  return FleetEntityDetailUX.confirmDiscard(integrationDetailHasUnsavedEdits(), message);
+  return ZentridEntityDetailUX.confirmDiscard(integrationDetailHasUnsavedEdits(), message);
 }
 
 function setIntegrationDetailEditMode(enabled: boolean, force = false): void{
@@ -1637,7 +1637,7 @@ function integrationDetailControl(key: string): HTMLInputElement | HTMLSelectEle
   return document.querySelector(`#integrationDetailContent [data-edit-key="${CSS.escape(key)}"]`);
 }
 
-function integrationDetailWhitelistIssues(control: HTMLTextAreaElement | null, type: 'ip' | 'domain'): FleetFormIssue[] {
+function integrationDetailWhitelistIssues(control: HTMLTextAreaElement | null, type: 'ip' | 'domain'): ZentridFormIssue[] {
   if (!control || !control.value.trim()) return [];
   const entries = control.value.split(/[\n,]+/).map(value => value.trim()).filter(Boolean);
   const ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}(?:\/(?:[0-9]|[12][0-9]|3[0-2]))?$/;
@@ -1651,11 +1651,11 @@ function integrationDetailWhitelistIssues(control: HTMLTextAreaElement | null, t
   return invalid ? [{ control, message: type === 'ip' ? `“${invalid}” is not a valid IPv4 address or CIDR.` : `“${invalid}” is not a valid domain or wildcard domain.` }] : [];
 }
 
-function validateIntegrationDetailEdits(): FleetFormValidationResult {
+function validateIntegrationDetailEdits(): ZentridFormValidationResult {
   const root = requireIntegrationElement('integrationDetailContent');
   const summary = integrationElement('integrationDetailEditSummary');
   const tab = activeIntegrationDetailTab();
-  const issues: FleetFormIssue[] = [];
+  const issues: ZentridFormIssue[] = [];
   if (tab === 'general') {
     const name = integrationDetailControl('name') as HTMLInputElement | null;
     const normalizedName = name?.value.trim().toLowerCase() || '';
@@ -1685,8 +1685,8 @@ function validateIntegrationDetailEdits(): FleetFormValidationResult {
     const timestamp = integrationDetailControl('lastSyncTimestampField') as HTMLInputElement | null;
     if (timestamp?.value && !/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(timestamp.value.trim())) issues.push({ control: timestamp, message: 'Last Sync Timestamp Field may contain letters, numbers, dots, underscores and hyphens.' });
   }
-  const result = FleetFormUX.validate(root, issues, summary, `Review ${integrationTabLabel(tab)} before saving`);
-  if (!result.valid) FleetFormUX.focusFirst(result, summary);
+  const result = ZentridFormUX.validate(root, issues, summary, `Review ${integrationTabLabel(tab)} before saving`);
+  if (!result.valid) ZentridFormUX.focusFirst(result, summary);
   return result;
 }
 
@@ -1704,7 +1704,7 @@ function updateIntegrationDetailView(feedback?: { tone: IntegrationDetailFeedbac
   setText('integrationDetailSyncValue', record.syncFrequency || '5 min');
   setText('integrationDetailContactValue', record.contactName || 'Not configured');
   const originHost = document.getElementById('integrationDetailOriginBadge');
-  if (originHost) originHost.innerHTML = FleetDataSource.badge(record, 'integration', true);
+  if (originHost) originHost.innerHTML = ZentridDataSource.badge(record, 'integration', true);
   const controls = document.getElementById('integrationDetailControlHost');
   if (controls) controls.innerHTML = renderIntegrationDetailControls(record);
   const content = document.getElementById('integrationDetailContent');
@@ -1724,7 +1724,7 @@ function updateIntegrationDetailView(feedback?: { tone: IntegrationDetailFeedbac
 
 function saveIntegrationDetailEdits(): void{
   const x = selectedIntegration();
-  if (!FleetActionPermissions.guard({ action:'edit', resource:'integration', record:x, status:integrationDetailStatus(x), origin:integrationDetailOrigin(x), updateAvailable:false, localOverride:true })) return;
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'integration', record:x, status:integrationDetailStatus(x), origin:integrationDetailOrigin(x), updateAvailable:false, localOverride:true })) return;
   if (!integrationDetailCanEdit(x)) {
     setIntegrationDetailFeedback('warning', 'Changes were not saved', 'Archived connector configuration is read-only.');
     return;
@@ -1745,7 +1745,7 @@ function saveIntegrationDetailEdits(): void{
   });
   x.updatedBy = 'Global Admin';
   x.updatedAt = new Date().toISOString().slice(0,10);
-  Object.assign(x, FleetDataSource.markChanged(x, 'integration'));
+  Object.assign(x, ZentridDataSource.markChanged(x, 'integration'));
   saveInts();
   updateIntegrationDetailView({ tone: 'success', title: 'Section saved locally', message: 'The connector configuration was updated in prototype storage. No backend update request was sent.' });
 }
@@ -1795,8 +1795,8 @@ async function confirmIntegrationDetailAction(record: IntegrationRecord, action:
   };
   const message = messages[action];
   if (!message) return true;
-  if (typeof FleetUX === 'undefined') return window.confirm(message);
-  return FleetUX.confirmAction({
+  if (typeof ZentridUX === 'undefined') return window.confirm(message);
+  return ZentridUX.confirmAction({
     title: `${integrationDetailActionLabel(action)} connector?`,
     message,
     confirmLabel: integrationDetailActionLabel(action),
@@ -1837,9 +1837,9 @@ function applyIntegrationDetailActionState(record: IntegrationRecord, action: In
 }
 
 async function refreshIntegrationDetailAfterBackendAction(id: string, action: IntegrationDetailAction): Promise<void> {
-  if (!window.FleetAPIRepositories?.isConfigured()) return;
+  if (!window.ZentridAPIRepositories?.isConfigured()) return;
   try {
-    const result = await FleetAPIRepositories.integrations.get(id, { forceRefresh: true });
+    const result = await ZentridAPIRepositories.integrations.get(id, { forceRefresh: true });
     if (!result.item) return;
     const refreshed = result.item as IntegrationRecord;
     applyIntegrationDetailActionState(refreshed, action, false);
@@ -1852,14 +1852,14 @@ async function refreshIntegrationDetailAfterBackendAction(id: string, action: In
   }
 }
 
-async function executeBackendIntegrationDetailAction(record: IntegrationRecord, action: IntegrationDetailAction): Promise<FleetMutationResult> {
+async function executeBackendIntegrationDetailAction(record: IntegrationRecord, action: IntegrationDetailAction): Promise<ZentridMutationResult> {
   const id = String(record.id || '');
-  if (action === 'validate') return FleetAPIMutations.integrations.validate(id);
-  if (action === 'testConnection') return FleetAPIMutations.integrations.testConnection(id);
-  if (action === 'testSampleData') return FleetAPIMutations.integrations.testSampleData(id);
-  if (action === 'activate') return FleetAPIMutations.integrations.activate(id);
-  if (action === 'suspend') return FleetAPIMutations.integrations.suspend(id);
-  return FleetAPIMutations.integrations.archive(id);
+  if (action === 'validate') return ZentridAPIMutations.integrations.validate(id);
+  if (action === 'testConnection') return ZentridAPIMutations.integrations.testConnection(id);
+  if (action === 'testSampleData') return ZentridAPIMutations.integrations.testSampleData(id);
+  if (action === 'activate') return ZentridAPIMutations.integrations.activate(id);
+  if (action === 'suspend') return ZentridAPIMutations.integrations.suspend(id);
+  return ZentridAPIMutations.integrations.archive(id);
 }
 
 async function runIntegrationDetailAction(action: IntegrationDetailAction): Promise<void> {
@@ -1885,7 +1885,7 @@ async function runIntegrationDetailAction(action: IntegrationDetailAction): Prom
   const backendManaged = integrationDetailBackendManaged(record);
   try {
     if (backendManaged) {
-      if (!window.FleetAPIMutations) {
+      if (!window.ZentridAPIMutations) {
         setIntegrationDetailFeedback('danger', 'Backend action unavailable', 'The mutation layer is not loaded. The connector was not changed.');
         return;
       }
@@ -1909,7 +1909,7 @@ async function runIntegrationDetailAction(action: IntegrationDetailAction): Prom
       return;
     }
     applyIntegrationDetailActionState(record, action, true);
-    Object.assign(record, FleetDataSource.markChanged(record, 'integration'));
+    Object.assign(record, ZentridDataSource.markChanged(record, 'integration'));
     saveInts();
     updateIntegrationDetailView({ tone: 'success', title: `${integrationDetailActionLabel(action)} completed locally`, message: 'This prototype operation was stored only in the current browser. No backend request was sent.' });
   } catch (error) {
@@ -1927,7 +1927,7 @@ function wireIntegrationDetailControls(): void {
 
 function activateIntegrationDetailTab(tab: string): void {
   integrationDetailActiveTab = tab || 'general';
-  window.FleetDetailLazyTabs?.activate('integration', integrationDetailActiveTab);
+  window.ZentridDetailLazyTabs?.activate('integration', integrationDetailActiveTab);
   document.querySelectorAll<HTMLElement>('[data-integration-tab]').forEach(button => {
     const active = button.dataset.integrationTab === tab;
     button.classList.toggle('active', active);
@@ -1942,7 +1942,7 @@ function activateIntegrationDetailTab(tab: string): void {
 
 function wireIntegrationDetail(): void{
   wireIntegrationDetailControls();
-  window.FleetDetailLazyTabs?.observe('integration', 'integration-detail-content', () => {
+  window.ZentridDetailLazyTabs?.observe('integration', 'integration-detail-content', () => {
     const content = document.getElementById('integrationDetailContent');
     if (content) content.innerHTML = integrationDetailTab(selectedIntegration(), integrationDetailActiveTab, false);
   });
@@ -1973,5 +1973,5 @@ function wireIntegrationDetail(): void{
   } else {
     activateIntegrationDetailTab(activeIntegrationDetailTab());
   }
-  FleetEntityDetailUX.bindBeforeUnload('integration-detail', integrationDetailHasUnsavedEdits);
+  ZentridEntityDetailUX.bindBeforeUnload('integration-detail', integrationDetailHasUnsavedEdits);
 }

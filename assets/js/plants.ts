@@ -97,7 +97,7 @@ interface ZentridVendorFlow {
   steps: ZentridVendorStep[];
 }
 
-interface ZentridSidebarGroup {
+interface ZentridPlantSidebarGroup {
   [key: string]: unknown;
   key: string;
   icon?: string;
@@ -122,10 +122,10 @@ const demoPlantSeed: ZentridPlant[] = [
 
 function plants(): ZentridPlant[] {
   if (Array.isArray(window.ZentridLivePlants) && window.ZentridLivePlants.length) return window.ZentridLivePlants;
-  const stored = (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.plants, []) : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]')) as ZentridPlant[];
-  if (!stored.length) { if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.plants, demoPlantSeed); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(demoPlantSeed)); }
+  const stored = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.plants, []) : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]')) as ZentridPlant[];
+  if (!stored.length) { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.plants, demoPlantSeed); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(demoPlantSeed)); }
   const base = stored.length ? stored : demoPlantSeed;
-  const clientPlants = (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.clientPlants, []) : JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]')) as ZentridPlant[];
+  const clientPlants = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clientPlants, []) : JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]')) as ZentridPlant[];
   const converted = clientPlants.map((p): ZentridPlant => ({
     ...(p.id !== undefined ? { id: p.id } : {}),
     externalId:p.externalId||'LOCAL-STORAGE',
@@ -137,7 +137,7 @@ function plants(): ZentridPlant[] {
   converted.forEach(p => { if (p.id && !byId.has(p.id)) byId.set(p.id, p); });
   return Array.from(byId.values());
 }
-function savePlants(list: ZentridPlant[]): void { if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.plants, list); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(list)); }
+function savePlants(list: ZentridPlant[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.plants, list); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(list)); }
 function plantStatusCls(v: unknown): string {
   const value = String(v).toLowerCase();
   if (value.includes('fault') || value.includes('offline')) return 'danger';
@@ -162,12 +162,12 @@ function plantPagerHtml(state: ZentridPlantPageSlice): string {
   return `<div class="pagination-bar"><span>Showing ${state.start + 1}-${state.end} of ${state.total}</span><div class="row-actions"><button data-plant-page="prev" ${state.page<=1?'disabled':''}>Prev</button><strong>Page ${state.page} / ${state.pages}</strong><button data-plant-page="next" ${state.page>=state.pages?'disabled':''}>Next</button></div></div>`;
 }
 function plantRows(list: ZentridPlant[]): string {
-  const serverPagination = window.FleetRegistryQuery?.pagination('plants');
+  const serverPagination = window.ZentridRegistryQuery?.pagination('plants');
   const state = serverPagination
     ? { total: serverPagination.totalCount, pages: serverPagination.totalPages, page: serverPagination.page, start: (serverPagination.page - 1) * serverPagination.pageSize, end: Math.min(serverPagination.page * serverPagination.pageSize, serverPagination.totalCount), rows: list }
     : plantPageSlice(list);
-  const pager = serverPagination ? window.FleetRegistryQuery?.pagerHtml('plants', list.length) || '' : plantPagerHtml(state);
-  return `${pager}<div class="data-table plant-table"><div class="data-head"><span>Plant</span><span>Tenant / Source</span><span>Location</span><span>Capacity</span><span>Status</span><span>Actions</span></div>${state.rows.map(p => `<div class="data-row" data-id="${p.id}"><div>${FleetDataSource.badge(p, 'plant')}<strong>${p.name}</strong><small>${p.code}<br>${p.id}</small></div><div><strong>${p.tenant}</strong><small>${p.vendor} · ${p.integration}</small></div><div><strong>${p.country}</strong><small>${p.region} · ${p.city}</small></div><div><strong>${p.capacityDc} MWp DC</strong><small>${p.capacityAc} MW AC · ${p.devices} devices</small></div><div><span class="badge ${plantStatusCls(p.status)}">${p.status}</span><small>${p.alerts} alerts · ${p.lastData}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${FleetDataSource.origin(p, 'plant')}">Open</button><button data-action="edit" data-permission-action="edit" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${FleetDataSource.origin(p, 'plant')}" data-permission-update-available="false" data-permission-local-override="true">Edit</button><button data-action="devices" data-permission-action="view" data-permission-resource="plant">Devices</button><button data-action="telemetry" data-permission-action="view" data-permission-resource="plant">Telemetry</button><button data-action="alerts" data-permission-action="view" data-permission-resource="plant">Alerts</button></div></div>`).join('')}</div>${pager}`;
+  const pager = serverPagination ? window.ZentridRegistryQuery?.pagerHtml('plants', list.length) || '' : plantPagerHtml(state);
+  return `${pager}<div class="data-table plant-table"><div class="data-head"><span>Plant</span><span>Tenant / Source</span><span>Location</span><span>Capacity</span><span>Status</span><span>Actions</span></div>${state.rows.map(p => `<div class="data-row" data-id="${p.id}"><div>${ZentridDataSource.badge(p, 'plant')}<strong>${p.name}</strong><small>${p.code}<br>${p.id}</small></div><div><strong>${p.tenant}</strong><small>${p.vendor} · ${p.integration}</small></div><div><strong>${p.country}</strong><small>${p.region} · ${p.city}</small></div><div><strong>${p.capacityDc} MWp DC</strong><small>${p.capacityAc} MW AC · ${p.devices} devices</small></div><div><span class="badge ${plantStatusCls(p.status)}">${p.status}</span><small>${p.alerts} alerts · ${p.lastData}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}">Open</button><button data-action="edit" data-permission-action="edit" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}" data-permission-update-available="false" data-permission-local-override="true">Edit</button><button data-action="devices" data-permission-action="view" data-permission-resource="plant">Devices</button><button data-action="telemetry" data-permission-action="view" data-permission-resource="plant">Telemetry</button><button data-action="alerts" data-permission-action="view" data-permission-resource="plant">Alerts</button></div></div>`).join('')}</div>${pager}`;
 }
 const fallbackAssetClients: ZentridAssetClient[] = [
   { id:'CL-1001', name:'Arpi Solar Group', tenant:'Tenant Alpha Energy', country:'Armenia', region:'Yerevan', city:'Yerevan', timezone:'Asia/Yerevan', contact:'Anna Grigoryan' },
@@ -176,8 +176,8 @@ const fallbackAssetClients: ZentridAssetClient[] = [
   { id:'CL-1004', name:'Lyon Energy Client', tenant:'Tenant Delta Enterprise', country:'France', region:'Auvergne-Rhône-Alpes', city:'Lyon', timezone:'Europe/Paris', contact:'Claire Martin' }
 ];
 function assetClientRecords(): ZentridAssetClient[] {
-  const stored = window.FleetLocalStore
-    ? FleetLocalStore.read(FleetLocalStore.KEYS.clients, [])
+  const stored = window.ZentridLocalStore
+    ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clients, [])
     : (JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as Record<string, unknown>[]);
   const hydrated = stored.map((row): ZentridAssetClient => ({
     id: String(row.id || row.clientId || row.code || row.name || ''),
@@ -580,7 +580,7 @@ function plantCreateModal(){
         <div><p class="eyebrow">Groups · Plants</p><h2 id="plantCreateTitle">Create Plant</h2><p class="muted">Select client and vendor platform. Zentrid then loads the vendor-specific plant creation flow and conditions.</p></div>
         <span class="badge warning">Draft</span>
       </div>
-      <form id="plantCreateForm" class="plant-create-form client-create-form setup-layout asset-create-form" novalidate data-fleet-form-readiness="local" data-fleet-form-contract="PlantCreateDraft" data-fleet-form-endpoint="/api/admin/plants" data-fleet-form-method="POST" data-fleet-form-api-note="The wizard keeps its current local save while exposing an API-ready DTO preview.">
+      <form id="plantCreateForm" class="plant-create-form client-create-form setup-layout asset-create-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="PlantCreateDraft" data-zentrid-form-endpoint="/api/admin/plants" data-zentrid-form-method="POST" data-zentrid-form-api-note="The wizard keeps its current local save while exposing an API-ready DTO preview.">
         <aside class="setup-rail client-create-rail asset-create-rail" aria-label="Create plant steps">
           <button class="active" type="button" data-asset-step="client"><b>1</b><span>Client Assignment</span></button>
           <button type="button" data-asset-step="plant-profile"><b>2</b><span>Vendor Platform</span></button>
@@ -604,23 +604,23 @@ function plantCreateModal(){
   </div>`;
 }
 
-const defaultSidebarGroups: ZentridSidebarGroup[] = [
+const defaultSidebarGroups: ZentridPlantSidebarGroup[] = [
   { key:'plants', icon:'☀️', name:'Plants', type:'Plant', status:'Active', objects:0, show:true, system:true, description:'Solar plant registry with vendor-driven Create Plant wizard.' },
   { key:'chargers', icon:'🔌', name:'Chargers', type:'EV Charging', status:'Draft', objects:0, show:false, description:'Future EV charging registry with its own columns and create form.' },
   { key:'smart-home', icon:'🏠', name:'Smart Home', type:'Smart Home', status:'Draft', objects:0, show:false, description:'Future Smart Home registry and dedicated onboarding flow.' },
   { key:'bess', icon:'🔋', name:'BESS', type:'Storage', status:'Draft', objects:0, show:false, description:'Future storage device group; storage devices remain visible in Device List.' }
 ];
-function getSidebarGroups(): ZentridSidebarGroup[] {
+function getSidebarGroups(): ZentridPlantSidebarGroup[] {
   try {
     const saved = JSON.parse(localStorage.getItem('zentrid_sidebar_groups') || 'null');
     if (Array.isArray(saved) && saved.length) return saved;
   } catch(e) {}
   return defaultSidebarGroups.map(g => ({...g, objects:g.key === 'plants' ? plants().length : (g.objects ?? 0)}));
 }
-function saveSidebarGroups(groups: ZentridSidebarGroup[]): void {
+function saveSidebarGroups(groups: ZentridPlantSidebarGroup[]): void {
   localStorage.setItem('zentrid_sidebar_groups', JSON.stringify(groups));
 }
-function groupRows(groups: ZentridSidebarGroup[]): string {
+function groupRows(groups: ZentridPlantSidebarGroup[]): string {
   return `<div class="data-table compact-table groups-management-table">
     <div class="data-head group-row"><span>Group</span><span>Type</span><span>Objects</span><span>Status</span><span>Show in Sidebar</span><span>Actions</span></div>
     ${groups.map(g => `<div class="data-row group-row" data-group-key="${g.key}">
@@ -662,8 +662,8 @@ function groupCreateModal(){
 
 function renderPlants(): string {
   const list = plants();
-  const queryState = window.FleetRegistryQuery?.read('plants');
-  const serverPagination = window.FleetRegistryQuery?.pagination('plants');
+  const queryState = window.ZentridRegistryQuery?.read('plants');
+  const serverPagination = window.ZentridRegistryQuery?.pagination('plants');
   const totalPlantCount = serverPagination?.totalCount || list.length;
   const initialSearch = queryState?.search || '';
   const initialStatus = queryState?.params.plantStatus || 'All Statuses';
@@ -675,7 +675,7 @@ function renderPlants(): string {
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>${openSolar ? 'Plant Registry' : 'Groups'}</h1><p class="muted">Groups control which typed registries appear in the main sidebar. Each group keeps its own table, filters, detail page and create form.</p></div>${openSolar ? `<button class="create-action" id="openPlantCreate" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button>` : `<button class="create-action" id="openGroupCreate" type="button"><span class="pulse"></span><div><strong>+ Create Group</strong><small>Show/hide in sidebar</small></div></button>`}</section>
   <section class="context-bar glass-card"><button class="ctx-item"><span>Visible Groups</span><strong>${groups.filter(g => g.show).length}</strong></button><button class="ctx-item"><span>Total Groups</span><strong>${groups.length}</strong></button><button class="ctx-item"><span>Plants</span><strong>${totalPlantCount.toLocaleString()}</strong></button><button class="ctx-item"><span>Attention</span><strong>${warnings}</strong></button><button class="ctx-item"><span>Installed Capacity DC</span><strong>${totalMw} MWp</strong></button></section>
   <section class="panel glass-card ${openSolar ? 'hidden' : ''}" id="groupsCatalogView"><div class="panel-head"><div><h2>Group Management</h2><p>Create groups and decide which ones appear in the main sidebar. This page does not mix Plants, Smart Homes, Chargers and BESS into one table.</p></div><div class="hero-actions"><button class="secondary-btn" id="openSolarPlantsFromGroups" type="button">Open Plants</button><button class="primary-btn" id="openGroupCreateInline" type="button">Create Group</button></div></div><div id="groupsTableHost">${groupRows(groups)}</div></section>
-  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Groups · Plants</p><h2>Plant Registry</h2><p>Plants have their own columns, filters, detail page and Create Plant wizard.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by plants, tenants, vendors..."/><select id="plantStatusFilter">${['All Statuses','Normal','Warning','Fault','Pending Review','Draft'].map(value => `<option ${value === initialStatus ? 'selected' : ''}>${value}</option>`).join('')}</select><select id="plantVendorFilter">${['All Vendors','Huawei FusionSolar','Deye / Solarman','GoodWe SEMS','SolisCloud','SolaX Cloud','Peimar','Sungrow iSolarCloud','Sofar','Other / Manual','Huawei','Sungrow','Solis','Deye'].map(value => `<option ${value === initialVendor ? 'selected' : ''}>${value}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.FleetRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
+  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Groups · Plants</p><h2>Plant Registry</h2><p>Plants have their own columns, filters, detail page and Create Plant wizard.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by plants, tenants, vendors..."/><select id="plantStatusFilter">${['All Statuses','Normal','Warning','Fault','Pending Review','Draft'].map(value => `<option ${value === initialStatus ? 'selected' : ''}>${value}</option>`).join('')}</select><select id="plantVendorFilter">${['All Vendors','Huawei FusionSolar','Deye / Solarman','GoodWe SEMS','SolisCloud','SolaX Cloud','Peimar','Sungrow iSolarCloud','Sofar','Other / Manual','Huawei','Sungrow','Solis','Deye'].map(value => `<option ${value === initialVendor ? 'selected' : ''}>${value}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
   ${plantCreateModal()}${groupCreateModal()}`;
 }
 function plantEventTarget(event: Event): HTMLElement | null {
@@ -688,23 +688,23 @@ function wirePlants(){
   const vendor = document.getElementById('plantVendorFilter') as HTMLSelectElement | null;
   function apply(resetPage = true){
     if (!table || !search || !status || !vendor) return;
-    if (resetPage && !window.FleetRegistryQuery?.pagination('plants')) ZentridPlantPager.page = 1;
+    if (resetPage && !window.ZentridRegistryQuery?.pagination('plants')) ZentridPlantPager.page = 1;
     const q = (search.value || '').toLowerCase();
     const s = status.value;
     const v = vendor.value;
     let list = plants().filter(p => [p.name,p.tenant,p.vendor,p.country,p.region,p.code,p.status].join(' ').toLowerCase().includes(q));
     if (s !== 'All Statuses') list = list.filter(p => p.status === s);
     if (v !== 'All Vendors') list = list.filter(p => p.vendor === v);
-    FleetRuntimeStability.replaceHtml(table, plantRows(list));
-    window.FleetRegistryQuery?.update('plants', { search: q || null, plantStatus: s === 'All Statuses' ? null : s, plantVendor: v === 'All Vendors' ? null : v }, { replace: true, emit: false });
+    ZentridRuntimeStability.replaceHtml(table, plantRows(list));
+    window.ZentridRegistryQuery?.update('plants', { search: q || null, plantStatus: s === 'All Statuses' ? null : s, plantVendor: v === 'All Vendors' ? null : v }, { replace: true, emit: false });
     const scope = document.getElementById('plantFilterScopeV126');
-    if (scope) scope.innerHTML = window.FleetRegistryQuery?.filterScopeHtml('plants') || '';
+    if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('plants') || '';
   }
-  search?.addEventListener('input', () => FleetRuntimeStability.debounce('registry:plants:search', () => apply(true), 220)); status?.addEventListener('change', () => apply(true)); vendor?.addEventListener('change', () => apply(true));
+  search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:plants:search', () => apply(true), 220)); status?.addEventListener('change', () => apply(true)); vendor?.addEventListener('change', () => apply(true));
   table?.addEventListener('click', e => {
     const target = plantEventTarget(e);
     const pageBtn = target?.closest<HTMLElement>('[data-plant-page]');
-    if (pageBtn && !window.FleetRegistryQuery?.pagination('plants')) { ZentridPlantPager.page += pageBtn.dataset.plantPage === 'next' ? 1 : -1; apply(false); return; }
+    if (pageBtn && !window.ZentridRegistryQuery?.pagination('plants')) { ZentridPlantPager.page += pageBtn.dataset.plantPage === 'next' ? 1 : -1; apply(false); return; }
     const btn = target?.closest<HTMLButtonElement>('button');
     const row = target?.closest<HTMLElement>('.data-row'); const id = row?.dataset.id;
     const p = plants().find(x => x.id === id);
@@ -713,7 +713,7 @@ function wirePlants(){
     if (!btn) return;
     if (btn.dataset.action === 'open') location.href = 'plant-detail.html';
     if (btn.dataset.action === 'edit') { localStorage.setItem('zentrid_plant_detail_edit', 'overview'); location.href = 'plant-detail.html'; }
-    if (btn.dataset.action === 'devices') { localStorage.setItem('zentrid_device_filter_plant', id); FleetLayout.toast('Opening Device Registry for selected plant'); location.href = 'devices.html'; }
+    if (btn.dataset.action === 'devices') { localStorage.setItem('zentrid_device_filter_plant', id); ZentridLayout.toast('Opening Device Registry for selected plant'); location.href = 'devices.html'; }
     if (btn.dataset.action === 'telemetry' && p) { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:p.tenant, plant:p.name, device:'All Devices', metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href = 'telemetry.html'; }
     if (btn.dataset.action === 'alerts' && p) { localStorage.setItem('zentrid_alert_context', JSON.stringify({plantId:p.id, tenant:p.tenant})); location.href = 'alerts.html'; }
   });
@@ -752,7 +752,7 @@ function wirePlants(){
   }
   function saveNewGroup(){
     const name = (document.getElementById('newGroupName')?.value || '').trim();
-    if (!name) { FleetLayout.toast('Enter group name'); return; }
+    if (!name) { ZentridLayout.toast('Enter group name'); return; }
     const groups = getSidebarGroups();
     let key = slugifyGroupName(name);
     if (groups.some(g => g.key === key)) key = `${key}-${Date.now().toString().slice(-4)}`;
@@ -768,7 +768,7 @@ function wirePlants(){
     });
     saveSidebarGroups(groups);
     closeGroupCreateModal();
-    FleetLayout.toast('Group created');
+    ZentridLayout.toast('Group created');
     location.reload();
   }
   document.getElementById('openSolarPlantsFromGroups')?.addEventListener('click', openSolarPlantsRegistry);
@@ -786,7 +786,7 @@ function wirePlants(){
     const key = input.dataset.groupToggle;
     const groups = getSidebarGroups().map(g => g.key === key ? {...g, show: input.checked} : g);
     saveSidebarGroups(groups);
-    FleetLayout.toast(input.checked ? 'Group shown in sidebar' : 'Group hidden from sidebar');
+    ZentridLayout.toast(input.checked ? 'Group shown in sidebar' : 'Group hidden from sidebar');
     setTimeout(() => location.reload(), 250);
   });
   document.getElementById('groupsTableHost')?.addEventListener('click', e => {
@@ -836,19 +836,19 @@ function wirePlants(){
   function resetPlantCreateForm(): void {
     if (!plantCreateForm) return;
     plantCreateForm.reset();
-    FleetFormUX.clearErrors(plantCreateForm, plantValidationSummary);
+    ZentridFormUX.clearErrors(plantCreateForm, plantValidationSummary);
     applyCreateContext();
     activeStep = 'client';
     syncClientDefaults();
     renderVendorFlow();
     showAssetStep('client');
-    plantCreateInitialSnapshot = FleetFormUX.snapshot(plantCreateForm);
+    plantCreateInitialSnapshot = ZentridFormUX.snapshot(plantCreateForm);
     plantCreateSaving = false;
     const submit = document.getElementById('submitAssetCreate') as HTMLButtonElement | null;
-    if (submit) FleetFormUX.setBusy(submit, false);
+    if (submit) ZentridFormUX.setBusy(submit, false);
   }
   function plantCreateDirty(): boolean {
-    return !!plantCreateForm && FleetFormUX.snapshot(plantCreateForm) !== plantCreateInitialSnapshot;
+    return !!plantCreateForm && ZentridFormUX.snapshot(plantCreateForm) !== plantCreateInitialSnapshot;
   }
   function openPlantCreateModal(){
     const modal = document.getElementById('plantCreateModal');
@@ -998,7 +998,7 @@ function wirePlants(){
   function plantNameControl(): HTMLInputElement | null {
     return plantCreateForm?.querySelector<HTMLInputElement>('input[name="name"], input[name="genericName"]') || null;
   }
-  function plantDuplicateIssues(): FleetFormIssue[] {
+  function plantDuplicateIssues(): ZentridFormIssue[] {
     const nameControl = plantNameControl();
     const name = String(nameControl?.value || '').trim().toLowerCase();
     if (!name) return [];
@@ -1010,10 +1010,10 @@ function wirePlants(){
     if (!panel || panel.hidden) return true;
     const nameControl = plantNameControl();
     const custom = nameControl && panel.contains(nameControl) ? plantDuplicateIssues() : [];
-    const result = FleetFormUX.validate(panel, custom, plantValidationSummary, `${step === 'review' ? 'Review' : 'Current step'} needs attention`);
+    const result = ZentridFormUX.validate(panel, custom, plantValidationSummary, `${step === 'review' ? 'Review' : 'Current step'} needs attention`);
     const button = document.querySelector<HTMLElement>(`[data-asset-step="${step}"]`);
     button?.classList.toggle('has-error', !result.valid);
-    if (!result.valid && focus) FleetFormUX.focusFirst(result, plantValidationSummary);
+    if (!result.valid && focus) ZentridFormUX.focusFirst(result, plantValidationSummary);
     return result.valid;
   }
   function validateAssetRange(targetStep: string): boolean {
@@ -1124,7 +1124,7 @@ function wirePlants(){
   renderVendorFlow();
   showAssetStep('client');
   if (plantCreateForm) {
-    FleetFormUX.bindClearOnInput(plantCreateForm, plantValidationSummary);
+    ZentridFormUX.bindClearOnInput(plantCreateForm, plantValidationSummary);
     plantCreateForm.addEventListener('input', updateAssetReview);
   }
   if (queryCreateContext().get('create') === '1') window.setTimeout(openPlantCreateModal, 0);
@@ -1132,7 +1132,7 @@ function wirePlants(){
 
   document.getElementById('plantCreateForm')?.addEventListener('submit', e => {
     e.preventDefault();
-    if (!FleetActionPermissions.guard({ action:'create', resource:'plant' })) return;
+    if (!ZentridActionPermissions.guard({ action:'create', resource:'plant' })) return;
     if (plantCreateSaving || !validateAllAssetSteps()) return;
     const fd = new FormData(e.currentTarget as HTMLFormElement);
     const now = Date.now();
@@ -1166,19 +1166,19 @@ function wirePlants(){
     };
     const submitButton = document.getElementById('submitAssetCreate') as HTMLButtonElement | null;
     plantCreateSaving = true;
-    if (submitButton) FleetFormUX.setBusy(submitButton, true, 'Creating Plant…');
+    if (submitButton) ZentridFormUX.setBusy(submitButton, true, 'Creating Plant…');
     try {
-      if (window.FleetLocalStore) FleetLocalStore.addPlant(newPlant); else { const list = plants(); list.unshift(newPlant); savePlants(list); }
+      if (window.ZentridLocalStore) ZentridLocalStore.addPlant(newPlant); else { const list = plants(); list.unshift(newPlant); savePlants(list); }
       localStorage.setItem('zentrid_selected_plant', String(newPlant.id));
-      plantCreateInitialSnapshot = plantCreateForm ? FleetFormUX.snapshot(plantCreateForm) : '';
-      if (plantCreateForm) window.FleetFormReadiness?.markCommitted(plantCreateForm);
-      FleetLayout.toast('Plant created locally. Opening Plant Detail.');
+      plantCreateInitialSnapshot = plantCreateForm ? ZentridFormUX.snapshot(plantCreateForm) : '';
+      if (plantCreateForm) window.ZentridFormReadiness?.markCommitted(plantCreateForm);
+      ZentridLayout.toast('Plant created locally. Opening Plant Detail.');
       closePlantCreateModal(true);
       setTimeout(() => { location.href = 'plant-detail.html'; }, 400);
     } catch (error) {
       plantCreateSaving = false;
-      if (submitButton) FleetFormUX.setBusy(submitButton, false);
-      FleetFormUX.renderSummary(plantValidationSummary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant was not created');
+      if (submitButton) ZentridFormUX.setBusy(submitButton, false);
+      ZentridFormUX.renderSummary(plantValidationSummary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant was not created');
       plantValidationSummary?.focus();
     }
   });
@@ -1206,7 +1206,7 @@ function plantTab(p: ZentridPlant, tab: string): string {
 }
 function renderPlantDetail(){
   const p = selectedPlant();
-  return `<section class="page-hero"><div><p class="eyebrow">Plant Detail Workspace ${FleetDataSource.badge(p, 'plant', true)}</p><h1>${p.name}</h1><p class="muted">${p.tenant} · ${p.country}, ${p.city} · ${p.vendor} source · ${p.id}</p></div><div class="hero-actions"><button class="freshness-card" id="plantSync"><span class="pulse"></span><div><strong>Run Plant Sync</strong><small>${p.lastData}</small></div></button><button class="freshness-card" onclick="location.href='plants.html'"><span class="pulse"></span><div><strong>Back to Registry</strong><small>All plants</small></div></button></div></section>
+  return `<section class="page-hero"><div><p class="eyebrow">Plant Detail Workspace ${ZentridDataSource.badge(p, 'plant', true)}</p><h1>${p.name}</h1><p class="muted">${p.tenant} · ${p.country}, ${p.city} · ${p.vendor} source · ${p.id}</p></div><div class="hero-actions"><button class="freshness-card" id="plantSync"><span class="pulse"></span><div><strong>Run Plant Sync</strong><small>${p.lastData}</small></div></button><button class="freshness-card" onclick="location.href='plants.html'"><span class="pulse"></span><div><strong>Back to Registry</strong><small>All plants</small></div></button></div></section>
   <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Plant Status</span><strong>${p.status}</strong><small>${p.alerts} active alerts</small></article><article class="kpi-card"><span>Live Power</span><strong>${p.livePower}</strong><small>Real-time layer</small></article><article class="kpi-card"><span>Today Energy</span><strong>${p.today}</strong><small>Accounting period</small></article><article class="kpi-card"><span>Installed DC</span><strong>${p.capacityDc} MWp</strong><small>${p.capacityAc} MW AC</small></article><article class="kpi-card"><span>Devices</span><strong>${p.devices}</strong><small>${p.inverters} inverters · ${p.meters} meters</small></article><article class="kpi-card"><span>Data Freshness</span><strong>${p.freshness}</strong><small>${p.lastData}</small></article></section>
   <section class="client-layout-v17 detail-layout-standard">
     <aside class="glass-card plant-side-card-v17">
@@ -1230,7 +1230,7 @@ function renderPlantDetail(){
 function plantTabLabel(tab: string): string { return ({overview:'Overview',master:'Master Data',structure:'Structure & Devices',energy:'Energy & Alerts',commercial:'Commercial',documents:'Documents',parties:'Parties & Users',audit:'Audit',source:'Source & Sync'})[tab] || 'Plant Detail'; }
 function wirePlantDetail(){
   const p = selectedPlant();
-  document.getElementById('plantSync')?.addEventListener('click', () => FleetLayout.toast(`Plant sync requested for ${p.name}`));
+  document.getElementById('plantSync')?.addEventListener('click', () => ZentridLayout.toast(`Plant sync requested for ${p.name}`));
   document.querySelectorAll('[data-plant-tab]').forEach(b => b.onclick = () => {
     document.querySelectorAll('[data-plant-tab]').forEach(x => x.classList.remove('active'));
     b.classList.add('active');

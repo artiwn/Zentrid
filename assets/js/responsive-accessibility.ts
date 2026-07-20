@@ -1,19 +1,19 @@
-type FleetA11yDialogState = {
+type ZentridA11yDialogState = {
   panel: HTMLElement;
   root: HTMLElement;
   returnFocus: HTMLElement | null;
 };
 
-type FleetResponsiveAccessibilityApi = {
+type ZentridResponsiveAccessibilityApi = {
   enhance(root?: ParentNode): void;
   syncSidebar(): void;
   closeSidebar(returnFocus?: boolean): void;
 };
 
-const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
+const ZentridResponsiveAccessibility: ZentridResponsiveAccessibilityApi = (() => {
   const mobileSidebarQuery = window.matchMedia('(max-width: 920px)');
   const compactTableQuery = window.matchMedia('(max-width: 768px)');
-  const enhancedDialogs = new Map<HTMLElement, FleetA11yDialogState>();
+  const enhancedDialogs = new Map<HTMLElement, ZentridA11yDialogState>();
   let observer: MutationObserver | null = null;
   let sidebarReturnFocus: HTMLElement | null = null;
   let tableSequence = 0;
@@ -61,22 +61,22 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   }
 
   function ensureSkipLink(): void {
-    let link = document.querySelector<HTMLAnchorElement>('.fleet-skip-link');
+    let link = document.querySelector<HTMLAnchorElement>('.zentrid-skip-link');
     if (!link) {
       link = document.createElement('a');
-      link.className = 'fleet-skip-link';
-      link.href = '#fleetMainContent';
+      link.className = 'zentrid-skip-link';
+      link.href = '#zentridMainContent';
       link.textContent = 'Skip to main content';
       document.body.prepend(link);
       link.addEventListener('click', () => {
-        requestAnimationFrame(() => document.getElementById('fleetMainContent')?.focus({ preventScroll: true }));
+        requestAnimationFrame(() => document.getElementById('zentridMainContent')?.focus({ preventScroll: true }));
       });
     }
   }
 
   function enhanceLandmarks(root: ParentNode): void {
     elements(root, '.main-content').forEach(main => {
-      main.id ||= 'fleetMainContent';
+      main.id ||= 'zentridMainContent';
       main.setAttribute('tabindex', '-1');
       main.setAttribute('role', 'main');
     });
@@ -124,9 +124,9 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     const headers = headerCells.map((cell, index) => cell.textContent?.trim() || (index === headerCells.length - 1 ? 'Actions' : `Column ${index + 1}`));
     if (!headers.length) return;
 
-    table.classList.add('fleet-responsive-table');
+    table.classList.add('zentrid-responsive-table');
     table.setAttribute('aria-label', table.getAttribute('aria-label') || tableTitle(table));
-    ensureId(table, 'fleet-table');
+    ensureId(table, 'zentrid-table');
 
     const interactiveRows = rows.some(row => matchesElement(row, 'button, a, [role="button"], .clickable-row'));
     if (!interactiveRows) {
@@ -165,8 +165,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
       row.setAttribute('role', 'button');
       if (!row.hasAttribute('tabindex')) row.tabIndex = 0;
       if (!row.hasAttribute('aria-label')) row.setAttribute('aria-label', rowLabel(row));
-      if (row.dataset.fleetKeyboardRow === 'true') return;
-      row.dataset.fleetKeyboardRow = 'true';
+      if (row.dataset.zentridKeyboardRow === 'true') return;
+      row.dataset.zentridKeyboardRow = 'true';
       row.addEventListener('keydown', event => {
         if (event.target !== row) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -179,8 +179,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   function enhanceForms(root: ParentNode): void {
     elements(root, 'input, select, textarea').forEach(control => {
       if (control.hasAttribute('required')) control.setAttribute('aria-required', 'true');
-      if (control.dataset.fleetValidationA11y === 'true') return;
-      control.dataset.fleetValidationA11y = 'true';
+      if (control.dataset.zentridValidationA11y === 'true') return;
+      control.dataset.zentridValidationA11y = 'true';
       control.addEventListener('invalid', () => control.setAttribute('aria-invalid', 'true'));
       control.addEventListener('input', () => control.removeAttribute('aria-invalid'));
       control.addEventListener('change', () => control.removeAttribute('aria-invalid'));
@@ -202,8 +202,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
       tab.setAttribute('aria-selected', String(active));
       tab.tabIndex = active ? 0 : -1;
     });
-    if (tablist.dataset.fleetTabKeyboard === 'true') return;
-    tablist.dataset.fleetTabKeyboard = 'true';
+    if (tablist.dataset.zentridTabKeyboard === 'true') return;
+    tablist.dataset.zentridTabKeyboard = 'true';
     tablist.addEventListener('keydown', event => {
       const currentTabs = Array.from(tablist.querySelectorAll<HTMLButtonElement>(':scope > button, :scope > [role="tab"]'));
       const current = event.target instanceof HTMLButtonElement ? event.target : null;
@@ -231,7 +231,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     const open = menu.classList.contains('open') && visible(menu);
     setAttributeValue(toggle, 'aria-expanded', String(open));
     setAttributeValue(toggle, 'aria-haspopup', 'menu');
-    toggle.setAttribute('aria-controls', ensureId(menu, 'fleet-menu'));
+    toggle.setAttribute('aria-controls', ensureId(menu, 'zentrid-menu'));
     menu.setAttribute('role', 'menu');
     directChildren(menu).filter(item => matchesElement(item, 'button, a')).forEach(item => item.setAttribute('role', 'menuitem'));
   }
@@ -248,8 +248,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
       const menu = document.querySelector<HTMLElement>(menuSelector);
       if (!toggle || !menu) return;
       updateMenu(toggle, menu);
-      if (toggle.dataset.fleetMenuKeyboard === 'true') return;
-      toggle.dataset.fleetMenuKeyboard = 'true';
+      if (toggle.dataset.zentridMenuKeyboard === 'true') return;
+      toggle.dataset.zentridMenuKeyboard = 'true';
       toggle.addEventListener('keydown', event => {
         if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
         event.preventDefault();
@@ -286,14 +286,14 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     const results = document.getElementById('searchResults');
     if (search && results) {
       search.setAttribute('aria-label', 'Global search');
-      search.setAttribute('aria-controls', ensureId(results, 'fleet-search-results'));
+      search.setAttribute('aria-controls', ensureId(results, 'zentrid-search-results'));
       search.setAttribute('aria-autocomplete', 'list');
       search.setAttribute('role', 'combobox');
       setAttributeValue(search, 'aria-expanded', String(results.classList.contains('open')));
       results.setAttribute('role', 'listbox');
       elements(results, 'button').forEach(item => item.setAttribute('role', 'option'));
-      if (search.dataset.fleetSearchKeyboard !== 'true') {
-        search.dataset.fleetSearchKeyboard = 'true';
+      if (search.dataset.zentridSearchKeyboard !== 'true') {
+        search.dataset.zentridSearchKeyboard = 'true';
         search.addEventListener('keydown', event => {
           if (event.key === 'ArrowDown') {
             const first = results.querySelector<HTMLButtonElement>('button');
@@ -330,15 +330,15 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     const topbar = document.querySelector<HTMLElement>('.topbar');
     if (!topbar) return;
     const bottom = Math.max(0, Math.ceil(topbar.getBoundingClientRect().bottom));
-    document.documentElement.style.setProperty('--fleet-topbar-bottom', `${bottom}px`);
+    document.documentElement.style.setProperty('--zentrid-topbar-bottom', `${bottom}px`);
   }
 
   function ensureSidebarBackdrop(): HTMLButtonElement {
-    let backdrop = document.querySelector<HTMLButtonElement>('.fleet-sidebar-backdrop');
+    let backdrop = document.querySelector<HTMLButtonElement>('.zentrid-sidebar-backdrop');
     if (backdrop) return backdrop;
     backdrop = document.createElement('button');
     backdrop.type = 'button';
-    backdrop.className = 'fleet-sidebar-backdrop';
+    backdrop.className = 'zentrid-sidebar-backdrop';
     backdrop.setAttribute('aria-label', 'Close primary navigation');
     backdrop.hidden = true;
     document.body.appendChild(backdrop);
@@ -366,7 +366,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     } else if (sidebar.hasAttribute('inert')) sidebar.removeAttribute('inert');
     const shouldHideBackdrop = !(mobile && open);
     if (backdrop.hidden !== shouldHideBackdrop) backdrop.hidden = shouldHideBackdrop;
-    document.body.classList.toggle('fleet-mobile-nav-open', mobile && open);
+    document.body.classList.toggle('zentrid-mobile-nav-open', mobile && open);
   }
 
   function closeSidebar(returnFocus = false): void {
@@ -383,8 +383,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     if (!toggle || !sidebar) return;
     syncSidebar();
     syncTopbarMetrics();
-    if (toggle.dataset.fleetSidebarA11y !== 'true') {
-      toggle.dataset.fleetSidebarA11y = 'true';
+    if (toggle.dataset.zentridSidebarA11y !== 'true') {
+      toggle.dataset.zentridSidebarA11y = 'true';
       toggle.addEventListener('click', () => {
         sidebarReturnFocus = toggle;
         requestAnimationFrame(() => {
@@ -416,12 +416,12 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   }
 
   function sharedConfirmOpen(): boolean {
-    const overlay = document.getElementById('fleetUxConfirmOverlay');
+    const overlay = document.getElementById('zentridUxConfirmOverlay');
     return Boolean(overlay && !overlay.hidden && visible(overlay));
   }
 
   function dialogRootOpen(root: HTMLElement): boolean {
-    if (root.id === 'fleetUxConfirmOverlay') return false;
+    if (root.id === 'zentridUxConfirmOverlay') return false;
     if (root.classList.contains('detail-drawer')) return root.classList.contains('open') && visible(root);
     if (root.classList.contains('modal')) return root.classList.contains('open') && visible(root);
     if (root.classList.contains('commercial-modal-backdrop') || root.classList.contains('modal-backdrop')) return visible(root);
@@ -440,7 +440,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     panel.tabIndex = -1;
     const heading = panel.querySelector<HTMLElement>('h1, h2, h3');
     if (heading) {
-      panel.setAttribute('aria-labelledby', ensureId(heading, 'fleet-dialog-title'));
+      panel.setAttribute('aria-labelledby', ensureId(heading, 'zentrid-dialog-title'));
       panel.removeAttribute('aria-label');
     } else if (!panel.hasAttribute('aria-label')) {
       panel.setAttribute('aria-label', 'Dialog');
@@ -450,13 +450,13 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   function activateDialog(root: HTMLElement, panel: HTMLElement): void {
     if (enhancedDialogs.has(panel)) return;
     labelDialog(panel);
-    const state: FleetA11yDialogState = {
+    const state: ZentridA11yDialogState = {
       panel,
       root,
       returnFocus: document.activeElement instanceof HTMLElement ? document.activeElement : null
     };
     enhancedDialogs.set(panel, state);
-    document.body.classList.add('fleet-dialog-open');
+    document.body.classList.add('zentrid-dialog-open');
     requestAnimationFrame(() => {
       const preferred = panel.querySelector<HTMLElement>('[autofocus], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
       (preferred || panel).focus({ preventScroll: true });
@@ -467,7 +467,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     const state = enhancedDialogs.get(panel);
     if (!state) return;
     enhancedDialogs.delete(panel);
-    if (!enhancedDialogs.size) document.body.classList.remove('fleet-dialog-open');
+    if (!enhancedDialogs.size) document.body.classList.remove('zentrid-dialog-open');
     if (state.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
   }
 
@@ -486,7 +486,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
     });
   }
 
-  function activeDialog(): FleetA11yDialogState | null {
+  function activeDialog(): ZentridA11yDialogState | null {
     return Array.from(enhancedDialogs.values()).at(-1) || null;
   }
 
@@ -553,8 +553,8 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   }
 
   function scheduleObservedChanges(): void {
-    if (window.FleetRuntimeStability) {
-      FleetRuntimeStability.frame('responsive-accessibility:mutations', flushObservedChanges);
+    if (window.ZentridRuntimeStability) {
+      ZentridRuntimeStability.frame('responsive-accessibility:mutations', flushObservedChanges);
       return;
     }
     requestAnimationFrame(flushObservedChanges);
@@ -590,7 +590,7 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
       attributes: true,
       attributeFilter: ['class', 'hidden', 'aria-hidden', 'inert']
     });
-    FleetRuntimeStability?.registerCleanup('responsive-accessibility:observer', stopObserving);
+    ZentridRuntimeStability?.registerCleanup('responsive-accessibility:observer', stopObserving);
   }
 
   document.addEventListener('keydown', event => {
@@ -625,4 +625,4 @@ const FleetResponsiveAccessibility: FleetResponsiveAccessibilityApi = (() => {
   return { enhance, syncSidebar, closeSidebar };
 })();
 
-Object.assign(window, { FleetResponsiveAccessibility });
+Object.assign(window, { ZentridResponsiveAccessibility });

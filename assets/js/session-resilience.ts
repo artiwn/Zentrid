@@ -1,16 +1,16 @@
 /* Zentrid error recovery and cross-tab session resilience.
    Coordinates auth state, connectivity UX and cache invalidation without exposing tokens. */
 (function () {
-  type FleetRecoveryBannerState = 'offline' | 'retrying' | 'restored' | 'session' | 'warning';
-  type FleetSessionMessageType = 'session-updated' | 'session-cleared' | 'cache-invalidate';
-  type FleetSessionMessage = {
-    type: FleetSessionMessageType;
+  type ZentridRecoveryBannerState = 'offline' | 'retrying' | 'restored' | 'session' | 'warning';
+  type ZentridSessionMessageType = 'session-updated' | 'session-cleared' | 'cache-invalidate';
+  type ZentridSessionMessage = {
+    type: ZentridSessionMessageType;
     sender: string;
     at: number;
     nonce: string;
-    entities?: FleetContractEntity[];
+    entities?: ZentridContractEntity[];
   };
-  type FleetSessionResilienceSnapshot = {
+  type ZentridSessionResilienceSnapshot = {
     tabId: string;
     online: boolean;
     channel: 'broadcast-channel' | 'storage-fallback';
@@ -55,7 +55,7 @@
     lastEventAt = new Date().toISOString();
   }
 
-  function message(type: FleetSessionMessageType, entities?: FleetContractEntity[]): FleetSessionMessage {
+  function message(type: ZentridSessionMessageType, entities?: ZentridContractEntity[]): ZentridSessionMessage {
     return {
       type,
       sender: tabId,
@@ -65,7 +65,7 @@
     };
   }
 
-  function publish(payload: FleetSessionMessage): void {
+  function publish(payload: ZentridSessionMessage): void {
     if (disposed) return;
     channel?.postMessage(payload);
     try {
@@ -76,7 +76,7 @@
     }
   }
 
-  function clearPersistedRepositoryCache(entities?: FleetContractEntity[]): void {
+  function clearPersistedRepositoryCache(entities?: ZentridContractEntity[]): void {
     try {
       const entitySet = entities?.length ? new Set(entities) : null;
       const keys: string[] = [];
@@ -95,9 +95,9 @@
     }
   }
 
-  function invalidateRepositoryCache(entities?: FleetContractEntity[]): void {
+  function invalidateRepositoryCache(entities?: ZentridContractEntity[]): void {
     clearPersistedRepositoryCache(entities);
-    const cache = window.FleetAPIRepositories?.cache;
+    const cache = window.ZentridAPIRepositories?.cache;
     if (!cache) return;
     if (entities?.length) cache.invalidateMany(entities);
     else cache.invalidate();
@@ -105,15 +105,15 @@
 
   function ensureBanner(): HTMLElement | null {
     if (!document.body) return null;
-    let banner = document.querySelector<HTMLElement>('[data-fleet-recovery-banner]');
+    let banner = document.querySelector<HTMLElement>('[data-zentrid-recovery-banner]');
     if (banner) return banner;
     banner = document.createElement('div');
-    banner.className = 'fleet-recovery-banner';
-    banner.dataset.fleetRecoveryBanner = 'true';
+    banner.className = 'zentrid-recovery-banner';
+    banner.dataset.zentridRecoveryBanner = 'true';
     banner.hidden = true;
     banner.setAttribute('role', 'status');
     banner.setAttribute('aria-live', 'polite');
-    banner.innerHTML = '<span class="fleet-recovery-banner-icon" aria-hidden="true">●</span><div><strong></strong><small></small></div>';
+    banner.innerHTML = '<span class="zentrid-recovery-banner-icon" aria-hidden="true">●</span><div><strong></strong><small></small></div>';
     document.body.append(banner);
     return banner;
   }
@@ -122,14 +122,14 @@
     if (bannerTimer !== null) window.clearTimeout(bannerTimer);
     const hide = (): void => {
       bannerTimer = null;
-      const banner = document.querySelector<HTMLElement>('[data-fleet-recovery-banner]');
+      const banner = document.querySelector<HTMLElement>('[data-zentrid-recovery-banner]');
       if (banner && navigator.onLine !== false) banner.hidden = true;
     };
     if (delayMs > 0) bannerTimer = window.setTimeout(hide, delayMs);
     else hide();
   }
 
-  function showBanner(state: FleetRecoveryBannerState, title: string, detail: string, persist = false): void {
+  function showBanner(state: ZentridRecoveryBannerState, title: string, detail: string, persist = false): void {
     const banner = ensureBanner();
     if (!banner) return;
     banner.hidden = false;
@@ -137,7 +137,7 @@
     banner.querySelector('strong')!.textContent = title;
     banner.querySelector('small')!.textContent = detail;
     banner.setAttribute('role', state === 'offline' || state === 'warning' ? 'alert' : 'status');
-    document.body.dataset.fleetConnectivity = state === 'offline' ? 'offline' : 'online';
+    document.body.dataset.zentridConnectivity = state === 'offline' ? 'offline' : 'online';
     if (persist) {
       if (bannerTimer !== null) window.clearTimeout(bannerTimer);
       bannerTimer = null;
@@ -154,7 +154,7 @@
     }
   }
 
-  function handleMessage(payload: FleetSessionMessage, source: string): void {
+  function handleMessage(payload: ZentridSessionMessage, source: string): void {
     if (!payload || payload.sender === tabId || !payload.type) return;
     if (payload.type === 'cache-invalidate') {
       invalidateRepositoryCache(payload.entities);
@@ -174,11 +174,11 @@
     record(`remote-session-updated:${source}`);
   }
 
-  function parseMessage(value: unknown): FleetSessionMessage | null {
+  function parseMessage(value: unknown): ZentridSessionMessage | null {
     try {
       const parsed = typeof value === 'string' ? JSON.parse(value) : value;
       if (!parsed || typeof parsed !== 'object') return null;
-      return parsed as FleetSessionMessage;
+      return parsed as ZentridSessionMessage;
     } catch (_error) {
       return null;
     }
@@ -215,14 +215,14 @@
 
   function onOffline(): void {
     record('offline');
-    window.FleetAPIRepositories?.coordinator.cancelAll();
+    window.ZentridAPIRepositories?.coordinator.cancelAll();
     showBanner('offline', 'Zentrid is offline', 'Showing the last successful data where available. Live requests are paused.', true);
   }
 
   function onOnline(): void {
     record('online');
     showBanner('restored', 'Connection restored', 'Refreshing the current live section without reloading the page.');
-    window.setTimeout(() => window.FleetDataFreshness?.requestRefresh('retry'), 250);
+    window.setTimeout(() => window.ZentridDataFreshness?.requestRefresh('retry'), 250);
   }
 
   function onRequestRetry(event: Event): void {
@@ -251,7 +251,7 @@
     showBanner('warning', 'Saved browser data recovered', `${detail.key || 'A stored value'} was invalid and has been reset safely.`);
   }
 
-  function snapshot(): FleetSessionResilienceSnapshot {
+  function snapshot(): ZentridSessionResilienceSnapshot {
     return {
       tabId,
       online: navigator.onLine !== false,
@@ -262,7 +262,7 @@
     };
   }
 
-  function broadcastInvalidation(entities: FleetContractEntity[]): void {
+  function broadcastInvalidation(entities: ZentridContractEntity[]): void {
     const unique = [...new Set(entities)];
     if (!unique.length) return;
     invalidateRepositoryCache(unique);
@@ -298,5 +298,5 @@
     else onOffline();
   }
 
-  window.FleetSessionResilience = { snapshot, broadcastInvalidation, dispose };
+  window.ZentridSessionResilience = { snapshot, broadcastInvalidation, dispose };
 })();

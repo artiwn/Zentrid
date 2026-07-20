@@ -225,7 +225,7 @@
   }
 
   function render() {
-    FleetLayout.mount(`${pageHero()}${kpis()}<section class="production-workspace-v92 incident-workspace-v92 incident-detail-workspace">${tabs()}<div class="incident-main-card-v92">${body()}</div></section>`);
+    ZentridLayout.mount(`${pageHero()}${kpis()}<section class="production-workspace-v92 incident-workspace-v92 incident-detail-workspace">${tabs()}<div class="incident-main-card-v92">${body()}</div></section>`);
     bind();
   }
 
@@ -240,7 +240,7 @@
       if (tab) { state.tab = tab.dataset.detailTab; render(); return; }
       if (target.closest('[data-back-incidents]')) { window.location.href = 'incident-center.html'; return; }
       const toast = target.closest('[data-detail-toast]') as IncidentDetailDatasetElement | null;
-      if (toast) FleetLayout.toast(toast.dataset.detailToast);
+      if (toast) ZentridLayout.toast(toast.dataset.detailToast);
     });
   }
 

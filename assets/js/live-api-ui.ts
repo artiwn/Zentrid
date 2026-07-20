@@ -5,7 +5,7 @@
   const SOURCE_LABEL = 'Live API';
   const SLOW_ENDPOINT_TIMEOUT_MS = 90_000;
 
-  type AnyRecord = Record<string, FleetLegacyCompat>;
+  type AnyRecord = Record<string, ZentridLegacyCompat>;
 
 
   type LiveDataState = 'loading' | 'live' | 'partial' | 'empty' | 'timeout' | 'unauthorized' | 'forbidden' | 'unavailable' | 'fallback';
@@ -14,9 +14,9 @@
     title?: string;
     source?: string;
     details?: string;
-    dataOrigin?: FleetDataOrigin;
+    dataOrigin?: ZentridDataOrigin;
     recordCount?: number;
-    freshnessStatus?: FleetFreshnessStatus;
+    freshnessStatus?: ZentridFreshnessStatus;
     freshnessUpdatedAt?: string;
     freshnessCacheAgeMs?: number;
   };
@@ -46,8 +46,8 @@
     return location.pathname.endsWith(`/${entity}.html`) || location.pathname.endsWith(`${entity}.html`);
   }
 
-  function registryReadOptions(entity: RegistryEntity, forceRefresh = false): FleetRepositoryReadOptions {
-    const state = window.FleetRegistryQuery?.read(entity);
+  function registryReadOptions(entity: RegistryEntity, forceRefresh = false): ZentridRepositoryReadOptions {
+    const state = window.ZentridRegistryQuery?.read(entity);
     return {
       page: state?.page || 1,
       pageSize: state?.pageSize || 50,
@@ -59,7 +59,7 @@
     };
   }
 
-  function detailReadOptions(entity: string, pageSize = 100, forceRefresh = false): FleetRepositoryReadOptions {
+  function detailReadOptions(entity: string, pageSize = 100, forceRefresh = false): ZentridRepositoryReadOptions {
     return {
       page: 1,
       pageSize,
@@ -77,11 +77,11 @@
     return `${Math.max(1, Math.round(ageMs / 60_000))} min ago`;
   }
 
-  function repositoryCachePresentation(result: FleetRepositoryListResult): {
+  function repositoryCachePresentation(result: ZentridRepositoryListResult): {
     state: LiveDataState;
     prefix: string;
     details: string;
-    freshnessStatus: FleetFreshnessStatus;
+    freshnessStatus: ZentridFreshnessStatus;
     updatedAt?: string;
     ageMs?: number;
   } {
@@ -114,7 +114,7 @@
     };
   }
 
-  function publishRegistryPagination(entity: RegistryEntity, result: FleetRepositoryListResult): void {
+  function publishRegistryPagination(entity: RegistryEntity, result: ZentridRepositoryListResult): void {
     const fallbackCount = Array.isArray(result.items) ? result.items.length : 0;
     const pagination = result.pagination || {
       page: 1,
@@ -124,8 +124,8 @@
       hasPreviousPage: false,
       hasNextPage: false
     };
-    (result as FleetRepositoryListResult & { pagination: FleetRepositoryPagination }).pagination = pagination;
-    window.FleetRegistryQuery?.setPagination(entity, {
+    (result as ZentridRepositoryListResult & { pagination: ZentridRepositoryPagination }).pagination = pagination;
+    window.ZentridRegistryQuery?.setPagination(entity, {
       ...pagination,
       server: true,
       source: result.source
@@ -142,8 +142,8 @@
     return registryRequestVersions.get(entity) === version;
   }
 
-  function contractDiagnosticsApi(): FleetContractDiagnosticsApi | null {
-    return typeof FleetAPIContracts === 'undefined' ? null : FleetAPIContracts.diagnostics;
+  function contractDiagnosticsApi(): ZentridContractDiagnosticsApi | null {
+    return typeof ZentridAPIContracts === 'undefined' ? null : ZentridAPIContracts.diagnostics;
   }
 
   contractDiagnosticsApi()?.clear();
@@ -219,17 +219,17 @@
     fallback: '↺'
   };
 
-  const DATA_SOURCE_MESSAGES: Record<FleetDataOrigin, string> = {
+  const DATA_SOURCE_MESSAGES: Record<ZentridDataOrigin, string> = {
     live: 'Displayed records come from live backend responses.',
     mock: 'Displayed records are prototype fallback data.',
     local: 'Displayed records were created or changed in this browser.',
     mixed: 'The current page combines records from more than one source.'
   };
 
-  function renderedDataOrigin(): FleetDataOrigin {
+  function renderedDataOrigin(): ZentridDataOrigin {
     const chips = Array.from(document.querySelectorAll<HTMLElement>('.record-origin-chip[data-record-origin]'))
       .filter(chip => !chip.closest('.data-source-summary'));
-    const origins = new Set<FleetDataOrigin>();
+    const origins = new Set<ZentridDataOrigin>();
     for (const chip of chips) {
       const origin = chip.dataset.recordOrigin;
       if (origin === 'live' || origin === 'mock' || origin === 'local' || origin === 'mixed') origins.add(origin);
@@ -242,9 +242,9 @@
     document.querySelector('.data-source-summary')?.remove();
   }
 
-  function setDataSourceSummary(origin: FleetDataOrigin, options: LiveDataStateOptions = {}): void {
+  function setDataSourceSummary(origin: ZentridDataOrigin, options: LiveDataStateOptions = {}): void {
     const main = document.querySelector('.main-content');
-    if (!main || !window.FleetDataSource) return;
+    if (!main || !window.ZentridDataSource) return;
 
     let summary = main.querySelector<HTMLElement>('.data-source-summary');
     if (!summary) {
@@ -262,7 +262,7 @@
     summary.className = `data-source-summary ${origin}`;
     summary.dataset.dataOrigin = origin;
     summary.setAttribute('role', 'status');
-    summary.setAttribute('aria-label', `Displayed data source: ${FleetDataSource.label(origin)}`);
+    summary.setAttribute('aria-label', `Displayed data source: ${ZentridDataSource.label(origin)}`);
     summary.replaceChildren();
 
     const primary = document.createElement('div');
@@ -273,7 +273,7 @@
     const chip = document.createElement('span');
     chip.className = `record-origin-chip ${origin}`;
     chip.dataset.recordOrigin = origin;
-    chip.textContent = FleetDataSource.label(origin);
+    chip.textContent = ZentridDataSource.label(origin);
     const description = document.createElement('small');
     description.textContent = DATA_SOURCE_MESSAGES[origin];
     primary.append(eyebrow, chip, description);
@@ -289,11 +289,11 @@
 
     const legend = document.createElement('div');
     legend.className = 'data-source-legend';
-    (['live', 'mock', 'local', 'mixed'] as FleetDataOrigin[]).forEach(value => {
+    (['live', 'mock', 'local', 'mixed'] as ZentridDataOrigin[]).forEach(value => {
       const item = document.createElement('span');
       item.className = `record-origin-chip ${value} compact`;
       item.dataset.recordOrigin = value;
-      item.textContent = FleetDataSource.label(value);
+      item.textContent = ZentridDataSource.label(value);
       legend.append(item);
     });
 
@@ -304,7 +304,7 @@
     document.querySelector('.contract-diagnostics')?.remove();
   }
 
-  function contractIssueTitle(issue: FleetContractIssue): string {
+  function contractIssueTitle(issue: ZentridContractIssue): string {
     return `${issue.entityLabel} #${issue.index + 1} · ${issue.field}`;
   }
 
@@ -385,7 +385,7 @@
     if (issues.length > visibleIssues.length) {
       const remaining = document.createElement('div');
       remaining.className = 'more';
-      remaining.textContent = `${issues.length - visibleIssues.length} additional issue(s) are available through FleetAPIContracts.diagnostics.list().`;
+      remaining.textContent = `${issues.length - visibleIssues.length} additional issue(s) are available through ZentridAPIContracts.diagnostics.list().`;
       list.append(remaining);
     }
     details.append(detailsSummary, list);
@@ -444,7 +444,7 @@
     }
 
     banner.append(icon, content);
-    window.FleetDataFreshness?.sync({
+    window.ZentridDataFreshness?.sync({
       liveState: state,
       message,
       ...(options.title ? { title: options.title } : {}),
@@ -453,7 +453,7 @@
       ...(options.freshnessStatus ? { status: options.freshnessStatus } : {}),
       ...(options.freshnessUpdatedAt ? { updatedAt: options.freshnessUpdatedAt } : {}),
       ...(Number.isFinite(options.freshnessCacheAgeMs) ? { cacheAgeMs: options.freshnessCacheAgeMs } : {})
-    } as FleetFreshnessSyncInput);
+    } as ZentridFreshnessSyncInput);
     syncDataSourceForState(state, options);
     syncContractDiagnostics(state);
   }
@@ -554,11 +554,11 @@
   }
 
   function applyOverviewMockFromLive(payload: Required<LiveSnapshotPayload>): void {
-    const fleetMock = window.ZentridMock;
-    if (!fleetMock) return;
+    const zentridMock = window.ZentridMock;
+    if (!zentridMock) return;
     const snap = snapshotFromLive(payload);
     const currentPowerText = snap.currentPowerKw > 0 ? `${(snap.currentPowerKw / 1000).toFixed(2)} MW` : '0 kW';
-    fleetMock.kpis = [
+    zentridMock.kpis = [
       { label: 'Live Providers', value: String(snap.providerNames.length || snap.integrationCount), delta: snap.providerNames.join(', ') || 'No provider names', icon: '🔗', tone: 'cyan', route: 'integrations' },
       { label: 'Plants', value: compactNumber(snap.plantCount), delta: `Live endpoint rows: ${payload.plants.length}`, icon: '🏭', tone: 'green', route: 'plants' },
       { label: 'Devices', value: compactNumber(snap.deviceCount), delta: `Live endpoint rows: ${payload.devices.length}`, icon: '🔌', tone: 'blue', route: 'devices' },
@@ -568,7 +568,7 @@
     ];
 
     if (payload.integrations.length) {
-      fleetMock.integrations = payload.integrations.map(row => ({
+      zentridMock.integrations = payload.integrations.map(row => ({
         name: safeText(row.displayName || row.name, safeText(row.provider || row.vendor, 'Provider')),
         status: safeText(row.operationalStatus || row.status || row.health, 'Unknown'),
         sync: safeText(row.lastSyncText || row.lastSync, fmtDate(row.lastSyncAtUtc || row.updatedAt)),
@@ -577,7 +577,7 @@
     }
 
     if (payload.alerts.length) {
-      fleetMock.alerts = payload.alerts.slice(0, 6).map(row => ({
+      zentridMock.alerts = payload.alerts.slice(0, 6).map(row => ({
         title: safeText(row.title || row.message || row.sourceAlertId || row.id, 'Live backend alert'),
         vendorDisplayName: safeText(row.title || row.message || row.sourceAlertId || row.id, 'Live backend alert'),
         registeredName: safeText(row.sourceAlertId || row.id || row.title, 'Live backend alert'),
@@ -588,7 +588,7 @@
       }));
     }
 
-    fleetMock.quality = [
+    zentridMock.quality = [
       { label: 'Providers', value: String(snap.providerNames.length || snap.integrationCount) },
       { label: 'Templates', value: String(snap.templateCount) },
       { label: 'Stale Plants', value: String(snap.staleCount) },
@@ -629,7 +629,7 @@
     } catch (e) {}
   }
 
-  const contractMapperContext: FleetContractMapperContext = {
+  const contractMapperContext: ZentridContractMapperContext = {
     safeText,
     firstOf,
     displayName: liveDisplayName,
@@ -689,7 +689,7 @@
       return {
         ...device,
         plant: plant?.name || device.plant,
-        plantFleetId: plant?.id || '',
+        plantPortfolioId: plant?.id || '',
         tenant: plant?.tenant || device.tenant,
         alerts: relatedAlerts.length || device.alerts,
         relatedPlant: plant || null,
@@ -699,7 +699,7 @@
   }
 
   function liveTable(title: string, subtitle: string, columns: string[], rows: string[][], emptyText?: string): string {
-    const body = rows.length ? rows.map(row => `<div class="data-row">${row.map((cell, index) => `<div>${index === 0 ? FleetDataSource.badge('live', 'record') : ''}${cell}</div>`).join('')}</div>`).join('') : `<div class="data-row"><div><strong>${htmlEscape(emptyText || 'No related records')}</strong><small>Backend returned no matching records for this relation.</small></div></div>`;
+    const body = rows.length ? rows.map(row => `<div class="data-row">${row.map((cell, index) => `<div>${index === 0 ? ZentridDataSource.badge('live', 'record') : ''}${cell}</div>`).join('')}</div>`).join('') : `<div class="data-row"><div><strong>${htmlEscape(emptyText || 'No related records')}</strong><small>Backend returned no matching records for this relation.</small></div></div>`;
     return `<section class="glass-card live-related-card"><div class="panel-head compact"><div><h3>${htmlEscape(title)}</h3><p class="muted">${htmlEscape(subtitle)}</p></div></div><div class="data-table compact-table live-related-table"><div class="data-head">${columns.map(c => `<span>${htmlEscape(c)}</span>`).join('')}</div>${body}</div></section>`;
   }
 
@@ -757,7 +757,7 @@
     const overviewRenderer = window.renderOverview;
     const overviewWireHandler = window.wireOverview;
     if (typeof overviewRenderer === 'function' && typeof overviewWireHandler === 'function') {
-      FleetLayout.mount(overviewRenderer());
+      ZentridLayout.mount(overviewRenderer());
       overviewWireHandler();
     }
   }
@@ -796,9 +796,9 @@
 
     try {
       const results = await Promise.allSettled([
-        FleetAPIRepositories.plants.list(detailReadOptions('overview:plants', 100, forceRefresh)),
-        FleetAPIRepositories.devices.list(detailReadOptions('overview:devices', 100, forceRefresh)),
-        FleetAPIRepositories.integrations.list(detailReadOptions('integrations', 50, forceRefresh)),
+        ZentridAPIRepositories.plants.list(detailReadOptions('overview:plants', 100, forceRefresh)),
+        ZentridAPIRepositories.devices.list(detailReadOptions('overview:devices', 100, forceRefresh)),
+        ZentridAPIRepositories.integrations.list(detailReadOptions('integrations', 50, forceRefresh)),
         ZentridPlatformAPI.live.providers(),
         ZentridPlatformAPI.providerIntegrations.templates()
       ]);
@@ -826,7 +826,7 @@
       setRequestFailure('Overview core endpoints', error, 'The dashboard keeps its mock context.');
     }
 
-    void FleetAPIRepositories.alerts.list({ ...detailReadOptions('overview:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+    void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('overview:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
         payload.alerts = result.rawItems;
         errors.push(...result.errors);
@@ -835,7 +835,7 @@
       .catch(error => errors.push(error))
       .finally(() => { pending.delete('alerts'); updateState(); });
 
-    void FleetAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+    void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
         payload.integrations = mergeIntegrationSummaries(payload.integrations || [], result.items);
         errors.push(...result.errors);
@@ -851,7 +851,7 @@
     setLiveDataState('loading', 'Loading the fast integration registry first. Operational summaries will be added in the background.', { source: '/api/admin/provider-integrations' });
     try {
       const [registryResult, providersResult, templatesResult] = await Promise.allSettled([
-        FleetAPIRepositories.integrations.list(detailReadOptions('integration-registry', 50, forceRefresh)),
+        ZentridAPIRepositories.integrations.list(detailReadOptions('integration-registry', 50, forceRefresh)),
         ZentridPlatformAPI.live.providers(),
         ZentridPlatformAPI.providerIntegrations.templates()
       ]);
@@ -867,7 +867,7 @@
       if (data.length) {
         integrations = data;
         window.ZentridLiveIntegrations = integrations;
-        FleetLayout.mount(renderIntegrations());
+        ZentridLayout.mount(renderIntegrations());
         wireIntegrations();
         setLiveDataState('partial', `${data.length} integration registry record(s) are ready. Operational counts and sync health continue loading in the background.`, {
           source: registry?.source || '/api/admin/provider-integrations',
@@ -887,13 +887,13 @@
         { label: 'Operational Summary', value: 'Loading…', meta: 'Slow endpoint does not block the registry' }
       ]);
 
-      void FleetAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+      void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
         .then(summary => {
           const enriched = mergeIntegrationSummaries(data, summary.items);
           if (enriched.length) {
             integrations = enriched;
             window.ZentridLiveIntegrations = integrations;
-            FleetLayout.mount(renderIntegrations());
+            ZentridLayout.mount(renderIntegrations());
             wireIntegrations();
           }
           setLiveDataState(summary.errors.length ? 'partial' : 'live', summary.errors.length
@@ -926,7 +926,7 @@
     const requestVersion = beginRegistryRequest('plants');
     if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested plant page first. Device and alert relations will be attached in the background.', { source: '/api/plants + /api/admin/plants' });
     try {
-      const live = await FleetAPIRepositories.plants.list(registryReadOptions('plants', forceRefresh));
+      const live = await ZentridAPIRepositories.plants.list(registryReadOptions('plants', forceRefresh));
       if (!isCurrentRegistryRequest('plants', requestVersion)) return;
       publishRegistryPagination('plants', live);
       const data = live.items;
@@ -946,7 +946,7 @@
         window.ZentridLiveAlerts = relatedAlerts;
         window.ZentridLivePlants = enrichPlantRelations(data, relatedDevices, relatedAlerts);
         syncLiveClientModel(window.ZentridLivePlants, relatedDevices);
-        FleetLayout.mount(renderPlants());
+        ZentridLayout.mount(renderPlants());
         wirePlants();
         const pendingText = [...pending].join(' and ');
         const cacheInfo = repositoryCachePresentation(live);
@@ -971,12 +971,12 @@
       };
       render();
 
-      void FleetAPIRepositories.devices.list(detailReadOptions('plant-relations:devices', 100, forceRefresh))
+      void ZentridAPIRepositories.devices.list(detailReadOptions('plant-relations:devices', 100, forceRefresh))
         .then(result => { if (isCurrentRegistryRequest('plants', requestVersion)) { relatedDevices = result.items; relationErrors.push(...result.errors); } })
         .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('devices'); render(); } });
 
-      void FleetAPIRepositories.alerts.list({ ...detailReadOptions('plant-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+      void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('plant-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
         .then(result => { if (isCurrentRegistryRequest('plants', requestVersion)) { relatedAlerts = result.items; relationErrors.push(...result.errors); } })
         .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('alerts'); render(); } });
@@ -990,7 +990,7 @@
     const requestVersion = beginRegistryRequest('devices');
     if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested device page first. Plant and alert relations will be attached in the background.', { source: '/api/devices' });
     try {
-      const live = await FleetAPIRepositories.devices.list(registryReadOptions('devices', forceRefresh));
+      const live = await ZentridAPIRepositories.devices.list(registryReadOptions('devices', forceRefresh));
       if (!isCurrentRegistryRequest('devices', requestVersion)) return;
       publishRegistryPagination('devices', live);
       const data = live.items;
@@ -1009,7 +1009,7 @@
         window.ZentridLiveAlerts = relatedAlerts;
         window.ZentridLiveDevices = enrichDeviceRelations(data, relatedPlants, relatedAlerts);
         syncLiveClientModel(relatedPlants, window.ZentridLiveDevices);
-        FleetLayout.mount(renderDevices());
+        ZentridLayout.mount(renderDevices());
         wireDevices();
         const pendingText = [...pending].join(' and ');
         const cacheInfo = repositoryCachePresentation(live);
@@ -1034,12 +1034,12 @@
       };
       render();
 
-      void FleetAPIRepositories.plants.list(detailReadOptions('device-relations:plants', 100, forceRefresh))
+      void ZentridAPIRepositories.plants.list(detailReadOptions('device-relations:plants', 100, forceRefresh))
         .then(result => { if (isCurrentRegistryRequest('devices', requestVersion)) { relatedPlants = result.items; relationErrors.push(...result.errors); } })
         .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('plants'); render(); } });
 
-      void FleetAPIRepositories.alerts.list({ ...detailReadOptions('device-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+      void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
         .then(result => { if (isCurrentRegistryRequest('devices', requestVersion)) { relatedAlerts = result.items; relationErrors.push(...result.errors); } })
         .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('alerts'); render(); } });
@@ -1053,7 +1053,7 @@
     const requestVersion = beginRegistryRequest('alerts');
     if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested alert page.', { source: '/api/alerts' });
     try {
-      const result = await FleetAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+      const result = await ZentridAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
       publishRegistryPagination('alerts', result);
       const data = result.items;
@@ -1061,10 +1061,10 @@
         setLiveDataState('empty', 'The requested alert page returned no records. Mock Alerts data remains visible.', { source: '/api/alerts', recordCount: result.pagination.totalCount });
         return;
       }
-      const alertStore = window.FleetAlerts || (typeof FleetAlerts !== 'undefined' ? FleetAlerts : null);
+      const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
       if (Array.isArray(alertStore)) {
         (alertStore as AnyRecord[]).splice(0, alertStore.length, ...data);
-        FleetLayout.mount(renderAlertsPage());
+        ZentridLayout.mount(renderAlertsPage());
         wireAlertsPage();
         const cacheInfo = repositoryCachePresentation(result);
         setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}Alert page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`, {
@@ -1094,7 +1094,7 @@
     return real ? safeText(real) : '';
   }
 
-  FleetAPIRepositories.configure({
+  ZentridAPIRepositories.configure({
     ...contractMapperContext,
     realDisplayName: realNameFromRow
   });
@@ -1210,9 +1210,9 @@
 
 
   function setLiveClients(rows: AnyRecord[]): boolean {
-    const clientModel = window.FleetClientModel || (typeof FleetClientModel !== 'undefined' ? FleetClientModel : null);
+    const clientModel = window.ZentridClientModel || (typeof ZentridClientModel !== 'undefined' ? ZentridClientModel : null);
     if (!clientModel || !Array.isArray(clientModel.clients)) return false;
-    clientModel.clients.splice(0, clientModel.clients.length, ...(rows as unknown as FleetClientLegacyClient[]));
+    clientModel.clients.splice(0, clientModel.clients.length, ...(rows as unknown as ZentridClientLegacyClient[]));
     return true;
   }
 
@@ -1240,7 +1240,7 @@
   }
 
   function ensureLiveClientModelPlant(plant: AnyRecord, devices: AnyRecord[] = []): void {
-    const model = window.FleetClientModel;
+    const model = window.ZentridClientModel;
     if (!model || !Array.isArray(model.plants) || !Array.isArray(model.devices)) return;
     const client = (typeof model.selectedClient === 'function' ? model.selectedClient() : null) || model.clients?.[0] || null;
     const clientId = client?.id || 'CL-LIVE-API';
@@ -1343,7 +1343,7 @@
 
 
   function syncLiveClientModel(plants: AnyRecord[], devices: AnyRecord[] = []): void {
-    const model = window.FleetClientModel;
+    const model = window.ZentridClientModel;
     if (!model || !Array.isArray(model.plants) || !Array.isArray(model.devices)) return;
     const previousPlantId = localStorage.getItem('zentrid_selected_plant');
     plants.forEach(plant => {
@@ -1358,7 +1358,7 @@
     const wirer = window[wireName];
     if (typeof renderer !== 'function') return false;
     const rendered = renderer();
-    if (typeof rendered === 'string') FleetLayout.mount(rendered);
+    if (typeof rendered === 'string') ZentridLayout.mount(rendered);
     if (typeof wirer === 'function') wirer();
     return true;
   }
@@ -1374,7 +1374,7 @@
   function renderLivePlantDetail(plant: AnyRecord): void {
     const relatedDevices = Array.isArray(plant.relatedDevices) ? plant.relatedDevices : [];
     const relatedAlerts = Array.isArray(plant.relatedAlerts) ? plant.relatedAlerts : [];
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero plant-hero-v17">
         <div><p class="eyebrow">Plant Detail · Live API</p><h1>${htmlEscape(plant.name)}</h1><p class="muted">${htmlEscape(plant.code)} · ${htmlEscape(plant.vendor)} · ${htmlEscape(plant.country)}, ${htmlEscape(plant.city)}</p></div>
         <button class="freshness-card" onclick="location.href='plants.html'"><span class="pulse"></span><div><strong>Back to Plants</strong><small>/api/plants</small></div></button>
@@ -1402,7 +1402,7 @@
   function renderLiveDeviceDetail(device: AnyRecord): void {
     const plant = device.relatedPlant || null;
     const alerts = Array.isArray(device.relatedAlerts) ? device.relatedAlerts : [];
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero device-hero-v58 device-hero-v59">
         <div><p class="eyebrow">Device Detail · Live API</p><h1>${htmlEscape(device.name)}</h1><p class="muted">${htmlEscape(device.type)} · ${htmlEscape(device.vendor)} · ${htmlEscape(device.serial)}</p></div>
         <div class="hero-actions"><button class="secondary-action" onclick="location.href='devices.html'">Back to Devices</button></div>
@@ -1429,7 +1429,7 @@
     if (!/device-detail\.html$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/devices' });
     try {
-      const deviceResult = await FleetAPIRepositories.devices.list(detailReadOptions('device-detail:core', 100, forceRefresh));
+      const deviceResult = await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:core', 100, forceRefresh));
       const deviceRows = deviceResult.items;
       if (!deviceRows.length) {
         setLiveDataState('empty', 'The device endpoint returned no records. The existing Device Detail mock remains visible.', { source: '/api/devices' });
@@ -1451,13 +1451,13 @@
       };
       const device = sync();
 
-      window.FleetDetailLazyTabs?.register('device', [
+      window.ZentridDetailLazyTabs?.register('device', [
         {
           key: 'parent-plant',
           tabs: ['architecture', 'related'],
           label: 'Parent plant and topology',
           loader: async () => {
-            const result = await FleetAPIRepositories.plants.list(detailReadOptions('device-detail:parent-plant', 100, forceRefresh));
+            const result = await ZentridAPIRepositories.plants.list(detailReadOptions('device-detail:parent-plant', 100, forceRefresh));
             plantRows = result.items;
             relationErrors.push(...result.errors);
             if (!plantRows.length && result.errors.length) throw result.errors[0];
@@ -1474,7 +1474,7 @@
           tabs: ['alerts'],
           label: 'Device alerts',
           loader: async () => {
-            const result = await FleetAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
             alertRows = result.items;
             relationErrors.push(...result.errors);
             if (!alertRows.length && result.errors.length) throw result.errors[0];
@@ -1514,7 +1514,7 @@
     if (!/plant-detail\.html$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading the plant record. Devices, alerts and telemetry will load only when their tabs are opened.', { source: '/api/plants' });
     try {
-      const live = await FleetAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
+      const live = await ZentridAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
       const data = live.items;
       if (!data.length) {
         if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'The existing Plant Detail mock remains visible.');
@@ -1541,13 +1541,13 @@
       };
       const plant = sync();
 
-      window.FleetDetailLazyTabs?.register('plant', [
+      window.ZentridDetailLazyTabs?.register('plant', [
         {
           key: 'devices',
           tabs: ['structure', 'device', 'inverters', 'batteries', 'metering', 'gateways'],
           label: 'Plant devices and topology',
           loader: async () => {
-            const result = await FleetAPIRepositories.devices.list(detailReadOptions('plant-detail:devices', 100, forceRefresh));
+            const result = await ZentridAPIRepositories.devices.list(detailReadOptions('plant-detail:devices', 100, forceRefresh));
             deviceRows = result.items;
             relationErrors.push(...result.errors);
             if (!deviceRows.length && result.errors.length) throw result.errors[0];
@@ -1564,7 +1564,7 @@
           tabs: ['alerts'],
           label: 'Plant alerts',
           loader: async () => {
-            const result = await FleetAPIRepositories.alerts.list({ ...detailReadOptions('plant-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('plant-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
             alertRows = result.items;
             relationErrors.push(...result.errors);
             if (!alertRows.length && result.errors.length) throw result.errors[0];
@@ -1604,16 +1604,16 @@
     if (!/alert-detail\.html$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading normalized alert data for this detail page.', { source: '/api/alerts' });
     try {
-      const result = await FleetAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+      const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       const data = result.items;
       if (!data.length) {
         setLiveDataState('empty', 'The alert endpoint responded successfully but returned no records. Alert Detail keeps its mock fallback.', { source: '/api/alerts', recordCount: 0 });
         return;
       }
-      if (Array.isArray(window.FleetAlerts || FleetAlerts)) {
-        const target = window.FleetAlerts || FleetAlerts;
+      if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
+        const target = window.ZentridAlerts || ZentridAlerts;
         target.splice(0, target.length, ...data);
-        FleetLayout.mount(renderAlertDetailContent(selectedAlert()));
+        ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
         setLiveDataState('live', `${data.length} live alert record(s) were loaded for this detail page.`, { source: '/api/alerts', recordCount: data.length });
       }
@@ -1626,7 +1626,7 @@
     if (!/integration-detail\.html$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading the integration registry record. Operational summary will remain idle until Synchronization is opened.', { source: '/api/admin/provider-integrations' });
     try {
-      const registry = await FleetAPIRepositories.integrations.list(detailReadOptions('integration-detail:registry', 100, forceRefresh));
+      const registry = await ZentridAPIRepositories.integrations.list(detailReadOptions('integration-detail:registry', 100, forceRefresh));
       const data = registry.items;
       if (!data.length) {
         if (registry.errors.length) setRequestFailure(registry.source, registry.errors[0], 'Integration Detail keeps its mock fallback.');
@@ -1639,13 +1639,13 @@
       const firstIntegrationId = integrations[0]?.id;
       if (!integrations.some(x => x.id === selectedId) && firstIntegrationId) localStorage.setItem('zentrid_selected_integration', firstIntegrationId);
 
-      window.FleetDetailLazyTabs?.register('integration', [
+      window.ZentridDetailLazyTabs?.register('integration', [
         {
           key: 'operational-summary',
           tabs: ['synchronization'],
           label: 'Operational synchronization summary',
           loader: async () => {
-            const summary = await FleetAPIRepositories.integrations.summary({ ...detailReadOptions('integration-detail:summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+            const summary = await ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-detail:summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
             if (!summary.items.length && summary.errors.length) throw summary.errors[0];
             integrations = mergeIntegrationSummaries(data, summary.items);
             window.ZentridLiveIntegrations = integrations;
@@ -1660,7 +1660,7 @@
         }
       ]);
 
-      FleetLayout.mount(renderIntegrationDetail());
+      ZentridLayout.mount(renderIntegrationDetail());
       wireIntegrationDetail();
       setLiveDataState(registry.errors.length ? 'partial' : 'live', `${data.length} integration registry record(s) are ready. Operational health has not been requested yet.`, {
         source: registry.source,
@@ -1678,7 +1678,7 @@
     const requestVersion = registry ? beginRegistryRequest('clients') : 0;
     if (!backgroundRefresh) setLiveDataState('loading', registry ? 'Loading the requested Global Admin client page.' : 'Loading Global Admin client records.', { source: '/api/admin/clients' });
     try {
-      const result = await FleetAPIRepositories.clients.list(registry ? registryReadOptions('clients', forceRefresh) : detailReadOptions('clients', 100, forceRefresh));
+      const result = await ZentridAPIRepositories.clients.list(registry ? registryReadOptions('clients', forceRefresh) : detailReadOptions('clients', 100, forceRefresh));
       if (registry && !isCurrentRegistryRequest('clients', requestVersion)) return;
       if (registry) publishRegistryPagination('clients', result);
       const data = result.items;
@@ -1692,7 +1692,7 @@
         return;
       }
       const selectedId = localStorage.getItem('zentrid_selected_client');
-      const clientModel = window.FleetClientModel || (typeof FleetClientModel !== 'undefined' ? FleetClientModel : null);
+      const clientModel = window.ZentridClientModel || (typeof ZentridClientModel !== 'undefined' ? ZentridClientModel : null);
       if (!mapped.some(x => x.id === selectedId) && mapped[0]) clientModel?.selectClient(mapped[0].id);
       if (/client-detail\.html$/.test(location.pathname)) renderClientDetailPage();
       else renderClientsPage();
@@ -1717,7 +1717,7 @@
     if (!/tenants\.html$/.test(location.pathname) && !/tenant-detail\.html$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading Global Admin tenant records.', { source: '/api/admin/tenants' });
     try {
-      const result = await FleetAPIRepositories.tenants.list(detailReadOptions('tenants', 100, forceRefresh));
+      const result = await ZentridAPIRepositories.tenants.list(detailReadOptions('tenants', 100, forceRefresh));
       const data = result.items;
       if (!data.length) {
         setLiveDataState('empty', 'The tenant endpoint responded successfully but returned no records. Tenant screens keep their mock fallback.', { source: '/api/admin/tenants', recordCount: 0 });
@@ -1726,10 +1726,10 @@
       const mapped = data;
       setLiveTenants(mapped);
       if (/tenant-detail\.html$/.test(location.pathname)) {
-        FleetLayout.mount(renderTenantDetail());
+        ZentridLayout.mount(renderTenantDetail());
         wireTenantDetail();
       } else {
-        FleetLayout.mount(renderTenantRegistry());
+        ZentridLayout.mount(renderTenantRegistry());
         wireTenantRegistry();
       }
       const cacheInfo = repositoryCachePresentation(result);
@@ -1747,10 +1747,10 @@
   const repositoryRefreshTimers = new Map<RegistryEntity, number>();
 
   function handleRepositoryUpdated(event: Event): void {
-    const detail = (event as CustomEvent<{ entity?: RegistryEntity; reason?: string; result?: FleetRepositoryListResult }>).detail;
+    const detail = (event as CustomEvent<{ entity?: RegistryEntity; reason?: string; result?: ZentridRepositoryListResult }>).detail;
     const entity = detail?.entity;
     if (!entity || detail?.reason !== 'revalidated' || !isRegistryPage(entity)) return;
-    const current = window.FleetRegistryQuery?.read(entity);
+    const current = window.ZentridRegistryQuery?.read(entity);
     const result = detail.result;
     if (result && current && (result.pagination.page !== current.page || result.pagination.pageSize !== current.pageSize)) return;
     const existing = repositoryRefreshTimers.get(entity);
@@ -1775,8 +1775,8 @@
   }
 
   function handleDataRefreshRequest(event: Event): void {
-    const detail = (event as CustomEvent<{ resource?: FleetFreshnessResource; forceRefresh?: boolean }>).detail;
-    const resource = detail?.resource || window.FleetDataFreshness?.inferResource();
+    const detail = (event as CustomEvent<{ resource?: ZentridFreshnessResource; forceRefresh?: boolean }>).detail;
+    const resource = detail?.resource || window.ZentridDataFreshness?.inferResource();
     const forceRefresh = detail?.forceRefresh !== false;
     if (resource === 'overview') void applyOverview(forceRefresh);
     if (resource === 'clients') void applyClients(true, forceRefresh);
@@ -1799,7 +1799,7 @@
   }
 
   async function run(): Promise<void> {
-    if (!window.ZentridPlatformAPI || !window.FleetAPI || !window.FleetAPIRepositories || !FleetAPIRepositories.isConfigured()) return;
+    if (!window.ZentridPlatformAPI || !window.ZentridAPI || !window.ZentridAPIRepositories || !ZentridAPIRepositories.isConfigured()) return;
     await Promise.allSettled([applyOverview(), applyIntegrations(), applyPlants(), applyDevices(), applyAlerts(), applyDeviceDetail(), applyPlantDetail(), applyAlertDetail(), applyIntegrationDetail(), applyClients(), applyTenants()]);
   }
 

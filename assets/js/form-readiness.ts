@@ -1,14 +1,14 @@
-type FleetReadyMode = 'api' | 'local' | 'unavailable' | 'readonly';
-type FleetFormValueType = 'string' | 'number' | 'integer' | 'boolean' | 'date' | 'datetime' | 'json';
-type FleetFormEmptyPolicy = 'omit' | 'null' | 'empty';
+type ZentridReadyMode = 'api' | 'local' | 'unavailable' | 'readonly';
+type ZentridFormValueType = 'string' | 'number' | 'integer' | 'boolean' | 'date' | 'datetime' | 'json';
+type ZentridFormEmptyPolicy = 'omit' | 'null' | 'empty';
 
-type FleetReadyIssue = {
+type ZentridReadyIssue = {
   field: string;
   message: string;
   code: string;
 };
 
-type FleetReadyFileDescriptor = {
+type ZentridReadyFileDescriptor = {
   field: string;
   name: string;
   type: string;
@@ -16,14 +16,14 @@ type FleetReadyFileDescriptor = {
   lastModified: number;
 };
 
-type FleetReadySerialization = {
+type ZentridReadySerialization = {
   payload: Record<string, unknown>;
-  files: FleetReadyFileDescriptor[];
-  issues: FleetReadyIssue[];
+  files: ZentridReadyFileDescriptor[];
+  issues: ZentridReadyIssue[];
   meta: {
     formId: string;
     contract: string;
-    mode: FleetReadyMode;
+    mode: ZentridReadyMode;
     endpoint: string;
     method: string;
     serializedAt: string;
@@ -31,10 +31,10 @@ type FleetReadySerialization = {
   };
 };
 
-type FleetReadySnapshot = {
+type ZentridReadySnapshot = {
   formId: string;
   contract: string;
-  mode: FleetReadyMode;
+  mode: ZentridReadyMode;
   endpoint: string;
   method: string;
   dirty: boolean;
@@ -42,9 +42,9 @@ type FleetReadySnapshot = {
   fileCount: number;
 };
 
-type FleetReadyControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+type ZentridReadyControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-type FleetFormRuntimeState = {
+type ZentridFormRuntimeState = {
   initialSnapshot: string;
   dirty: boolean;
   status: HTMLElement;
@@ -53,24 +53,24 @@ type FleetFormRuntimeState = {
   statusCopy: HTMLElement;
   summary: HTMLElement;
   preview: HTMLPreElement;
-  mode: FleetReadyMode;
+  mode: ZentridReadyMode;
 };
 
-interface FleetRuntimeStabilityOptional {
+interface ZentridRuntimeStabilityOptional {
   debounce(key: string, callback: () => void, delayMs?: number): void;
   frame(key: string, callback: () => void): void;
   registerCleanup(key: string, cleanup: () => void): void;
 }
 
-const FleetFormReadiness = (() => {
-  const states = new WeakMap<HTMLFormElement, FleetFormRuntimeState>();
+const ZentridFormReadiness = (() => {
+  const states = new WeakMap<HTMLFormElement, ZentridFormRuntimeState>();
   const enhanced = new Set<HTMLFormElement>();
   const sensitivePattern = /(password|passcode|token|secret|api[-_]?key|authorization|credential|private[-_]?key|cookie)/i;
   let observer: MutationObserver | null = null;
   let frameId = 0;
 
-  function runtime(): FleetRuntimeStabilityOptional | null {
-    return (window as Window & { FleetRuntimeStability?: FleetRuntimeStabilityOptional }).FleetRuntimeStability || null;
+  function runtime(): ZentridRuntimeStabilityOptional | null {
+    return (window as Window & { ZentridRuntimeStability?: ZentridRuntimeStabilityOptional }).ZentridRuntimeStability || null;
   }
 
   function escapeHtml(value: unknown): string {
@@ -82,32 +82,32 @@ const FleetFormReadiness = (() => {
       .replace(/'/g, '&#039;');
   }
 
-  function controls(form: HTMLFormElement): FleetReadyControl[] {
-    return Array.from(form.querySelectorAll<FleetReadyControl>('input, select, textarea')).filter(control => {
+  function controls(form: HTMLFormElement): ZentridReadyControl[] {
+    return Array.from(form.querySelectorAll<ZentridReadyControl>('input, select, textarea')).filter(control => {
       if (control.disabled || !control.name) return false;
       if (control instanceof HTMLInputElement && ['button', 'submit', 'reset', 'image'].includes(control.type)) return false;
       return true;
     });
   }
 
-  function formMode(form: HTMLFormElement): FleetReadyMode {
-    const value = form.dataset.fleetFormReadiness;
+  function formMode(form: HTMLFormElement): ZentridReadyMode {
+    const value = form.dataset.zentridFormReadiness;
     if (value === 'api' || value === 'unavailable' || value === 'readonly') return value;
     return 'local';
   }
 
-  function normalizedFieldName(control: FleetReadyControl): string {
+  function normalizedFieldName(control: ZentridReadyControl): string {
     return (control.dataset.dtoKey || control.name).replace(/\[\]$/, '').trim();
   }
 
-  function emptyPolicy(control: FleetReadyControl): FleetFormEmptyPolicy {
+  function emptyPolicy(control: ZentridReadyControl): ZentridFormEmptyPolicy {
     const explicit = control.dataset.emptyPolicy;
     if (explicit === 'null' || explicit === 'empty') return explicit;
     if (control.dataset.nullable === 'true') return 'null';
     return control.required ? 'empty' : 'omit';
   }
 
-  function valueType(control: FleetReadyControl): FleetFormValueType {
+  function valueType(control: ZentridReadyControl): ZentridFormValueType {
     const explicit = control.dataset.dtoType;
     if (explicit === 'number' || explicit === 'integer' || explicit === 'boolean' || explicit === 'date' || explicit === 'datetime' || explicit === 'json') return explicit;
     if (control instanceof HTMLInputElement) {
@@ -138,7 +138,7 @@ const FleetFormReadiness = (() => {
     cursor[key] = Array.isArray(current) ? [...current, value] : [current, value];
   }
 
-  function parseValue(control: FleetReadyControl, raw: string, issues: FleetReadyIssue[]): unknown {
+  function parseValue(control: ZentridReadyControl, raw: string, issues: ZentridReadyIssue[]): unknown {
     const field = normalizedFieldName(control);
     const type = valueType(control);
     if (raw === '') {
@@ -166,24 +166,24 @@ const FleetFormReadiness = (() => {
     return raw.trim();
   }
 
-  function enumValues(control: FleetReadyControl): string[] {
+  function enumValues(control: ZentridReadyControl): string[] {
     const explicit = control.dataset.enum;
     if (explicit) return explicit.split(',').map((value: string) => value.trim()).filter(Boolean);
     if (control instanceof HTMLSelectElement) return Array.from(control.options).map(option => option.value).filter(Boolean);
     return [];
   }
 
-  function addNativeIssue(control: FleetReadyControl, issues: FleetReadyIssue[]): void {
+  function addNativeIssue(control: ZentridReadyControl, issues: ZentridReadyIssue[]): void {
     if (control.checkValidity()) return;
     const field = normalizedFieldName(control);
     const message = control.validationMessage || `${field} is invalid.`;
     issues.push({ field, code: 'native-validation', message });
   }
 
-  function serialize(form: HTMLFormElement): FleetReadySerialization {
+  function serialize(form: HTMLFormElement): ZentridReadySerialization {
     const payload: Record<string, unknown> = {};
-    const files: FleetReadyFileDescriptor[] = [];
-    const issues: FleetReadyIssue[] = [];
+    const files: ZentridReadyFileDescriptor[] = [];
+    const issues: ZentridReadyIssue[] = [];
     const seenRadio = new Set<string>();
     const checkboxGroups = new Map<string, HTMLInputElement[]>();
     const list = controls(form);
@@ -263,10 +263,10 @@ const FleetFormReadiness = (() => {
       issues: issues.filter((issue, index, all) => all.findIndex(candidate => candidate.field === issue.field && candidate.code === issue.code && candidate.message === issue.message) === index),
       meta: {
         formId: form.id || form.name || 'anonymous-form',
-        contract: form.dataset.fleetFormContract || form.id || 'UnspecifiedFormContract',
+        contract: form.dataset.zentridFormContract || form.id || 'UnspecifiedFormContract',
         mode: formMode(form),
-        endpoint: form.dataset.fleetFormEndpoint || '',
-        method: (form.dataset.fleetFormMethod || form.method || 'POST').toUpperCase(),
+        endpoint: form.dataset.zentridFormEndpoint || '',
+        method: (form.dataset.zentridFormMethod || form.method || 'POST').toUpperCase(),
         serializedAt: new Date().toISOString(),
         fieldCount: list.length
       }
@@ -292,55 +292,55 @@ const FleetFormReadiness = (() => {
     return Object.fromEntries(Object.entries(record).map(([key, item]) => [key, sensitivePattern.test(key) ? '[redacted]' : redacted(item, path ? `${path}.${key}` : key)]));
   }
 
-  function modeCopy(form: HTMLFormElement, mode: FleetReadyMode): { badge: string; title: string; copy: string } {
-    const note = form.dataset.fleetFormApiNote || '';
+  function modeCopy(form: HTMLFormElement, mode: ZentridReadyMode): { badge: string; title: string; copy: string } {
+    const note = form.dataset.zentridFormApiNote || '';
     if (mode === 'api') return { badge: 'API ready', title: 'Backend submission is connected', copy: note || 'Values are serialized through the declared DTO contract before submission.' };
     if (mode === 'unavailable') return { badge: 'API unavailable', title: 'Submission is disabled', copy: note || 'The backend endpoint is not confirmed. You can review validation and DTO preview without sending a request.' };
     if (mode === 'readonly') return { badge: 'Read-only', title: 'This form cannot be changed', copy: note || 'The current record or endpoint is read-only.' };
     return { badge: 'Local draft', title: 'Prototype save remains local', copy: note || 'No new backend request is introduced. The DTO preview is prepared for future API connection.' };
   }
 
-  function createStatus(form: HTMLFormElement, mode: FleetReadyMode): FleetFormRuntimeState {
+  function createStatus(form: HTMLFormElement, mode: ZentridReadyMode): ZentridFormRuntimeState {
     const status = document.createElement('section');
-    status.className = `fleet-form-readiness fleet-form-readiness-${mode}`;
-    status.dataset.fleetFormReadinessUi = 'true';
+    status.className = `zentrid-form-readiness zentrid-form-readiness-${mode}`;
+    status.dataset.zentridFormReadinessUi = 'true';
     status.setAttribute('aria-live', 'polite');
 
     const copy = modeCopy(form, mode);
     status.innerHTML = `
-      <span class="fleet-form-readiness-badge">${escapeHtml(copy.badge)}</span>
-      <div class="fleet-form-readiness-copy"><strong>${escapeHtml(copy.title)}</strong><small>${escapeHtml(copy.copy)}</small></div>
-      <span class="fleet-form-dirty-state">No unsaved changes</span>`;
+      <span class="zentrid-form-readiness-badge">${escapeHtml(copy.badge)}</span>
+      <div class="zentrid-form-readiness-copy"><strong>${escapeHtml(copy.title)}</strong><small>${escapeHtml(copy.copy)}</small></div>
+      <span class="zentrid-form-dirty-state">No unsaved changes</span>`;
     form.prepend(status);
 
-    let summary = form.querySelector<HTMLElement>('[data-fleet-form-summary], .form-validation-summary, [data-validation-summary]');
+    let summary = form.querySelector<HTMLElement>('[data-zentrid-form-summary], .form-validation-summary, [data-validation-summary]');
     if (!summary) {
       summary = document.createElement('div');
-      summary.className = 'fleet-form-validation-summary';
+      summary.className = 'zentrid-form-validation-summary';
       summary.hidden = true;
       summary.tabIndex = -1;
       status.insertAdjacentElement('afterend', summary);
     } else {
-      summary.classList.add('fleet-form-validation-summary');
+      summary.classList.add('zentrid-form-validation-summary');
     }
-    summary.dataset.fleetFormSummary = 'true';
-    if (!summary.id) summary.id = `fleet-form-summary-${form.id || Math.random().toString(36).slice(2, 8)}`;
+    summary.dataset.zentridFormSummary = 'true';
+    if (!summary.id) summary.id = `zentrid-form-summary-${form.id || Math.random().toString(36).slice(2, 8)}`;
 
     const details = document.createElement('details');
-    details.className = 'fleet-form-contract-preview full';
-    details.innerHTML = `<summary>DTO preview</summary><div class="fleet-form-contract-meta"></div><pre></pre>`;
+    details.className = 'zentrid-form-contract-preview full';
+    details.innerHTML = `<summary>DTO preview</summary><div class="zentrid-form-contract-meta"></div><pre></pre>`;
     const actions = form.querySelector('.modal-actions, .builder-footer-v27, .setup-actions, .form-actions, .drawer-actions');
     if (actions?.parentElement === form) form.insertBefore(details, actions);
     else form.append(details);
 
     const preview = details.querySelector('pre') as HTMLPreElement;
-    const state: FleetFormRuntimeState = {
+    const state: ZentridFormRuntimeState = {
       initialSnapshot: '',
       dirty: false,
       status,
-      statusBadge: status.querySelector('.fleet-form-readiness-badge') as HTMLElement,
-      statusTitle: status.querySelector('.fleet-form-readiness-copy strong') as HTMLElement,
-      statusCopy: status.querySelector('.fleet-form-readiness-copy small') as HTMLElement,
+      statusBadge: status.querySelector('.zentrid-form-readiness-badge') as HTMLElement,
+      statusTitle: status.querySelector('.zentrid-form-readiness-copy strong') as HTMLElement,
+      statusCopy: status.querySelector('.zentrid-form-readiness-copy small') as HTMLElement,
       summary,
       preview,
       mode
@@ -348,7 +348,7 @@ const FleetFormReadiness = (() => {
     return state;
   }
 
-  function renderSummary(form: HTMLFormElement, issues: FleetReadyIssue[], title = 'Please review the form'): void {
+  function renderSummary(form: HTMLFormElement, issues: ZentridReadyIssue[], title = 'Please review the form'): void {
     const state = states.get(form);
     if (!state) return;
     if (!issues.length) {
@@ -360,13 +360,13 @@ const FleetFormReadiness = (() => {
     state.summary.innerHTML = `<strong>${escapeHtml(title)}</strong><ul>${issues.map(issue => `<li><b>${escapeHtml(issue.field)}</b>: ${escapeHtml(issue.message)}</li>`).join('')}</ul>`;
   }
 
-  function updatePreview(form: HTMLFormElement): FleetReadySerialization {
+  function updatePreview(form: HTMLFormElement): ZentridReadySerialization {
     const result = serialize(form);
     const state = states.get(form);
     if (!state) return result;
     const safe = redacted(result.payload);
     state.preview.textContent = JSON.stringify(safe, null, 2);
-    const meta = state.preview.parentElement?.querySelector<HTMLElement>('.fleet-form-contract-meta');
+    const meta = state.preview.parentElement?.querySelector<HTMLElement>('.zentrid-form-contract-meta');
     if (meta) {
       const endpoint = result.meta.endpoint || 'Endpoint not confirmed';
       meta.innerHTML = `<span>${escapeHtml(result.meta.contract)}</span><span>${escapeHtml(result.meta.method)} ${escapeHtml(endpoint)}</span><span>${result.files.length} file(s)</span><span>${result.issues.length} issue(s)</span>`;
@@ -375,7 +375,7 @@ const FleetFormReadiness = (() => {
   }
 
   function schedulePreview(form: HTMLFormElement): void {
-    const key = `form-readiness:${form.id || form.dataset.fleetFormContract || 'form'}`;
+    const key = `form-readiness:${form.id || form.dataset.zentridFormContract || 'form'}`;
     const sharedRuntime = runtime();
     if (sharedRuntime) sharedRuntime.debounce(key, () => updatePreview(form), 180);
     else window.setTimeout(() => updatePreview(form), 180);
@@ -388,8 +388,8 @@ const FleetFormReadiness = (() => {
     const changed = state.dirty !== nextDirty;
     state.dirty = nextDirty;
     form.classList.toggle('is-dirty', state.dirty);
-    form.dataset.fleetFormDirty = state.dirty ? 'true' : 'false';
-    const label = state.status.querySelector<HTMLElement>('.fleet-form-dirty-state');
+    form.dataset.zentridFormDirty = state.dirty ? 'true' : 'false';
+    const label = state.status.querySelector<HTMLElement>('.zentrid-form-dirty-state');
     if (label) label.textContent = state.dirty ? 'Unsaved changes' : 'No unsaved changes';
     if (changed) window.dispatchEvent(new CustomEvent('zentrid:form-dirty-change', { detail: { form, dirty: state.dirty } }));
   }
@@ -400,28 +400,28 @@ const FleetFormReadiness = (() => {
     state.initialSnapshot = formSnapshot(form);
     state.dirty = false;
     form.classList.remove('is-dirty');
-    form.dataset.fleetFormDirty = 'false';
-    const label = state.status.querySelector<HTMLElement>('.fleet-form-dirty-state');
+    form.dataset.zentridFormDirty = 'false';
+    const label = state.status.querySelector<HTMLElement>('.zentrid-form-dirty-state');
     if (label) label.textContent = 'No unsaved changes';
     updatePreview(form);
     window.dispatchEvent(new CustomEvent('zentrid:form-committed', { detail: { form } }));
   }
 
-  function applyMode(form: HTMLFormElement, state: FleetFormRuntimeState): void {
+  function applyMode(form: HTMLFormElement, state: ZentridFormRuntimeState): void {
     const submitButtons = Array.from(form.querySelectorAll<HTMLButtonElement | HTMLInputElement>('button[type="submit"], input[type="submit"]'));
     submitButtons.forEach(button => {
-      if (button.dataset.fleetDisabledByReadiness === 'true') button.disabled = false;
-      delete button.dataset.fleetDisabledByReadiness;
+      if (button.dataset.zentridDisabledByReadiness === 'true') button.disabled = false;
+      delete button.dataset.zentridDisabledByReadiness;
       if (button.title === 'API not available') button.removeAttribute('title');
     });
     controls(form).forEach(control => {
-      if (control.dataset.fleetReadonlyByReadiness === 'true') control.disabled = false;
-      delete control.dataset.fleetReadonlyByReadiness;
+      if (control.dataset.zentridReadonlyByReadiness === 'true') control.disabled = false;
+      delete control.dataset.zentridReadonlyByReadiness;
     });
     if (state.mode === 'unavailable') {
       submitButtons.forEach(button => {
         button.disabled = true;
-        button.dataset.fleetDisabledByReadiness = 'true';
+        button.dataset.zentridDisabledByReadiness = 'true';
         if (state.summary.id) button.setAttribute('aria-describedby', state.summary.id);
         button.title = 'API not available';
       });
@@ -429,16 +429,16 @@ const FleetFormReadiness = (() => {
     if (state.mode === 'readonly') {
       controls(form).forEach(control => {
         control.disabled = true;
-        control.dataset.fleetReadonlyByReadiness = 'true';
+        control.dataset.zentridReadonlyByReadiness = 'true';
       });
       submitButtons.forEach(button => {
         button.disabled = true;
-        button.dataset.fleetDisabledByReadiness = 'true';
+        button.dataset.zentridDisabledByReadiness = 'true';
       });
     }
   }
 
-  function validate(form: HTMLFormElement): FleetReadySerialization {
+  function validate(form: HTMLFormElement): ZentridReadySerialization {
     const result = updatePreview(form);
     renderSummary(form, result.issues, result.issues.length ? 'Please review the highlighted values' : 'Form is valid');
     if (result.issues.length) states.get(form)?.summary.focus({ preventScroll: true });
@@ -446,12 +446,12 @@ const FleetFormReadiness = (() => {
   }
 
   function enhance(form: HTMLFormElement): void {
-    if (states.has(form) || form.dataset.fleetFormReadiness === 'off') return;
+    if (states.has(form) || form.dataset.zentridFormReadiness === 'off') return;
     const mode = formMode(form);
     const state = createStatus(form, mode);
     states.set(form, state);
     enhanced.add(form);
-    form.dataset.fleetFormEnhanced = 'true';
+    form.dataset.zentridFormEnhanced = 'true';
     applyMode(form, state);
 
     const onChange = () => {
@@ -469,7 +469,7 @@ const FleetFormReadiness = (() => {
         state.summary.focus({ preventScroll: true });
         return;
       }
-      if (form.dataset.fleetFormValidation === 'native') {
+      if (form.dataset.zentridFormValidation === 'native') {
         const result = validate(form);
         if (result.issues.length) event.preventDefault();
       }
@@ -479,8 +479,8 @@ const FleetFormReadiness = (() => {
   }
 
   function enhanceAll(root: ParentNode = document): void {
-    if (root instanceof HTMLFormElement && root.dataset.fleetFormReadiness && root.dataset.fleetFormReadiness !== 'off') enhance(root);
-    root.querySelectorAll<HTMLFormElement>('form[data-fleet-form-readiness]:not([data-fleet-form-readiness="off"])').forEach(enhance);
+    if (root instanceof HTMLFormElement && root.dataset.zentridFormReadiness && root.dataset.zentridFormReadiness !== 'off') enhance(root);
+    root.querySelectorAll<HTMLFormElement>('form[data-zentrid-form-readiness]:not([data-zentrid-form-readiness="off"])').forEach(enhance);
   }
 
   function scheduleEnhance(root: ParentNode = document): void {
@@ -497,21 +497,21 @@ const FleetFormReadiness = (() => {
     return states.get(form)?.dirty || false;
   }
 
-  function setMode(form: HTMLFormElement, mode: FleetReadyMode, note = ''): void {
-    form.dataset.fleetFormReadiness = mode;
-    if (note) form.dataset.fleetFormApiNote = note;
+  function setMode(form: HTMLFormElement, mode: ZentridReadyMode, note = ''): void {
+    form.dataset.zentridFormReadiness = mode;
+    if (note) form.dataset.zentridFormApiNote = note;
     const state = states.get(form);
     if (!state) { enhance(form); return; }
     state.mode = mode;
     const copy = modeCopy(form, mode);
-    state.status.className = `fleet-form-readiness fleet-form-readiness-${mode}`;
+    state.status.className = `zentrid-form-readiness zentrid-form-readiness-${mode}`;
     state.statusBadge.textContent = copy.badge;
     state.statusTitle.textContent = copy.title;
     state.statusCopy.textContent = copy.copy;
     applyMode(form, state);
   }
 
-  function snapshot(): FleetReadySnapshot[] {
+  function snapshot(): ZentridReadySnapshot[] {
     return Array.from(enhanced).filter(form => form.isConnected).map(form => {
       const result = serialize(form);
       return {
@@ -575,4 +575,4 @@ const FleetFormReadiness = (() => {
   };
 })();
 
-window.FleetFormReadiness = FleetFormReadiness;
+window.ZentridFormReadiness = ZentridFormReadiness;

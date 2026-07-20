@@ -122,19 +122,19 @@
   function guardRapidActions(): void {
     document.addEventListener('click', event => {
       const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button') : null;
-      if (!target || target.disabled || target.dataset.fleetRapidGuard === 'off') return;
-      if (target.type !== 'submit' && !target.hasAttribute('data-fleet-single-action') && !target.hasAttribute('data-detail-lazy-retry')) return;
-      if (target.dataset.fleetRapidLock === 'true') {
+      if (!target || target.disabled || target.dataset.zentridRapidGuard === 'off') return;
+      if (target.type !== 'submit' && !target.hasAttribute('data-zentrid-single-action') && !target.hasAttribute('data-detail-lazy-retry')) return;
+      if (target.dataset.zentridRapidLock === 'true') {
         event.preventDefault();
         event.stopImmediatePropagation();
         return;
       }
-      target.dataset.fleetRapidLock = 'true';
+      target.dataset.zentridRapidLock = 'true';
       queueMicrotask(() => {
         target.setAttribute('aria-disabled', 'true');
         debounce(`rapid:${target.id || target.name || target.textContent || 'button'}`, () => {
           if (!target.isConnected) return;
-          delete target.dataset.fleetRapidLock;
+          delete target.dataset.zentridRapidLock;
           target.removeAttribute('aria-disabled');
         }, 700);
       });
@@ -192,5 +192,5 @@
   window.addEventListener('pagehide', dispose, { once: true });
 
   const api = { debounce, frame, idle, replaceHtml, registerCleanup, unregisterCleanup, dispose, snapshot };
-  window.FleetRuntimeStability = api;
+  window.ZentridRuntimeStability = api;
 })();

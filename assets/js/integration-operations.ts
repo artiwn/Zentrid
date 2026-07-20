@@ -120,7 +120,7 @@ const V55 = (() => {
       <div><strong>${f.connector}</strong><small>${f.time} · ${f.impact}</small></div>
       ${badge(f.severity)}
       <div><strong>${f.error}</strong><small>${f.action}</small></div>
-      <div class="row-actions"><button onclick="FleetLayout.toast('Retry requested for ${f.connector}')">Retry</button><button onclick="FleetLayout.toast('Opening operation log')">View Log</button><button onclick="FleetLayout.toast('Escalation created')">Escalate</button></div>
+      <div class="row-actions"><button onclick="ZentridLayout.toast('Retry requested for ${f.connector}')">Retry</button><button onclick="ZentridLayout.toast('Opening operation log')">View Log</button><button onclick="ZentridLayout.toast('Escalation created')">Escalate</button></div>
     </div>`;
   }
 
@@ -130,7 +130,7 @@ const V55 = (() => {
     const critical = connectors.filter(c => c.status === 'Critical').length;
     const queued = connectors.reduce((sum, c) => sum + Number(c.queue || 0), 0);
 
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       ${V51.hero('Global Admin · Integration Governance', 'Connector Operations', 'Operational command center for live connector health, sync jobs, failed operations, queues and timeline. Registry/setup data stays in Connector Registry.', 'Live operations')}
 
       ${V51.kpis([
@@ -141,7 +141,7 @@ const V55 = (() => {
       ])}
 
       <section class="panel glass-card">
-        <div class="panel-head"><div><h2>Connector Health</h2><p>Shows how active integrations are operating right now: health, freshness, lag, errors and queue pressure.</p></div><div class="row-actions"><button onclick="FleetLayout.toast('Health checks refreshed')">Refresh</button><button onclick="FleetLayout.toast('Manual sync requested')">Run Sync</button></div></div>
+        <div class="panel-head"><div><h2>Connector Health</h2><p>Shows how active integrations are operating right now: health, freshness, lag, errors and queue pressure.</p></div><div class="row-actions"><button onclick="ZentridLayout.toast('Health checks refreshed')">Refresh</button><button onclick="ZentridLayout.toast('Manual sync requested')">Run Sync</button></div></div>
         <div class="data-table"><div class="data-head ops-row-v56"><span>Connector</span><span>Status</span><span>Health</span><span>Freshness</span><span>Last Sync</span><span>Queue</span><span>Owner / Scope</span></div>${connectors.map(connectorRow).join('')}</div>
       </section>
 
@@ -151,13 +151,13 @@ const V55 = (() => {
           <div class="data-table"><div class="data-head ops-job-row-v56"><span>Job</span><span>Type / Stage</span><span>Status</span><span>Duration</span><span>Records</span></div>${jobs.map(jobRow).join('')}</div>
         </div>
         <div class="panel glass-card">
-          <div class="panel-head"><div><h2>Queue Monitoring</h2><p>Scheduler and retry workload that operations should watch.</p></div><button onclick="FleetLayout.toast('Retry queue replay started')">Replay Retry Queue</button></div>
+          <div class="panel-head"><div><h2>Queue Monitoring</h2><p>Scheduler and retry workload that operations should watch.</p></div><button onclick="ZentridLayout.toast('Retry queue replay started')">Replay Retry Queue</button></div>
           <div class="queue-grid-v56">${queue.map(q => `<article><span>${q.label}</span><strong>${q.value}</strong><small>${q.note}</small></article>`).join('')}</div>
         </div>
       </section>
 
       <section class="panel glass-card">
-        <div class="panel-head"><div><h2>Failed Operations</h2><p>Only actionable failures are shown here. Setup, credentials and vendor profile fields remain in Connector Registry.</p></div><button onclick="FleetLayout.toast('Failure list exported')">Export Failures</button></div>
+        <div class="panel-head"><div><h2>Failed Operations</h2><p>Only actionable failures are shown here. Setup, credentials and vendor profile fields remain in Connector Registry.</p></div><button onclick="ZentridLayout.toast('Failure list exported')">Export Failures</button></div>
         <div class="data-table"><div class="data-head ops-failed-row-v56"><span>Connector</span><span>Severity</span><span>Error / Next Action</span><span>Actions</span></div>${failed.map(failedRow).join('')}</div>
       </section>
 

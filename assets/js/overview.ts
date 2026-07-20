@@ -9,7 +9,7 @@ interface OverviewKpi {
   route: string;
 }
 
-interface OverviewFleetHealthItem {
+interface OverviewPortfolioHealthItem {
   label: string;
   value: number;
 }
@@ -49,7 +49,7 @@ interface OverviewState {
 
 interface ZentridOverviewMock {
   kpis: OverviewKpi[];
-  fleetHealth: OverviewFleetHealthItem[];
+  zentridHealth: OverviewPortfolioHealthItem[];
   alerts: OverviewAlertItem[];
   integrations: OverviewIntegrationItem[];
   quality: OverviewQualityItem[];
@@ -71,7 +71,7 @@ function overviewStatusClass(value: unknown): string {
 }
 
 function overviewProgressBars(): string {
-  return ZentridMock.fleetHealth.map(item => `
+  return ZentridMock.zentridHealth.map(item => `
     <button class="health-row drill" data-panel="fleet" data-title="${item.label} devices" data-route="asset-registry">
       <div class="health-label"><span>${item.label}</span><strong>${item.value}%</strong></div>
       <div class="progress"><div style="width:${item.value}%"></div></div>
@@ -125,11 +125,11 @@ function overviewDrawPanel(title: string, body: string, route: string): void {
   asHTMLElement(drawer.querySelector('.drawer-close-2'))!.onclick = () => drawer.classList.remove('open');
   asHTMLElement(drawer.querySelector('.primary-action'))!.onclick = (event: Event) => {
     const target = event.currentTarget as HTMLElement;
-    window.location.href = FleetLayout.pathFor(target.dataset.route);
+    window.location.href = ZentridLayout.pathFor(target.dataset.route);
   };
 }
 
-function overviewRender(state: OverviewState = FleetLayout.state): string {
+function overviewRender(state: OverviewState = ZentridLayout.state): string {
   return `
     <section class="page-hero">
       <div>
@@ -291,8 +291,8 @@ function overviewDetailBody(type: string | undefined, title: string): string {
       ])}`;
     }
     return `<p>Tenant and platform scope preview.</p>${overviewMetricGrid([
-      ['Context', `${FleetLayout.state.tenant}`],
-      ['Time Range', `${FleetLayout.state.time}`],
+      ['Context', `${ZentridLayout.state.tenant}`],
+      ['Time Range', `${ZentridLayout.state.time}`],
       ['Region', `${overviewState.region}`],
       ['Drill Filter', title]
     ])}`;
@@ -388,20 +388,20 @@ function overviewDetailBody(type: string | undefined, title: string): string {
   }
 
   return `<p>Preview for <strong>${title}</strong>.</p>${overviewMetricGrid([
-    ['Context', `${FleetLayout.state.tenant}`],
-    ['Time Range', `${FleetLayout.state.time}`]
+    ['Context', `${ZentridLayout.state.tenant}`],
+    ['Time Range', `${ZentridLayout.state.time}`]
   ])}`;
 }
 
 window.renderOverview = overviewRender;
-const overviewState = FleetLayout.mount(overviewRender());
+const overviewState = ZentridLayout.mount(overviewRender());
 
 function wireOverview(): void {
   asHTMLElement(document.querySelector('.main-content'))?.addEventListener('click', (event: MouseEvent) => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
     const go = asHTMLElement(target.closest('.go'));
-    if (go) { window.location.href = FleetLayout.pathFor(go.dataset.route); return; }
+    if (go) { window.location.href = ZentridLayout.pathFor(go.dataset.route); return; }
     const drill = asHTMLElement(target.closest('.drill'));
     if (drill) {
       overviewDrawPanel(drill.dataset.title || 'Details', overviewDetailBody(drill.dataset.panel, drill.dataset.title || 'Details'), drill.dataset.route || 'index');
@@ -415,7 +415,7 @@ function wireOverview(): void {
         overviewState.region = next; localStorage.setItem('zentrid_region', next);
         const ctxRegion = asHTMLElement(document.getElementById('ctxRegion'));
         if (ctxRegion) ctxRegion.textContent = next;
-        FleetLayout.toast(`Region changed: ${next}`);
+        ZentridLayout.toast(`Region changed: ${next}`);
       }
     }
   });

@@ -1,5 +1,5 @@
 (function () {
-type FleetMutationErrorKind =
+type ZentridMutationErrorKind =
   | 'timeout'
   | 'cancelled'
   | 'unauthorized'
@@ -11,7 +11,7 @@ type FleetMutationErrorKind =
   | 'network'
   | 'unknown';
 
-type FleetMutationDescriptor = {
+type ZentridMutationDescriptor = {
   action: string;
   path: string;
   method: string;
@@ -19,7 +19,7 @@ type FleetMutationDescriptor = {
   successMessage: string;
 };
 
-type FleetMutationMeta = {
+type ZentridMutationMeta = {
   operationId: string;
   action: string;
   path: string;
@@ -30,8 +30,8 @@ type FleetMutationMeta = {
   durationMs: number;
 };
 
-type FleetMutationNormalizedError = {
-  kind: FleetMutationErrorKind;
+type ZentridMutationNormalizedError = {
+  kind: ZentridMutationErrorKind;
   message: string;
   status: number;
   code: string;
@@ -39,60 +39,60 @@ type FleetMutationNormalizedError = {
   retriable: boolean;
 };
 
-type FleetMutationSuccess<T> = {
+type ZentridMutationSuccess<T> = {
   ok: true;
   data: T;
   message: string;
-  meta: FleetMutationMeta;
+  meta: ZentridMutationMeta;
 };
 
-type FleetMutationFailure = {
+type ZentridMutationFailure = {
   ok: false;
   data: null;
   message: string;
-  error: FleetMutationNormalizedError;
-  meta: FleetMutationMeta;
+  error: ZentridMutationNormalizedError;
+  meta: ZentridMutationMeta;
 };
 
-type FleetMutationResult<T = unknown> = FleetMutationSuccess<T> | FleetMutationFailure;
+type ZentridMutationResult<T = unknown> = ZentridMutationSuccess<T> | ZentridMutationFailure;
 
-type FleetMutationRunner = <T>(
-  descriptor: FleetMutationDescriptor,
+type ZentridMutationRunner = <T>(
+  descriptor: ZentridMutationDescriptor,
   operation: () => Promise<T>
-) => Promise<FleetMutationResult<T>>;
+) => Promise<ZentridMutationResult<T>>;
 
-type FleetMutationCreateModule = {
-  create(payload: unknown): Promise<FleetMutationResult>;
+type ZentridMutationCreateModule = {
+  create(payload: unknown): Promise<ZentridMutationResult>;
 };
 
-type FleetMutationTenantModule = FleetMutationCreateModule & {
-  activate(id: string): Promise<FleetMutationResult>;
-  deactivate(id: string): Promise<FleetMutationResult>;
-  archive(id: string): Promise<FleetMutationResult>;
+type ZentridMutationTenantModule = ZentridMutationCreateModule & {
+  activate(id: string): Promise<ZentridMutationResult>;
+  deactivate(id: string): Promise<ZentridMutationResult>;
+  archive(id: string): Promise<ZentridMutationResult>;
 };
 
-type FleetMutationIntegrationModule = FleetMutationCreateModule & {
-  validate(id: string): Promise<FleetMutationResult>;
-  testConnection(id: string): Promise<FleetMutationResult>;
-  testSampleData(id: string): Promise<FleetMutationResult>;
-  activate(id: string): Promise<FleetMutationResult>;
-  suspend(id: string): Promise<FleetMutationResult>;
-  archive(id: string): Promise<FleetMutationResult>;
-  failed(id: string): Promise<FleetMutationResult>;
+type ZentridMutationIntegrationModule = ZentridMutationCreateModule & {
+  validate(id: string): Promise<ZentridMutationResult>;
+  testConnection(id: string): Promise<ZentridMutationResult>;
+  testSampleData(id: string): Promise<ZentridMutationResult>;
+  activate(id: string): Promise<ZentridMutationResult>;
+  suspend(id: string): Promise<ZentridMutationResult>;
+  archive(id: string): Promise<ZentridMutationResult>;
+  failed(id: string): Promise<ZentridMutationResult>;
 };
 
-type FleetAPIMutationsShape = {
-  run: FleetMutationRunner;
-  isSuccess<T>(result: FleetMutationResult<T>): result is FleetMutationSuccess<T>;
-  isFailure<T>(result: FleetMutationResult<T>): result is FleetMutationFailure;
-  unwrap<T>(result: FleetMutationResult<T>): T;
-  clients: FleetMutationCreateModule;
-  tenants: FleetMutationTenantModule;
-  plants: FleetMutationCreateModule;
-  integrations: FleetMutationIntegrationModule;
+type ZentridAPIMutationsShape = {
+  run: ZentridMutationRunner;
+  isSuccess<T>(result: ZentridMutationResult<T>): result is ZentridMutationSuccess<T>;
+  isFailure<T>(result: ZentridMutationResult<T>): result is ZentridMutationFailure;
+  unwrap<T>(result: ZentridMutationResult<T>): T;
+  clients: ZentridMutationCreateModule;
+  tenants: ZentridMutationTenantModule;
+  plants: ZentridMutationCreateModule;
+  integrations: ZentridMutationIntegrationModule;
 };
 
-const FleetAPIMutations: FleetAPIMutationsShape = (() => {
+const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
   let operationSequence = 0;
 
   function uniqueEntities(entities: ZentridMutationEntity[]): ZentridMutationEntity[] {
@@ -118,7 +118,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   }
 
-  function errorKind(status: number, code: string): FleetMutationErrorKind {
+  function errorKind(status: number, code: string): ZentridMutationErrorKind {
     const normalizedCode = code.toUpperCase();
     if (normalizedCode === 'TIMEOUT' || status === 408) return 'timeout';
     if (normalizedCode === 'ABORTED') return 'cancelled';
@@ -132,7 +132,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     return 'unknown';
   }
 
-  function isRetriable(kind: FleetMutationErrorKind, status: number): boolean {
+  function isRetriable(kind: ZentridMutationErrorKind, status: number): boolean {
     return kind === 'timeout'
       || kind === 'network'
       || kind === 'rate-limit'
@@ -140,7 +140,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
       || status === 408;
   }
 
-  function defaultErrorMessage(kind: FleetMutationErrorKind): string {
+  function defaultErrorMessage(kind: ZentridMutationErrorKind): string {
     switch (kind) {
       case 'timeout': return 'The operation timed out before the backend responded.';
       case 'cancelled': return 'The operation was cancelled.';
@@ -155,7 +155,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     }
   }
 
-  function normalizeError(error: unknown, fallbackPath: string): FleetMutationNormalizedError {
+  function normalizeError(error: unknown, fallbackPath: string): ZentridMutationNormalizedError {
     const record = errorRecord(error);
     const status = numericStatus(record.status);
     const code = textValue(record.code) || (status ? `HTTP_${status}` : 'MUTATION_FAILED');
@@ -173,7 +173,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     };
   }
 
-  function buildMeta(descriptor: FleetMutationDescriptor, startedAt: Date, startedMs: number): FleetMutationMeta {
+  function buildMeta(descriptor: ZentridMutationDescriptor, startedAt: Date, startedMs: number): ZentridMutationMeta {
     return {
       operationId: operationId(descriptor.action),
       action: descriptor.action,
@@ -186,16 +186,16 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     };
   }
 
-  function dispatchResult<T>(result: FleetMutationResult<T>): void {
-    window.dispatchEvent(new CustomEvent<FleetMutationResult<T>>('zentrid:mutation-result', { detail: result }));
+  function dispatchResult<T>(result: ZentridMutationResult<T>): void {
+    window.dispatchEvent(new CustomEvent<ZentridMutationResult<T>>('zentrid:mutation-result', { detail: result }));
   }
 
-  async function run<T>(descriptor: FleetMutationDescriptor, operation: () => Promise<T>): Promise<FleetMutationResult<T>> {
+  async function run<T>(descriptor: ZentridMutationDescriptor, operation: () => Promise<T>): Promise<ZentridMutationResult<T>> {
     const startedAt = new Date();
     const startedMs = performance.now();
     try {
       const data = await operation();
-      const result: FleetMutationSuccess<T> = {
+      const result: ZentridMutationSuccess<T> = {
         ok: true,
         data,
         message: descriptor.successMessage,
@@ -205,7 +205,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
       return result;
     } catch (error: unknown) {
       const normalized = normalizeError(error, descriptor.path);
-      const result: FleetMutationFailure = {
+      const result: ZentridMutationFailure = {
         ok: false,
         data: null,
         message: normalized.message,
@@ -217,15 +217,15 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     }
   }
 
-  function isSuccess<T>(result: FleetMutationResult<T>): result is FleetMutationSuccess<T> {
+  function isSuccess<T>(result: ZentridMutationResult<T>): result is ZentridMutationSuccess<T> {
     return result.ok;
   }
 
-  function isFailure<T>(result: FleetMutationResult<T>): result is FleetMutationFailure {
+  function isFailure<T>(result: ZentridMutationResult<T>): result is ZentridMutationFailure {
     return !result.ok;
   }
 
-  function unwrap<T>(result: FleetMutationResult<T>): T {
+  function unwrap<T>(result: ZentridMutationResult<T>): T {
     if (result.ok) return result.data;
     const error = new Error(result.error.message);
     Object.assign(error, result.error);
@@ -241,18 +241,18 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     path: string,
     entities: ZentridMutationEntity[],
     successMessage: string
-  ): FleetMutationDescriptor {
+  ): ZentridMutationDescriptor {
     return { action, path, method: 'POST', entities, successMessage };
   }
 
-  const clients: FleetMutationCreateModule = {
+  const clients: ZentridMutationCreateModule = {
     create: (payload: unknown) => run(
       descriptor('client.create', '/api/admin/clients', ['clients'], 'Client created successfully.'),
       () => ZentridPlatformAPI.clients.create(payload)
     )
   };
 
-  const tenants: FleetMutationTenantModule = {
+  const tenants: ZentridMutationTenantModule = {
     create: (payload: unknown) => run(
       descriptor('tenant.create', '/api/admin/tenants', ['tenants'], 'Tenant created successfully.'),
       () => ZentridPlatformAPI.tenants.create(payload)
@@ -271,7 +271,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     )
   };
 
-  const plants: FleetMutationCreateModule = {
+  const plants: ZentridMutationCreateModule = {
     create: (payload: unknown) => run(
       descriptor('plant.create', '/api/admin/plants', ['plants'], 'Plant created successfully.'),
       () => ZentridPlatformAPI.plantRegistry.create(payload)
@@ -283,7 +283,7 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
     return `/api/admin/provider-integrations/${encoded(id)}/${action}`;
   }
 
-  const integrations: FleetMutationIntegrationModule = {
+  const integrations: ZentridMutationIntegrationModule = {
     create: (payload: unknown) => run(
       descriptor('integration.create', '/api/admin/provider-integrations', ['integrations'], 'Provider integration created successfully.'),
       () => ZentridPlatformAPI.providerIntegrations.create(payload)
@@ -321,5 +321,5 @@ const FleetAPIMutations: FleetAPIMutationsShape = (() => {
   return { run, isSuccess, isFailure, unwrap, clients, tenants, plants, integrations };
 })();
 
-window.FleetAPIMutations = FleetAPIMutations;
+window.ZentridAPIMutations = ZentridAPIMutations;
 })();

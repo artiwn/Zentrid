@@ -73,7 +73,7 @@
       <main class="login-shell">
         <section class="login-card glass-card">
           <div class="login-brand">
-            <div class="brand-mark">F</div>
+            <div class="brand-mark">Z</div>
             <div>
               <p class="eyebrow">Zentrid Auth</p>
               <h1>Global Admin Login</h1>

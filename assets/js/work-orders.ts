@@ -372,7 +372,7 @@
   }
 
   function render(): void {
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero">
         <div>
           <p class="eyebrow">Global Admin · Operations Center</p>
@@ -413,9 +413,9 @@
       if (action) {
         const name = action.dataset.workorderAction;
         if (name === 'create') createDrawer();
-        if (name === 'sync-all') FleetLayout.toast('Bitrix work order sync requested');
-        if (name === 'sync-one') FleetLayout.toast(`Manual sync requested for ${action.dataset.id}`);
-        if (name === 'evidence') FleetLayout.toast(`Evidence review opened for ${action.dataset.id}`);
+        if (name === 'sync-all') ZentridLayout.toast('Bitrix work order sync requested');
+        if (name === 'sync-one') ZentridLayout.toast(`Manual sync requested for ${action.dataset.id}`);
+        if (name === 'evidence') ZentridLayout.toast(`Evidence review opened for ${action.dataset.id}`);
       }
     };
 
@@ -431,7 +431,7 @@
     if (!close) return;
     const d = document.getElementById('workorderDrawer');
     d?.classList.remove('open');
-    if (close.dataset.workorderCloseToast) FleetLayout.toast(close.dataset.workorderCloseToast);
+    if (close.dataset.workorderCloseToast) ZentridLayout.toast(close.dataset.workorderCloseToast);
   });
 
   window.ZentridWorkOrders = { workOrders, tone, escape };

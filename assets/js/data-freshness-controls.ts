@@ -1,10 +1,10 @@
 /* Zentrid data freshness and refresh controls.
    Keeps freshness UX separate from backend contracts and never invents mutations. */
 (function () {
-  type FleetFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
-  type FleetFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
+  type ZentridFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
+  type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
 
-  interface FleetFreshnessSyncInput {
+  interface ZentridFreshnessSyncInput {
     liveState: string;
     title?: string;
     message?: string;
@@ -12,13 +12,13 @@
     details?: string;
     updatedAt?: string;
     cacheAgeMs?: number;
-    status?: FleetFreshnessStatus;
-    resource?: FleetFreshnessResource;
+    status?: ZentridFreshnessStatus;
+    resource?: ZentridFreshnessResource;
   }
 
-  interface FleetFreshnessSnapshot {
-    resource: FleetFreshnessResource;
-    status: FleetFreshnessStatus;
+  interface ZentridFreshnessSnapshot {
+    resource: ZentridFreshnessResource;
+    status: ZentridFreshnessStatus;
     updatedAt: string | null;
     ageMs: number | null;
     autoRefreshMs: number;
@@ -29,8 +29,8 @@
     visible: boolean;
   }
 
-  interface FleetFreshnessResourceConfig {
-    resource: FleetFreshnessResource;
+  interface ZentridFreshnessResourceConfig {
+    resource: ZentridFreshnessResource;
     label: string;
     staleAfterMs: number;
     autoRefreshAllowed: boolean;
@@ -39,14 +39,14 @@
   const AUTO_OPTIONS = [0, 30_000, 60_000, 300_000];
   const STORAGE_PREFIX = 'zentrid_data_refresh_interval_v135:';
   const DEFAULT_STALE_AFTER_MS = 60_000;
-  const stateByResource = new Map<FleetFreshnessResource, FleetFreshnessSnapshot>();
-  let activeResource: FleetFreshnessResource = 'unknown';
+  const stateByResource = new Map<ZentridFreshnessResource, ZentridFreshnessSnapshot>();
+  let activeResource: ZentridFreshnessResource = 'unknown';
   let timerId: number | null = null;
   let tickerId: number | null = null;
 
-  function inferConfig(pathname = location.pathname): FleetFreshnessResourceConfig {
+  function inferConfig(pathname = location.pathname): ZentridFreshnessResourceConfig {
     const page = pathname.split('/').pop() || 'index.html';
-    const configs: Record<string, FleetFreshnessResourceConfig> = {
+    const configs: Record<string, ZentridFreshnessResourceConfig> = {
       'index.html': { resource: 'overview', label: 'Overview', staleAfterMs: 60_000, autoRefreshAllowed: true },
       'clients.html': { resource: 'clients', label: 'Clients', staleAfterMs: 60_000, autoRefreshAllowed: true },
       'client-detail.html': { resource: 'client-detail', label: 'Client Detail', staleAfterMs: 120_000, autoRefreshAllowed: true },
@@ -74,12 +74,12 @@
     return AUTO_OPTIONS.includes(parsed) ? parsed : 0;
   }
 
-  function autoRefreshFor(resource: FleetFreshnessResource): number {
+  function autoRefreshFor(resource: ZentridFreshnessResource): number {
     const raw = storage()?.getItem(`${STORAGE_PREFIX}${resource}`);
     return normalizedAutoRefresh(raw);
   }
 
-  function storeAutoRefresh(resource: FleetFreshnessResource, intervalMs: number): void {
+  function storeAutoRefresh(resource: ZentridFreshnessResource, intervalMs: number): void {
     const safe = normalizedAutoRefresh(intervalMs);
     try {
       if (safe) storage()?.setItem(`${STORAGE_PREFIX}${resource}`, String(safe));
@@ -89,10 +89,10 @@
     }
   }
 
-  function currentSnapshot(resource = activeResource): FleetFreshnessSnapshot {
+  function currentSnapshot(resource = activeResource): ZentridFreshnessSnapshot {
     const existing = stateByResource.get(resource);
     if (existing) return existing;
-    const created: FleetFreshnessSnapshot = {
+    const created: ZentridFreshnessSnapshot = {
       resource,
       status: 'refreshing',
       updatedAt: null,
@@ -122,8 +122,8 @@
     return `Updated ${Math.max(1, Math.floor(ageMs / 3_600_000))} hr ago`;
   }
 
-  function statusLabel(status: FleetFreshnessStatus): string {
-    const labels: Record<FleetFreshnessStatus, string> = {
+  function statusLabel(status: ZentridFreshnessStatus): string {
+    const labels: Record<ZentridFreshnessStatus, string> = {
       live: 'Live',
       cached: 'Cached',
       refreshing: 'Refreshing',
@@ -140,7 +140,7 @@
     return `${Math.round(intervalMs / 60_000)} min`;
   }
 
-  function derivedStatus(input: FleetFreshnessSyncInput, previous: FleetFreshnessSnapshot): FleetFreshnessStatus {
+  function derivedStatus(input: ZentridFreshnessSyncInput, previous: ZentridFreshnessSnapshot): ZentridFreshnessStatus {
     if (input.status) return input.status;
     const detailText = `${input.message || ''} ${input.details || ''}`.toLowerCase();
     if (input.liveState === 'loading') return 'refreshing';
@@ -159,7 +159,7 @@
     return previous.status;
   }
 
-  function effectiveStatus(snapshot: FleetFreshnessSnapshot): FleetFreshnessStatus {
+  function effectiveStatus(snapshot: ZentridFreshnessSnapshot): ZentridFreshnessStatus {
     if (!snapshot.online) return snapshot.updatedAt ? 'stale' : 'unavailable';
     if (snapshot.refreshing) return 'refreshing';
     const config = inferConfig();
@@ -169,7 +169,7 @@
     return snapshot.status;
   }
 
-  function setBannerState(status: FleetFreshnessStatus): void {
+  function setBannerState(status: ZentridFreshnessStatus): void {
     const banner = document.querySelector<HTMLElement>('.live-data-state');
     if (!banner) return;
     banner.dataset.freshnessStatus = status;
@@ -178,11 +178,11 @@
   function controlsRoot(): HTMLElement | null {
     const banner = document.querySelector<HTMLElement>('.live-data-state');
     if (!banner) return null;
-    let root = banner.querySelector<HTMLElement>('.fleet-freshness-controls');
+    let root = banner.querySelector<HTMLElement>('.zentrid-freshness-controls');
     if (!root) {
       root = document.createElement('div');
-      root.className = 'fleet-freshness-controls';
-      root.dataset.fleetFreshnessControls = 'true';
+      root.className = 'zentrid-freshness-controls';
+      root.dataset.zentridFreshnessControls = 'true';
       banner.append(root);
     }
     return root;
@@ -204,16 +204,16 @@
     const retryVisible = status === 'partial' || status === 'stale' || status === 'unavailable';
     const autoOptions = AUTO_OPTIONS.map(interval => `<option value="${interval}" ${interval === snapshot.autoRefreshMs ? 'selected' : ''}>${autoLabel(interval)}</option>`).join('');
     root.innerHTML = `
-      <div class="fleet-freshness-summary">
-        <span class="fleet-freshness-badge ${status}" data-freshness-badge>${statusLabel(status)}</span>
+      <div class="zentrid-freshness-summary">
+        <span class="zentrid-freshness-badge ${status}" data-freshness-badge>${statusLabel(status)}</span>
         <small data-freshness-age>${relativeAge(snapshot.ageMs)}</small>
-        ${!snapshot.online ? '<small class="fleet-freshness-note">Offline · refresh paused</small>' : ''}
-        ${!snapshot.visible && snapshot.autoRefreshMs ? '<small class="fleet-freshness-note">Hidden tab · auto refresh paused</small>' : ''}
+        ${!snapshot.online ? '<small class="zentrid-freshness-note">Offline · refresh paused</small>' : ''}
+        ${!snapshot.visible && snapshot.autoRefreshMs ? '<small class="zentrid-freshness-note">Hidden tab · auto refresh paused</small>' : ''}
       </div>
-      <div class="fleet-freshness-actions">
+      <div class="zentrid-freshness-actions">
         <button type="button" class="secondary-btn compact" data-freshness-refresh ${snapshot.refreshing || !snapshot.online ? 'disabled' : ''}>${snapshot.refreshing ? 'Refreshing…' : 'Refresh'}</button>
         ${retryVisible ? `<button type="button" class="secondary-btn compact" data-freshness-retry ${snapshot.refreshing || !snapshot.online ? 'disabled' : ''}>Retry failed section</button>` : ''}
-        ${config.autoRefreshAllowed ? `<label class="fleet-auto-refresh"><span>Auto refresh</span><select data-freshness-auto aria-label="Auto refresh interval">${autoOptions}</select></label>` : ''}
+        ${config.autoRefreshAllowed ? `<label class="zentrid-auto-refresh"><span>Auto refresh</span><select data-freshness-auto aria-label="Auto refresh interval">${autoOptions}</select></label>` : ''}
       </div>`;
     scheduleAutoRefresh();
   }
@@ -242,7 +242,7 @@
     timerId = window.setTimeout(() => requestRefresh('auto'), snapshot.autoRefreshMs);
   }
 
-  function sync(input: FleetFreshnessSyncInput): FleetFreshnessSnapshot {
+  function sync(input: ZentridFreshnessSyncInput): ZentridFreshnessSnapshot {
     const config = inferConfig();
     activeResource = input.resource || config.resource;
     const previous = currentSnapshot(activeResource);
@@ -251,7 +251,7 @@
     const cacheUpdatedAt = Number.isFinite(input.cacheAgeMs) ? Date.now() - Math.max(0, Number(input.cacheAgeMs)) : null;
     const successfulVisibleState = input.liveState === 'live' || input.liveState === 'partial' || input.liveState === 'empty' || input.liveState === 'fallback';
     const updatedAt = explicitUpdatedAt ?? cacheUpdatedAt ?? (successfulVisibleState && status !== 'stale' && status !== 'unavailable' ? Date.now() : parseDate(previous.updatedAt || undefined));
-    const next: FleetFreshnessSnapshot = {
+    const next: ZentridFreshnessSnapshot = {
       ...previous,
       resource: activeResource,
       status,
@@ -285,7 +285,7 @@
     render();
   }
 
-  function snapshot(resource?: FleetFreshnessResource): FleetFreshnessSnapshot {
+  function snapshot(resource?: ZentridFreshnessResource): ZentridFreshnessSnapshot {
     const value = currentSnapshot(resource || activeResource);
     const updated = { ...value };
     const timestamp = parseDate(updated.updatedAt || undefined);
@@ -322,8 +322,8 @@
     requestRefresh,
     setAutoRefresh,
     snapshot,
-    inferResource(): FleetFreshnessResource { return inferConfig().resource; },
+    inferResource(): ZentridFreshnessResource { return inferConfig().resource; },
     intervals: AUTO_OPTIONS.slice()
   };
-  window.FleetDataFreshness = api;
+  window.ZentridDataFreshness = api;
 })();

@@ -191,7 +191,7 @@ const Commercial = (() => {
     if (s.includes('expired') || s.includes('blocked') || s.includes('failed')) return 'danger';
     return 'info';
   };
-  const toast = (msg: string): void => (window.FleetLayout && FleetLayout.toast) ? FleetLayout.toast(msg) : alert(msg);
+  const toast = (msg: string): void => (window.ZentridLayout && ZentridLayout.toast) ? ZentridLayout.toast(msg) : alert(msg);
   const byId = (id: string): CommercialRecord => records.find(item => item.id === id) ?? firstRecord;
   const money = (value: unknown): string => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -691,6 +691,6 @@ const Commercial = (() => {
     });
   }
 
-  function render(): void { FleetLayout.mount(`<div id="commercialRoot">${registry()}</div>`); wire(); }
+  function render(): void { ZentridLayout.mount(`<div id="commercialRoot">${registry()}</div>`); wire(); }
   return { render };
 })();

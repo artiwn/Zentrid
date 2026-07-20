@@ -1,26 +1,26 @@
-type FleetEntityDetailTone = 'info' | 'warning' | 'danger' | 'success';
+type ZentridEntityDetailTone = 'info' | 'warning' | 'danger' | 'success';
 
-type FleetEntityDetailModeCopy = {
+type ZentridEntityDetailModeCopy = {
   title: string;
   message: string;
-  tone: FleetEntityDetailTone;
+  tone: ZentridEntityDetailTone;
 };
 
-type FleetEntityDetailModeOptions = {
+type ZentridEntityDetailModeOptions = {
   status?: unknown;
   archivedStatuses?: string[];
   backendTitle: string;
   backendMessage: string;
-  backendTone?: FleetEntityDetailTone;
+  backendTone?: ZentridEntityDetailTone;
   archivedTitle: string;
   archivedMessage: string;
-  archivedTone?: FleetEntityDetailTone;
+  archivedTone?: ZentridEntityDetailTone;
   localTitle?: string;
   localMessage?: string;
-  localTone?: FleetEntityDetailTone;
+  localTone?: ZentridEntityDetailTone;
 };
 
-type FleetEntityFreshnessOptions = {
+type ZentridEntityFreshnessOptions = {
   timestampKeys?: string[];
   liveEmpty?: string;
   mixedEmpty?: string;
@@ -32,17 +32,17 @@ type FleetEntityFreshnessOptions = {
   mockPrefix?: string;
 };
 
-type FleetEntityFeedbackOptions = {
+type ZentridEntityFeedbackOptions = {
   id: string;
   className: string;
-  tone: FleetEntityDetailTone;
+  tone: ZentridEntityDetailTone;
   title: string;
   message: string;
   escape?: (value: unknown) => string;
   focus?: boolean;
 };
 
-type FleetEntitySectionModeOptions = {
+type ZentridEntitySectionModeOptions = {
   editable: boolean;
   backendManaged: boolean;
   archived: boolean;
@@ -54,7 +54,7 @@ type FleetEntitySectionModeOptions = {
   readonlyLabel?: string;
 };
 
-const FleetEntityDetailUX = (() => {
+const ZentridEntityDetailUX = (() => {
   const beforeUnloadGuards = new Map<string, () => boolean>();
   let beforeUnloadBound = false;
 
@@ -71,8 +71,8 @@ const FleetEntityDetailUX = (() => {
       .replace(/'/g, '&#039;');
   }
 
-  function origin(record: unknown, entity: string): FleetDataOrigin {
-    return FleetDataSource.origin(record, entity);
+  function origin(record: unknown, entity: string): ZentridDataOrigin {
+    return ZentridDataSource.origin(record, entity);
   }
 
   function backendManaged(record: unknown, entity: string): boolean {
@@ -101,7 +101,7 @@ const FleetEntityDetailUX = (() => {
     return null;
   }
 
-  function freshness(record: unknown, entity: string, options: FleetEntityFreshnessOptions = {}): string {
+  function freshness(record: unknown, entity: string, options: ZentridEntityFreshnessOptions = {}): string {
     const paths = options.timestampKeys || [
       'lastSyncAt',
       'last_sync_at',
@@ -134,7 +134,7 @@ const FleetEntityDetailUX = (() => {
       : options.mockEmpty || 'Prototype dataset · no backend freshness';
   }
 
-  function modeCopy(record: unknown, entity: string, options: FleetEntityDetailModeOptions): FleetEntityDetailModeCopy {
+  function modeCopy(record: unknown, entity: string, options: ZentridEntityDetailModeOptions): ZentridEntityDetailModeCopy {
     if (backendManaged(record, entity)) {
       return {
         title: options.backendTitle,
@@ -175,7 +175,7 @@ const FleetEntityDetailUX = (() => {
     beforeUnloadGuards.delete(key);
   }
 
-  function setFeedback(options: FleetEntityFeedbackOptions): void {
+  function setFeedback(options: ZentridEntityFeedbackOptions): void {
     const panel = document.getElementById(options.id);
     if (!panel) return;
     const safe = options.escape || escape;
@@ -193,7 +193,7 @@ const FleetEntityDetailUX = (() => {
     panel.className = className;
   }
 
-  function sectionMode(options: FleetEntitySectionModeOptions): string {
+  function sectionMode(options: ZentridEntitySectionModeOptions): string {
     if (options.editable) return options.editLabel || 'Local edit draft';
     if (options.backendManaged) return options.backendLabel || 'Backend read-only';
     if (options.archived) return options.archivedLabel || 'Archived read-only';

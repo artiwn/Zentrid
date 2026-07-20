@@ -29,7 +29,7 @@ type ZentridRawRequestResult = {
   responseBytes?: number;
   contentType?: string;
   requestId?: string;
-  pagination?: FleetApiDiagnosticPagination;
+  pagination?: ZentridApiDiagnosticPagination;
 };
 
 type ZentridEndpointCatalogItem = {
@@ -143,7 +143,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     entities: ZentridMutationEntity[],
     action: string
   ): Promise<T> {
-    const result = await FleetAPI.request<T>(path, options);
+    const result = await ZentridAPI.request<T>(path, options);
     const detail: ZentridDataMutationDetail = {
       action,
       path,
@@ -226,9 +226,9 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
       const responseBytes = typeof TextEncoder === 'undefined' ? responseText.length : new TextEncoder().encode(responseText).length;
       const contentType = response.headers.get('content-type') || '';
       const requestId = response.headers.get('x-request-id') || response.headers.get('request-id') || response.headers.get('traceparent') || response.headers.get('x-correlation-id') || '';
-      const responsePagination = typeof FleetAPIDiagnostics === 'undefined'
+      const responsePagination = typeof ZentridAPIDiagnostics === 'undefined'
         ? { page: null, pageSize: null, totalCount: null, totalPages: null }
-        : FleetAPIDiagnostics.pagination(parsedBody);
+        : ZentridAPIDiagnostics.pagination(parsedBody);
       return {
         ok: response.ok,
         status: response.status,
@@ -270,20 +270,20 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     refresh: () => ZentridAuth.refresh(),
     logout: () => ZentridAuth.request('/api/Auth/logout', { method: 'POST' }),
     session: () => ZentridAuth.getSession(),
-    jwks: () => FleetAPI.request('/.well-known/jwks.json')
+    jwks: () => ZentridAPI.request('/.well-known/jwks.json')
   };
 
   const live = {
-    plants: (options: ZentridRequestOptions = {}) => FleetAPI.request('/api/plants', options),
-    devices: (options: ZentridRequestOptions = {}) => FleetAPI.request('/api/devices', options),
-    alerts: (options: ZentridRequestOptions = {}) => FleetAPI.request('/api/alerts', options),
-    integrations: (options: ZentridRequestOptions = {}) => FleetAPI.request('/api/integrations', options),
-    providers: (options: ZentridRequestOptions = {}) => FleetAPI.request('/api/Providers', options)
+    plants: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/plants', options),
+    devices: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/devices', options),
+    alerts: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/alerts', options),
+    integrations: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/integrations', options),
+    providers: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/Providers', options)
   };
 
   const tenants = {
-    list: () => FleetAPI.request('/api/admin/tenants'),
-    get: (id: string) => FleetAPI.request(`/api/admin/tenants/${encodeURIComponent(id)}`),
+    list: () => ZentridAPI.request('/api/admin/tenants'),
+    get: (id: string) => ZentridAPI.request(`/api/admin/tenants/${encodeURIComponent(id)}`),
     create: (payload: unknown) => mutationRequest('/api/admin/tenants', jsonOptions('POST', payload), ['tenants'], 'tenant.create'),
     activate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['tenants'], 'tenant.activate'),
     deactivate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['tenants'], 'tenant.deactivate'),
@@ -291,22 +291,22 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
   };
 
   const clients = {
-    list: () => FleetAPI.request('/api/admin/clients'),
-    get: (id: string) => FleetAPI.request(`/api/admin/clients/${encodeURIComponent(id)}`),
+    list: () => ZentridAPI.request('/api/admin/clients'),
+    get: (id: string) => ZentridAPI.request(`/api/admin/clients/${encodeURIComponent(id)}`),
     create: (payload: unknown) => mutationRequest('/api/admin/clients', jsonOptions('POST', payload), ['clients'], 'client.create')
   };
 
   const plantRegistry = {
-    list: () => FleetAPI.request('/api/admin/plants'),
-    get: (id: string) => FleetAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`),
+    list: () => ZentridAPI.request('/api/admin/plants'),
+    get: (id: string) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`),
     create: (payload: unknown) => mutationRequest('/api/admin/plants', jsonOptions('POST', payload), ['plants'], 'plant.create')
   };
 
   const providerIntegrations = {
-    templates: () => FleetAPI.request('/api/admin/provider-integrations/templates'),
-    template: (providerType: string) => FleetAPI.request(`/api/admin/provider-integrations/templates/${encodeURIComponent(providerType)}`),
-    list: () => FleetAPI.request('/api/admin/provider-integrations'),
-    get: (id: string) => FleetAPI.request(`/api/admin/provider-integrations/${encodeURIComponent(id)}`),
+    templates: () => ZentridAPI.request('/api/admin/provider-integrations/templates'),
+    template: (providerType: string) => ZentridAPI.request(`/api/admin/provider-integrations/templates/${encodeURIComponent(providerType)}`),
+    list: () => ZentridAPI.request('/api/admin/provider-integrations'),
+    get: (id: string) => ZentridAPI.request(`/api/admin/provider-integrations/${encodeURIComponent(id)}`),
     create: (payload: unknown) => mutationRequest('/api/admin/provider-integrations', jsonOptions('POST', payload), ['integrations'], 'integration.create'),
     validate: (id: string) => mutationRequest(`/api/admin/provider-integrations/${encodeURIComponent(id)}/validate`, { method: 'POST' }, ['integrations'], 'integration.validate'),
     testConnection: (id: string) => mutationRequest(`/api/admin/provider-integrations/${encodeURIComponent(id)}/test-connection`, { method: 'POST' }, ['integrations'], 'integration.test-connection'),

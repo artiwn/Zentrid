@@ -1,10 +1,10 @@
-type FleetPermissionAction = 'view' | 'create' | 'edit' | 'activate' | 'deactivate' | 'suspend' | 'archive' | 'export';
-type FleetPermissionResource = 'tenant' | 'client' | 'plant' | 'integration' | 'report' | 'generic';
-type FleetPermissionProfile = 'platform-admin' | 'tenant-admin' | 'client-admin' | 'operator' | 'finance' | 'viewer' | 'restricted' | 'verifying';
+type ZentridPermissionAction = 'view' | 'create' | 'edit' | 'activate' | 'deactivate' | 'suspend' | 'archive' | 'export';
+type ZentridPermissionResource = 'tenant' | 'client' | 'plant' | 'integration' | 'report' | 'generic';
+type ZentridPermissionProfile = 'platform-admin' | 'tenant-admin' | 'client-admin' | 'operator' | 'finance' | 'viewer' | 'restricted' | 'verifying';
 
-type FleetPermissionContext = {
-  action: FleetPermissionAction;
-  resource?: FleetPermissionResource;
+type ZentridPermissionContext = {
+  action: ZentridPermissionAction;
+  resource?: ZentridPermissionResource;
   record?: unknown;
   status?: unknown;
   origin?: unknown;
@@ -12,29 +12,29 @@ type FleetPermissionContext = {
   localOverride?: boolean;
 };
 
-type FleetPermissionDecision = {
+type ZentridPermissionDecision = {
   allowed: boolean;
-  action: FleetPermissionAction;
-  resource: FleetPermissionResource;
-  profile: FleetPermissionProfile;
+  action: ZentridPermissionAction;
+  resource: ZentridPermissionResource;
+  profile: ZentridPermissionProfile;
   profileLabel: string;
   reason: string;
 };
 
-type FleetPermissionApi = {
-  currentProfile(): FleetPermissionProfile;
+type ZentridPermissionApi = {
+  currentProfile(): ZentridPermissionProfile;
   currentProfileLabel(): string;
-  decide(context: FleetPermissionContext): FleetPermissionDecision;
-  can(context: FleetPermissionContext): boolean;
-  guard(context: FleetPermissionContext, onDenied?: (decision: FleetPermissionDecision) => void): boolean;
-  apply(element: HTMLElement, context?: FleetPermissionContext): FleetPermissionDecision | null;
+  decide(context: ZentridPermissionContext): ZentridPermissionDecision;
+  can(context: ZentridPermissionContext): boolean;
+  guard(context: ZentridPermissionContext, onDenied?: (decision: ZentridPermissionDecision) => void): boolean;
+  apply(element: HTMLElement, context?: ZentridPermissionContext): ZentridPermissionDecision | null;
   refresh(root?: ParentNode): void;
-  summary(resource?: FleetPermissionResource): string;
+  summary(resource?: ZentridPermissionResource): string;
 };
 
-const FleetActionPermissions: FleetPermissionApi = (() => {
-  const mutableActions = new Set<FleetPermissionAction>(['create', 'edit', 'activate', 'deactivate', 'suspend', 'archive']);
-  const profileLabels: Record<FleetPermissionProfile, string> = {
+const ZentridActionPermissions: ZentridPermissionApi = (() => {
+  const mutableActions = new Set<ZentridPermissionAction>(['create', 'edit', 'activate', 'deactivate', 'suspend', 'archive']);
+  const profileLabels: Record<ZentridPermissionProfile, string> = {
     'platform-admin': 'Platform Administrator',
     'tenant-admin': 'Tenant Administrator',
     'client-admin': 'Client Administrator',
@@ -45,7 +45,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     verifying: 'Verifying access'
   };
 
-  const roleAliases: Array<{ profile: FleetPermissionProfile; values: string[] }> = [
+  const roleAliases: Array<{ profile: ZentridPermissionProfile; values: string[] }> = [
     { profile: 'platform-admin', values: ['globaladmin', 'global admin', 'platformadministrator', 'platform administrator', 'superadmin', 'super admin'] },
     { profile: 'tenant-admin', values: ['tenantadmin', 'tenant admin', 'tenantadministrator', 'tenant administrator', 'organizationadmin', 'organization admin'] },
     { profile: 'client-admin', values: ['clientadmin', 'client admin', 'owneruser', 'owner user'] },
@@ -54,7 +54,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     { profile: 'viewer', values: ['viewer', 'readonly', 'read only', 'read-only', 'readonlyviewer', 'read-only viewer', 'analyst'] }
   ];
 
-  const policy: Record<FleetPermissionProfile, Partial<Record<FleetPermissionResource, FleetPermissionAction[]>>> = {
+  const policy: Record<ZentridPermissionProfile, Partial<Record<ZentridPermissionResource, ZentridPermissionAction[]>>> = {
     'platform-admin': {
       tenant: ['view', 'create', 'edit', 'activate', 'deactivate', 'archive', 'export'],
       client: ['view', 'create', 'edit', 'archive', 'export'],
@@ -115,7 +115,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     return String(value ?? '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   }
 
-  function roleProfile(role: string): FleetPermissionProfile | null {
+  function roleProfile(role: string): ZentridPermissionProfile | null {
     const normalized = normalize(role);
     for (const entry of roleAliases) {
       if (entry.values.some(value => normalize(value) === normalized)) return entry.profile;
@@ -123,11 +123,11 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     return null;
   }
 
-  function currentProfile(): FleetPermissionProfile {
+  function currentProfile(): ZentridPermissionProfile {
     const roles: string[] = window.ZentridAuth?.getRoles?.() || [];
     if (!roles.length) return window.ZentridAuth?.getAccessToken?.() ? 'verifying' : 'restricted';
-    const profiles = roles.map(roleProfile).filter((value: FleetPermissionProfile | null): value is FleetPermissionProfile => Boolean(value));
-    const priority: FleetPermissionProfile[] = ['platform-admin', 'tenant-admin', 'client-admin', 'operator', 'finance', 'viewer'];
+    const profiles = roles.map(roleProfile).filter((value: ZentridPermissionProfile | null): value is ZentridPermissionProfile => Boolean(value));
+    const priority: ZentridPermissionProfile[] = ['platform-admin', 'tenant-admin', 'client-admin', 'operator', 'finance', 'viewer'];
     return priority.find(item => profiles.includes(item)) || 'restricted';
   }
 
@@ -139,26 +139,26 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     return record && typeof record === 'object' ? (record as Record<string, unknown>)[key] : undefined;
   }
 
-  function resolveOrigin(context: FleetPermissionContext): string {
+  function resolveOrigin(context: ZentridPermissionContext): string {
     const explicit = normalize(context.origin);
     if (explicit) return explicit;
     const record = context.record;
     const resource = context.resource || 'generic';
-    if (record && window.FleetDataSource && resource !== 'generic' && resource !== 'report') {
-      return normalize(window.FleetDataSource.origin(record, resource));
+    if (record && window.ZentridDataSource && resource !== 'generic' && resource !== 'report') {
+      return normalize(window.ZentridDataSource.origin(record, resource));
     }
     return normalize(recordValue(record, 'dataOrigin') || recordValue(record, 'source'));
   }
 
-  function resolveStatus(context: FleetPermissionContext): string {
+  function resolveStatus(context: ZentridPermissionContext): string {
     return normalize(context.status || recordValue(context.record, 'status') || recordValue(context.record, 'lifecycleStatus'));
   }
 
-  function roleAllows(profile: FleetPermissionProfile, resource: FleetPermissionResource, action: FleetPermissionAction): boolean {
+  function roleAllows(profile: ZentridPermissionProfile, resource: ZentridPermissionResource, action: ZentridPermissionAction): boolean {
     return (policy[profile][resource] || policy[profile].generic || []).includes(action);
   }
 
-  function decisionReason(context: FleetPermissionContext, profile: FleetPermissionProfile, allowedByRole: boolean): string {
+  function decisionReason(context: ZentridPermissionContext, profile: ZentridPermissionProfile, allowedByRole: boolean): string {
     const action = context.action;
     const resource = context.resource || 'generic';
     const status = resolveStatus(context);
@@ -184,7 +184,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     return `${profileLabels[profile]} permits this action.`;
   }
 
-  function decide(context: FleetPermissionContext): FleetPermissionDecision {
+  function decide(context: ZentridPermissionContext): ZentridPermissionDecision {
     const resource = context.resource || 'generic';
     const profile = currentProfile();
     const allowedByRole = roleAllows(profile, resource, context.action);
@@ -201,24 +201,24 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     };
   }
 
-  function can(context: FleetPermissionContext): boolean {
+  function can(context: ZentridPermissionContext): boolean {
     return decide(context).allowed;
   }
 
-  function guard(context: FleetPermissionContext, onDenied?: (decision: FleetPermissionDecision) => void): boolean {
+  function guard(context: ZentridPermissionContext, onDenied?: (decision: ZentridPermissionDecision) => void): boolean {
     const result = decide(context);
     if (result.allowed) return true;
     if (onDenied) onDenied(result);
-    else if (window.FleetLayout?.toast) window.FleetLayout.toast(result.reason);
+    else if (window.ZentridLayout?.toast) window.ZentridLayout.toast(result.reason);
     return false;
   }
 
-  function contextFromElement(element: HTMLElement): FleetPermissionContext | null {
-    const action = element.dataset.permissionAction as FleetPermissionAction | undefined;
+  function contextFromElement(element: HTMLElement): ZentridPermissionContext | null {
+    const action = element.dataset.permissionAction as ZentridPermissionAction | undefined;
     if (!action) return null;
-    const context: FleetPermissionContext = {
+    const context: ZentridPermissionContext = {
       action,
-      resource: (element.dataset.permissionResource || 'generic') as FleetPermissionResource,
+      resource: (element.dataset.permissionResource || 'generic') as ZentridPermissionResource,
       status: element.dataset.permissionStatus,
       origin: element.dataset.permissionOrigin
     };
@@ -231,7 +231,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     return context;
   }
 
-  function apply(element: HTMLElement, context = contextFromElement(element) || undefined): FleetPermissionDecision | null {
+  function apply(element: HTMLElement, context = contextFromElement(element) || undefined): ZentridPermissionDecision | null {
     if (!context) return null;
     const result = decide(context);
     const control = element as HTMLButtonElement;
@@ -250,7 +250,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
   }
 
   function updateSummary(element: HTMLElement): void {
-    const resource = (element.dataset.permissionResource || 'generic') as FleetPermissionResource;
+    const resource = (element.dataset.permissionResource || 'generic') as ZentridPermissionResource;
     const profile = currentProfile();
     const text = `${profileLabels[profile]} · ${resource === 'generic' ? 'Current workspace' : resource}`;
     if (element.textContent !== text) element.textContent = text;
@@ -263,7 +263,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
     root.querySelectorAll<HTMLElement>('[data-permission-summary]').forEach(updateSummary);
   }
 
-  function summary(resource: FleetPermissionResource = 'generic'): string {
+  function summary(resource: ZentridPermissionResource = 'generic'): string {
     return `${currentProfileLabel()} · ${resource === 'generic' ? 'Current workspace' : resource}`;
   }
 
@@ -283,7 +283,7 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
       if (result.allowed) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      if (window.FleetLayout?.toast) window.FleetLayout.toast(result.reason);
+      if (window.ZentridLayout?.toast) window.ZentridLayout.toast(result.reason);
     }, true);
 
     window.addEventListener('zentrid:auth', run);
@@ -302,4 +302,4 @@ const FleetActionPermissions: FleetPermissionApi = (() => {
   return { currentProfile, currentProfileLabel, decide, can, guard, apply, refresh, summary };
 })();
 
-Object.assign(window, { FleetActionPermissions });
+Object.assign(window, { ZentridActionPermissions });

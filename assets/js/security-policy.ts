@@ -1,8 +1,8 @@
 /* Zentrid browser security policy.
    Hardens dynamic navigation, audits browser storage without reading values and exposes CSP/runtime diagnostics. */
 (function () {
-  type FleetSecurityFinding = { area: 'localStorage' | 'sessionStorage'; key: string; classification: 'persistent-secret' | 'session-secret' };
-  type FleetSecuritySnapshot = {
+  type ZentridSecurityFinding = { area: 'localStorage' | 'sessionStorage'; key: string; classification: 'persistent-secret' | 'session-secret' };
+  type ZentridSecuritySnapshot = {
     policy: 'enforced-compatible';
     anchorsAudited: number;
     anchorsHardened: number;
@@ -12,7 +12,7 @@
     inlineHandlers: number;
     inlineStyles: number;
     cspViolations: number;
-    storageFindings: FleetSecurityFinding[];
+    storageFindings: ZentridSecurityFinding[];
     authStorage: 'sessionStorage' | 'fallback';
     referrerPolicy: string;
   };
@@ -47,7 +47,7 @@
 
   function blockUrl(element: HTMLElement, attribute: string, value: string): void {
     element.removeAttribute(attribute);
-    element.dataset.fleetUrlBlocked = 'true';
+    element.dataset.zentridUrlBlocked = 'true';
     element.setAttribute('aria-disabled', 'true');
     element.title = 'Blocked unsafe navigation target.';
     unsafeUrlsBlocked += 1;
@@ -66,7 +66,7 @@
     if (!href) return;
     const targetUrl = resolvedUrl(href);
     const external = Boolean(targetUrl && ['http:', 'https:'].includes(targetUrl.protocol) && targetUrl.origin !== window.location.origin);
-    if (external) anchor.dataset.fleetExternalLink = 'true';
+    if (external) anchor.dataset.zentridExternalLink = 'true';
     if (anchor.target === '_blank') {
       const rel = new Set(String(anchor.rel || '').split(/\s+/).filter(Boolean));
       const before = rel.size;
@@ -74,8 +74,8 @@
       rel.add('noreferrer');
       anchor.rel = [...rel].join(' ');
       anchor.referrerPolicy = 'no-referrer';
-      if (rel.size !== before || !anchor.dataset.fleetHardened) anchorsHardened += 1;
-      anchor.dataset.fleetHardened = 'true';
+      if (rel.size !== before || !anchor.dataset.zentridHardened) anchorsHardened += 1;
+      anchor.dataset.zentridHardened = 'true';
     }
   }
 
@@ -134,8 +134,8 @@
     else window.setTimeout(run, 0);
   }
 
-  function storageFindings(): FleetSecurityFinding[] {
-    const findings: FleetSecurityFinding[] = [];
+  function storageFindings(): ZentridSecurityFinding[] {
+    const findings: ZentridSecurityFinding[] = [];
     const inspect = (area: 'localStorage' | 'sessionStorage', storage: Storage): void => {
       try {
         for (let index = 0; index < storage.length; index += 1) {
@@ -152,7 +152,7 @@
     return findings.sort((a, b) => `${a.area}:${a.key}`.localeCompare(`${b.area}:${b.key}`));
   }
 
-  function snapshot(): FleetSecuritySnapshot {
+  function snapshot(): ZentridSecuritySnapshot {
     return {
       policy: 'enforced-compatible',
       anchorsAudited,
@@ -221,7 +221,7 @@
   });
   window.addEventListener('pagehide', () => observer?.disconnect(), { once: true });
 
-  window.FleetBrowserSecurity = { audit, snapshot, openExternal, isUnsafeUrl };
+  window.ZentridBrowserSecurity = { audit, snapshot, openExternal, isUnsafeUrl };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
   else mount();
 })();

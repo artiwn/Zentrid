@@ -1,24 +1,24 @@
-type FleetFormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+type ZentridFormControl = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
-type FleetFormIssue = {
-  control?: FleetFormControl | null;
+type ZentridFormIssue = {
+  control?: ZentridFormControl | null;
   message: string;
 };
 
-type FleetFormValidationResult = {
+type ZentridFormValidationResult = {
   valid: boolean;
-  issues: FleetFormIssue[];
+  issues: ZentridFormIssue[];
 };
 
-const FleetFormUX = (() => {
+const ZentridFormUX = (() => {
   let errorSequence = 0;
 
-  function controls(root: ParentNode): FleetFormControl[] {
-    return Array.from(root.querySelectorAll<FleetFormControl>('input, select, textarea'))
+  function controls(root: ParentNode): ZentridFormControl[] {
+    return Array.from(root.querySelectorAll<ZentridFormControl>('input, select, textarea'))
       .filter(control => !control.disabled && control.type !== 'hidden' && !control.closest('[hidden], .is-hidden'));
   }
 
-  function fieldLabel(control: FleetFormControl): string {
+  function fieldLabel(control: ZentridFormControl): string {
     const label = control.closest('label');
     if (!label) return control.name || control.id || 'Field';
     const clone = label.cloneNode(true) as HTMLElement;
@@ -26,7 +26,7 @@ const FleetFormUX = (() => {
     return (clone.textContent || control.name || control.id || 'Field').replace(/\s*\*\s*$/, '').trim();
   }
 
-  function validationMessage(control: FleetFormControl): string {
+  function validationMessage(control: ZentridFormControl): string {
     const label = fieldLabel(control);
     if (control.validity.valueMissing) return `${label} is required.`;
     if (control.validity.typeMismatch) return `${label} has an invalid format.`;
@@ -39,12 +39,12 @@ const FleetFormUX = (() => {
     return control.validationMessage || `${label} is invalid.`;
   }
 
-  function clearControlError(control: FleetFormControl): void {
+  function clearControlError(control: ZentridFormControl): void {
     control.removeAttribute('aria-invalid');
     const describedBy = (control.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
-    const ownErrorIds = describedBy.filter(id => id.startsWith('fleet-field-error-'));
+    const ownErrorIds = describedBy.filter(id => id.startsWith('zentrid-field-error-'));
     ownErrorIds.forEach(id => document.getElementById(id)?.remove());
-    const remaining = describedBy.filter(id => !id.startsWith('fleet-field-error-'));
+    const remaining = describedBy.filter(id => !id.startsWith('zentrid-field-error-'));
     if (remaining.length) control.setAttribute('aria-describedby', remaining.join(' '));
     else control.removeAttribute('aria-describedby');
     control.closest('label')?.classList.remove('has-error');
@@ -52,7 +52,7 @@ const FleetFormUX = (() => {
 
   function clearErrors(root: ParentNode, summary?: HTMLElement | null): void {
     controls(root).forEach(clearControlError);
-    root.querySelectorAll('.field-error[data-fleet-form-error="true"]').forEach(error => error.remove());
+    root.querySelectorAll('.field-error[data-zentrid-form-error="true"]').forEach(error => error.remove());
     root.querySelectorAll('.has-error').forEach(element => element.classList.remove('has-error'));
     if (summary) {
       summary.hidden = true;
@@ -60,15 +60,15 @@ const FleetFormUX = (() => {
     }
   }
 
-  function setControlError(control: FleetFormControl, message: string): void {
+  function setControlError(control: ZentridFormControl, message: string): void {
     clearControlError(control);
     const host = control.closest('label') || control.parentElement;
     if (!host) return;
     const error = document.createElement('small');
-    const id = `fleet-field-error-${++errorSequence}`;
+    const id = `zentrid-field-error-${++errorSequence}`;
     error.id = id;
     error.className = 'field-error';
-    error.dataset.fleetFormError = 'true';
+    error.dataset.zentridFormError = 'true';
     error.textContent = message;
     host.appendChild(error);
     host.classList.add('has-error');
@@ -77,7 +77,7 @@ const FleetFormUX = (() => {
     control.setAttribute('aria-describedby', [...describedBy, id].join(' '));
   }
 
-  function renderSummary(summary: HTMLElement | null | undefined, issues: FleetFormIssue[], title = 'Please review the highlighted fields'): void {
+  function renderSummary(summary: HTMLElement | null | undefined, issues: ZentridFormIssue[], title = 'Please review the highlighted fields'): void {
     if (!summary) return;
     if (!issues.length) {
       summary.hidden = true;
@@ -88,9 +88,9 @@ const FleetFormUX = (() => {
     summary.innerHTML = `<strong>${title}</strong><ul>${issues.map(issue => `<li>${issue.message}</li>`).join('')}</ul>`;
   }
 
-  function validate(root: ParentNode, customIssues: FleetFormIssue[] = [], summary?: HTMLElement | null, title?: string): FleetFormValidationResult {
+  function validate(root: ParentNode, customIssues: ZentridFormIssue[] = [], summary?: HTMLElement | null, title?: string): ZentridFormValidationResult {
     clearErrors(root, summary);
-    const issues: FleetFormIssue[] = [];
+    const issues: ZentridFormIssue[] = [];
     controls(root).forEach(control => {
       if (!control.checkValidity()) issues.push({ control, message: validationMessage(control) });
     });
@@ -107,7 +107,7 @@ const FleetFormUX = (() => {
     return { valid: unique.length === 0, issues: unique };
   }
 
-  function focusFirst(result: FleetFormValidationResult, summary?: HTMLElement | null): void {
+  function focusFirst(result: ZentridFormValidationResult, summary?: HTMLElement | null): void {
     const control = result.issues.find(issue => issue.control)?.control;
     if (control) {
       control.focus({ preventScroll: true });

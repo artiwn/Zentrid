@@ -1,9 +1,9 @@
 export {};
 
-declare const FleetLocalStore: FleetLocalStoreApi;
-declare const FleetLayout: FleetLayoutLegacyApi;
+declare const ZentridLocalStore: ZentridLocalStoreApi;
+declare const ZentridLayout: ZentridLayoutLegacyApi;
 
-interface FleetClientRecord {
+interface ZentridClientRecord {
   id: string;
   code: string;
   name: string;
@@ -37,7 +37,7 @@ interface FleetClientRecord {
   onboarding: string;
   region?: string;
   portalUsername?: string;
-  bankAccounts?: FleetBankAccount[];
+  bankAccounts?: ZentridBankAccount[];
   consentAccepted?: boolean;
   activationAt?: string;
   username?: string;
@@ -51,12 +51,12 @@ interface FleetClientRecord {
   updated?: string;
   lastSyncAt?: string;
   raw?: Record<string, unknown>;
-  documentRecords?: FleetClientDocumentRecord[];
-  portalUsers?: FleetPortalUser[];
+  documentRecords?: ZentridClientDocumentRecord[];
+  portalUsers?: ZentridPortalUser[];
   [key: string]: unknown;
 }
 
-interface FleetPlantRecord {
+interface ZentridPlantRecord {
   id: string;
   code: string;
   externalId: string;
@@ -89,7 +89,7 @@ interface FleetPlantRecord {
   meters: number;
   battery: string;
   devices: string[];
-  dataOrigin?: FleetDataOrigin;
+  dataOrigin?: ZentridDataOrigin;
   updated?: string;
   lastSyncAt?: string;
   sourceSystem?: string;
@@ -100,7 +100,7 @@ interface FleetPlantRecord {
   [key: string]: unknown;
 }
 
-interface FleetDeviceRecord {
+interface ZentridDeviceRecord {
   id: string;
   plantId: string;
   type: string;
@@ -122,7 +122,7 @@ interface FleetDeviceRecord {
   [key: string]: unknown;
 }
 
-interface FleetDeviceCatalogItem {
+interface ZentridDeviceCatalogItem {
   kind: string;
   vendor: string;
   model: string;
@@ -133,14 +133,14 @@ interface FleetDeviceCatalogItem {
   qty?: number;
 }
 
-interface FleetClientDocumentRecord {
+interface ZentridClientDocumentRecord {
   name: string;
   type: string;
   status: string;
   expiry?: string;
 }
 
-interface FleetBankAccount {
+interface ZentridBankAccount {
   bankName: string;
   bankCode: string;
   accountNumber: string;
@@ -151,7 +151,7 @@ interface FleetBankAccount {
   currency?: string;
 }
 
-interface FleetPortalUser {
+interface ZentridPortalUser {
   name: string;
   email: string;
   role: string;
@@ -169,8 +169,8 @@ const asInput = (el: Element | null): AnyInput | null => el as AnyInput | null;
 const formValue = (value: FormDataEntryValue | null | undefined): string => (value || '').toString();
 const eventElement = (event: Event): HTMLElement => event.target as HTMLElement;
 
-const FleetClientModel = (() => {
-  const clients: FleetClientRecord[] = [
+const ZentridClientModel = (() => {
+  const clients: ZentridClientRecord[] = [
     {
       id: 'CL-00041', code: 'CLI-ARPI', name: 'Arpi Solar Group', type: 'Legal Entity', legalForm: 'LLC', registrationNo: 'AM-REG-204419', taxId: 'TIN-00421190', country: 'Armenia', city: 'Yerevan', address: 'Baghramyan Ave 12, Yerevan', status: 'Active', verification: 'Verified', account: 'Mariam Sargsyan', primaryContact: 'Aram Petrosyan', contactEmail: 'aram.petrosyan@arpi.example', contactPhone: '+374 10 555 201', tenant: 'Tenant Alpha Energy', plants: ['PL-ARM-001', 'PL-ARM-002', 'PL-ARM-003'], users: 42, documents: 18, billing: 'Enterprise · Net 30', supportTier: 'Premium SLA', accessScope: 'All assigned plants · Read-only owner portal', exportPolicy: 'Reports export allowed after tenant approval', assignmentRole: 'Owner', onboarding: 'Completed'
     },
@@ -186,7 +186,7 @@ const FleetClientModel = (() => {
   ];
 
   try {
-    const savedClients = (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.clients, []) : JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]')) as FleetClientRecord[];
+    const savedClients = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clients, []) : JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]')) as ZentridClientRecord[];
     savedClients.forEach(client => {
       if (!client || !client.id) return;
       const existingIndex = clients.findIndex(item => item.id === client.id);
@@ -197,7 +197,7 @@ const FleetClientModel = (() => {
     console.warn('Unable to restore custom clients', e);
   }
 
-  const plants: FleetPlantRecord[] = [
+  const plants: ZentridPlantRecord[] = [
     {
       id: 'PL-ARM-001', code: 'ARM-SOL-001', externalId: 'HUA-PLANT-991', name: 'Arpi Plant 01', clientId: 'CL-00041', portfolio: 'Armenia Utility Portfolio', status: 'Active', type: 'Utility Scale', country: 'Armenia', region: 'Kotayk', city: 'Abovyan', address: 'North field, Sector A', timezone: 'Asia/Yerevan', capacityDc: '5.40 MWp', capacityAc: '4.80 MW', gridCapacity: '5.0 MW', commissioning: '2024-09-18', owner: 'Arpi Solar Group', operator: 'Tenant Alpha Energy', om: 'Unisys Energy O&M', powerNow: '3.82 MW', energyToday: '24.6 MWh', alerts: 2, health: 'Warning', panels: 9820, inverters: 18, strings: 216, transformers: 2, meters: 4, battery: 'No', devices: ['INV-ARM-001','INV-ARM-002','INV-ARM-003','LOG-ARM-001','MTR-ARM-001','WX-ARM-001','TR-ARM-001','SW-ARM-001']
     },
@@ -218,7 +218,7 @@ const FleetClientModel = (() => {
     }
   ];
 
-  const devices: FleetDeviceRecord[] = [
+  const devices: ZentridDeviceRecord[] = [
     { id:'INV-ARM-001', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 01', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0001', capacity:'215 kW', firmware:'V500R023', status:'Active', location:'Area A', lastSeen:'2 min ago', children:'MPPT 1–12 · Strings 1–12' },
     { id:'INV-ARM-002', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 02', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0002', capacity:'215 kW', firmware:'V500R023', status:'Active', location:'Area A', lastSeen:'2 min ago', children:'MPPT 1–12 · Strings 13–24' },
     { id:'INV-ARM-003', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 03', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0003', capacity:'215 kW', firmware:'V500R021', status:'Warning', location:'Area B', lastSeen:'18 min ago', children:'MPPT 1–12 · Strings 25–36' },
@@ -270,10 +270,10 @@ const FleetClientModel = (() => {
     if (v.includes('offline') || v.includes('blocked')) return 'danger';
     return 'success';
   }
-  function getClient(id: string | null | undefined): FleetClientRecord { return clients.find(x => x.id === id) || clients[0]!; }
-  function getPlant(id: string | null | undefined): FleetPlantRecord { return plants.find(x => x.id === id) || plants[0]!; }
-  function plantsForClient(clientId: string): FleetPlantRecord[] { return plants.filter(x => x.clientId === clientId); }
-  function devicesForPlant(plantId: string): FleetDeviceRecord[] { return devices.filter(x => x.plantId === plantId); }
+  function getClient(id: string | null | undefined): ZentridClientRecord { return clients.find(x => x.id === id) || clients[0]!; }
+  function getPlant(id: string | null | undefined): ZentridPlantRecord { return plants.find(x => x.id === id) || plants[0]!; }
+  function plantsForClient(clientId: string): ZentridPlantRecord[] { return plants.filter(x => x.clientId === clientId); }
+  function devicesForPlant(plantId: string): ZentridDeviceRecord[] { return devices.filter(x => x.plantId === plantId); }
   function countsForClient(clientId: string) {
     const client = clients.find(x => x.id === clientId);
     const ps = plantsForClient(clientId);
@@ -290,37 +290,37 @@ const FleetClientModel = (() => {
   }
   function selectClient(id: string) { localStorage.setItem('zentrid_selected_client', id); }
   function selectPlant(id: string) { localStorage.setItem('zentrid_selected_plant', id); }
-  function selectedClient(): FleetClientRecord { return getClient(localStorage.getItem('zentrid_selected_client') || clients[0]!.id); }
-  function selectedPlant(): FleetPlantRecord { return getPlant(localStorage.getItem('zentrid_selected_plant') || plantsForClient(selectedClient().id)[0]?.id || plants[0]!.id); }
+  function selectedClient(): ZentridClientRecord { return getClient(localStorage.getItem('zentrid_selected_client') || clients[0]!.id); }
+  function selectedPlant(): ZentridPlantRecord { return getPlant(localStorage.getItem('zentrid_selected_plant') || plantsForClient(selectedClient().id)[0]?.id || plants[0]!.id); }
 
   return { clients, plants, devices, badge, getClient, getPlant, plantsForClient, devicesForPlant, countsForClient, selectClient, selectPlant, selectedClient, selectedPlant };
 })();
 
-window.FleetClientModel = FleetClientModel;
+window.ZentridClientModel = ZentridClientModel;
 
 (function hydrateCustomPlantBuilderRecords(){
   try {
-    const customPlants = (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.clientPlants, []) : JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]')) as FleetPlantRecord[];
-    const customDevices = (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.clientDevices, []) : JSON.parse(localStorage.getItem('zentrid_custom_devices') || '[]')) as FleetDeviceRecord[];
+    const customPlants = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clientPlants, []) : JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]')) as ZentridPlantRecord[];
+    const customDevices = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clientDevices, []) : JSON.parse(localStorage.getItem('zentrid_custom_devices') || '[]')) as ZentridDeviceRecord[];
     customPlants.forEach(p => {
       if (!p || !p.id) return;
-      const existingIndex = FleetClientModel.plants.findIndex(item => item.id === p.id);
-      if (existingIndex >= 0) FleetClientModel.plants[existingIndex] = { ...FleetClientModel.plants[existingIndex]!, ...p };
-      else FleetClientModel.plants.push(p);
+      const existingIndex = ZentridClientModel.plants.findIndex(item => item.id === p.id);
+      if (existingIndex >= 0) ZentridClientModel.plants[existingIndex] = { ...ZentridClientModel.plants[existingIndex]!, ...p };
+      else ZentridClientModel.plants.push(p);
     });
     customDevices.forEach(d => {
       if (!d || !d.id) return;
-      const existingIndex = FleetClientModel.devices.findIndex(item => item.id === d.id);
-      if (existingIndex >= 0) FleetClientModel.devices[existingIndex] = { ...FleetClientModel.devices[existingIndex]!, ...d };
-      else FleetClientModel.devices.push(d);
+      const existingIndex = ZentridClientModel.devices.findIndex(item => item.id === d.id);
+      if (existingIndex >= 0) ZentridClientModel.devices[existingIndex] = { ...ZentridClientModel.devices[existingIndex]!, ...d };
+      else ZentridClientModel.devices.push(d);
     });
   } catch (err) {
     console.warn('Unable to hydrate custom Plant Builder records', err);
   }
 })();
 
-const FleetDeviceCatalog = (() => {
-  const catalog: FleetDeviceCatalogItem[] = [
+const ZentridDeviceCatalog = (() => {
+  const catalog: ZentridDeviceCatalogItem[] = [
     { kind:'Inverter', vendor:'Solis', model:'S6-GC100K', rating:'100 kW', protocol:'Modbus TCP / RS485', shared:'Vendor, model, rated power, phase count, MPPT count, supported protocol', individual:'Device name, serial number, firmware, install date, location, string assignment' },
     { kind:'Inverter', vendor:'Huawei', model:'SUN2000-215KTL', rating:'215 kW', protocol:'Modbus TCP / FusionSolar', shared:'Vendor, model, rated power, MPPT count, DC input limits, protocol', individual:'Device name, serial number, firmware, commissioning date, physical area' },
     { kind:'Meter', vendor:'Huawei', model:'DTSU666-H', rating:'Bidirectional', protocol:'RS485 / Modbus', shared:'Vendor, model, meter type, accuracy class, supported protocol', individual:'Serial number, meter address, CT ratio, install point, install date' },
@@ -346,8 +346,8 @@ const FleetDeviceCatalog = (() => {
   return { catalog, compatibility };
 })();
 
-function clientKpis(client: FleetClientRecord): string {
-  const c = FleetClientModel.countsForClient(client.id);
+function clientKpis(client: ZentridClientRecord): string {
+  const c = ZentridClientModel.countsForClient(client.id);
   return `<section class="kpi-grid client-kpi-grid">
     <article class="kpi-card cyan"><span class="kpi-label">Client Plants</span><div class="kpi-value">${c.plants}</div><small class="kpi-delta">Client → Plant structure</small></article>
     <article class="kpi-card green"><span class="kpi-label">Total Capacity</span><div class="kpi-value">${c.capacity}</div><small class="kpi-delta">DC installed capacity</small></article>
@@ -357,9 +357,9 @@ function clientKpis(client: FleetClientRecord): string {
 }
 
 function renderClientsPage() {
-  const rows = FleetClientModel.clients;
-  const queryState = window.FleetRegistryQuery?.read('clients');
-  const pagination = window.FleetRegistryQuery?.pagination('clients');
+  const rows = ZentridClientModel.clients;
+  const queryState = window.ZentridRegistryQuery?.read('clients');
+  const pagination = window.ZentridRegistryQuery?.pagination('clients');
   const totalClients = pagination?.totalCount || rows.length;
   const legalCount = rows.filter(c => c.type === 'Legal Entity').length;
   const individualCount = rows.filter(c => c.type === 'Individual').length;
@@ -367,8 +367,8 @@ function renderClientsPage() {
   const initialSearch = queryState?.search || '';
   const initialType = queryState?.params.clientType || 'all';
   const initialStatus = queryState?.params.clientStatus || 'all';
-  const pager = window.FleetRegistryQuery?.pagerHtml('clients', rows.length) || '';
-  FleetLayout.mount(`
+  const pager = window.ZentridRegistryQuery?.pagerHtml('clients', rows.length) || '';
+  ZentridLayout.mount(`
     <section class="page-hero">
       <div><p class="eyebrow">Global Admin · Client Registry</p><h1>Clients</h1><p class="muted">Canonical client registry for legal entities and individuals, with plant assignment, portal access and document scope.</p></div>
       <button class="create-action" id="openClientCreate" type="button" data-permission-action="create" data-permission-resource="client"><span class="pulse"></span><div><strong>+ Add Client</strong><small>Tenant link · portal profile</small></div></button>
@@ -386,7 +386,7 @@ function renderClientsPage() {
         <select id="clientTypeV28"><option value="all" ${initialType === 'all' ? 'selected' : ''}>All types</option><option value="Legal Entity" ${initialType === 'Legal Entity' ? 'selected' : ''}>Legal Entity</option><option value="Individual" ${initialType === 'Individual' ? 'selected' : ''}>Individual</option></select>
         <select id="clientStatusV28"><option value="all" ${initialStatus === 'all' ? 'selected' : ''}>All statuses</option><option ${initialStatus === 'Active' ? 'selected' : ''}>Active</option><option ${initialStatus === 'Review' ? 'selected' : ''}>Review</option><option ${initialStatus === 'Pending' ? 'selected' : ''}>Pending</option></select>
       </div>
-      <div id="clientFilterScopeV126">${window.FleetRegistryQuery?.filterScopeHtml('clients') || ''}</div>
+      <div id="clientFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('clients') || ''}</div>
       ${pager}
       <div class="data-table client-table-v17 client-registry-table-v28" id="clientRowsV28">
         ${clientRowsMarkup(rows)}
@@ -404,17 +404,17 @@ function renderClientsPage() {
       return (!query || haystack.includes(query)) && (type === 'all' || c.type === type) && (status === 'all' || c.status === status);
     });
     const target = document.getElementById('clientRowsV28');
-    if (target) FleetRuntimeStability.replaceHtml(target, clientRowsMarkup(filtered));
-    window.FleetRegistryQuery?.update('clients', {
+    if (target) ZentridRuntimeStability.replaceHtml(target, clientRowsMarkup(filtered));
+    window.ZentridRegistryQuery?.update('clients', {
       search: query || null,
       clientType: type === 'all' ? null : type,
       clientStatus: status === 'all' ? null : status
     }, { replace: true, emit: false });
     const scope = document.getElementById('clientFilterScopeV126');
-    if (scope) scope.innerHTML = window.FleetRegistryQuery?.filterScopeHtml('clients') || '';
+    if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('clients') || '';
   };
   document.getElementById('clientSearchV28')?.addEventListener('input', () => {
-    FleetRuntimeStability.debounce('registry:clients:search', render, 220);
+    ZentridRuntimeStability.debounce('registry:clients:search', render, 220);
   });
   document.getElementById('clientTypeV28')?.addEventListener('change', render);
   document.getElementById('clientStatusV28')?.addEventListener('change', render);
@@ -432,7 +432,7 @@ function renderClientsPage() {
     const row = target.closest<HTMLElement>('.data-row[data-client]');
     const clientId = row?.dataset.client;
     if (!clientId) return;
-    FleetClientModel.selectClient(clientId);
+    ZentridClientModel.selectClient(clientId);
     const action = target.closest<HTMLElement>('button')?.dataset.action;
     if (action === 'edit') localStorage.setItem('zentrid_client_detail_edit', 'identity');
     location.href = 'client-detail.html';
@@ -509,7 +509,7 @@ function clientCreateModal() {
         <div><p class="eyebrow">Client Registry · Create Client</p><h2 id="clientCreateTitle">Add New Client</h2><p class="muted">Create a canonical client profile and link it to the tenant that manages or supervises this client.</p></div>
         <span class="badge warning">Draft</span>
       </div>
-      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-fleet-form-readiness="local" data-fleet-form-contract="ClientCreateDraft" data-fleet-form-endpoint="/api/admin/clients" data-fleet-form-method="POST" data-fleet-form-api-note="The current prototype save remains local; this DTO is prepared for the confirmed Client create contract.">
+      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="ClientCreateDraft" data-zentrid-form-endpoint="/api/admin/clients" data-zentrid-form-method="POST" data-zentrid-form-api-note="The current prototype save remains local; this DTO is prepared for the confirmed Client create contract.">
         <aside class="setup-rail client-create-rail" aria-label="Create client steps">
           <button class="active" type="button" data-client-create-step="tenant"><b>1</b><span>Tenant Link</span></button>
           <button type="button" data-client-create-step="identity"><b>2</b><span>Identity</span></button>
@@ -638,7 +638,7 @@ function clientCreateModalElement(): HTMLElement | null {
   return document.getElementById('clientCreateBackdrop');
 }
 
-function clientCreateControl<T extends FleetFormControl = FleetFormControl>(name: string): T | null {
+function clientCreateControl<T extends ZentridFormControl = ZentridFormControl>(name: string): T | null {
   return clientCreateFormElement()?.elements.namedItem(name) as T | null;
 }
 
@@ -693,7 +693,7 @@ function resetClientBankList(): void {
 
 function clientCreateDraftSnapshot(): string {
   const form = clientCreateFormElement();
-  return form ? FleetFormUX.snapshot(form) : '';
+  return form ? ZentridFormUX.snapshot(form) : '';
 }
 
 function openClientCreateModal(): void {
@@ -704,11 +704,11 @@ function openClientCreateModal(): void {
   form.querySelectorAll<HTMLInputElement>('[data-doc-label]').forEach(input => { input.value = ''; });
   resetClientBankList();
   renderClientDocumentList();
-  FleetFormUX.clearErrors(form, document.getElementById('clientValidationSummary'));
+  ZentridFormUX.clearErrors(form, document.getElementById('clientValidationSummary'));
   modal.querySelectorAll('[data-client-create-step]').forEach(step => step.classList.remove('completed', 'has-error'));
   clientCreateSaving = false;
   const saveButton = document.getElementById('saveClientCreate') as HTMLButtonElement | null;
-  if (saveButton) FleetFormUX.setBusy(saveButton, false);
+  if (saveButton) ZentridFormUX.setBusy(saveButton, false);
   syncClientCreateTypeFields();
   applyClientCreateLocationRules(true);
   setClientCreateStep('tenant');
@@ -769,7 +769,7 @@ function initClientCreateWizard(): void {
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && modal.classList.contains('open')) closeClientCreateModal();
   });
-  FleetFormUX.bindClearOnInput(form, document.getElementById('clientValidationSummary'));
+  ZentridFormUX.bindClearOnInput(form, document.getElementById('clientValidationSummary'));
   syncClientCreateTypeFields();
   applyClientCreateLocationRules(true);
   setClientCreateStep('tenant');
@@ -810,7 +810,7 @@ function syncClientCreateTypeFields(): void {
   modal.querySelectorAll<HTMLElement>('[data-create-type-fields]').forEach(group => {
     const active = group.dataset.createTypeFields === type;
     group.hidden = !active;
-    group.querySelectorAll<FleetFormControl>('input, select, textarea').forEach(control => { control.disabled = !active; });
+    group.querySelectorAll<ZentridFormControl>('input, select, textarea').forEach(control => { control.disabled = !active; });
   });
 }
 
@@ -845,10 +845,10 @@ function applyClientCreateLocationRules(resetDependent = false): void {
   if (phone2) phone2.placeholder = `Optional · ${rule.phonePlaceholder}`;
 }
 
-function clientCreateCustomIssues(index: number, includeDuplicates = false): FleetFormIssue[] {
+function clientCreateCustomIssues(index: number, includeDuplicates = false): ZentridFormIssue[] {
   const form = clientCreateFormElement();
   if (!form) return [];
-  const issues: FleetFormIssue[] = [];
+  const issues: ZentridFormIssue[] = [];
   const type = clientCreateControl<HTMLSelectElement>('type')?.value || 'Individual';
   if (index === 1) {
     ['name', 'surname', 'lastName', 'companyName', 'registrationNo', 'taxId', 'contactPerson'].forEach(name => {
@@ -866,7 +866,7 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Fle
     }
     if (includeDuplicates) {
       const name = clientDraftName(form);
-      const duplicateName = FleetClientModel.clients.find(client => normalizeClientDuplicateValue(client.name) === normalizeClientDuplicateValue(name));
+      const duplicateName = ZentridClientModel.clients.find(client => normalizeClientDuplicateValue(client.name) === normalizeClientDuplicateValue(name));
       if (duplicateName) {
         const control = type === 'Legal Entity' ? clientCreateControl<HTMLInputElement>('companyName') : clientCreateControl<HTMLInputElement>('name');
         issues.push({ control, message:`A client named “${duplicateName.name}” already exists.` });
@@ -874,8 +874,8 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Fle
       if (type === 'Legal Entity') {
         const registration = clientCreateControl<HTMLInputElement>('registrationNo');
         const tax = clientCreateControl<HTMLInputElement>('taxId');
-        const duplicateRegistration = registration?.value ? FleetClientModel.clients.find(client => normalizeClientIdentifier(client.registrationNo) === normalizeClientIdentifier(registration.value)) : undefined;
-        const duplicateTax = tax?.value ? FleetClientModel.clients.find(client => normalizeClientIdentifier(client.taxId) === normalizeClientIdentifier(tax.value)) : undefined;
+        const duplicateRegistration = registration?.value ? ZentridClientModel.clients.find(client => normalizeClientIdentifier(client.registrationNo) === normalizeClientIdentifier(registration.value)) : undefined;
+        const duplicateTax = tax?.value ? ZentridClientModel.clients.find(client => normalizeClientIdentifier(client.taxId) === normalizeClientIdentifier(tax.value)) : undefined;
         if (duplicateRegistration && registration) issues.push({ control:registration, message:`Registration number is already used by ${duplicateRegistration.name}.` });
         if (duplicateTax && tax) issues.push({ control:tax, message:`Tax identifier is already used by ${duplicateTax.name}.` });
       }
@@ -891,8 +891,8 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Fle
     if (phone1) phone1.value = phone1.value.trim();
     if (password?.value && (!/[A-Za-z]/.test(password.value) || !/\d/.test(password.value))) issues.push({ control:password, message:'Temporary password must contain at least one letter and one number.' });
     if (includeDuplicates) {
-      const duplicateEmail = email?.value ? FleetClientModel.clients.find(client => normalizeClientDuplicateValue(client.contactEmail) === normalizeClientDuplicateValue(email.value)) : undefined;
-      const duplicateUsername = username?.value ? FleetClientModel.clients.find(client => normalizeClientDuplicateValue(client.username || client.portalUsername) === normalizeClientDuplicateValue(username.value)) : undefined;
+      const duplicateEmail = email?.value ? ZentridClientModel.clients.find(client => normalizeClientDuplicateValue(client.contactEmail) === normalizeClientDuplicateValue(email.value)) : undefined;
+      const duplicateUsername = username?.value ? ZentridClientModel.clients.find(client => normalizeClientDuplicateValue(client.username || client.portalUsername) === normalizeClientDuplicateValue(username.value)) : undefined;
       if (duplicateEmail && email) issues.push({ control:email, message:`E-mail is already used by ${duplicateEmail.name}.` });
       if (duplicateUsername && username) issues.push({ control:username, message:`Username is already assigned to ${duplicateUsername.name}.` });
     }
@@ -935,14 +935,14 @@ function validateClientCreateStep(index: number, includeDuplicates = false): boo
   const panel = modal.querySelector<HTMLElement>(`[data-client-create-panel="${stepName}"]`);
   const rail = modal.querySelector<HTMLElement>(`[data-client-create-step="${stepName}"]`);
   if (!panel) return true;
-  const result = FleetFormUX.validate(panel, clientCreateCustomIssues(index, includeDuplicates), summary, `Step ${index + 1} needs attention`);
+  const result = ZentridFormUX.validate(panel, clientCreateCustomIssues(index, includeDuplicates), summary, `Step ${index + 1} needs attention`);
   rail?.classList.toggle('has-error', !result.valid);
   if (result.valid) rail?.classList.add('completed');
   else {
     rail?.classList.remove('completed');
     setClientCreateStep(stepName);
-    FleetFormUX.renderSummary(summary, result.issues, `Step ${index + 1} needs attention`);
-    FleetFormUX.focusFirst(result, summary);
+    ZentridFormUX.renderSummary(summary, result.issues, `Step ${index + 1} needs attention`);
+    ZentridFormUX.focusFirst(result, summary);
   }
   return result.valid;
 }
@@ -1062,13 +1062,13 @@ function initClientBankList(modal: HTMLElement): void {
 function createLocalClientId(): string {
   let id = `CL-${Date.now().toString(36).toUpperCase()}`;
   let suffix = 1;
-  while (FleetClientModel.clients.some(client => client.id === id)) id = `CL-${Date.now().toString(36).toUpperCase()}-${suffix++}`;
+  while (ZentridClientModel.clients.some(client => client.id === id)) id = `CL-${Date.now().toString(36).toUpperCase()}-${suffix++}`;
   return id;
 }
 
 function submitClientCreateForm(e: Event): void {
   e.preventDefault();
-  if (!FleetActionPermissions.guard({ action:'create', resource:'client' })) return;
+  if (!ZentridActionPermissions.guard({ action:'create', resource:'client' })) return;
   if (clientCreateSaving) return;
   const form = e.currentTarget as ClientForm;
   for (let index = 0; index < clientCreateSteps.length; index += 1) {
@@ -1090,7 +1090,7 @@ function submitClientCreateForm(e: Event): void {
     ? bankAccounts.map(account => `${account.primary ? 'Primary · ' : ''}${account.bankName}${account.bankCode ? ' · ' + account.bankCode : ''}${account.accountNumber ? ' · ' + account.accountNumber : ''}${account.accountCurrency ? ' · ' + account.accountCurrency : ''}`).join(' | ')
     : 'Not configured';
   const passportNumber = formValue(fd.get('passportNumber')).trim();
-  const client: FleetClientRecord = {
+  const client: ZentridClientRecord = {
     dataOrigin: 'local',
     id: createLocalClientId(),
     code: `CLI-${fullName.replace(/[^A-Z0-9]/gi, '').slice(0, 6).toUpperCase() || 'NEW'}`,
@@ -1132,35 +1132,35 @@ function submitClientCreateForm(e: Event): void {
   const saveButton = document.getElementById('saveClientCreate') as HTMLButtonElement | null;
   const summary = document.getElementById('clientValidationSummary');
   clientCreateSaving = true;
-  if (saveButton) FleetFormUX.setBusy(saveButton, true, 'Creating Client…');
+  if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Creating Client…');
   try {
-    if (!FleetClientModel.clients.some(existing => existing.id === client.id)) FleetClientModel.clients.push(client);
-    if (window.FleetLocalStore) FleetLocalStore.addClient(client);
+    if (!ZentridClientModel.clients.some(existing => existing.id === client.id)) ZentridClientModel.clients.push(client);
+    if (window.ZentridLocalStore) ZentridLocalStore.addClient(client);
     else {
-      const saved = JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as FleetClientRecord[];
+      const saved = JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as ZentridClientRecord[];
       saved.push(client);
       localStorage.setItem('zentrid_custom_clients', JSON.stringify(saved));
     }
-    FleetClientModel.selectClient(client.id);
+    ZentridClientModel.selectClient(client.id);
     clientCreateInitialSnapshot = clientCreateDraftSnapshot();
-    window.FleetFormReadiness?.markCommitted(form);
-    FleetLayout.toast('Client created locally. Opening Client Detail.');
+    window.ZentridFormReadiness?.markCommitted(form);
+    ZentridLayout.toast('Client created locally. Opening Client Detail.');
     closeClientCreateModal(true);
     window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
   } catch (error) {
     clientCreateSaving = false;
-    if (saveButton) FleetFormUX.setBusy(saveButton, false);
-    FleetFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client was not created');
+    if (saveButton) ZentridFormUX.setBusy(saveButton, false);
+    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client was not created');
     summary?.focus();
   }
 }
 
 
-function clientRowsMarkup(rows: FleetClientRecord[]): string {
+function clientRowsMarkup(rows: ZentridClientRecord[]): string {
   if (!rows.length) return `<div class="empty-state-v28"><strong>No clients found</strong><small>Try changing search, type or status filters.</small></div>`;
   return `<div class="data-head"><span>Client</span><span>Legal / Identity</span><span>Assignment Scope</span><span>Access / Contract</span><span>Actions</span></div>${rows.map(c => {
-    const k = FleetClientModel.countsForClient(c.id);
-    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${FleetDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${FleetClientModel.badge(c.status)}">${c.status}</span><small>${c.users} portal accounts · ${c.billing}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`;
+    const k = ZentridClientModel.countsForClient(c.id);
+    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${ZentridDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${ZentridClientModel.badge(c.status)}">${c.status}</span><small>${c.users} portal accounts · ${c.billing}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`;
   }).join('')}`;
 }
 
@@ -1170,7 +1170,7 @@ type ClientDetailFeedbackTone = 'info' | 'warning' | 'danger' | 'success';
 
 let clientDetailActiveTab: ClientDetailTabKey = 'overview';
 let clientDetailEditMode = false;
-let clientDetailDraft: FleetClientRecord | null = null;
+let clientDetailDraft: ZentridClientRecord | null = null;
 let clientDetailEditSnapshot = '';
 let clientDetailBusy = false;
 let clientDetailBeforeUnloadBound = false;
@@ -1179,21 +1179,21 @@ function clientDetailEscape(value: unknown): string {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 function clientDetailAttr(value: unknown): string { return clientDetailEscape(value).replace(/`/g, '&#096;'); }
-function clientDetailClone(record: FleetClientRecord): FleetClientRecord { return JSON.parse(JSON.stringify(record)) as FleetClientRecord; }
-function clientDetailOrigin(record: FleetClientRecord): FleetDataOrigin { return FleetEntityDetailUX.origin(record, 'client'); }
-function clientDetailBackendManaged(record: FleetClientRecord): boolean { return FleetEntityDetailUX.backendManaged(record, 'client'); }
-function clientDetailIsArchived(record: FleetClientRecord): boolean { return FleetEntityDetailUX.archived(record.status); }
+function clientDetailClone(record: ZentridClientRecord): ZentridClientRecord { return JSON.parse(JSON.stringify(record)) as ZentridClientRecord; }
+function clientDetailOrigin(record: ZentridClientRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'client'); }
+function clientDetailBackendManaged(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'client'); }
+function clientDetailIsArchived(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
 function clientDetailEditableTab(tab: ClientDetailTabKey = clientDetailActiveTab): boolean { return ['overview','identity','location','portal','users','commercial'].includes(tab); }
-function clientDetailCanEdit(record: FleetClientRecord, tab: ClientDetailTabKey = clientDetailActiveTab): boolean {
+function clientDetailCanEdit(record: ZentridClientRecord, tab: ClientDetailTabKey = clientDetailActiveTab): boolean {
   return !clientDetailIsArchived(record) && clientDetailEditableTab(tab);
 }
-function clientDetailFreshness(record: FleetClientRecord): string {
-  return FleetEntityDetailUX.freshness(record, 'client', {
+function clientDetailFreshness(record: ZentridClientRecord): string {
+  return ZentridEntityDetailUX.freshness(record, 'client', {
     timestampKeys:['lastSyncAt','updated','raw.lastSyncAt','raw.lastSyncAtUtc','raw.updatedAt']
   });
 }
-function clientDetailModeCopy(record: FleetClientRecord): { title: string; message: string; tone: ClientDetailFeedbackTone } {
-  return FleetEntityDetailUX.modeCopy(record, 'client', {
+function clientDetailModeCopy(record: ZentridClientRecord): { title: string; message: string; tone: ClientDetailFeedbackTone } {
+  return ZentridEntityDetailUX.modeCopy(record, 'client', {
     status:record.status,
     backendTitle:'Live client · local override available',
     backendMessage:'Edit creates a browser-only override for this live record. No backend update request is sent.',
@@ -1201,23 +1201,23 @@ function clientDetailModeCopy(record: FleetClientRecord): { title: string; messa
     archivedMessage:'Archived identity, portal and commercial data cannot be changed from this workspace.'
   });
 }
-function renderClientDetailControl(record: FleetClientRecord): string {
+function renderClientDetailControl(record: ZentridClientRecord): string {
   const copy = clientDetailModeCopy(record);
   return `<section class="client-detail-control-v118 ${copy.tone}" id="clientDetailControl" data-client-detail-origin="${clientDetailOrigin(record)}" role="status" aria-live="polite" aria-busy="false">
-    <div class="client-detail-control-source-v118"><span>Data source</span>${FleetDataSource.badge(record, 'client', true)}<small>${clientDetailEscape(clientDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="client"></span></div>
+    <div class="client-detail-control-source-v118"><span>Data source</span>${ZentridDataSource.badge(record, 'client', true)}<small>${clientDetailEscape(clientDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="client"></span></div>
     <div class="client-detail-control-copy-v118"><strong>${clientDetailEscape(copy.title)}</strong><small>${clientDetailEscape(copy.message)}</small></div>
     <div class="client-detail-feedback-v118" id="clientDetailFeedback" hidden></div>
   </section>`;
 }
 function setClientDetailFeedback(tone: ClientDetailFeedbackTone, title: string, message: string): void {
-  FleetEntityDetailUX.setFeedback({ id:'clientDetailFeedback', className:'client-detail-feedback-v118', tone, title, message, escape:clientDetailEscape });
+  ZentridEntityDetailUX.setFeedback({ id:'clientDetailFeedback', className:'client-detail-feedback-v118', tone, title, message, escape:clientDetailEscape });
 }
 function clearClientDetailFeedback(): void {
-  FleetEntityDetailUX.clearFeedback('clientDetailFeedback', 'client-detail-feedback-v118');
+  ZentridEntityDetailUX.clearFeedback('clientDetailFeedback', 'client-detail-feedback-v118');
 }
-function clientDetailDocumentsData(client: FleetClientRecord): FleetClientDocumentRecord[] {
+function clientDetailDocumentsData(client: ZentridClientRecord): ZentridClientDocumentRecord[] {
   if (Array.isArray(client.documentRecords) && client.documentRecords.length) return client.documentRecords.map(item => ({ ...item }));
-  const base: FleetClientDocumentRecord[] = client.type === 'Individual'
+  const base: ZentridClientDocumentRecord[] = client.type === 'Individual'
     ? [
       { name:'Identity Verification.pdf', type:'Identity', status:'Pending' },
       { name:'Owner Portal Consent.pdf', type:'Access', status:'Draft' },
@@ -1234,11 +1234,11 @@ function clientDetailDocumentsData(client: FleetClientRecord): FleetClientDocume
     { name:'Billing Contacts.pdf', type:'Finance', status:'Active' }
   ]);
 }
-function clientDetailPortalUsersData(client: FleetClientRecord, plants: FleetPlantRecord[]): FleetPortalUser[] {
+function clientDetailPortalUsersData(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
   if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(user => ({ ...user }));
   return clientPortalUsers(client, plants).map(user => ({ ...user }));
 }
-function clientDetailPrepareDraft(record: FleetClientRecord, plants: FleetPlantRecord[]): FleetClientRecord {
+function clientDetailPrepareDraft(record: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridClientRecord {
   const draft = clientDetailClone(record);
   draft.documentRecords = clientDetailDocumentsData(record);
   draft.portalUsers = clientDetailPortalUsersData(record, plants);
@@ -1248,7 +1248,7 @@ function clientDetailPrepareDraft(record: FleetClientRecord, plants: FleetPlantR
 function clientDetailSnapshot(): string { return clientDetailDraft ? JSON.stringify(clientDetailDraft) : ''; }
 function clientDetailHasUnsavedEdits(): boolean { return clientDetailEditMode && clientDetailEditSnapshot !== clientDetailSnapshot(); }
 function clientDetailConfirmDiscard(message = 'Discard unsaved client changes?'): boolean {
-  return FleetEntityDetailUX.confirmDiscard(clientDetailHasUnsavedEdits(), message);
+  return ZentridEntityDetailUX.confirmDiscard(clientDetailHasUnsavedEdits(), message);
 }
 function clientDetailSectionTitle(tab: ClientDetailTabKey): string {
   const titles: Record<ClientDetailTabKey, string> = {
@@ -1256,12 +1256,12 @@ function clientDetailSectionTitle(tab: ClientDetailTabKey): string {
   };
   return titles[tab];
 }
-function clientDetailSectionContext(record: FleetClientRecord, tab: ClientDetailTabKey, editable = clientDetailEditMode): string {
-  const mode = FleetEntityDetailUX.sectionMode({ editable, backendManaged:clientDetailBackendManaged(record), archived:clientDetailIsArchived(record), sectionEditable:clientDetailEditableTab(tab) });
+function clientDetailSectionContext(record: ZentridClientRecord, tab: ClientDetailTabKey, editable = clientDetailEditMode): string {
+  const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:clientDetailBackendManaged(record), archived:clientDetailIsArchived(record), sectionEditable:clientDetailEditableTab(tab) });
   const help = editable ? 'Review the highlighted fields before saving locally.' : clientDetailEditableTab(tab) ? 'Use Edit to change this local or mock client record.' : 'This section is derived from linked operational data.';
   return `<div class="client-section-context-v118"><div><span>${clientDetailEscape(mode)}</span><strong>${clientDetailEscape(clientDetailSectionTitle(tab))}</strong><small>${clientDetailEscape(help)}</small></div></div>`;
 }
-function clientDetailInput(key: keyof FleetClientRecord, label: string, value: unknown, options?: string[], type = 'text', required = false): string {
+function clientDetailInput(key: keyof ZentridClientRecord, label: string, value: unknown, options?: string[], type = 'text', required = false): string {
   const req = required ? ' required' : '';
   const safeValue = clientDetailAttr(value ?? '');
   if (options) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<select data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${options.map(option => `<option value="${clientDetailAttr(option)}" ${String(value ?? '') === option ? 'selected' : ''}>${clientDetailEscape(option)}</option>`).join('')}</select></label>`;
@@ -1269,7 +1269,7 @@ function clientDetailInput(key: keyof FleetClientRecord, label: string, value: u
   if (textarea) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<textarea data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${clientDetailEscape(value ?? '')}</textarea></label>`;
   return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<input type="${type}" data-client-edit-key="${String(key)}" name="client-edit-${String(key)}" value="${safeValue}"${req}></label>`;
 }
-function clientDetailDocumentsEditor(client: FleetClientRecord): string {
+function clientDetailDocumentsEditor(client: ZentridClientRecord): string {
   const rows = client.documentRecords || [];
   return `<div class="section-title-v17 mini"><div><h3>Client Documents</h3><p class="muted">Local metadata only. Files are not uploaded because a document API is not available.</p></div><button class="small-btn" type="button" data-add-client-document>+ Add Document</button></div>
     <div class="data-table compact-table client-document-editor-v118">
@@ -1277,19 +1277,19 @@ function clientDetailDocumentsEditor(client: FleetClientRecord): string {
       ${rows.length ? rows.map((doc,index) => `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type"><option ${doc.type==='Identity'?'selected':''}>Identity</option><option ${doc.type==='Legal'?'selected':''}>Legal</option><option ${doc.type==='Commercial'?'selected':''}>Commercial</option><option ${doc.type==='Finance'?'selected':''}>Finance</option><option ${doc.type==='Compliance'?'selected':''}>Compliance</option><option ${doc.type==='Access'?'selected':''}>Access</option><option ${doc.type==='Assignment'?'selected':''}>Assignment</option></select></label><label><span class="sr-only">Document status</span><select data-client-document-field="status"><option ${doc.status==='Draft'?'selected':''}>Draft</option><option ${doc.status==='Pending'?'selected':''}>Pending</option><option ${doc.status==='Verified'?'selected':''}>Verified</option><option ${doc.status==='Active'?'selected':''}>Active</option><option ${doc.status==='Signed'?'selected':''}>Signed</option><option ${doc.status==='Expired'?'selected':''}>Expired</option><option ${doc.status==='Waiting'?'selected':''}>Waiting</option><option ${doc.status==='Updated'?'selected':''}>Updated</option></select></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry"></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No document metadata</strong><small>Add a document record when client-level documentation is required.</small></div>`}
     </div>`;
 }
-function clientDetailUsersEditor(client: FleetClientRecord): string {
+function clientDetailUsersEditor(client: ZentridClientRecord): string {
   const users = client.portalUsers || [];
   return `<div class="section-title-v17"><div><h2>Users & Access</h2><p class="muted">Local portal-access prototype. No user account or invitation is sent to the backend.</p></div><button class="small-btn" type="button" data-add-client-user>+ Add User</button></div>
     <div class="data-table compact-table client-user-editor-v118"><div class="data-head"><span>User</span><span>Role</span><span>Scope</span><span>Modules</span><span>Status / MFA</span><span>Actions</span></div>
     ${users.length ? users.map((user,index) => `<div class="data-row" data-client-user-row="${index}"><div class="stacked-fields-v118"><input aria-label="User name" placeholder="Full name" value="${clientDetailAttr(user.name)}" data-client-user-field="name" required><input type="email" aria-label="User email" placeholder="Email" value="${clientDetailAttr(user.email)}" data-client-user-field="email" required></div><select aria-label="Portal role" data-client-user-field="role"><option ${user.role==='Owner User'?'selected':''}>Owner User</option><option ${user.role==='Client Admin'?'selected':''}>Client Admin</option><option ${user.role==='Finance Contact'?'selected':''}>Finance Contact</option><option ${user.role==='Technical Viewer'?'selected':''}>Technical Viewer</option><option ${user.role==='Read-only Auditor'?'selected':''}>Read-only Auditor</option></select><input aria-label="User scope" value="${clientDetailAttr(user.scope)}" data-client-user-field="scope"><input aria-label="Allowed modules" value="${clientDetailAttr(user.modules)}" data-client-user-field="modules"><div class="stacked-fields-v118"><select aria-label="User status" data-client-user-field="status"><option ${user.status==='Active'?'selected':''}>Active</option><option ${user.status==='Invited'?'selected':''}>Invited</option><option ${user.status==='Pending'?'selected':''}>Pending</option><option ${user.status==='Suspended'?'selected':''}>Suspended</option></select><select aria-label="MFA state" data-client-user-field="mfa"><option ${user.mfa==='Enabled'?'selected':''}>Enabled</option><option ${user.mfa==='Recommended'?'selected':''}>Recommended</option><option ${user.mfa==='Required'?'selected':''}>Required</option><option ${user.mfa==='Disabled'?'selected':''}>Disabled</option></select></div><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-user="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No portal users</strong><small>Add a local portal-access record to test the UI flow.</small></div>`}</div>`;
 }
-function clientDetailBankEditor(client: FleetClientRecord): string {
+function clientDetailBankEditor(client: ZentridClientRecord): string {
   const accounts = client.bankAccounts || [];
   return `<div class="section-title-v17 mini"><div><h3>Bank Accounts</h3><p class="muted">Sensitive payment metadata is stored only in this browser in prototype mode.</p></div><button class="small-btn" type="button" data-add-client-bank>+ Add Bank</button></div>
     <div class="data-table compact-table client-bank-editor-v118"><div class="data-head"><span>Bank</span><span>Code</span><span>Account Number</span><span>Currency</span><span>Primary</span><span>Actions</span></div>
     ${accounts.length ? accounts.map((account,index) => `<div class="data-row" data-client-bank-row="${index}"><input aria-label="Bank name" value="${clientDetailAttr(account.bankName)}" data-client-bank-field="bankName" required><input aria-label="Bank code" value="${clientDetailAttr(account.bankCode)}" data-client-bank-field="bankCode"><input aria-label="Account number" value="${clientDetailAttr(account.accountNumber)}" data-client-bank-field="accountNumber" required><select aria-label="Account currency" data-client-bank-field="accountCurrency"><option ${account.accountCurrency==='AMD'?'selected':''}>AMD</option><option ${account.accountCurrency==='USD'?'selected':''}>USD</option><option ${account.accountCurrency==='EUR'?'selected':''}>EUR</option></select><label class="inline-check-v118"><input type="radio" name="client-primary-bank" ${account.primary?'checked':''} data-client-bank-primary="${index}"><span>Primary</span></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-bank="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No bank accounts</strong><small>Banking is optional until a commercial settlement is configured.</small></div>`}</div>`;
 }
-function clientDetailEditTab(client: FleetClientRecord, plants: FleetPlantRecord[], tab: ClientDetailTabKey): string {
+function clientDetailEditTab(client: ZentridClientRecord, plants: ZentridPlantRecord[], tab: ClientDetailTabKey): string {
   if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields in the local prototype record.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,undefined,'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('verification','Verification',client.verification,['Draft · Pending verification','Identity Pending','KYC Review','Verified','Rejected'],'text',true)}${clientDetailInput('status','Client Status',client.status,['Active','Pending','Review','Suspended','Archived'],'text',true)}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,undefined,'text',true)}${clientDetailInput('account','Account Manager',client.account,undefined,'text',true)}</div>${clientDetailDocumentsEditor(client)}`;
   if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,['Armenia','United States','Germany','Spain'],'text',true)}${clientDetailInput('region','Region',client.region || '',undefined,'text',true)}${clientDetailInput('city','City',client.city,undefined,'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || 'Asia/Yerevan',undefined,'text',true)}${clientDetailInput('language','Language',client.language || 'English',['English','Armenian','German','Spanish'],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '°C',['°C','°F'])}${clientDetailInput('currency','Currency',client.currency || 'AMD',['AMD','USD','EUR'])}${clientDetailInput('irradiation','Irradiation',client.irradiation || 'kWh/m2',['kWh/m2','W/m2'])}</div>`;
   if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact and client-facing portal defaults.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailInput('username','Portal Username',client.username || '',undefined,'text')}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,undefined,'text',true)}${clientDetailInput('accessScope','Plant / Data Scope',client.accessScope,undefined,'text',true)}${clientDetailInput('exportPolicy','Export Policy',client.exportPolicy,undefined,'text',true)}${clientDetailInput('onboarding','Onboarding State',client.onboarding,undefined,'text',true)}</div>`;
@@ -1303,10 +1303,10 @@ function clientDetailSyncControlToDraft(control: HTMLInputElement | HTMLSelectEl
   if (!key) return;
   clientDetailDraft[key] = control.value;
 }
-function clientDetailValidationIssues(record: FleetClientRecord, tab: ClientDetailTabKey, root: HTMLElement): FleetFormIssue[] {
-  const issues: FleetFormIssue[] = [];
-  const byKey = (key: string): FleetFormControl | null => root.querySelector<FleetFormControl>(`[data-client-edit-key="${key}"]`);
-  const duplicate = (predicate: (client: FleetClientRecord) => boolean): boolean => FleetClientModel.clients.some(client => client.id !== record.id && predicate(client));
+function clientDetailValidationIssues(record: ZentridClientRecord, tab: ClientDetailTabKey, root: HTMLElement): ZentridFormIssue[] {
+  const issues: ZentridFormIssue[] = [];
+  const byKey = (key: string): ZentridFormControl | null => root.querySelector<ZentridFormControl>(`[data-client-edit-key="${key}"]`);
+  const duplicate = (predicate: (client: ZentridClientRecord) => boolean): boolean => ZentridClientModel.clients.some(client => client.id !== record.id && predicate(client));
   if (tab === 'identity') {
     if (duplicate(client => client.name.trim().toLowerCase() === record.name.trim().toLowerCase())) issues.push({ control:byKey('name'), message:'Another client already uses this name.' });
     if (record.registrationNo && duplicate(client => String(client.registrationNo || '').trim().toLowerCase() === record.registrationNo.trim().toLowerCase())) issues.push({ control:byKey('registrationNo'), message:'Another client already uses this registration or identity number.' });
@@ -1351,7 +1351,7 @@ function clientDetailValidationIssues(record: FleetClientRecord, tab: ClientDeta
   }
   return issues;
 }
-function updateClientDetailActions(record: FleetClientRecord): void {
+function updateClientDetailActions(record: ZentridClientRecord): void {
   const edit = document.getElementById('editClientTab') as HTMLButtonElement | null;
   const cancel = document.getElementById('cancelClientEdit') as HTMLButtonElement | null;
   const save = document.getElementById('saveClientEdit') as HTMLButtonElement | null;
@@ -1364,7 +1364,7 @@ function updateClientDetailActions(record: FleetClientRecord): void {
   if (cancel) cancel.hidden = !clientDetailEditMode;
   if (save) save.hidden = !clientDetailEditMode;
 }
-function renderClientDetailCurrentTab(baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function renderClientDetailCurrentTab(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   const record = clientDetailEditMode && clientDetailDraft ? clientDetailDraft : baseRecord;
   const content = document.getElementById('clientTabContent');
   if (content) content.innerHTML = clientTab(record, plants, clientDetailActiveTab, clientDetailEditMode);
@@ -1372,7 +1372,7 @@ function renderClientDetailCurrentTab(baseRecord: FleetClientRecord, plants: Fle
   if (title) title.textContent = clientDetailSectionTitle(clientDetailActiveTab);
   updateClientDetailActions(baseRecord);
 }
-function setClientDetailEditMode(enabled: boolean, baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function setClientDetailEditMode(enabled: boolean, baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (clientDetailBusy) return;
   if (enabled && clientDetailActiveTab === 'overview') {
     clientDetailActiveTab = 'identity';
@@ -1397,9 +1397,9 @@ function setClientDetailEditMode(enabled: boolean, baseRecord: FleetClientRecord
   clearClientDetailFeedback();
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function saveClientDetailEdits(baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function saveClientDetailEdits(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailEditMode || !clientDetailDraft || clientDetailBusy) return;
-  if (!FleetActionPermissions.guard({ action:'edit', resource:'client', record:baseRecord, status:baseRecord.status, origin:clientDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'client', record:baseRecord, status:baseRecord.status, origin:clientDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
   if (!clientDetailCanEdit(baseRecord)) {
     const copy = clientDetailModeCopy(baseRecord);
     setClientDetailFeedback(copy.tone, copy.title, copy.message);
@@ -1408,18 +1408,18 @@ function saveClientDetailEdits(baseRecord: FleetClientRecord, plants: FleetPlant
   const content = document.getElementById('clientTabContent');
   const summary = document.getElementById('clientDetailEditSummary');
   if (!content) return;
-  const result = FleetFormUX.validate(content, clientDetailValidationIssues(clientDetailDraft, clientDetailActiveTab, content), summary, 'Client changes were not saved');
-  if (!result.valid) { FleetFormUX.focusFirst(result, summary); return; }
+  const result = ZentridFormUX.validate(content, clientDetailValidationIssues(clientDetailDraft, clientDetailActiveTab, content), summary, 'Client changes were not saved');
+  if (!result.valid) { ZentridFormUX.focusFirst(result, summary); return; }
   const button = document.getElementById('saveClientEdit') as HTMLButtonElement | null;
   clientDetailBusy = true;
   document.getElementById('clientDetailControl')?.setAttribute('aria-busy','true');
-  if (button) FleetFormUX.setBusy(button, true, 'Saving…');
+  if (button) ZentridFormUX.setBusy(button, true, 'Saving…');
   try {
-    const changed = FleetDataSource.markChanged({ ...clientDetailDraft, updated:new Date().toLocaleString() }, 'client') as FleetClientRecord;
+    const changed = ZentridDataSource.markChanged({ ...clientDetailDraft, updated:new Date().toLocaleString() }, 'client') as ZentridClientRecord;
     changed.documents = changed.documentRecords?.length || 0;
     changed.users = changed.portalUsers?.length || 0;
     Object.assign(baseRecord, changed);
-    FleetLocalStore.addClient(baseRecord);
+    ZentridLocalStore.addClient(baseRecord);
     clientDetailEditMode = false;
     clientDetailDraft = null;
     clientDetailEditSnapshot = '';
@@ -1428,43 +1428,43 @@ function saveClientDetailEdits(baseRecord: FleetClientRecord, plants: FleetPlant
   } catch (error) {
     clientDetailBusy = false;
     document.getElementById('clientDetailControl')?.setAttribute('aria-busy','false');
-    if (button) FleetFormUX.setBusy(button, false);
-    FleetFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client changes were not saved');
+    if (button) ZentridFormUX.setBusy(button, false);
+    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client changes were not saved');
     summary?.focus();
   }
 }
-function addClientDetailDocument(baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function addClientDetailDocument(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft) return;
   clientDetailDraft.documentRecords = clientDetailDraft.documentRecords || [];
   clientDetailDraft.documentRecords.push({ name:'', type:'Legal', status:'Draft' });
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function removeClientDetailDocument(index: number, baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function removeClientDetailDocument(index: number, baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft?.documentRecords?.[index]) return;
   if (!window.confirm(`Remove ${clientDetailDraft.documentRecords[index]!.name || 'this document'} from the local client draft?`)) return;
   clientDetailDraft.documentRecords.splice(index,1);
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function addClientDetailUser(baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function addClientDetailUser(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft) return;
   clientDetailDraft.portalUsers = clientDetailDraft.portalUsers || [];
   clientDetailDraft.portalUsers.push({ name:'', email:'', role:'Owner User', scope:'Assigned plants only', modules:'Overview, Energy, Reports', status:'Invited', lastLogin:'No login yet', mfa:'Recommended' });
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function removeClientDetailUser(index: number, baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function removeClientDetailUser(index: number, baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft?.portalUsers?.[index]) return;
   const user = clientDetailDraft.portalUsers[index]!;
   if (!window.confirm(`Remove ${user.name || user.email || 'this portal user'} from the local client draft?`)) return;
   clientDetailDraft.portalUsers.splice(index,1);
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function addClientDetailBank(baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function addClientDetailBank(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft) return;
   clientDetailDraft.bankAccounts = clientDetailDraft.bankAccounts || [];
   clientDetailDraft.bankAccounts.push({ bankName:'', bankCode:'', accountNumber:'', accountCurrency:clientDetailDraft.currency || 'AMD', primary:clientDetailDraft.bankAccounts.length === 0 });
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function removeClientDetailBank(index: number, baseRecord: FleetClientRecord, plants: FleetPlantRecord[]): void {
+function removeClientDetailBank(index: number, baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft?.bankAccounts?.[index]) return;
   const account = clientDetailDraft.bankAccounts[index]!;
   if (!window.confirm(`Remove ${account.bankName || account.accountNumber || 'this bank account'} from the local client draft?`)) return;
@@ -1477,11 +1477,11 @@ function renderClientDetailPage() {
   const requestedEditTab = localStorage.getItem('zentrid_client_detail_edit') as ClientDetailTabKey | null;
   if (requestedEditTab && ['identity','location','portal','users','commercial'].includes(requestedEditTab)) clientDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_client_detail_edit');
-  const client = FleetClientModel.selectedClient();
-  const plants = FleetClientModel.plantsForClient(client.id);
-  FleetLayout.mount(`
+  const client = ZentridClientModel.selectedClient();
+  const plants = ZentridClientModel.plantsForClient(client.id);
+  ZentridLayout.mount(`
     <section class="page-hero client-hero-v17">
-      <div><p class="eyebrow">Client Detail · ${clientDetailEscape(client.type)} ${FleetDataSource.badge(client, 'client', true)}</p><h1 id="clientDetailHeroName">${clientDetailEscape(client.name)}</h1><p class="muted" id="clientDetailHeroMeta">${clientDetailEscape(client.code)} · ${clientDetailEscape(client.country)}, ${clientDetailEscape(client.city)} · Account Manager: ${clientDetailEscape(client.account)}</p></div>
+      <div><p class="eyebrow">Client Detail · ${clientDetailEscape(client.type)} ${ZentridDataSource.badge(client, 'client', true)}</p><h1 id="clientDetailHeroName">${clientDetailEscape(client.name)}</h1><p class="muted" id="clientDetailHeroMeta">${clientDetailEscape(client.code)} · ${clientDetailEscape(client.country)}, ${clientDetailEscape(client.city)} · Account Manager: ${clientDetailEscape(client.account)}</p></div>
       <button class="freshness-card" id="backToClients" type="button"><span class="pulse"></span><div><strong>Client workspace</strong><small>Plants are client-level, managed through tenant workspace</small></div></button>
     </section>
     ${renderClientDetailControl(client)}
@@ -1560,8 +1560,8 @@ function renderClientDetailPage() {
     const plantId = row?.dataset.plant;
     if (!plantId) return;
     if (!clientDetailConfirmDiscard('Discard unsaved client changes and open Plant Detail?')) return;
-    FleetClientModel.selectClient(client.id);
-    FleetClientModel.selectPlant(plantId);
+    ZentridClientModel.selectClient(client.id);
+    ZentridClientModel.selectPlant(plantId);
     location.href = 'plant-detail.html';
   });
   const syncDynamicField = (target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void => {
@@ -1569,15 +1569,15 @@ function renderClientDetailPage() {
     clientDetailSyncControlToDraft(target);
     const documentRow = target.closest<HTMLElement>('[data-client-document-row]');
     const documentIndex = Number(documentRow?.dataset.clientDocumentRow);
-    const documentField = target.dataset.clientDocumentField as keyof FleetClientDocumentRecord | undefined;
+    const documentField = target.dataset.clientDocumentField as keyof ZentridClientDocumentRecord | undefined;
     if (documentField && clientDetailDraft.documentRecords?.[documentIndex]) clientDetailDraft.documentRecords[documentIndex]![documentField] = target.value;
     const userRow = target.closest<HTMLElement>('[data-client-user-row]');
     const userIndex = Number(userRow?.dataset.clientUserRow);
-    const userField = target.dataset.clientUserField as keyof FleetPortalUser | undefined;
+    const userField = target.dataset.clientUserField as keyof ZentridPortalUser | undefined;
     if (userField && clientDetailDraft.portalUsers?.[userIndex]) clientDetailDraft.portalUsers[userIndex]![userField] = target.value;
     const bankRow = target.closest<HTMLElement>('[data-client-bank-row]');
     const bankIndex = Number(bankRow?.dataset.clientBankRow);
-    const bankField = target.dataset.clientBankField as keyof FleetBankAccount | undefined;
+    const bankField = target.dataset.clientBankField as keyof ZentridBankAccount | undefined;
     if (bankField && clientDetailDraft.bankAccounts?.[bankIndex]) {
       const account = clientDetailDraft.bankAccounts[bankIndex]!;
       if (bankField === 'bankName' || bankField === 'bankCode' || bankField === 'accountNumber' || bankField === 'accountCurrency' || bankField === 'bank' || bankField === 'account' || bankField === 'currency') account[bankField] = target.value;
@@ -1587,7 +1587,7 @@ function renderClientDetailPage() {
       clientDetailDraft.bankAccounts.forEach((account,index) => { account.primary = index === Number(primaryIndex); });
     }
     const summary = document.getElementById('clientDetailEditSummary');
-    if (clientDetailEditMode) FleetFormUX.clearErrors(clientTabContent || document, summary);
+    if (clientDetailEditMode) ZentridFormUX.clearErrors(clientTabContent || document, summary);
   };
   clientTabContent?.addEventListener('input', event => {
     const target = event.target;
@@ -1599,13 +1599,13 @@ function renderClientDetailPage() {
   });
   if (requestedEditTab && clientDetailCanEdit(client, requestedEditTab)) setClientDetailEditMode(true, client, plants);
   if (!clientDetailBeforeUnloadBound) {
-    FleetEntityDetailUX.bindBeforeUnload('client-detail', clientDetailHasUnsavedEdits);
+    ZentridEntityDetailUX.bindBeforeUnload('client-detail', clientDetailHasUnsavedEdits);
     clientDetailBeforeUnloadBound = true;
   }
 }
 
 
-function plantBuilderModal(client: FleetClientRecord): string {
+function plantBuilderModal(client: ZentridClientRecord): string {
   return `<div class="plant-builder-modal-v27" id="plantBuilderModalV27" aria-hidden="true">
     <div class="plant-builder-shell-v27">
       <div class="plant-builder-top-v27">
@@ -1628,7 +1628,7 @@ function plantBuilderModal(client: FleetClientRecord): string {
 function plantBuilderStep(step: string): string {
   if (step === 'device') return `<div class="builder-two-col-v27">
     <section><div class="section-title-v17 mini"><div><h3>Device Catalog</h3><p class="muted">Choose a model from database. Shared fields come from catalog; individual fields are entered per physical device.</p></div></div>
-      <div class="device-catalog-grid-v27">${FleetDeviceCatalog.catalog.map((x, i) => `<article>
+      <div class="device-catalog-grid-v27">${ZentridDeviceCatalog.catalog.map((x, i) => `<article>
         <div><strong>${x.vendor} ${x.model}</strong><small>${x.kind} · ${x.rating}</small></div>
         <p><b>Shared:</b> ${x.shared}</p><p><b>Individual:</b> ${x.individual}</p>
         <button class="small-btn" type="button" data-builder-add-device="${i}">Add to Plant</button>
@@ -1637,7 +1637,7 @@ function plantBuilderStep(step: string): string {
     <aside class="builder-selection-v27"><h3>Selected Device</h3><div id="builderDeviceListV27">${builderDeviceList()}</div></aside>
   </div>`;
   if (step === 'compatibility') return `<div class="section-title-v17"><div><h2>Device Compatibility Rules</h2><p class="muted">Vendor is an attribute, not the hierarchy. Compatibility is based on protocol, firmware, electrical limits and source capability.</p></div></div>
-    <div class="data-table compact-table compatibility-table-v27"><div class="data-head"><span>Source</span><span>Compatible With</span><span>Type</span><span>Status</span><span>Rule</span></div>${FleetDeviceCatalog.compatibility.map(x => `<div class="data-row"><div><strong>${x.from}</strong></div><div><strong>${x.to}</strong></div><div><span>${x.type}</span></div><div><span class="badge ${x.status.includes('Conditional') ? 'warning' : 'success'}">${x.status.split(':')[0]}</span><small>${x.status.includes(':') ? x.status.split(':').slice(1).join(':').trim() : x.status}</small></div><div><small>${x.rule}</small></div></div>`).join('')}</div>`;
+    <div class="data-table compact-table compatibility-table-v27"><div class="data-head"><span>Source</span><span>Compatible With</span><span>Type</span><span>Status</span><span>Rule</span></div>${ZentridDeviceCatalog.compatibility.map(x => `<div class="data-row"><div><strong>${x.from}</strong></div><div><strong>${x.to}</strong></div><div><span>${x.type}</span></div><div><span class="badge ${x.status.includes('Conditional') ? 'warning' : 'success'}">${x.status.split(':')[0]}</span><small>${x.status.includes(':') ? x.status.split(':').slice(1).join(':').trim() : x.status}</small></div><div><small>${x.rule}</small></div></div>`).join('')}</div>`;
   if (step === 'topology') return `<div class="section-title-v17"><div><h2>Topology Builder</h2><p class="muted">A plant can contain mixed-vendor device. Relationships are physical/electrical/logical, not vendor ownership.</p></div></div>
     <div class="plant-builder-topology-v27">
       <div class="topology-node-v27 root"><b>Plant</b><span>New plant workspace</span></div>
@@ -1653,13 +1653,13 @@ function plantBuilderStep(step: string): string {
   if (step === 'review') return `<div class="section-title-v17"><div><h2>Review</h2><p class="muted">Before creating the plant, check required individual data and compatibility warnings.</p></div></div>
     <div class="builder-review-grid-v27"><article><span>Plant</span><strong>New Plant</strong><small>Name, code, address, timezone</small></article><article><span>Device</span><strong id="builderReviewCountV27">${builderDevices().length} selected</strong><small>From catalog database</small></article><article><span>Required individual fields</span><strong>Serials / addresses / install dates</strong><small>Per physical instance</small></article><article><span>Compatibility</span><strong>Conditional checks required</strong><small>BMS, meter, logger, protocol</small></article></div>`;
   return `<div class="section-title-v17"><div><h2>Plant Information</h2><p class="muted">Only plant identity and location are entered manually. Device details are selected in the next step.</p></div></div>
-    <div class="builder-form-grid-v27"><label>Plant Name<input value="New Plant" /></label><label>Plant Code<input value="AUTO-PL-001" /></label><label>Country<input value="Armenia" /></label><label>Region<input value="Kotayk" /></label><label>Address<input value="Plant address" /></label><label>Timezone<input value="Asia/Yerevan" /></label><label>Client<input value="${FleetClientModel.selectedClient().name}" /></label><label>Managing Tenant<input value="Tenant workspace" /></label></div>`;
+    <div class="builder-form-grid-v27"><label>Plant Name<input value="New Plant" /></label><label>Plant Code<input value="AUTO-PL-001" /></label><label>Country<input value="Armenia" /></label><label>Region<input value="Kotayk" /></label><label>Address<input value="Plant address" /></label><label>Timezone<input value="Asia/Yerevan" /></label><label>Client<input value="${ZentridClientModel.selectedClient().name}" /></label><label>Managing Tenant<input value="Tenant workspace" /></label></div>`;
 }
 
-function builderDevices(): FleetDeviceCatalogItem[] {
+function builderDevices(): ZentridDeviceCatalogItem[] {
   try { return JSON.parse(sessionStorage.getItem('zentrid_builder_devices_v27') || '[]'); } catch { return []; }
 }
-function saveBuilderDevices(list: FleetDeviceCatalogItem[]): void { sessionStorage.setItem('zentrid_builder_devices_v27', JSON.stringify(list)); }
+function saveBuilderDevices(list: ZentridDeviceCatalogItem[]): void { sessionStorage.setItem('zentrid_builder_devices_v27', JSON.stringify(list)); }
 function builderDeviceList() {
   const list = builderDevices();
   if (!list.length) return `<div class="empty-state"><strong>No device selected</strong><small>Add inverter, meter, logger, BESS or infrastructure devices from the catalog.</small></div>`;
@@ -1684,14 +1684,14 @@ function setPlantBuilderStep(step: string): void {
   if (body) body.innerHTML = plantBuilderStep(step);
 }
 function addBuilderDevice(index: string | number): void {
-  const item = FleetDeviceCatalog.catalog[Number(index)];
+  const item = ZentridDeviceCatalog.catalog[Number(index)];
   if (!item) return;
   const list = builderDevices();
   list.push(item);
   saveBuilderDevices(list);
   const target = document.getElementById('builderDeviceListV27');
   if (target) target.innerHTML = builderDeviceList();
-  FleetLayout.toast(`${item.kind} added to Plant Builder`);
+  ZentridLayout.toast(`${item.kind} added to Plant Builder`);
 }
 function removeBuilderDevice(index: string | number): void {
   const list = builderDevices();
@@ -1701,12 +1701,12 @@ function removeBuilderDevice(index: string | number): void {
   if (target) target.innerHTML = builderDeviceList();
 }
 
-function plantSummaryCards(plants: FleetPlantRecord[]): string {
+function plantSummaryCards(plants: ZentridPlantRecord[]): string {
   if (!plants.length) return `<div class="empty-state"><strong>No plants assigned yet</strong><small>Plants will appear here after assignment is completed.</small></div>`;
   return `<div class="plant-card-grid-v17">${plants.map(p => {
-    const ds = FleetClientModel.devicesForPlant(p.id);
+    const ds = ZentridClientModel.devicesForPlant(p.id);
     return `<article class="plant-card-v17 clickable-row" data-plant="${p.id}">
-      <div class="plant-card-top-v17"><div><strong>${p.name}</strong><small>${p.code} · ${p.portfolio}</small></div><span class="badge ${FleetClientModel.badge(p.health)}">${p.health}</span></div>
+      <div class="plant-card-top-v17"><div><strong>${p.name}</strong><small>${p.code} · ${p.portfolio}</small></div><span class="badge ${ZentridClientModel.badge(p.health)}">${p.health}</span></div>
       <div class="plant-card-metrics-v17"><div><span>Capacity</span><b>${p.capacityDc}</b></div><div><span>Now</span><b>${p.powerNow}</b></div><div><span>Today</span><b>${p.energyToday}</b></div><div><span>Alerts</span><b>${p.alerts}</b></div></div>
       <div class="device-strip-v17"><span>Inverters ${p.inverters}</span><span>Meters ${p.meters}</span><span>BESS ${p.battery}</span><span>${ds.length} sample records</span></div>
     </article>`;
@@ -1714,7 +1714,7 @@ function plantSummaryCards(plants: FleetPlantRecord[]): string {
 }
 
 
-function clientProfileCard(client: FleetClientRecord): string {
+function clientProfileCard(client: ZentridClientRecord): string {
   const legalRows = client.type === 'Individual'
     ? [
       ['Client Type', client.type], ['Full Name', client.name], ['Personal / Passport ID', client.registrationNo], ['Tax / Personal ID', client.taxId], ['Identity Status', client.verification], ['Residential Location', `${client.country}, ${client.city}`]
@@ -1733,12 +1733,12 @@ function clientProfileCard(client: FleetClientRecord): string {
   </div>`;
 }
 
-function assignmentRows(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function assignmentRows(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   if (!plants.length) return `<div class="empty-state"><strong>No plant assigned yet</strong><small>This client is registered, but no plant assignment is visible for Global Admin.</small></div>`;
-  return `<div class="data-table compact-table assignment-table-v28"><div class="data-head"><span>Plant</span><span>Role / Tenant</span><span>Access Scope</span><span>Documents</span><span>Action</span></div>${plants.map(p => `<div class="data-row" data-plant="${p.id}"><div><strong>${p.name}</strong><small>${p.code}<br>${p.country}, ${p.city}</small></div><div><strong>${client.assignmentRole}</strong><small>${p.operator}</small></div><div><span class="badge ${FleetClientModel.badge(p.health)}">${p.health}</span><small>Portal: overview, energy, reports</small></div><div><strong>Assignment active</strong><small>Owner matrix · O&M terms · reports</small></div><div class="row-actions"><button type="button">Open Plant</button></div></div>`).join('')}</div>`;
+  return `<div class="data-table compact-table assignment-table-v28"><div class="data-head"><span>Plant</span><span>Role / Tenant</span><span>Access Scope</span><span>Documents</span><span>Action</span></div>${plants.map(p => `<div class="data-row" data-plant="${p.id}"><div><strong>${p.name}</strong><small>${p.code}<br>${p.country}, ${p.city}</small></div><div><strong>${client.assignmentRole}</strong><small>${p.operator}</small></div><div><span class="badge ${ZentridClientModel.badge(p.health)}">${p.health}</span><small>Portal: overview, energy, reports</small></div><div><strong>Assignment active</strong><small>Owner matrix · O&M terms · reports</small></div><div class="row-actions"><button type="button">Open Plant</button></div></div>`).join('')}</div>`;
 }
 
-function accessScopeMatrix(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function accessScopeMatrix(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const plantScope = plants.length ? plants.map(p => p.name).join(', ') : 'No active plant scope';
   return `<div class="section-title-v17"><div><h2>Access Scope</h2><p class="muted">Client access is limited to assigned plants and client-facing modules. Global Admin reviews the scope, Tenant Admin manages changes.</p></div><button class="small-btn" type="button" onclick="location.href='client-users-permissions.html'">View Permissions</button></div>
   <div class="info-grid">
@@ -1749,18 +1749,18 @@ function accessScopeMatrix(client: FleetClientRecord, plants: FleetPlantRecord[]
   </div>`;
 }
 
-function clientDocuments(client: FleetClientRecord): string {
+function clientDocuments(client: ZentridClientRecord): string {
   const rows = clientDetailDocumentsData(client);
   return `<div class="section-title-v17 mini"><div><h3>Documents</h3><p class="muted">Client-level legal, commercial and access metadata. Technical device manuals stay inside Plant Detail.</p></div><span class="badge ${rows.length ? 'success' : 'warning'}">${rows.length ? `${rows.length} records` : 'No records'}</span></div>${rows.length ? `<div class="data-table compact-table client-document-view-v118"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span></div>${rows.map(row => `<div class="data-row"><div><strong>${clientDetailEscape(row.name)}</strong><small>Client document metadata</small></div><div><strong>${clientDetailEscape(row.type)}</strong></div><div><span class="badge ${['Verified','Active','Signed','Updated'].includes(row.status) ? 'success' : row.status === 'Expired' ? 'danger' : 'warning'}">${clientDetailEscape(row.status)}</span></div><div><strong>${clientDetailEscape(row.expiry || 'Not set')}</strong></div></div>`).join('')}</div>` : `<div class="empty-state"><strong>No client documents</strong><small>Use Edit on this local record to add document metadata.</small></div>`}`;
 }
 
 
-function clientOverviewTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
-  const counts = FleetClientModel.countsForClient(client.id);
+function clientOverviewTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
+  const counts = ZentridClientModel.countsForClient(client.id);
   const alertState = counts.alerts > 0 ? 'warning' : 'success';
   const portalState = client.username ? 'success' : 'warning';
   const healthText = counts.alerts > 0 ? `${counts.alerts} active issue${counts.alerts === 1 ? '' : 's'}` : 'No active issues';
-  return `<div class="section-title-v17"><div><h2>Client Overview</h2><p class="muted">Useful client-level snapshot: who manages the client, what plants are linked, portal state and active operational risk.</p></div><span class="badge ${FleetClientModel.badge(client.status)}">${client.status}</span></div>
+  return `<div class="section-title-v17"><div><h2>Client Overview</h2><p class="muted">Useful client-level snapshot: who manages the client, what plants are linked, portal state and active operational risk.</p></div><span class="badge ${ZentridClientModel.badge(client.status)}">${client.status}</span></div>
   <div class="info-grid">
     <div><span>Managing Tenant</span><strong>${client.tenant}</strong><small>Tenant responsible for supervision and operations</small></div>
     <div><span>Client Type</span><strong>${client.type}</strong><small>${client.legalForm}</small></div>
@@ -1779,7 +1779,7 @@ function clientOverviewTab(client: FleetClientRecord, plants: FleetPlantRecord[]
   ${plants.length ? `<div class="section-title-v17 mini"><div><h3>Assigned Plants Preview</h3><p class="muted">Quick preview of the most important linked plants.</p></div></div>${plantSummaryCards(plants.slice(0, 3))}` : `<div class="empty-state"><strong>No plant assigned yet</strong><small>Use Assigned Plants to review plant role, access scope and commercial visibility.</small></div>`}`;
 }
 
-function clientIdentityTab(client: FleetClientRecord): string {
+function clientIdentityTab(client: ZentridClientRecord): string {
   const rows = client.type === 'Individual'
     ? [
       ['Name / Full Name', client.name, 'Created from Name, Surname and Last name'],
@@ -1801,7 +1801,7 @@ function clientIdentityTab(client: FleetClientRecord): string {
   <div class="info-grid">${rows.map(([k,v,h]) => `<div><span>${k}</span><strong>${v || 'Not provided'}</strong><small>${h}</small></div>`).join('')}</div>`;
 }
 
-function clientLocationPreferencesTab(client: FleetClientRecord): string {
+function clientLocationPreferencesTab(client: ZentridClientRecord): string {
   return `<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Library-based geography and client-facing display preferences.</p></div></div>
   <div class="info-grid">
     <div><span>Country</span><strong>${client.country || 'Not provided'}</strong><small>Library value</small></div>
@@ -1817,7 +1817,7 @@ function clientLocationPreferencesTab(client: FleetClientRecord): string {
 }
 
 
-function clientPlantAssignments(client: FleetClientRecord, plants: FleetPlantRecord[]) {
+function clientPlantAssignments(client: ZentridClientRecord, plants: ZentridPlantRecord[]) {
   const fallbackRole = client.assignmentRole || (client.type === 'Individual' ? 'Owner' : 'Owner / Investor');
   const roleByIndex = ['Owner', 'Energy Beneficiary', 'O&M Observer', 'Energy Consumer'];
   return plants.map((plant, index) => ({
@@ -1830,7 +1830,7 @@ function clientPlantAssignments(client: FleetClientRecord, plants: FleetPlantRec
   }));
 }
 
-function clientPortalUsers(client: FleetClientRecord, plants: FleetPlantRecord[]): FleetPortalUser[] {
+function clientPortalUsers(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
   if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(user => ({ ...user }));
   const firstPlant = plants[0]?.name || 'No plant assigned';
   const secondPlant = plants[1]?.name || firstPlant;
@@ -1856,7 +1856,7 @@ function clientPortalUsers(client: FleetClientRecord, plants: FleetPlantRecord[]
   return base;
 }
 
-function clientUsersAccessTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function clientUsersAccessTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const users = clientPortalUsers(client, plants);
   const active = users.filter(u => u.status === 'Active').length;
   const pending = users.filter(u => u.status !== 'Active').length;
@@ -1882,7 +1882,7 @@ function clientUsersAccessTab(client: FleetClientRecord, plants: FleetPlantRecor
   </div>`;
 }
 
-function clientContactsPortalTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function clientContactsPortalTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   return `<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact data. Detailed portal users and permissions are separated into Users & Access.</p></div><span class="badge ${client.username ? 'success' : 'warning'}">${client.username ? 'Portal configured' : 'Portal pending'}</span></div>
   <div class="info-grid">
     <div><span>Primary Contact</span><strong>${client.primaryContact || 'Not provided'}</strong><small>Contact person / client owner</small></div>
@@ -1903,8 +1903,8 @@ function clientContactsPortalTab(client: FleetClientRecord, plants: FleetPlantRe
   </div>`;
 }
 
-function clientPlantsTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
-  const counts = FleetClientModel.countsForClient(client.id);
+function clientPlantsTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
+  const counts = ZentridClientModel.countsForClient(client.id);
   const createUrl = `plants.html?view=solar&create=1&client=${encodeURIComponent(client.id)}&clientName=${encodeURIComponent(client.name)}&tenant=${encodeURIComponent(client.tenant)}&country=${encodeURIComponent(client.country || '')}&region=${encodeURIComponent(client.region || '')}&city=${encodeURIComponent(client.city || '')}&timezone=${encodeURIComponent(client.timezone || 'Asia/Yerevan')}&contact=${encodeURIComponent(client.primaryContact || client.contactEmail || '')}`;
   if (!plants.length) return `<div class="section-title-v17"><div><h2>Assigned Plants</h2><p class="muted">Plants linked to this client will appear here with role, access and commercial scope.</p></div><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div><div class="empty-state"><strong>No plants assigned</strong><small>No End User portal plant scope will be available until at least one plant is assigned.</small></div>`;
   return `<div class="section-title-v17"><div><h2>Assigned Plants</h2><p class="muted">Client plant portfolio with assignment role, portal visibility and commercial scope.</p></div><div class="section-actions-v28"><span class="badge success">${plants.length} assigned</span><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div></div>
@@ -1916,12 +1916,12 @@ function clientPlantsTab(client: FleetClientRecord, plants: FleetPlantRecord[]):
   </div>
   <div class="data-table compact-table client-plant-table-v40 client-assignment-table-v89">
     <div class="data-head"><span>Plant</span><span>Client Role</span><span>Portal Scope</span><span>Status / Capacity</span><span>Commercial Scope</span><span>Actions</span></div>
-    ${clientPlantAssignments(client, plants).map(a => `<div class="data-row" data-plant="${a.plant.id}"><div><strong>${a.plant.name}</strong><small>${a.plant.code}<br>${a.plant.id}</small></div><div><strong>${a.role}</strong><small>Assigned since ${a.since}</small></div><div><strong>${a.portalScope}</strong><small>Client portal visibility</small></div><div><span class="badge ${FleetClientModel.badge(a.plant.health)}">${a.plant.health}</span><small>${a.plant.capacityDc} DC · ${a.plant.capacityAc} AC</small></div><div><strong>${a.commercialScope}</strong><small>${a.plant.alerts} alerts · ${a.plant.energyToday}</small></div><div class="row-actions"><button type="button">Open</button></div></div>`).join('')}
+    ${clientPlantAssignments(client, plants).map(a => `<div class="data-row" data-plant="${a.plant.id}"><div><strong>${a.plant.name}</strong><small>${a.plant.code}<br>${a.plant.id}</small></div><div><strong>${a.role}</strong><small>Assigned since ${a.since}</small></div><div><strong>${a.portalScope}</strong><small>Client portal visibility</small></div><div><span class="badge ${ZentridClientModel.badge(a.plant.health)}">${a.plant.health}</span><small>${a.plant.capacityDc} DC · ${a.plant.capacityAc} AC</small></div><div><strong>${a.commercialScope}</strong><small>${a.plant.alerts} alerts · ${a.plant.energyToday}</small></div><div class="row-actions"><button type="button">Open</button></div></div>`).join('')}
   </div>`;
 }
 
 
-function clientBankAccounts(client: FleetClientRecord): FleetBankAccount[] {
+function clientBankAccounts(client: ZentridClientRecord): ZentridBankAccount[] {
   const saved = Array.isArray(client.bankAccounts) ? client.bankAccounts : [];
   const normalized = saved.map((b, i) => ({
     bankName: b.bankName || b.bank || 'Not provided',
@@ -1943,14 +1943,14 @@ function clientBankAccounts(client: FleetClientRecord): FleetBankAccount[] {
   return [];
 }
 
-function clientBankingSection(client: FleetClientRecord): string {
+function clientBankingSection(client: ZentridClientRecord): string {
   const banks = clientBankAccounts(client);
   if (!banks.length) return `<div class="section-title-v17 mini"><div><h3>Banking Information</h3><p class="muted">Bank account information used for billing, settlements and client financial records.</p></div><span class="badge warning">Not configured</span></div><div class="empty-state"><strong>No bank account added</strong><small>Create Client banking fields will appear here after saving.</small></div>`;
   return `<div class="section-title-v17 mini"><div><h3>Banking Information</h3><p class="muted">Bank account information used for billing, settlements and client financial records.</p></div><span class="badge success">${banks.length} bank${banks.length === 1 ? '' : 's'}</span></div>
   <div class="data-table compact-table client-bank-detail-table-v91"><div class="data-head"><span>Bank</span><span>Bank Code</span><span>Account Number</span><span>Currency</span><span>Status</span></div>${banks.map(b => `<div class="data-row"><div><strong>${b.bankName || 'Not provided'}</strong><small>${b.primary ? 'Primary bank' : 'Additional bank'}</small></div><div><strong>${b.bankCode || 'Not provided'}</strong><small>Bank code</small></div><div><strong>${b.accountNumber || 'Not provided'}</strong><small>Account number / IBAN</small></div><div><strong>${b.accountCurrency || 'Not provided'}</strong><small>Account currency</small></div><div><span class="badge ${b.primary ? 'success' : 'neutral'}">${b.primary ? 'Primary' : 'Secondary'}</span></div></div>`).join('')}</div>`;
 }
 
-function clientCommercialProfile(client: FleetClientRecord, plants: FleetPlantRecord[]) {
+function clientCommercialProfile(client: ZentridClientRecord, plants: ZentridPlantRecord[]) {
   const currency = client.currency || (client.country === 'Armenia' ? 'AMD' : 'EUR');
   const bankAccounts = clientBankAccounts(client);
   const primaryBank = bankAccounts.find(b => b.primary) || bankAccounts[0];
@@ -1978,7 +1978,7 @@ function clientCommercialProfile(client: FleetClientRecord, plants: FleetPlantRe
   };
 }
 
-function clientCommercialRows(client: FleetClientRecord, plants: FleetPlantRecord[], profile: ReturnType<typeof clientCommercialProfile>) {
+function clientCommercialRows(client: ZentridClientRecord, plants: ZentridPlantRecord[], profile: ReturnType<typeof clientCommercialProfile>) {
   return clientPlantAssignments(client, plants).map((a, index) => {
     const bidirectional = a.plant.battery === 'Yes';
     const buyer = bidirectional && client.id === 'CL-00043' ? 'Balancing Market / Trader' : profile.energyBuyer;
@@ -1989,7 +1989,7 @@ function clientCommercialRows(client: FleetClientRecord, plants: FleetPlantRecor
   });
 }
 
-function clientCommercialPaymentsTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function clientCommercialPaymentsTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const profile = clientCommercialProfile(client, plants);
   const rows = clientCommercialRows(client, plants, profile);
   if (!plants.length) return `<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Commercial logic appears after at least one plant is assigned to this client.</p></div><span class="badge warning">No plant scope</span></div><div class="empty-state"><strong>No commercial chain yet</strong><small>Assign a plant first, then connect commercial model, energy sale, payment destination and settlement audit.</small></div>`;
@@ -2025,12 +2025,12 @@ function clientCommercialPaymentsTab(client: FleetClientRecord, plants: FleetPla
   </div>`;
 }
 
-function clientAlertsTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function clientAlertsTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const alerts = plants.flatMap(p => {
     const count = Number(p.alerts || 0);
     if (!count) return [];
     const severity = p.health === 'Fault' ? 'Critical' : 'Warning';
-    const sourceDevice = (FleetClientModel.devicesForPlant(p.id).find(d => d.status === 'Warning' || d.status === 'Fault') || FleetClientModel.devicesForPlant(p.id)[0] || {}).name || 'Plant telemetry';
+    const sourceDevice = (ZentridClientModel.devicesForPlant(p.id).find(d => d.status === 'Warning' || d.status === 'Fault') || ZentridClientModel.devicesForPlant(p.id)[0] || {}).name || 'Plant telemetry';
     return Array.from({ length: Math.min(count, 2) }, (_, i) => ({
       plant: p,
       title: i === 0 ? (p.health === 'Fault' ? 'Plant performance degraded' : 'Telemetry delayed') : 'Device requires attention',
@@ -2052,7 +2052,7 @@ function clientAlertsTab(client: FleetClientRecord, plants: FleetPlantRecord[]):
   ${alerts.length ? `<div class="data-table compact-table client-alert-table-v40"><div class="data-head"><span>Alert</span><span>Severity</span><span>Plant</span><span>Source</span><span>Status</span></div>${alerts.map(a => `<div class="data-row" data-plant="${a.plant.id}"><div><strong>${a.title}</strong><small>${a.time}</small></div><div><span class="badge ${a.severity === 'Critical' ? 'danger' : 'warning'}">${a.severity}</span></div><div><strong>${a.plant.name}</strong><small>${a.plant.code}</small></div><div><strong>${a.source}</strong><small>Plant / device context</small></div><div><strong>${a.status}</strong><small>Open in plant workspace</small></div></div>`).join('')}</div>` : `<div class="empty-state"><strong>No active alerts</strong><small>Assigned plants do not currently report active issues.</small></div>`}`;
 }
 
-function clientActivityTab(client: FleetClientRecord, plants: FleetPlantRecord[]): string {
+function clientActivityTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const firstPlant = plants[0];
   return `<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Client-level timeline with only useful governance and support events.</p></div></div>
   <div class="timeline-v17 client-activity-v40">
@@ -2064,7 +2064,7 @@ function clientActivityTab(client: FleetClientRecord, plants: FleetPlantRecord[]
   </div>`;
 }
 
-function clientTab(client: FleetClientRecord, plants: FleetPlantRecord[], tab: ClientDetailTabKey | string | undefined, editable = false, skipContext = false): string {
+function clientTab(client: ZentridClientRecord, plants: ZentridPlantRecord[], tab: ClientDetailTabKey | string | undefined, editable = false, skipContext = false): string {
   const activeTab = (tab || 'overview') as ClientDetailTabKey;
   if (editable) return clientDetailEditTab(client, plants, activeTab);
   let body = '';
@@ -2086,7 +2086,7 @@ type PlantDetailFeedbackTone = 'info' | 'warning' | 'danger' | 'success';
 
 let plantDetailActiveTab: PlantDetailTabKey = 'overview';
 let plantDetailEditMode = false;
-let plantDetailDraft: FleetPlantRecord | null = null;
+let plantDetailDraft: ZentridPlantRecord | null = null;
 let plantDetailEditSnapshot = '';
 let plantDetailBusy = false;
 let plantDetailBeforeUnloadBound = false;
@@ -2095,15 +2095,15 @@ function plantDetailEscape(value: unknown): string {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 function plantDetailAttr(value: unknown): string { return plantDetailEscape(value).replace(/`/g, '&#096;'); }
-function plantDetailClone(record: FleetPlantRecord): FleetPlantRecord { return JSON.parse(JSON.stringify(record)) as FleetPlantRecord; }
-function plantDetailOrigin(record: FleetPlantRecord): FleetDataOrigin { return FleetEntityDetailUX.origin(record, 'plant'); }
-function plantDetailBackendManaged(record: FleetPlantRecord): boolean { return FleetEntityDetailUX.backendManaged(record, 'plant'); }
-function plantDetailArchived(record: FleetPlantRecord): boolean { return FleetEntityDetailUX.archived(record.status); }
+function plantDetailClone(record: ZentridPlantRecord): ZentridPlantRecord { return JSON.parse(JSON.stringify(record)) as ZentridPlantRecord; }
+function plantDetailOrigin(record: ZentridPlantRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'plant'); }
+function plantDetailBackendManaged(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'plant'); }
+function plantDetailArchived(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
 function plantDetailEditableTab(tab: PlantDetailTabKey = plantDetailActiveTab): boolean { return tab === 'overview' || tab === 'adminsync'; }
-function plantDetailCanEdit(record: FleetPlantRecord, tab: PlantDetailTabKey = plantDetailActiveTab): boolean {
+function plantDetailCanEdit(record: ZentridPlantRecord, tab: PlantDetailTabKey = plantDetailActiveTab): boolean {
   return !plantDetailArchived(record) && plantDetailEditableTab(tab);
 }
-function plantDetailSourceSystem(record: FleetPlantRecord): string {
+function plantDetailSourceSystem(record: ZentridPlantRecord): string {
   if (record.sourceSystem) return String(record.sourceSystem);
   if (record.integration) return String(record.integration);
   const external = String(record.externalId || '');
@@ -2113,16 +2113,16 @@ function plantDetailSourceSystem(record: FleetPlantRecord): string {
   if (external === 'LOCAL-STORAGE') return 'Manual / Local storage';
   return 'Vendor connector';
 }
-function plantDetailFreshness(record: FleetPlantRecord): string {
-  return FleetEntityDetailUX.freshness(record, 'plant', {
+function plantDetailFreshness(record: ZentridPlantRecord): string {
+  return ZentridEntityDetailUX.freshness(record, 'plant', {
     timestampKeys:['lastSyncAt','updated','raw.lastSyncAt','raw.lastSyncAtUtc','raw.updatedAt'],
     localPrefix:'Last local change:',
     localEmpty:'Local prototype record · no backend freshness',
     mockEmpty:'Mock record · no backend freshness'
   });
 }
-function plantDetailModeCopy(record: FleetPlantRecord): { tone: PlantDetailFeedbackTone; title: string; message: string } {
-  return FleetEntityDetailUX.modeCopy(record, 'plant', {
+function plantDetailModeCopy(record: ZentridPlantRecord): { tone: PlantDetailFeedbackTone; title: string; message: string } {
+  return ZentridEntityDetailUX.modeCopy(record, 'plant', {
     status:record.status,
     backendTitle:'Live plant · local override available',
     backendMessage:'Edit creates a browser-only override for configuration fields. No backend update request is sent.',
@@ -2133,16 +2133,16 @@ function plantDetailModeCopy(record: FleetPlantRecord): { tone: PlantDetailFeedb
   });
 }
 function setPlantDetailFeedback(tone: PlantDetailFeedbackTone, title: string, message: string): void {
-  FleetEntityDetailUX.setFeedback({ id:'plantDetailFeedback', className:'plant-detail-feedback-v119', tone, title, message, escape:plantDetailEscape });
+  ZentridEntityDetailUX.setFeedback({ id:'plantDetailFeedback', className:'plant-detail-feedback-v119', tone, title, message, escape:plantDetailEscape });
 }
 function clearPlantDetailFeedback(): void {
-  FleetEntityDetailUX.clearFeedback('plantDetailFeedback', 'plant-detail-feedback-v119');
+  ZentridEntityDetailUX.clearFeedback('plantDetailFeedback', 'plant-detail-feedback-v119');
 }
-function renderPlantDetailControl(record: FleetPlantRecord): string {
+function renderPlantDetailControl(record: ZentridPlantRecord): string {
   const origin = plantDetailOrigin(record);
   const copy = plantDetailModeCopy(record);
   return `<section class="plant-detail-control-v119 ${copy.tone}" id="plantDetailControl" aria-busy="false">
-    <div class="plant-detail-control-source-v119"><span>Record source</span><strong>${FleetDataSource.badge(record, 'plant', true)} ${plantDetailEscape(FleetDataSource.label(origin))}</strong><small>${plantDetailEscape(plantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="plant"></span></div>
+    <div class="plant-detail-control-source-v119"><span>Record source</span><strong>${ZentridDataSource.badge(record, 'plant', true)} ${plantDetailEscape(ZentridDataSource.label(origin))}</strong><small>${plantDetailEscape(plantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="plant"></span></div>
     <div class="plant-detail-control-copy-v119"><strong>${plantDetailEscape(copy.title)}</strong><small>${plantDetailEscape(copy.message)}</small></div>
     <div class="plant-detail-feedback-v119 info" id="plantDetailFeedback" role="status" aria-live="polite" hidden></div>
   </section>`;
@@ -2150,8 +2150,8 @@ function renderPlantDetailControl(record: FleetPlantRecord): string {
 function plantDetailSectionTitle(tab: PlantDetailTabKey): string {
   return ({ overview:'Overview & Master Data', structure:'Plant Structure', energy:'Energy & Telemetry', alerts:'Alerts & Events', device:'Devices & Device', inverters:'Inverters', arrays:'Arrays & Strings', batteries:'BESS / PCS', metering:'Metering & Grid', gateways:'Loggers & Gateways', reportsdocs:'Reports & Documents', adminsync:'Settings & Source', activity:'Activity' } as Record<PlantDetailTabKey,string>)[tab];
 }
-function plantDetailSectionContext(record: FleetPlantRecord, tab: PlantDetailTabKey, editable = plantDetailEditMode): string {
-  const mode = FleetEntityDetailUX.sectionMode({ editable, backendManaged:plantDetailBackendManaged(record), archived:plantDetailArchived(record), sectionEditable:plantDetailEditableTab(tab), readonlyLabel:'Operational read-only' });
+function plantDetailSectionContext(record: ZentridPlantRecord, tab: PlantDetailTabKey, editable = plantDetailEditMode): string {
+  const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:plantDetailBackendManaged(record), archived:plantDetailArchived(record), sectionEditable:plantDetailEditableTab(tab), readonlyLabel:'Operational read-only' });
   const help = editable ? 'Validate the highlighted fields before saving locally.' : plantDetailEditableTab(tab) ? 'Use Edit to change this local or mock plant record.' : 'This section is derived from devices, telemetry or operational records.';
   return `<div class="plant-section-context-v119"><div><span>Section mode</span><strong>${plantDetailEscape(mode)}</strong><small>${plantDetailEscape(help)}</small></div></div>`;
 }
@@ -2167,7 +2167,7 @@ function plantDetailFormValue(value: unknown): string {
   const number = plantDetailNumber(value);
   return Number.isFinite(number) ? String(number) : '';
 }
-function plantDetailInput(name: keyof FleetPlantRecord, label: string, value: unknown, options?: string[], type = 'text', required = false, help = ''): string {
+function plantDetailInput(name: keyof ZentridPlantRecord, label: string, value: unknown, options?: string[], type = 'text', required = false, help = ''): string {
   const requiredAttr = required ? ' required' : '';
   const control = options
     ? `<select name="${String(name)}" data-plant-edit="${String(name)}"${requiredAttr}>${options.map(option => `<option value="${plantDetailAttr(option)}" ${String(value) === option ? 'selected' : ''}>${plantDetailEscape(option)}</option>`).join('')}</select>`
@@ -2175,21 +2175,21 @@ function plantDetailInput(name: keyof FleetPlantRecord, label: string, value: un
   return `<label>${plantDetailEscape(label)}${required ? ' *' : ''}${control}${help ? `<small class="field-help">${plantDetailEscape(help)}</small>` : ''}</label>`;
 }
 function plantDetailClientOptions(selectedId: string): string[] {
-  const ids = FleetClientModel.clients.map(client => client.id);
+  const ids = ZentridClientModel.clients.map(client => client.id);
   return ids.includes(selectedId) ? ids : [selectedId, ...ids].filter(Boolean);
 }
-function plantDetailTenantOptions(record: FleetPlantRecord): string[] {
-  return Array.from(new Set([String(record.operator || ''), ...FleetClientModel.clients.map(client => String(client.tenant || '')), ...FleetClientModel.plants.map(plant => String(plant.operator || ''))].map(value => value.trim()).filter(Boolean)));
+function plantDetailTenantOptions(record: ZentridPlantRecord): string[] {
+  return Array.from(new Set([String(record.operator || ''), ...ZentridClientModel.clients.map(client => String(client.tenant || '')), ...ZentridClientModel.plants.map(plant => String(plant.operator || ''))].map(value => value.trim()).filter(Boolean)));
 }
 function plantDetailClientLabel(clientId: string): string {
-  const client = FleetClientModel.clients.find(item => item.id === clientId);
+  const client = ZentridClientModel.clients.find(item => item.id === clientId);
   return client ? `${client.name} · ${client.id}` : clientId || 'Unassigned client';
 }
-function plantDetailClientSelect(record: FleetPlantRecord): string {
+function plantDetailClientSelect(record: ZentridPlantRecord): string {
   const options = plantDetailClientOptions(record.clientId).map(id => `<option value="${plantDetailAttr(id)}" ${id === record.clientId ? 'selected' : ''}>${plantDetailEscape(plantDetailClientLabel(id))}</option>`).join('');
   return `<label>Client / Owner *<select name="clientId" data-plant-edit="clientId" required>${options}</select><small class="field-help">Changes the client assignment only in the local prototype.</small></label>`;
 }
-function plantDetailEditTab(record: FleetPlantRecord, tab: PlantDetailTabKey): string {
+function plantDetailEditTab(record: ZentridPlantRecord, tab: PlantDetailTabKey): string {
   if (tab === 'overview') {
     return `${plantDetailSectionContext(record, tab, true)}<div class="section-title-v17"><div><h2>Plant Master Data</h2><p class="muted">Edit local identity, location and technical passport values. Operational status stays read-only.</p></div></div>
       <div class="plant-edit-grid-v119">
@@ -2228,24 +2228,24 @@ function plantDetailEditTab(record: FleetPlantRecord, tab: PlantDetailTabKey): s
 function plantDetailSnapshot(): string { return JSON.stringify(plantDetailDraft || {}); }
 function plantDetailHasUnsavedEdits(): boolean { return plantDetailEditMode && plantDetailEditSnapshot !== plantDetailSnapshot(); }
 function plantDetailConfirmDiscard(message = 'Discard unsaved plant changes?'): boolean {
-  return FleetEntityDetailUX.confirmDiscard(plantDetailHasUnsavedEdits(), message);
+  return ZentridEntityDetailUX.confirmDiscard(plantDetailHasUnsavedEdits(), message);
 }
-function plantDetailPrepareDraft(record: FleetPlantRecord): FleetPlantRecord {
+function plantDetailPrepareDraft(record: ZentridPlantRecord): ZentridPlantRecord {
   const draft = plantDetailClone(record);
   draft.sourceSystem = draft.sourceSystem || plantDetailSourceSystem(record);
   draft.integration = draft.integration || plantDetailSourceSystem(record);
   return draft;
 }
-function plantDetailValidationIssues(record: FleetPlantRecord, tab: PlantDetailTabKey, root: ParentNode): FleetFormIssue[] {
-  const issues: FleetFormIssue[] = [];
-  const control = (name: string): FleetFormControl | null => root.querySelector<FleetFormControl>(`[data-plant-edit="${name}"]`);
+function plantDetailValidationIssues(record: ZentridPlantRecord, tab: PlantDetailTabKey, root: ParentNode): ZentridFormIssue[] {
+  const issues: ZentridFormIssue[] = [];
+  const control = (name: string): ZentridFormControl | null => root.querySelector<ZentridFormControl>(`[data-plant-edit="${name}"]`);
   const normalized = (value: unknown) => String(value ?? '').trim().toLowerCase();
   if (tab === 'overview') {
-    const duplicateName = FleetClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.name) === normalized(record.name));
-    const duplicateCode = FleetClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.code) === normalized(record.code));
+    const duplicateName = ZentridClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.name) === normalized(record.name));
+    const duplicateCode = ZentridClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.code) === normalized(record.code));
     if (duplicateName) issues.push({ control:control('name'), message:`Another plant already uses the name ${record.name}.` });
     if (duplicateCode) issues.push({ control:control('code'), message:`Another plant already uses the code ${record.code}.` });
-    if (!FleetClientModel.clients.some(client => client.id === record.clientId)) issues.push({ control:control('clientId'), message:'Select a valid client assignment.' });
+    if (!ZentridClientModel.clients.some(client => client.id === record.clientId)) issues.push({ control:control('clientId'), message:'Select a valid client assignment.' });
     const dc = plantDetailNumber(record.capacityDc);
     const ac = plantDetailNumber(record.capacityAc);
     const grid = plantDetailNumber(record.gridCapacity);
@@ -2260,13 +2260,13 @@ function plantDetailValidationIssues(record: FleetPlantRecord, tab: PlantDetailT
     if (longitude && (!Number.isFinite(Number(longitude)) || Number(longitude) < -180 || Number(longitude) > 180)) issues.push({ control:control('longitude'), message:'Longitude must be between -180 and 180.' });
   }
   if (tab === 'adminsync') {
-    const duplicateExternal = FleetClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.externalId) === normalized(record.externalId));
+    const duplicateExternal = ZentridClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.externalId) === normalized(record.externalId));
     if (duplicateExternal) issues.push({ control:control('externalId'), message:`External Plant ID ${record.externalId} is already used by another plant.` });
   }
   return issues;
 }
-function plantDetailNormalizeForSave(record: FleetPlantRecord): FleetPlantRecord {
-  const selectedClient = FleetClientModel.clients.find(client => client.id === record.clientId);
+function plantDetailNormalizeForSave(record: ZentridPlantRecord): ZentridPlantRecord {
+  const selectedClient = ZentridClientModel.clients.find(client => client.id === record.clientId);
   return {
     ...record,
     owner: selectedClient?.name || record.owner,
@@ -2278,20 +2278,20 @@ function plantDetailNormalizeForSave(record: FleetPlantRecord): FleetPlantRecord
     updated: new Date().toLocaleString()
   };
 }
-function plantDetailSourceChanged(base: FleetPlantRecord, draft: FleetPlantRecord): boolean {
+function plantDetailSourceChanged(base: ZentridPlantRecord, draft: ZentridPlantRecord): boolean {
   return ['sourceSystem','integration','externalId'].some(key => String(base[key] || '') !== String(draft[key] || ''));
 }
-function plantDetailAssignmentChanged(base: FleetPlantRecord, draft: FleetPlantRecord): boolean {
+function plantDetailAssignmentChanged(base: ZentridPlantRecord, draft: ZentridPlantRecord): boolean {
   return base.clientId !== draft.clientId || String(base.operator || '') !== String(draft.operator || '');
 }
-function syncPlantClientAssignments(base: FleetPlantRecord, changed: FleetPlantRecord): void {
-  FleetClientModel.clients.forEach(client => {
+function syncPlantClientAssignments(base: ZentridPlantRecord, changed: ZentridPlantRecord): void {
+  ZentridClientModel.clients.forEach(client => {
     const values = Array.isArray(client.plants) ? client.plants.filter(id => id !== base.id) : [];
     if (client.id === changed.clientId && !values.includes(changed.id)) values.push(changed.id);
     client.plants = values;
   });
 }
-function updatePlantDetailActions(record: FleetPlantRecord): void {
+function updatePlantDetailActions(record: ZentridPlantRecord): void {
   const edit = document.getElementById('editPlantTab') as HTMLButtonElement | null;
   const cancel = document.getElementById('cancelPlantEdit') as HTMLButtonElement | null;
   const save = document.getElementById('savePlantEdit') as HTMLButtonElement | null;
@@ -2304,16 +2304,16 @@ function updatePlantDetailActions(record: FleetPlantRecord): void {
   if (cancel) cancel.hidden = !plantDetailEditMode;
   if (save) save.hidden = !plantDetailEditMode;
 }
-function renderPlantDetailCurrentTab(baseRecord: FleetPlantRecord, devices: FleetDeviceRecord[]): void {
+function renderPlantDetailCurrentTab(baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): void {
   const record = plantDetailEditMode && plantDetailDraft ? plantDetailDraft : baseRecord;
   const content = document.getElementById('plantTabContent');
   if (content) content.innerHTML = plantDetailEditMode ? plantDetailEditTab(record, plantDetailActiveTab) : plantTab(record, devices, plantDetailActiveTab);
   const title = document.getElementById('plantDetailActiveTitle');
   if (title) title.textContent = plantDetailSectionTitle(plantDetailActiveTab);
   updatePlantDetailActions(baseRecord);
-  FleetLayout.enhanceActionMenus?.(content);
+  ZentridLayout.enhanceActionMenus?.(content);
 }
-function setPlantDetailEditMode(enabled: boolean, baseRecord: FleetPlantRecord, devices: FleetDeviceRecord[]): void {
+function setPlantDetailEditMode(enabled: boolean, baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): void {
   if (plantDetailBusy) return;
   if (enabled && !plantDetailCanEdit(baseRecord)) {
     const copy = plantDetailModeCopy(baseRecord);
@@ -2329,9 +2329,9 @@ function setPlantDetailEditMode(enabled: boolean, baseRecord: FleetPlantRecord, 
   clearPlantDetailFeedback();
   renderPlantDetailCurrentTab(baseRecord, devices);
 }
-function savePlantDetailEdits(baseRecord: FleetPlantRecord, devices: FleetDeviceRecord[]): void {
+function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): void {
   if (!plantDetailEditMode || !plantDetailDraft || plantDetailBusy) return;
-  if (!FleetActionPermissions.guard({ action:'edit', resource:'plant', record:baseRecord, status:baseRecord.status, origin:plantDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'plant', record:baseRecord, status:baseRecord.status, origin:plantDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
   if (!plantDetailCanEdit(baseRecord)) {
     const copy = plantDetailModeCopy(baseRecord);
     setPlantDetailFeedback(copy.tone, copy.title, copy.message);
@@ -2340,8 +2340,8 @@ function savePlantDetailEdits(baseRecord: FleetPlantRecord, devices: FleetDevice
   const content = document.getElementById('plantTabContent');
   const summary = document.getElementById('plantDetailEditSummary');
   if (!content) return;
-  const result = FleetFormUX.validate(content, plantDetailValidationIssues(plantDetailDraft, plantDetailActiveTab, content), summary, 'Plant changes were not saved');
-  if (!result.valid) { FleetFormUX.focusFirst(result, summary); return; }
+  const result = ZentridFormUX.validate(content, plantDetailValidationIssues(plantDetailDraft, plantDetailActiveTab, content), summary, 'Plant changes were not saved');
+  if (!result.valid) { ZentridFormUX.focusFirst(result, summary); return; }
   const sourceChanged = plantDetailSourceChanged(baseRecord, plantDetailDraft);
   const assignmentChanged = plantDetailAssignmentChanged(baseRecord, plantDetailDraft);
   if (sourceChanged && !window.confirm('Source System, Integration or External Plant ID changed. Save these local mapping changes?')) return;
@@ -2349,13 +2349,13 @@ function savePlantDetailEdits(baseRecord: FleetPlantRecord, devices: FleetDevice
   const button = document.getElementById('savePlantEdit') as HTMLButtonElement | null;
   plantDetailBusy = true;
   document.getElementById('plantDetailControl')?.setAttribute('aria-busy','true');
-  if (button) FleetFormUX.setBusy(button, true, 'Saving…');
+  if (button) ZentridFormUX.setBusy(button, true, 'Saving…');
   try {
     const normalized = plantDetailNormalizeForSave(plantDetailDraft);
-    const changed = FleetDataSource.markChanged(normalized, 'plant') as FleetPlantRecord;
+    const changed = ZentridDataSource.markChanged(normalized, 'plant') as ZentridPlantRecord;
     syncPlantClientAssignments(baseRecord, changed);
     Object.assign(baseRecord, changed);
-    FleetLocalStore.addPlant(baseRecord);
+    ZentridLocalStore.addPlant(baseRecord);
     plantDetailEditMode = false;
     plantDetailDraft = null;
     plantDetailEditSnapshot = '';
@@ -2365,12 +2365,12 @@ function savePlantDetailEdits(baseRecord: FleetPlantRecord, devices: FleetDevice
   } catch (error) {
     plantDetailBusy = false;
     document.getElementById('plantDetailControl')?.setAttribute('aria-busy','false');
-    if (button) FleetFormUX.setBusy(button, false);
-    FleetFormUX.renderSummary(summary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant changes were not saved');
+    if (button) ZentridFormUX.setBusy(button, false);
+    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant changes were not saved');
     summary?.focus();
   }
 }
-function plantTelemetryState(record: FleetPlantRecord): { kind: 'ready' | 'empty' | 'partial'; title: string; message: string } {
+function plantTelemetryState(record: ZentridPlantRecord): { kind: 'ready' | 'empty' | 'partial'; title: string; message: string } {
   const power = String(record.powerNow || '').trim();
   const energy = String(record.energyToday || '').trim();
   const hasPower = power && !/^0(?:\.0+)?\s*(?:kw|mw)?$/i.test(power) && power !== '—';
@@ -2379,14 +2379,14 @@ function plantTelemetryState(record: FleetPlantRecord): { kind: 'ready' | 'empty
   if (String(record.health || '').toLowerCase().includes('fault') || plantDetailFreshness(record).toLowerCase().includes('unavailable')) return { kind:'partial', title:'Telemetry may be incomplete', message:'Some operational values may be delayed or unavailable. Review Source & Sync before relying on the trend.' };
   return { kind:'ready', title:'Telemetry available', message:'Current and period energy values are available for this plant.' };
 }
-function deviceRows(items: FleetDeviceRecord[], record?: FleetPlantRecord): string {
+function deviceRows(items: ZentridDeviceRecord[], record?: ZentridPlantRecord): string {
   if (!items.length) return `<div class="empty-state plant-empty-state-v119"><strong>No device records</strong><small>${record && plantDetailOrigin(record) === 'local' ? 'This local plant has no device onboarding records yet.' : 'No devices were returned for this plant in the current hierarchy model.'}</small></div>`;
-  return `<div class="data-table plant-device-table-v17"><div class="data-head"><span>Object</span><span>Type / Vendor</span><span>Capacity / Model</span><span>Status</span><span>Traceability</span><span>Actions</span></div>${items.map(d => `<div class="data-row" data-device-id="${plantDetailAttr(d.id)}"><div><strong>${plantDetailEscape(d.name)}</strong><small>${plantDetailEscape(d.id)}<br>${plantDetailEscape(d.serial)}</small></div><div><strong>${plantDetailEscape(d.type)}</strong><small>${plantDetailEscape(d.vendor)}</small></div><div><strong>${plantDetailEscape(d.capacity)}</strong><small>${plantDetailEscape(d.model)}</small></div><div><span class="badge ${FleetClientModel.badge(d.status)}">${plantDetailEscape(d.status)}</span><small>Last seen ${plantDetailEscape(d.lastSeen)}</small></div><div><strong>${plantDetailEscape(d.location)}</strong><small>${plantDetailEscape(d.children)}</small></div><div class="row-actions"><button type="button" data-open-device="${plantDetailAttr(d.id)}">View Device</button><button type="button" data-device-history="${plantDetailAttr(d.id)}">Open History</button></div></div>`).join('')}</div>`;
+  return `<div class="data-table plant-device-table-v17"><div class="data-head"><span>Object</span><span>Type / Vendor</span><span>Capacity / Model</span><span>Status</span><span>Traceability</span><span>Actions</span></div>${items.map(d => `<div class="data-row" data-device-id="${plantDetailAttr(d.id)}"><div><strong>${plantDetailEscape(d.name)}</strong><small>${plantDetailEscape(d.id)}<br>${plantDetailEscape(d.serial)}</small></div><div><strong>${plantDetailEscape(d.type)}</strong><small>${plantDetailEscape(d.vendor)}</small></div><div><strong>${plantDetailEscape(d.capacity)}</strong><small>${plantDetailEscape(d.model)}</small></div><div><span class="badge ${ZentridClientModel.badge(d.status)}">${plantDetailEscape(d.status)}</span><small>Last seen ${plantDetailEscape(d.lastSeen)}</small></div><div><strong>${plantDetailEscape(d.location)}</strong><small>${plantDetailEscape(d.children)}</small></div><div class="row-actions"><button type="button" data-open-device="${plantDetailAttr(d.id)}">View Device</button><button type="button" data-device-history="${plantDetailAttr(d.id)}">Open History</button></div></div>`).join('')}</div>`;
 }
 function plantLazyTab(tab: PlantDetailTabKey, content: string): string {
-  return window.FleetDetailLazyTabs?.panel('plant', tab, content) || content;
+  return window.ZentridDetailLazyTabs?.panel('plant', tab, content) || content;
 }
-function plantTab(plant: FleetPlantRecord, devices: FleetDeviceRecord[], tab: PlantDetailTabKey | string | undefined): string {
+function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab: PlantDetailTabKey | string | undefined): string {
   const activeTab = (tab || 'overview') as PlantDetailTabKey;
   const context = plantDetailSectionContext(plant, activeTab, false);
   const by = (type: string) => devices.filter(d => d.type === type || (type === 'Grid Device' && (d.type === 'Grid Device' || d.type === 'Switchgear')) || (type === 'Battery' && (d.type === 'Battery' || d.type === 'PCS')));
@@ -2404,20 +2404,20 @@ function plantTab(plant: FleetPlantRecord, devices: FleetDeviceRecord[], tab: Pl
   if (activeTab === 'inverters') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Inverters</h2><p class="muted">Inverter registry with MPPT and string traceability.</p></div></div>${deviceRows(by('Inverter'), plant)}`);
   if (activeTab === 'batteries') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>BESS / PCS</h2><p class="muted">Storage devices are separated because they have SOC, SOH, cycle and safety logic.</p></div></div>${deviceRows(by('Battery'), plant)}`);
   if (activeTab === 'gateways') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Loggers & Gateways</h2><p class="muted">Communication devices that collect child-device telemetry and forward it through vendor connectors.</p></div></div>${deviceRows(devices.filter(d => d.type === 'Logger' || d.type === 'Gateway'), plant)}`);
-  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(FleetDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Source mapping</b><span>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))} · ${plantDetailEscape(plant.externalId)}</span></div></div>`;
-  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Canonical identity, location and technical characteristics for this plant.</p></div><span class="badge ${FleetClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Plant Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Lifecycle value · read-only</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type)}</strong></div><div><span>Client / Owner</span><strong>${plantDetailEscape(plantDetailClientLabel(plant.clientId))}</strong></div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Location</span><strong>${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.region)}, ${plantDetailEscape(plant.city)}</strong></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">Device, alert and telemetry requests are deferred until their tabs are opened.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${Number(plant.devices || devices.length || 0)}</strong><small>Open Devices & Device to load records</small></div><div><span>Alert count</span><strong>${Number(plant.alerts || 0)}</strong><small>Open Alerts & Events to load records</small></div><div><span>Telemetry</span><strong>On demand</strong><small>Open Energy & Telemetry</small></div></div>`;
+  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(ZentridDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Source mapping</b><span>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))} · ${plantDetailEscape(plant.externalId)}</span></div></div>`;
+  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Canonical identity, location and technical characteristics for this plant.</p></div><span class="badge ${ZentridClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Plant Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Lifecycle value · read-only</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type)}</strong></div><div><span>Client / Owner</span><strong>${plantDetailEscape(plantDetailClientLabel(plant.clientId))}</strong></div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Location</span><strong>${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.region)}, ${plantDetailEscape(plant.city)}</strong></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">Device, alert and telemetry requests are deferred until their tabs are opened.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${Number(plant.devices || devices.length || 0)}</strong><small>Open Devices & Device to load records</small></div><div><span>Alert count</span><strong>${Number(plant.alerts || 0)}</strong><small>Open Alerts & Events to load records</small></div><div><span>Telemetry</span><strong>On demand</strong><small>Open Energy & Telemetry</small></div></div>`;
 }
 
 function renderPlantDetailPage() {
   const requestedEditTab = localStorage.getItem('zentrid_plant_detail_edit') as PlantDetailTabKey | null;
   if (requestedEditTab && ['overview','adminsync'].includes(requestedEditTab)) plantDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_plant_detail_edit');
-  const plant = FleetClientModel.selectedPlant();
-  const client = FleetClientModel.getClient(plant.clientId);
-  const devices = FleetClientModel.devicesForPlant(plant.id);
-  FleetLayout.mount(`
+  const plant = ZentridClientModel.selectedPlant();
+  const client = ZentridClientModel.getClient(plant.clientId);
+  const devices = ZentridClientModel.devicesForPlant(plant.id);
+  ZentridLayout.mount(`
     <section class="page-hero plant-hero-v17">
-      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(client.name)} ${FleetDataSource.badge(plant, 'plant', true)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.city)}</p></div>
+      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(client.name)} ${ZentridDataSource.badge(plant, 'plant', true)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.city)}</p></div>
       <div class="hero-actions-v19"><button class="freshness-card" id="backToClient" type="button"><span class="pulse"></span><div><strong>Back to Client</strong><small>${plantDetailEscape(client.name)}</small></div></button><button class="freshness-card" id="backToPlantRegistry" type="button"><span class="pulse"></span><div><strong>Plant Registry</strong><small>All plants</small></div></button></div>
     </section>
     ${renderPlantDetailControl(plant)}
@@ -2454,14 +2454,14 @@ function renderPlantDetailPage() {
   `);
   plantDetailBusy = false;
   updatePlantDetailActions(plant);
-  window.FleetDetailLazyTabs?.observe('plant', 'plant-detail-content', () => {
-    const currentPlant = FleetClientModel.selectedPlant();
-    const currentDevices = FleetClientModel.devicesForPlant(currentPlant.id);
+  window.ZentridDetailLazyTabs?.observe('plant', 'plant-detail-content', () => {
+    const currentPlant = ZentridClientModel.selectedPlant();
+    const currentDevices = ZentridClientModel.devicesForPlant(currentPlant.id);
     renderPlantDetailCurrentTab(currentPlant, currentDevices);
   });
   document.getElementById('backToClient')?.addEventListener('click', () => {
     if (!plantDetailConfirmDiscard('Discard unsaved plant changes and return to Client Detail?')) return;
-    FleetClientModel.selectClient(client.id);
+    ZentridClientModel.selectClient(client.id);
     location.href = 'client-detail.html';
   });
   document.getElementById('backToPlantRegistry')?.addEventListener('click', () => {
@@ -2478,7 +2478,7 @@ function renderPlantDetailPage() {
     plantDetailDraft = null;
     plantDetailEditSnapshot = '';
     plantDetailActiveTab = nextTab;
-    window.FleetDetailLazyTabs?.activate('plant', nextTab);
+    window.ZentridDetailLazyTabs?.activate('plant', nextTab);
     document.querySelectorAll<HTMLElement>('[data-plant-tab]').forEach(item => {
       const active = item.dataset.plantTab === nextTab;
       item.classList.toggle('active', active);
@@ -2504,18 +2504,18 @@ function renderPlantDetailPage() {
   });
   const syncPlantField = (target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void => {
     if (!plantDetailDraft) return;
-    const field = target.dataset.plantEdit as keyof FleetPlantRecord | undefined;
+    const field = target.dataset.plantEdit as keyof ZentridPlantRecord | undefined;
     if (field) {
       if (field === 'panels' || field === 'inverters' || field === 'strings' || field === 'transformers' || field === 'meters' || field === 'alerts') plantDetailDraft[field] = Number(target.value) as never;
       else plantDetailDraft[field] = target.value as never;
       if (field === 'clientId') {
-        const selectedClient = FleetClientModel.clients.find(item => item.id === target.value);
+        const selectedClient = ZentridClientModel.clients.find(item => item.id === target.value);
         if (selectedClient) plantDetailDraft.owner = selectedClient.name;
       }
       if (field === 'sourceSystem' || field === 'integration' || field === 'externalId') setPlantDetailFeedback('warning','Local mapping change','Changing source identity may affect mapping traceability. The change will require confirmation before saving.');
     }
     const summary = document.getElementById('plantDetailEditSummary');
-    if (plantDetailEditMode) FleetFormUX.clearErrors(plantTabContent || document, summary);
+    if (plantDetailEditMode) ZentridFormUX.clearErrors(plantTabContent || document, summary);
   };
   plantTabContent?.addEventListener('input', event => {
     const target = event.target;
@@ -2527,17 +2527,17 @@ function renderPlantDetailPage() {
   });
   if (requestedEditTab && plantDetailCanEdit(plant, requestedEditTab)) setPlantDetailEditMode(true, plant, devices);
   if (!plantDetailBeforeUnloadBound) {
-    FleetEntityDetailUX.bindBeforeUnload('plant-detail', plantDetailHasUnsavedEdits);
+    ZentridEntityDetailUX.bindBeforeUnload('plant-detail', plantDetailHasUnsavedEdits);
     plantDetailBeforeUnloadBound = true;
   }
 }
 
-function selectedFleetDevice(): FleetDeviceRecord {
+function selectedZentridDevice(): ZentridDeviceRecord {
   const id = localStorage.getItem('zentrid_selected_device') || 'INV-ARM-001';
-  return FleetClientModel.devices.find(d => d.id === id) || FleetClientModel.devices.find(d => d.type === 'Inverter') || FleetClientModel.devices[0]!;
+  return ZentridClientModel.devices.find(d => d.id === id) || ZentridClientModel.devices.find(d => d.type === 'Inverter') || ZentridClientModel.devices[0]!;
 }
 
-function devicePowerValue(device: FleetDeviceRecord): string {
+function devicePowerValue(device: ZentridDeviceRecord): string {
   const num = parseInt(String(device.capacity || '0').replace(/[^0-9]/g, ''), 10) || 125;
   if (device.status === 'Warning') return Math.round(num * 0.62) + ' kW';
   if (device.status === 'Fault') return '0 kW';
@@ -2545,10 +2545,10 @@ function devicePowerValue(device: FleetDeviceRecord): string {
 }
 
 function renderDeviceDetailPage() {
-  const device = selectedFleetDevice();
-  const plant = FleetClientModel.getPlant(device.plantId) || FleetClientModel.selectedPlant();
-  const client = FleetClientModel.getClient(plant.clientId);
-  const siblings = FleetClientModel.devicesForPlant(plant.id);
+  const device = selectedZentridDevice();
+  const plant = ZentridClientModel.getPlant(device.plantId) || ZentridClientModel.selectedPlant();
+  const client = ZentridClientModel.getClient(plant.clientId);
+  const siblings = ZentridClientModel.devicesForPlant(plant.id);
   const isInverter = device.type === 'Inverter';
   const isMeter = device.type === 'Meter';
   const isPcs = device.type === 'PCS';
@@ -2558,7 +2558,7 @@ function renderDeviceDetailPage() {
   const isTransformer = isTransformerDevice(device);
   const isSwitchgear = isSwitchgearDevice(device);
 
-  FleetLayout.mount(`
+  ZentridLayout.mount(`
     <section class="page-hero device-hero-v19">
       <div>
         <p class="eyebrow">Device Detail · ${plant.name}</p>
@@ -2597,8 +2597,8 @@ function renderDeviceDetailPage() {
       <section class="glass-card device-main-card-v19"><div id="deviceTabContent">${deviceDetailTab(device, plant, siblings, 'overview')}</div></section>
     </section>
   `);
-  document.getElementById('backToPlant')?.addEventListener('click', () => { FleetClientModel.selectPlant(plant.id); location.href = 'plant-detail.html'; });
-  document.getElementById('openDeviceAlerts')?.addEventListener('click', () => FleetLayout.toast('Device alerts context selected: ' + device.id));
+  document.getElementById('backToPlant')?.addEventListener('click', () => { ZentridClientModel.selectPlant(plant.id); location.href = 'plant-detail.html'; });
+  document.getElementById('openDeviceAlerts')?.addEventListener('click', () => ZentridLayout.toast('Device alerts context selected: ' + device.id));
   const deviceTabContent = document.getElementById('deviceTabContent');
   document.querySelectorAll<HTMLElement>('[data-device-tab]').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('[data-device-tab]').forEach(x => x.classList.remove('active'));
@@ -2629,7 +2629,7 @@ function renderDeviceDetailPage() {
   });
 }
 
-function inverterDerivedMetrics(device: FleetDeviceRecord) {
+function inverterDerivedMetrics(device: ZentridDeviceRecord) {
   const rated = parseInt(String(device.capacity || '0').replace(/[^0-9]/g, ''), 10) || 125;
   const degraded = device.status === 'Warning';
   return {
@@ -2655,7 +2655,7 @@ function miniBarChartV20(values: number[]): string {
   return `<div class="mini-bar-chart-v20">${values.map((v, i) => `<span style="height:${Math.max(12, Math.round(v / max * 100))}%" title="Hour ${i + 1}: ${v}"></span>`).join('')}</div>`;
 }
 
-function inverterMetricCards(device: FleetDeviceRecord): string {
+function inverterMetricCards(device: ZentridDeviceRecord): string {
   const m = inverterDerivedMetrics(device);
   return `<div class="device-metric-grid-v20">
     <article><span>Current Power</span><strong>${m.currentPower} kW</strong><small>Live AC output</small></article>
@@ -2668,7 +2668,7 @@ function inverterMetricCards(device: FleetDeviceRecord): string {
 }
 
 
-function meterDerivedMetrics(device: FleetDeviceRecord) {
+function meterDerivedMetrics(device: ZentridDeviceRecord) {
   const bidirectional = String(device.capacity || '').toLowerCase().includes('bi');
   return {
     currentImport: bidirectional ? '18.4 kW' : '0.0 kW',
@@ -2682,7 +2682,7 @@ function meterDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function meterMetricCards(device: FleetDeviceRecord): string {
+function meterMetricCards(device: ZentridDeviceRecord): string {
   const m = meterDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 meter-metric-grid-v21">
     <article><span>Current Import</span><strong>${m.currentImport}</strong><small>Grid to plant</small></article>
@@ -2694,7 +2694,7 @@ function meterMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function meterAccountingRows(device: FleetDeviceRecord): string {
+function meterAccountingRows(device: ZentridDeviceRecord): string {
   const warning = device.status === 'Warning';
   const rows = [
     ['Today 00:00–06:00', warning ? '18.4 kWh' : '6.2 kWh', warning ? '421.8 kWh' : '532.4 kWh', warning ? '+403.4 kWh' : '+526.2 kWh', warning ? 'Partial' : 'Confirmed'],
@@ -2705,8 +2705,8 @@ function meterAccountingRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table meter-accounting-table-v21"><div class="data-head"><span>Period</span><span>Import</span><span>Export</span><span>Net</span><span>Status</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span>${r[1]}</span></div><div><span>${r[2]}</span></div><div><strong>${r[3]}</strong></div><div><span class="badge ${r[4] === 'Confirmed' ? 'success' : 'warning'}">${r[4]}</span></div></div>`).join('')}</div>`;
 }
 
-function meterDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function meterDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const m = meterDerivedMetrics(device);
   const warningRow = device.status === 'Warning';
 
@@ -2746,7 +2746,7 @@ function meterDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, sibl
 }
 
 
-function bessDerivedMetrics(device: FleetDeviceRecord) {
+function bessDerivedMetrics(device: ZentridDeviceRecord) {
   const isPcs = device.type === 'PCS';
   const warning = device.status === 'Warning';
   const fault = device.status === 'Fault';
@@ -2765,7 +2765,7 @@ function bessDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function bessMetricCards(device: FleetDeviceRecord): string {
+function bessMetricCards(device: ZentridDeviceRecord): string {
   const m = bessDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 bess-metric-grid-v22">
     <article><span>SOC</span><strong>${m.soc}</strong><small>State of charge</small></article>
@@ -2777,13 +2777,13 @@ function bessMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function bessRacksTable(device: FleetDeviceRecord): string {
+function bessRacksTable(device: ZentridDeviceRecord): string {
   const m = bessDerivedMetrics(device);
   return `<div class="data-table compact-table bess-rack-table-v22"><div class="data-head"><span>Rack</span><span>Modules</span><span>SOC</span><span>Temp</span><span>Status</span><span>Action</span></div>${Array.from({length:m.racks}).map((_,i)=>`<div class="data-row"><div><strong>Rack ${i+1}</strong><small>${device.id}-RACK-${i+1}</small></div><div><strong>${Math.round(m.modules / m.racks)} modules</strong><small>Cell groups monitored</small></div><div><span>${Math.max(12, parseInt(m.soc) - (i%3)*2)}%</span></div><div><span>${30 + (i%4)}°C</span></div><div><span class="badge ${(device.status === 'Fault' && i===0) || (device.status === 'Warning' && i===1) ? 'warning' : 'success'}">${(device.status === 'Fault' && i===0) ? 'Protection' : (device.status === 'Warning' && i===1) ? 'Check' : 'Normal'}</span></div><div><button class="small-btn" type="button">Open Rack</button></div></div>`).join('')}</div>`;
 }
 
-function bessDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function bessDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const m = bessDerivedMetrics(device);
   const hasIssue = device.status === 'Warning' || device.status === 'Fault';
 
@@ -2822,7 +2822,7 @@ function bessDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, sibli
     <div class="section-title-v17 mini"><div><h3>BESS level rule</h3><p class="muted">BESS children are PCS/BMS, racks, modules and cell groups. Meter, inverter, transformer and weather station remain plant-level sibling devices.</p></div></div>`;
 }
 
-function pcsDerivedMetrics(device: FleetDeviceRecord) {
+function pcsDerivedMetrics(device: ZentridDeviceRecord) {
   const warning = device.status === 'Warning' || device.status === 'Fault';
   return {
     acPower: warning ? '312 kW' : '420 kW',
@@ -2838,7 +2838,7 @@ function pcsDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function pcsMetricCards(device: FleetDeviceRecord): string {
+function pcsMetricCards(device: ZentridDeviceRecord): string {
   const m = pcsDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 pcs-metric-grid-v24">
     <article><span>AC Power</span><strong>${m.acPower}</strong><small>Grid-side output</small></article>
@@ -2850,7 +2850,7 @@ function pcsMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function pcsCommandRows(device: FleetDeviceRecord): string {
+function pcsCommandRows(device: ZentridDeviceRecord): string {
   const warning = device.status === 'Warning' || device.status === 'Fault';
   const rows = [
     ['Charge conversion', 'AC/DC', 'Grid / PV → DC bus', warning ? 'Limited' : 'Available', 'Max 500 kW'],
@@ -2861,14 +2861,14 @@ function pcsCommandRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table pcs-command-table-v24"><div class="data-head"><span>Function</span><span>Direction</span><span>Flow</span><span>Status</span><span>Limit</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span>${r[1]}</span></div><div><span>${r[2]}</span></div><div><span class="badge ${r[3] === 'Available' ? 'success' : r[3] === 'Approval required' ? 'warning' : 'warning'}">${r[3]}</span></div><div><span>${r[4]}</span></div><div><button class="small-btn" type="button">View Command</button></div></div>`).join('')}</div>`;
 }
 
-function pcsConnectedBessRows(device: FleetDeviceRecord, siblings: FleetDeviceRecord[]): string {
+function pcsConnectedBessRows(device: ZentridDeviceRecord, siblings: ZentridDeviceRecord[]): string {
   const related = siblings.filter(d => d.type === 'Battery');
   const rows = related.length ? related : [{ id:'BESS-LINK-01', name:'BESS Container', type:'Battery', status:'Active', capacity:'1 MWh', location:'Storage yard', lastSeen:device.lastSeen }];
-  return `<div class="data-table compact-table pcs-bess-table-v24"><div class="data-head"><span>BESS Asset</span><span>Capacity</span><span>Location</span><span>Status</span><span>Last Seen</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r.name}</strong><small>${r.id}</small></div><div><span>${r.capacity}</span></div><div><span>${r.location}</span></div><div><span class="badge ${FleetClientModel.badge(r.status)}">${r.status}</span></div><div><span>${r.lastSeen}</span></div><div>${r.id.startsWith('BESS-LINK') ? '<button class="small-btn" type="button">View Link</button>' : `<button class="small-btn" type="button" data-open-device="${r.id}">Open BESS</button>`}</div></div>`).join('')}</div>`;
+  return `<div class="data-table compact-table pcs-bess-table-v24"><div class="data-head"><span>BESS Asset</span><span>Capacity</span><span>Location</span><span>Status</span><span>Last Seen</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r.name}</strong><small>${r.id}</small></div><div><span>${r.capacity}</span></div><div><span>${r.location}</span></div><div><span class="badge ${ZentridClientModel.badge(r.status)}">${r.status}</span></div><div><span>${r.lastSeen}</span></div><div>${r.id.startsWith('BESS-LINK') ? '<button class="small-btn" type="button">View Link</button>' : `<button class="small-btn" type="button" data-open-device="${r.id}">Open BESS</button>`}</div></div>`).join('')}</div>`;
 }
 
-function pcsDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function pcsDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const m = pcsDerivedMetrics(device);
   const hasIssue = device.status === 'Warning' || device.status === 'Fault';
 
@@ -2896,7 +2896,7 @@ function pcsDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblin
     <div class="section-title-v17 mini"><div><h3>PCS level rule</h3><p class="muted">PCS is a storage infrastructure device, not a PV inverter. It belongs near BESS and grid device in the plant topology.</p></div></div>`;
 }
 
-function weatherDerivedMetrics(device: FleetDeviceRecord) {
+function weatherDerivedMetrics(device: ZentridDeviceRecord) {
   const offline = device.status === 'Offline' || device.status === 'Fault';
   const warning = device.status === 'Warning';
   return {
@@ -2911,7 +2911,7 @@ function weatherDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function weatherMetricCards(device: FleetDeviceRecord): string {
+function weatherMetricCards(device: ZentridDeviceRecord): string {
   const m = weatherDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 weather-metric-grid-v23">
     <article><span>Irradiance</span><strong>${m.irradiance}</strong><small>Plane / plant sensor</small></article>
@@ -2923,7 +2923,7 @@ function weatherMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function weatherSensorRows(device: FleetDeviceRecord): string {
+function weatherSensorRows(device: ZentridDeviceRecord): string {
   const m = weatherDerivedMetrics(device);
   const rows = [
     ['Irradiance sensor', 'POA / GHI', m.irradiance, m.freshness, 'Used for performance ratio'],
@@ -2935,8 +2935,8 @@ function weatherSensorRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table weather-sensor-table-v23"><div class="data-head"><span>Sensor</span><span>Type</span><span>Current</span><span>Quality</span><span>Purpose</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span>${r[1]}</span></div><div><strong>${r[2]}</strong></div><div><span class="badge ${r[3] === 'Fresh' ? 'success' : 'warning'}">${r[3]}</span></div><div><span>${r[4]}</span></div></div>`).join('')}</div>`;
 }
 
-function weatherDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function weatherDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const m = weatherDerivedMetrics(device);
   const hasIssue = device.status === 'Warning' || device.status === 'Offline' || device.status === 'Fault';
 
@@ -2971,7 +2971,7 @@ function weatherDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, si
 }
 
 
-function loggerDerivedMetrics(device: FleetDeviceRecord) {
+function loggerDerivedMetrics(device: ZentridDeviceRecord) {
   const issue = device.status === 'Warning' || device.status === 'Offline' || device.status === 'Fault';
   const linked = parseInt(String(device.capacity || '').replace(/[^0-9]/g, ''), 10) || 48;
   return {
@@ -2986,7 +2986,7 @@ function loggerDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function loggerMetricCards(device: FleetDeviceRecord): string {
+function loggerMetricCards(device: ZentridDeviceRecord): string {
   const m = loggerDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 logger-metric-grid-v23">
     <article><span>Linked Devices</span><strong>${m.linked}</strong><small>Child telemetry sources</small></article>
@@ -2998,15 +2998,15 @@ function loggerMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function loggerLinkedRows(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[]): string {
+function loggerLinkedRows(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[]): string {
   const m = loggerDerivedMetrics(device);
   const linked = siblings.filter(x => x.id !== device.id).slice(0, 8);
   if (!linked.length) return `<div class="empty-state"><strong>No linked devices</strong><small>This gateway has no sample children in the current plant model.</small></div>`;
-  return `<div class="data-table compact-table logger-linked-table-v23"><div class="data-head"><span>Device</span><span>Type</span><span>Link</span><span>Freshness</span><span>Status</span><span>Action</span></div>${linked.map((x,i)=>`<div class="data-row"><div><strong>${x.name}</strong><small>${x.id}</small></div><div><span>${x.type}</span></div><div><span>${i % 3 === 0 ? 'RS485 / Modbus' : 'Ethernet / TCP'}</span></div><div><span>${i === 2 && device.status === 'Warning' ? '18 min ago' : x.lastSeen}</span></div><div><span class="badge ${i === 2 && device.status === 'Warning' ? 'warning' : FleetClientModel.badge(x.status)}">${i === 2 && device.status === 'Warning' ? 'Delayed' : x.status}</span></div><div><button class="small-btn" type="button" data-open-device="${x.id}">Open Device</button></div></div>`).join('')}</div>`;
+  return `<div class="data-table compact-table logger-linked-table-v23"><div class="data-head"><span>Device</span><span>Type</span><span>Link</span><span>Freshness</span><span>Status</span><span>Action</span></div>${linked.map((x,i)=>`<div class="data-row"><div><strong>${x.name}</strong><small>${x.id}</small></div><div><span>${x.type}</span></div><div><span>${i % 3 === 0 ? 'RS485 / Modbus' : 'Ethernet / TCP'}</span></div><div><span>${i === 2 && device.status === 'Warning' ? '18 min ago' : x.lastSeen}</span></div><div><span class="badge ${i === 2 && device.status === 'Warning' ? 'warning' : ZentridClientModel.badge(x.status)}">${i === 2 && device.status === 'Warning' ? 'Delayed' : x.status}</span></div><div><button class="small-btn" type="button" data-open-device="${x.id}">Open Device</button></div></div>`).join('')}</div>`;
 }
 
-function loggerDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function loggerDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const m = loggerDerivedMetrics(device);
   const hasIssue = device.status === 'Warning' || device.status === 'Offline' || device.status === 'Fault';
 
@@ -3043,11 +3043,11 @@ function loggerDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, sib
 }
 
 
-function isTransformerDevice(device: FleetDeviceRecord): boolean {
+function isTransformerDevice(device: ZentridDeviceRecord): boolean {
   return device && (device.type === 'Transformer' || device.type === 'Grid Device' || String(device.name || '').toLowerCase().includes('transformer') || String(device.id || '').startsWith('TR-'));
 }
 
-function transformerDerivedMetrics(device: FleetDeviceRecord) {
+function transformerDerivedMetrics(device: ZentridDeviceRecord) {
   const hasIssue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const capacity = device.capacity || '2.5 MVA';
   return {
@@ -3063,7 +3063,7 @@ function transformerDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function transformerMetricCards(device: FleetDeviceRecord): string {
+function transformerMetricCards(device: ZentridDeviceRecord): string {
   const m = transformerDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 transformer-metric-grid-v25">
     <article><span>Load</span><strong>${m.load}</strong><small>Current transformer load</small></article>
@@ -3075,7 +3075,7 @@ function transformerMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function transformerMeasurementRows(device: FleetDeviceRecord): string {
+function transformerMeasurementRows(device: ZentridDeviceRecord): string {
   const m = transformerDerivedMetrics(device);
   const rows = [
     ['HV voltage', m.hvVoltage, '11 kV nominal', m.freshness],
@@ -3087,7 +3087,7 @@ function transformerMeasurementRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table transformer-measure-table-v25"><div class="data-head"><span>Measurement</span><span>Current</span><span>Reference</span><span>Quality</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span>${r[1]}</span></div><div><span>${r[2]}</span></div><div><span class="badge ${r[3] === 'Normal' || r[3] === 'Fresh' ? 'success' : 'warning'}">${r[3]}</span></div></div>`).join('')}</div>`;
 }
 
-function transformerProtectionRows(device: FleetDeviceRecord): string {
+function transformerProtectionRows(device: ZentridDeviceRecord): string {
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const rows = issue ? [
     ['Temperature threshold', 'Warning', device.lastSeen, 'Open', 'Open Event'],
@@ -3101,9 +3101,9 @@ function transformerProtectionRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table transformer-protection-table-v25"><div class="data-head"><span>Protection</span><span>Severity</span><span>Last Event</span><span>Status</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.location}</small></div><div><span class="badge ${r[1] === 'Normal' ? 'success' : 'warning'}">${r[1]}</span></div><div><span>${r[2]}</span></div><div><span>${r[3]}</span></div><div><button class="small-btn" type="button">${r[4]}</button></div></div>`).join('')}</div>`;
 }
 
-function transformerDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
+function transformerDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
   const m = transformerDerivedMetrics(device);
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
 
   if (tab === 'measurements') return `<div class="section-title-v17"><div><h2>Electrical Measurements</h2><p class="muted">Transformer electrical state between plant generation/storage and the grid interface.</p></div></div>${transformerMetricCards(device)}${transformerMeasurementRows(device)}`;
@@ -3128,11 +3128,11 @@ function transformerDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord
 }
 
 
-function isSwitchgearDevice(device: FleetDeviceRecord): boolean {
+function isSwitchgearDevice(device: ZentridDeviceRecord): boolean {
   return device && (device.type === 'Switchgear' || String(device.name || '').toLowerCase().includes('switchgear') || String(device.id || '').startsWith('SW-'));
 }
 
-function switchgearDerivedMetrics(device: FleetDeviceRecord) {
+function switchgearDerivedMetrics(device: ZentridDeviceRecord) {
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   return {
     breakerState: issue ? 'Check' : 'Closed',
@@ -3146,7 +3146,7 @@ function switchgearDerivedMetrics(device: FleetDeviceRecord) {
   };
 }
 
-function switchgearMetricCards(device: FleetDeviceRecord): string {
+function switchgearMetricCards(device: ZentridDeviceRecord): string {
   const m = switchgearDerivedMetrics(device);
   return `<div class="device-metric-grid-v20 switchgear-metric-grid-v26">
     <article><span>Main Breaker</span><strong>${m.breakerState}</strong><small>Current breaker state</small></article>
@@ -3158,7 +3158,7 @@ function switchgearMetricCards(device: FleetDeviceRecord): string {
   </div>`;
 }
 
-function switchgearBreakerRows(device: FleetDeviceRecord): string {
+function switchgearBreakerRows(device: ZentridDeviceRecord): string {
   const m = switchgearDerivedMetrics(device);
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const rows = [
@@ -3170,7 +3170,7 @@ function switchgearBreakerRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table switchgear-breaker-table-v26"><div class="data-head"><span>Breaker</span><span>State</span><span>Connected Circuit</span><span>Status</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span>${r[1]}</span></div><div><span>${r[2]}</span></div><div><span class="badge ${r[3] === 'Normal' ? 'success' : 'warning'}">${r[3]}</span></div><div><button class="small-btn" type="button">${r[4]}</button></div></div>`).join('')}</div>`;
 }
 
-function switchgearFeederRows(device: FleetDeviceRecord): string {
+function switchgearFeederRows(device: ZentridDeviceRecord): string {
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const rows = [
     ['Feeder 01', 'PV inverters', '42%', 'Normal', 'Open Feeder'],
@@ -3181,7 +3181,7 @@ function switchgearFeederRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table switchgear-feeder-table-v26"><div class="data-head"><span>Feeder</span><span>Connected Asset</span><span>Load</span><span>Status</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.location}</small></div><div><span>${r[1]}</span></div><div><span>${r[2]}</span></div><div><span class="badge ${r[3] === 'Normal' ? 'success' : 'warning'}">${r[3]}</span></div><div><button class="small-btn" type="button">${r[4]}</button></div></div>`).join('')}</div>`;
 }
 
-function switchgearEventRows(device: FleetDeviceRecord): string {
+function switchgearEventRows(device: ZentridDeviceRecord): string {
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const rows = issue ? [
     ['Interlock check', 'Warning', device.lastSeen, 'Open', 'Open SOP'],
@@ -3195,7 +3195,7 @@ function switchgearEventRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table switchgear-event-table-v26"><div class="data-head"><span>Event</span><span>Severity</span><span>Time</span><span>Status</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span class="badge ${r[1] === 'Normal' ? 'success' : 'warning'}">${r[1]}</span></div><div><span>${r[2]}</span></div><div><span>${r[3]}</span></div><div><button class="small-btn" type="button">${r[4]}</button></div></div>`).join('')}</div>`;
 }
 
-function switchgearCommandRows(device: FleetDeviceRecord): string {
+function switchgearCommandRows(device: ZentridDeviceRecord): string {
   const m = switchgearDerivedMetrics(device);
   const rows = [
     ['Open breaker', 'Risky', 'Breaker open command', 'Approval required', 'View Command'],
@@ -3206,9 +3206,9 @@ function switchgearCommandRows(device: FleetDeviceRecord): string {
   return `<div class="data-table compact-table switchgear-command-table-v26"><div class="data-head"><span>Command</span><span>Risk</span><span>Description</span><span>Status</span><span>Action</span></div>${rows.map(r=>`<div class="data-row"><div><strong>${r[0]}</strong><small>${device.name}</small></div><div><span class="badge ${r[1] === 'Safe' ? 'success' : r[1] === 'Controlled' ? 'warning' : 'danger'}">${r[1]}</span></div><div><span>${r[2]}</span></div><div><span>${r[3]}</span></div><div><button class="small-btn" type="button">${r[4]}</button></div></div>`).join('')}</div>`;
 }
 
-function switchgearDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
+function switchgearDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
   const m = switchgearDerivedMetrics(device);
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const issue = device.status === 'Warning' || device.status === 'Fault' || device.status === 'Offline';
   const transformer = siblings.find(x => isTransformerDevice(x));
   const meter = siblings.find(x => x.type === 'Meter');
@@ -3234,8 +3234,8 @@ function switchgearDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord,
   return `<div class="section-title-v17"><div><h2>Switchgear Overview</h2><p class="muted">Electrical infrastructure workspace for breaker state, feeders, protection and command readiness.</p></div></div>${switchgearMetricCards(device)}<div class="device-overview-grid-v19"><article><span>Status</span><strong>${statusBadge}</strong><small>Last seen ${device.lastSeen}</small></article><article><span>Device Type</span><strong>Switchgear</strong><small>${device.vendor} · ${device.model}</small></article><article><span>Parent Plant</span><strong>${plant.name}</strong><small>${plant.code}</small></article><article><span>Role</span><strong>${device.children}</strong><small>${device.location}</small></article></div><div class="section-title-v17 mini"><div><h3>Switchgear level rule</h3><p class="muted">Switchgear is plant-level electrical infrastructure. It groups breakers and feeders; it is related to transformer, meters and PCS through plant topology.</p></div></div>`;
 }
 
-function deviceDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, siblings: FleetDeviceRecord[], tab: string | undefined): string {
-  const statusBadge = `<span class="badge ${FleetClientModel.badge(device.status)}">${device.status}</span>`;
+function deviceDetailTab(device: ZentridDeviceRecord, plant: ZentridPlantRecord, siblings: ZentridDeviceRecord[], tab: string | undefined): string {
+  const statusBadge = `<span class="badge ${ZentridClientModel.badge(device.status)}">${device.status}</span>`;
   const isInverter = device.type === 'Inverter';
   const metrics = inverterDerivedMetrics(device);
   const warningRow = device.status === 'Warning';
@@ -3284,7 +3284,7 @@ function deviceDetailTab(device: FleetDeviceRecord, plant: FleetPlantRecord, sib
     <div class="section-title-v17 mini"><div><h3>Device level rule</h3><p class="muted">For an inverter, real children are MPPT inputs and strings. Meter, weather station, transformer and BESS are sibling plant-level devices unless the electrical design explicitly links them.</p></div></div>`;
 }
 
-function mpptRowsV23(device: FleetDeviceRecord): string {
+function mpptRowsV23(device: ZentridDeviceRecord): string {
   const warning = device.status === 'Warning';
   return Array.from({ length: 6 }).map((_, i) => {
     const mppt = `MPPT ${i + 1}`;
@@ -3316,7 +3316,7 @@ function mpptRowsV23(device: FleetDeviceRecord): string {
   }).join('');
 }
 
-function renderMpptStringsTab(device: FleetDeviceRecord, warningRow: boolean): string {
+function renderMpptStringsTab(device: ZentridDeviceRecord, warningRow: boolean): string {
   return `<div class="section-title-v17"><div><h2>MPPT / Strings</h2><p class="muted">Inverter-specific electrical hierarchy. MPPT inputs collect string groups, and strings trace down to PV module groups.</p></div></div>
     <div class="mppt-summary-v20"><article><span>MPPT Channels</span><strong>12</strong><small>Inputs monitored</small></article><article><span>String Groups</span><strong>24</strong><small>2 strings per MPPT</small></article><article><span>PV Modules</span><strong>approx. 546</strong><small>Estimated under inverter</small></article><article><span>Imbalance</span><strong>${warningRow ? 'Detected' : 'None'}</strong><small>String current variance</small></article></div>
     <div class="mppt-tree-v23"><div class="mppt-tree-title-v23"><strong>${device.name}</strong><small>Plant → Inverter → MPPT → String → PV Modules</small></div>${mpptRowsV23(device)}</div>
@@ -3333,7 +3333,7 @@ function ensureStringDrawerShell() {
   return drawer;
 }
 
-function openMpptDrawer(device: FleetDeviceRecord, mpptName: string): void {
+function openMpptDrawer(device: ZentridDeviceRecord, mpptName: string): void {
   const idx = parseInt(String(mpptName).replace(/[^0-9]/g, ''), 10) || 1;
   const drawer = ensureStringDrawerShell();
   drawer.innerHTML = `<button class="drawer-close" type="button" aria-label="Close">x</button>
@@ -3350,7 +3350,7 @@ function openMpptDrawer(device: FleetDeviceRecord, mpptName: string): void {
   }));
 }
 
-function openStringDrawer(device: FleetDeviceRecord, stringName: string, parentMppt: string): void {
+function openStringDrawer(device: ZentridDeviceRecord, stringName: string, parentMppt: string): void {
   const n = parseInt(String(stringName).replace(/[^0-9]/g, ''), 10) || 1;
   const warning = device.status === 'Warning' && n === 5;
   const drawer = ensureStringDrawerShell();
@@ -3366,7 +3366,7 @@ function openStringDrawer(device: FleetDeviceRecord, stringName: string, parentM
   drawer.querySelector<HTMLElement>('.drawer-close')?.addEventListener('click', () => drawer.classList.remove('open'));
 }
 
-function deviceSiblingList(device: FleetDeviceRecord, siblings: FleetDeviceRecord[]): string {
+function deviceSiblingList(device: ZentridDeviceRecord, siblings: ZentridDeviceRecord[]): string {
   const list = siblings.filter(x => x.id !== device.id).slice(0, 5);
   if (!list.length) return `<div class="empty-state"><strong>No sibling device</strong><small>This plant has only one sample device record.</small></div>`;
   return `<div class="device-sibling-grid-v19">${list.map(x => `<article><strong>${x.name}</strong><small>${x.type} · ${x.status}</small></article>`).join('')}</div>`;
@@ -3375,12 +3375,12 @@ function deviceSiblingList(device: FleetDeviceRecord, siblings: FleetDeviceRecor
 
 function createClientBuilderPlant(): void {
   try {
-    const client = FleetClientModel.selectedClient();
+    const client = ZentridClientModel.selectedClient();
     const body = document.getElementById('plantBuilderBodyV27');
     const values = Array.from(body?.querySelectorAll('input') || []).map(i => i.value);
     const selected = builderDevices();
     const now = Date.now();
-    const plant: FleetPlantRecord = {
+    const plant: ZentridPlantRecord = {
       id: `PL-LOCAL-${String(now).slice(-6)}`,
       code: values[1] || `AUTO-PL-${String(now).slice(-4)}`,
       externalId: 'LOCAL-STORAGE',
@@ -3414,7 +3414,7 @@ function createClientBuilderPlant(): void {
       battery: selected.some(x => /Battery|BESS/i.test(x.kind)) ? 'Yes' : 'No',
       devices: []
     };
-    const devices: FleetDeviceRecord[] = selected.map((x, index) => ({
+    const devices: ZentridDeviceRecord[] = selected.map((x, index) => ({
       id: `DEV-LOCAL-${String(now).slice(-5)}-${index + 1}`,
       plantId: plant.id,
       type: x.kind || 'Device',
@@ -3435,20 +3435,20 @@ function createClientBuilderPlant(): void {
       sourceStatus: 'Local draft'
     }));
     plant.devices = devices.map(d => d.id);
-    FleetClientModel.plants.push(plant);
-    devices.forEach(d => FleetClientModel.devices.push(d));
-    if (window.FleetLocalStore) {
-      FleetLocalStore.addPlant(plant);
-      devices.forEach(d => FleetLocalStore.addDevice(d));
+    ZentridClientModel.plants.push(plant);
+    devices.forEach(d => ZentridClientModel.devices.push(d));
+    if (window.ZentridLocalStore) {
+      ZentridLocalStore.addPlant(plant);
+      devices.forEach(d => ZentridLocalStore.addDevice(d));
     } else {
       const ps = JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]'); ps.unshift(plant); localStorage.setItem('zentrid_custom_plants', JSON.stringify(ps));
       const ds = JSON.parse(localStorage.getItem('zentrid_custom_devices') || '[]'); localStorage.setItem('zentrid_custom_devices', JSON.stringify([...devices, ...ds]));
     }
-    FleetClientModel.selectPlant(plant.id);
-    FleetLayout.toast('Plant created and saved locally');
+    ZentridClientModel.selectPlant(plant.id);
+    ZentridLayout.toast('Plant created and saved locally');
     setTimeout(() => location.href = 'plant-detail.html', 400);
   } catch (err) {
     console.error(err);
-    FleetLayout.toast('Unable to save plant locally');
+    ZentridLayout.toast('Unable to save plant locally');
   }
 }

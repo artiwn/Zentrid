@@ -394,7 +394,7 @@ const CommercialLicensing = (() => {
   }
 
   function toast(message: string): void {
-    window.FleetLayout?.toast?.(message);
+    window.ZentridLayout?.toast?.(message);
   }
 
   function modalShell(title: string, description: string, body: string, footer: string): void {

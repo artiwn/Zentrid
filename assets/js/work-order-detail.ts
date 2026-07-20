@@ -212,7 +212,7 @@
   }
 
   function render(): void {
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero incident-detail-hero workorder-detail-hero">
         <div>
           <p class="eyebrow">Global Admin · Work Order Detail</p>
@@ -246,10 +246,10 @@
       const action = target?.closest('[data-workorder-detail-action]') as HTMLElement | null;
       if (!action) return;
       const name = action.dataset.workorderDetailAction;
-      if (name === 'sync') FleetLayout.toast(`Manual Bitrix sync requested for ${order.id}`);
-      if (name === 'approve-evidence') FleetLayout.toast(`Evidence approved for ${order.id}`);
-      if (name === 'approve-resolution') FleetLayout.toast(`Resolution approved for ${order.id}`);
-      if (name === 'toast') FleetLayout.toast(`${action.dataset.label} opened`);
+      if (name === 'sync') ZentridLayout.toast(`Manual Bitrix sync requested for ${order.id}`);
+      if (name === 'approve-evidence') ZentridLayout.toast(`Evidence approved for ${order.id}`);
+      if (name === 'approve-resolution') ZentridLayout.toast(`Resolution approved for ${order.id}`);
+      if (name === 'toast') ZentridLayout.toast(`${action.dataset.label} opened`);
     };
   }
 

@@ -1,12 +1,12 @@
-type FleetUXTone = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
-type FleetUXStateKind = 'loading' | 'empty' | 'error' | 'success' | 'warning' | 'info';
+type ZentridUXTone = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
+type ZentridUXStateKind = 'loading' | 'empty' | 'error' | 'success' | 'warning' | 'info';
 
-type FleetUXStatusDefinition = {
+type ZentridUXStatusDefinition = {
   label: string;
-  tone: FleetUXTone;
+  tone: ZentridUXTone;
 };
 
-type FleetUXConfirmOptions = {
+type ZentridUXConfirmOptions = {
   title: string;
   message: string;
   confirmLabel?: string;
@@ -14,15 +14,15 @@ type FleetUXConfirmOptions = {
   tone?: 'primary' | 'danger' | 'warning';
 };
 
-type FleetUXStateOptions = {
+type ZentridUXStateOptions = {
   title: string;
   message: string;
   actionLabel?: string;
   onAction?: () => void;
 };
 
-const FleetUX = (() => {
-  const statusDefinitions: Record<string, FleetUXStatusDefinition> = {
+const ZentridUX = (() => {
+  const statusDefinitions: Record<string, ZentridUXStatusDefinition> = {
     active: { label: 'Active', tone: 'success' },
     online: { label: 'Online', tone: 'success' },
     normal: { label: 'Normal', tone: 'success' },
@@ -80,7 +80,7 @@ const FleetUX = (() => {
     expired: { label: 'Expired', tone: 'danger' }
   };
 
-  const stateIcons: Record<FleetUXStateKind, string> = {
+  const stateIcons: Record<ZentridUXStateKind, string> = {
     loading: '↻',
     empty: '∅',
     error: '!',
@@ -107,11 +107,11 @@ const FleetUX = (() => {
     return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
-  function status(value: unknown): FleetUXStatusDefinition | null {
+  function status(value: unknown): ZentridUXStatusDefinition | null {
     return statusDefinitions[normalizedStatus(value)] || null;
   }
 
-  function statusTone(value: unknown, fallback: FleetUXTone = 'neutral'): FleetUXTone {
+  function statusTone(value: unknown, fallback: ZentridUXTone = 'neutral'): ZentridUXTone {
     return status(value)?.tone || fallback;
   }
 
@@ -120,7 +120,7 @@ const FleetUX = (() => {
   }
 
   function applyStatusElement(element: HTMLElement): void {
-    if (element.dataset.fleetStatusLocked === 'true') return;
+    if (element.dataset.zentridStatusLocked === 'true') return;
     const raw = element.dataset.status || element.dataset.state || element.textContent || '';
     const definition = status(raw);
     if (!definition) return;
@@ -128,8 +128,8 @@ const FleetUX = (() => {
     toneClasses.forEach(className => element.classList.remove(className));
     const className = definition.tone === 'neutral' ? 'muted' : definition.tone;
     element.classList.add(className);
-    element.dataset.fleetStatus = normalizedStatus(raw);
-    element.dataset.fleetStatusTone = definition.tone;
+    element.dataset.zentridStatus = normalizedStatus(raw);
+    element.dataset.zentridStatusTone = definition.tone;
     if (element.childElementCount === 0 && element.textContent?.trim() !== definition.label) element.textContent = definition.label;
     if (!element.hasAttribute('aria-label')) element.setAttribute('aria-label', `Status: ${definition.label}`);
   }
@@ -140,31 +140,31 @@ const FleetUX = (() => {
   }
 
   function ensureStateCopy(element: HTMLElement, icon: HTMLElement): HTMLElement {
-    let copy = Array.from(element.children).find(child => child.classList.contains('fleet-ux-state-copy')) as HTMLElement | undefined;
+    let copy = Array.from(element.children).find(child => child.classList.contains('zentrid-ux-state-copy')) as HTMLElement | undefined;
     if (!copy) {
       copy = document.createElement('div');
-      copy.className = 'fleet-ux-state-copy';
+      copy.className = 'zentrid-ux-state-copy';
     }
     Array.from(element.childNodes).forEach(node => {
       if (node === icon || node === copy) return;
       copy?.append(node);
     });
     if (copy.parentElement !== element) element.append(copy);
-    element.dataset.fleetUxStateCopyWrapped = 'true';
+    element.dataset.zentridUxStateCopyWrapped = 'true';
     return copy;
   }
 
-  function enhanceStateElement(element: HTMLElement, kind: FleetUXStateKind): void {
-    if (element.dataset.fleetUxStateEnhanced === 'true') return;
-    element.dataset.fleetUxStateEnhanced = 'true';
-    element.dataset.fleetUxState = kind;
-    element.classList.add('fleet-ux-state', `fleet-ux-state-${kind}`);
+  function enhanceStateElement(element: HTMLElement, kind: ZentridUXStateKind): void {
+    if (element.dataset.zentridUxStateEnhanced === 'true') return;
+    element.dataset.zentridUxStateEnhanced = 'true';
+    element.dataset.zentridUxState = kind;
+    element.classList.add('zentrid-ux-state', `zentrid-ux-state-${kind}`);
     element.setAttribute('role', kind === 'error' ? 'alert' : 'status');
     element.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite');
-    let icon = Array.from(element.children).find(child => child.classList.contains('fleet-ux-state-icon')) as HTMLElement | undefined;
+    let icon = Array.from(element.children).find(child => child.classList.contains('zentrid-ux-state-icon')) as HTMLElement | undefined;
     if (!icon) {
       icon = document.createElement('span');
-      icon.className = 'fleet-ux-state-icon';
+      icon.className = 'zentrid-ux-state-icon';
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = stateIcons[kind];
       element.prepend(icon);
@@ -178,22 +178,22 @@ const FleetUX = (() => {
     root.querySelectorAll<HTMLElement>('.loading-state, [data-state="loading"]').forEach(element => enhanceStateElement(element, 'loading'));
   }
 
-  function stateMarkup(kind: FleetUXStateKind, options: FleetUXStateOptions): string {
+  function stateMarkup(kind: ZentridUXStateKind, options: ZentridUXStateOptions): string {
     const action = options.actionLabel
-      ? `<button type="button" class="secondary-action fleet-ux-state-action">${escape(options.actionLabel)}</button>`
+      ? `<button type="button" class="secondary-action zentrid-ux-state-action">${escape(options.actionLabel)}</button>`
       : '';
-    return `<section class="fleet-ux-state fleet-ux-state-${kind}" data-fleet-ux-state="${kind}" role="${kind === 'error' ? 'alert' : 'status'}" aria-live="${kind === 'error' ? 'assertive' : 'polite'}">
-      <span class="fleet-ux-state-icon" aria-hidden="true">${stateIcons[kind]}</span>
-      <div class="fleet-ux-state-copy"><strong>${escape(options.title)}</strong><span>${escape(options.message)}</span>${action}</div>
+    return `<section class="zentrid-ux-state zentrid-ux-state-${kind}" data-zentrid-ux-state="${kind}" role="${kind === 'error' ? 'alert' : 'status'}" aria-live="${kind === 'error' ? 'assertive' : 'polite'}">
+      <span class="zentrid-ux-state-icon" aria-hidden="true">${stateIcons[kind]}</span>
+      <div class="zentrid-ux-state-copy"><strong>${escape(options.title)}</strong><span>${escape(options.message)}</span>${action}</div>
     </section>`;
   }
 
-  function renderState(container: HTMLElement, kind: FleetUXStateKind, options: FleetUXStateOptions): void {
+  function renderState(container: HTMLElement, kind: ZentridUXStateKind, options: ZentridUXStateOptions): void {
     container.innerHTML = stateMarkup(kind, options);
-    if (options.actionLabel && options.onAction) container.querySelector<HTMLButtonElement>('.fleet-ux-state-action')?.addEventListener('click', options.onAction);
+    if (options.actionLabel && options.onAction) container.querySelector<HTMLButtonElement>('.zentrid-ux-state-action')?.addEventListener('click', options.onAction);
   }
 
-  function inferTone(message: string): FleetUXTone {
+  function inferTone(message: string): ZentridUXTone {
     const value = message.toLowerCase();
     if (/\b(fail|failed|error|unable|denied|invalid|blocked|expired|not saved)\b/.test(value)) return 'danger';
     if (/\b(warn|warning|pending|draft|local|read-only|unavailable|delayed|required)\b/.test(value)) return 'warning';
@@ -202,22 +202,22 @@ const FleetUX = (() => {
   }
 
   function ensureConfirmDialog(): HTMLElement {
-    let overlay = document.getElementById('fleetUxConfirmOverlay');
+    let overlay = document.getElementById('zentridUxConfirmOverlay');
     if (overlay) return overlay;
     overlay = document.createElement('div');
-    overlay.id = 'fleetUxConfirmOverlay';
-    overlay.className = 'fleet-ux-confirm-overlay';
+    overlay.id = 'zentridUxConfirmOverlay';
+    overlay.className = 'zentrid-ux-confirm-overlay';
     overlay.hidden = true;
-    overlay.innerHTML = `<section class="fleet-ux-confirm" role="alertdialog" aria-modal="true" aria-labelledby="fleetUxConfirmTitle" aria-describedby="fleetUxConfirmMessage">
-      <span class="fleet-ux-confirm-icon" aria-hidden="true">!</span>
-      <div class="fleet-ux-confirm-copy"><strong id="fleetUxConfirmTitle"></strong><span id="fleetUxConfirmMessage"></span></div>
-      <div class="fleet-ux-confirm-actions"><button type="button" class="secondary-action" data-fleet-confirm="cancel">Cancel</button><button type="button" class="primary-action" data-fleet-confirm="accept">Confirm</button></div>
+    overlay.innerHTML = `<section class="zentrid-ux-confirm" role="alertdialog" aria-modal="true" aria-labelledby="zentridUxConfirmTitle" aria-describedby="zentridUxConfirmMessage">
+      <span class="zentrid-ux-confirm-icon" aria-hidden="true">!</span>
+      <div class="zentrid-ux-confirm-copy"><strong id="zentridUxConfirmTitle"></strong><span id="zentridUxConfirmMessage"></span></div>
+      <div class="zentrid-ux-confirm-actions"><button type="button" class="secondary-action" data-zentrid-confirm="cancel">Cancel</button><button type="button" class="primary-action" data-zentrid-confirm="accept">Confirm</button></div>
     </section>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', event => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      const choice = target.closest<HTMLElement>('[data-fleet-confirm]')?.dataset.fleetConfirm;
+      const choice = target.closest<HTMLElement>('[data-zentrid-confirm]')?.dataset.zentridConfirm;
       if (choice === 'accept') closeConfirm(true);
       if (choice === 'cancel' || target === overlay) closeConfirm(false);
     });
@@ -248,7 +248,7 @@ const FleetUX = (() => {
   }
 
   function closeConfirm(value: boolean): void {
-    const overlay = document.getElementById('fleetUxConfirmOverlay');
+    const overlay = document.getElementById('zentridUxConfirmOverlay');
     if (overlay) overlay.hidden = true;
     const resolver = confirmResolver;
     confirmResolver = null;
@@ -257,14 +257,14 @@ const FleetUX = (() => {
     confirmReturnFocus = null;
   }
 
-  function confirmAction(options: FleetUXConfirmOptions): Promise<boolean> {
+  function confirmAction(options: ZentridUXConfirmOptions): Promise<boolean> {
     if (confirmResolver) closeConfirm(false);
     const overlay = ensureConfirmDialog();
-    const panel = overlay.querySelector<HTMLElement>('.fleet-ux-confirm');
-    const title = overlay.querySelector<HTMLElement>('#fleetUxConfirmTitle');
-    const message = overlay.querySelector<HTMLElement>('#fleetUxConfirmMessage');
-    const accept = overlay.querySelector<HTMLButtonElement>('[data-fleet-confirm="accept"]');
-    const cancel = overlay.querySelector<HTMLButtonElement>('[data-fleet-confirm="cancel"]');
+    const panel = overlay.querySelector<HTMLElement>('.zentrid-ux-confirm');
+    const title = overlay.querySelector<HTMLElement>('#zentridUxConfirmTitle');
+    const message = overlay.querySelector<HTMLElement>('#zentridUxConfirmMessage');
+    const accept = overlay.querySelector<HTMLButtonElement>('[data-zentrid-confirm="accept"]');
+    const cancel = overlay.querySelector<HTMLButtonElement>('[data-zentrid-confirm="cancel"]');
     if (!panel || !title || !message || !accept || !cancel) return Promise.resolve(false);
     confirmReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     title.textContent = options.title;
@@ -289,8 +289,8 @@ const FleetUX = (() => {
   }
 
   function scheduleObservedFlush(): void {
-    if (window.FleetRuntimeStability) {
-      FleetRuntimeStability.frame('ux-consistency:mutations', flushObservedRoots);
+    if (window.ZentridRuntimeStability) {
+      ZentridRuntimeStability.frame('ux-consistency:mutations', flushObservedRoots);
       return;
     }
     requestAnimationFrame(flushObservedRoots);
@@ -311,7 +311,7 @@ const FleetUX = (() => {
       if (pendingRoots.size) scheduleObservedFlush();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    FleetRuntimeStability?.registerCleanup('ux-consistency:observer', stopObserving);
+    ZentridRuntimeStability?.registerCleanup('ux-consistency:observer', stopObserving);
   }
 
   function init(): void {
@@ -337,4 +337,4 @@ const FleetUX = (() => {
   };
 })();
 
-Object.assign(window, { FleetUX });
+Object.assign(window, { ZentridUX });

@@ -1,4 +1,4 @@
-interface FleetTenantContact {
+interface ZentridTenantContact {
   [key: string]: unknown;
   first?: string;
   last?: string;
@@ -15,7 +15,7 @@ interface FleetTenantContact {
   active?: string;
 }
 
-interface FleetTenantDocument {
+interface ZentridTenantDocument {
   [key: string]: unknown;
   name?: string;
   type?: string;
@@ -23,7 +23,7 @@ interface FleetTenantDocument {
   file?: string;
 }
 
-interface FleetTenantRecord {
+interface ZentridTenantRecord {
   [key: string]: unknown;
   id: string;
   code?: string;
@@ -35,13 +35,13 @@ interface FleetTenantRecord {
   status?: string;
   health?: string;
   setup?: number;
-  contacts?: FleetTenantContact[];
-  documents?: FleetTenantDocument[];
+  contacts?: ZentridTenantContact[];
+  documents?: ZentridTenantDocument[];
   notes?: Record<string, string>;
 }
 
 
-interface FleetTenantClientRecordV42 {
+interface ZentridTenantClientRecordV42 {
   [key: string]: unknown;
   id: string;
   name: string;
@@ -50,7 +50,7 @@ interface FleetTenantClientRecordV42 {
   city?: string;
 }
 
-interface FleetTenantPlantRecordV42 {
+interface ZentridTenantPlantRecordV42 {
   [key: string]: unknown;
   id: string;
   clientId: string;
@@ -75,7 +75,7 @@ interface FleetTenantPlantRecordV42 {
   devices?: string[];
 }
 
-interface FleetTenantDeviceRecordV42 {
+interface ZentridTenantDeviceRecordV42 {
   [key: string]: unknown;
   id: string;
   plantId: string;
@@ -85,7 +85,7 @@ interface FleetTenantDeviceRecordV42 {
   model: string;
 }
 
-interface FleetTenantCountryRule {
+interface ZentridTenantCountryRule {
   registrationPlaceholder: string;
   registrationHelp: string;
   taxPlaceholder: string;
@@ -110,9 +110,9 @@ interface TenantPlantBuilderDeviceV28 {
   individual?: string;
 }
 
-type FleetTenantInfoItem = [string, unknown] | [string, unknown, string];
-type FleetTenantWizardStepElement = Element & { classList: DOMTokenList };
-type FleetTenantTabKey = 'general' | 'address' | 'contacts' | 'classification' | 'communication' | 'legal' | 'plants' | string;
+type ZentridTenantInfoItem = [string, unknown] | [string, unknown, string];
+type ZentridTenantWizardStepElement = Element & { classList: DOMTokenList };
+type ZentridTenantTabKey = 'general' | 'address' | 'contacts' | 'classification' | 'communication' | 'legal' | 'plants' | string;
 
 function tenantElement<T extends HTMLElement = HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
@@ -129,13 +129,13 @@ function tenantFormText(formData: FormData, key: string, fallback = ''): string 
   return typeof value === 'string' && value ? value : fallback;
 }
 
-const tenantSeed: FleetTenantRecord[] = [
+const tenantSeed: ZentridTenantRecord[] = [
   { id:'TNT-000125', entityType:'Legal Entity', code:'TN-000125', name:'Tenant Alpha Energy', legal:'Tenant Alpha Energy CJSC', trade:'Tenant Alpha', registration:'286.110.123456', tax:'01234567', status:'Active', types:['Owner','Operator'], country:'Armenia', region:'Yerevan', city:'Yerevan', address:'24 Energy Avenue', building:'12', postal:'0010', businessSame:true, plants:318, devices:4820, users:42, revenue:'€248k', health:'Attention Required', integrations:4, alerts:18, industry:'Solar Energy', businessCategory:'Enterprise', parentCompany:'None', employees:'101–500', annualRevenue:'$10M–$50M', webplant:'https://alpha-energy.example', category:'Strategic', tier:'Platinum', priority:'High', risk:'Medium', source:'Partner', account:'Mariam Sargsyan', language:'English', timezone:'Asia/Yerevan', channel:'Email', businessHours:'09:00–18:00', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'Yes', securityNotifications:'Yes', notificationRecipients:'Primary, Billing, Technical', dpa:'Signed', nda:'Signed', compliance:'Pending', confidentiality:'Restricted', controllerType:'Controller', consent:'Active', consentExpiry:'2027-06-30', setup:92, contacts:[{first:'Aram', last:'Hakobyan', full:'Aram Hakobyan', position:'Operations Lead', department:'Operations', role:'Primary', email:'aram@example.am', mobile:'+374 55 100 200', office:'+374 10 200 300', phone:'+374 55 100 200', language:'English', method:'Email', active:'Yes'}], documents:(window.tenantWizardDocuments&&window.tenantWizardDocuments.length?window.tenantWizardDocuments:[{name:'Registration Certificate', type:'Corporate', expiry:'2028-12-31', file:'Registration Certificate.pdf'}]), notes:{general:'', address:'', contacts:'', classification:'', communication:'', legal:''}, created:'2026-05-14', updated:'2026-06-03' },
   { id:'TNT-000126', entityType:'Legal Entity', code:'TN-000126', name:'Tenant North Operations', legal:'North Region Operations Inc.', trade:'North Ops', registration:'2024-000123456', tax:'12-3456789', status:'Active', types:['Operator'], country:'United States', region:'California', city:'San Diego', address:'510 Grid Street', building:'Suite 420', postal:'92101', businessSame:true, plants:274, devices:3910, users:38, revenue:'$211k', health:'Healthy', integrations:3, alerts:4, industry:'Solar Energy', businessCategory:'Enterprise', parentCompany:'None', employees:'51–100', annualRevenue:'$5M–$10M', webplant:'https://north-ops.example', category:'Standard', tier:'Gold', priority:'Medium', risk:'Low', source:'Direct', account:'Daniel Weber', language:'English', timezone:'America/Los_Angeles', channel:'Portal', businessHours:'08:00–17:00', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'Yes', securityNotifications:'Yes', notificationRecipients:'Primary, Legal', dpa:'Signed', nda:'Signed', compliance:'Approved', confidentiality:'Standard', controllerType:'Processor', consent:'Active', consentExpiry:'2027-04-15', setup:96, contacts:[{first:'Laura', last:'Schmidt', full:'Laura Schmidt', position:'Program Manager', department:'Executive', role:'Primary', email:'laura@example.com', mobile:'+1 (619) 555-0180', office:'+1 (619) 555-0199', phone:'+1 (619) 555-0180', language:'English', method:'Portal', active:'Yes'}], documents:[{name:'NDA', type:'Legal', expiry:'2027-04-15', file:'NDA.pdf'}], created:'2026-05-18', updated:'2026-06-02' },
   { id:'TNT-000127', entityType:'Legal Entity', code:'TN-000127', name:'Tenant Gamma Grid', legal:'Tenant Gamma Grid LLC', trade:'Tenant Gamma Grid', registration:'2025-000987654', tax:'98-7654321', status:'Suspended', types:['Owner','Investor'], country:'United States', region:'Texas', city:'Austin', address:'88 Storage Lane', building:'Unit 8', postal:'78701', businessSame:false, businessCountry:'United States', businessRegion:'Texas', businessCity:'Houston', businessAddress:'210 Battery Road', businessPostal:'77002', plants:195, devices:2508, users:29, revenue:'$174k', health:'At Risk', integrations:2, alerts:41, industry:'Solar Energy', businessCategory:'SME', parentCompany:'Energy Holdings Group', employees:'11–50', annualRevenue:'$1M–$5M', webplant:'https://gamma-grid.example', category:'Partner', tier:'Silver', priority:'High', risk:'High', source:'Referral', account:'Laura Garcia', language:'English', timezone:'America/Chicago', channel:'Email', businessHours:'08:30–17:30', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'No', securityNotifications:'Yes', notificationRecipients:'Primary, Technical', dpa:'Not Signed', nda:'Signed', compliance:'Pending', confidentiality:'Critical', controllerType:'Controller', consent:'Expired', consentExpiry:'2026-08-01', setup:67, contacts:[{first:'Miguel', last:'Torres', full:'Miguel Torres', position:'Owner Representative', department:'Finance', role:'Billing', email:'miguel@example.com', mobile:'+1 (512) 555-0142', office:'+1 (512) 555-0149', phone:'+1 (512) 555-0142', language:'English', method:'Email', active:'Yes'}], documents:[{name:'Data Processing Agreement', type:'Compliance', expiry:'2026-08-01', file:'Data Processing Agreement.pdf'}], created:'2026-04-27', updated:'2026-06-01' }
 ];
 
-const tenantCountryRules: Record<string, FleetTenantCountryRule> = {
+const tenantCountryRules: Record<string, ZentridTenantCountryRule> = {
   Armenia: {
     registrationPlaceholder: 'Example: 286.110.123456',
     registrationHelp: 'State registration number issued in Armenia.',
@@ -158,43 +158,43 @@ const tenantCountryRules: Record<string, FleetTenantCountryRule> = {
   }
 };
 
-function defaultTenantCountryRule(): FleetTenantCountryRule {
+function defaultTenantCountryRule(): ZentridTenantCountryRule {
   const rule = tenantCountryRules.Armenia;
   if (!rule) throw new Error('Default tenant country rule is missing.');
   return rule;
 }
 function cls(v: unknown): string { const text=String(v).toLowerCase(); if(text.includes('risk')||text.includes('critical')||text.includes('suspend')||text.includes('non')||text.includes('expired')) return 'danger'; if(text.includes('attention')||text.includes('review')||text.includes('medium')||text.includes('inactive')||text.includes('pending')) return 'warning'; return 'success'; }
-function getTenants(): FleetTenantRecord[] { const liveRows = window.ZentridLiveTenants as FleetTenantRecord[] | undefined; if (Array.isArray(liveRows) && liveRows.length) return liveRows; const rows = window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.tenants, []) : JSON.parse(localStorage.getItem('zentrid_demo_tenants') || '[]'); if (rows && rows.length) return rows; if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.tenants, tenantSeed); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(tenantSeed)); return tenantSeed; }
-function saveTenants(rows: FleetTenantRecord[]): void { if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.tenants, rows); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(rows)); }
+function getTenants(): ZentridTenantRecord[] { const liveRows = window.ZentridLiveTenants as ZentridTenantRecord[] | undefined; if (Array.isArray(liveRows) && liveRows.length) return liveRows; const rows = window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.tenants, []) : JSON.parse(localStorage.getItem('zentrid_demo_tenants') || '[]'); if (rows && rows.length) return rows; if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.tenants, tenantSeed); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(tenantSeed)); return tenantSeed; }
+function saveTenants(rows: ZentridTenantRecord[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.tenants, rows); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(rows)); }
 function genId(){ return 'TNT-' + String(Math.floor(100000 + Math.random()*899999)); }
 function genCode(){ return 'TN-' + String(Math.floor(100000 + Math.random()*899999)); }
-function selectedTenant(): FleetTenantRecord {
+function selectedTenant(): ZentridTenantRecord {
   const rows = getTenants();
   const id = localStorage.getItem('zentrid_selected_tenant');
   const tenant = rows.find(x => x.id === id) || rows[0] || tenantSeed[0];
   if (!tenant) throw new Error('Tenant registry is empty.');
   return tenant;
 }
-function tenantClientRecord(tenant: FleetTenantRecord): FleetTenantClientRecordV42 | null {
-  if (typeof FleetClientModel === 'undefined') return null;
-  return (FleetClientModel.clients as FleetTenantClientRecordV42[]).find(c => c.name === tenant.name || c.code === tenant.code || c.id === tenant.id) || (FleetClientModel.clients as FleetTenantClientRecordV42[])[0] || null;
+function tenantClientRecord(tenant: ZentridTenantRecord): ZentridTenantClientRecordV42 | null {
+  if (typeof ZentridClientModel === 'undefined') return null;
+  return (ZentridClientModel.clients as ZentridTenantClientRecordV42[]).find(c => c.name === tenant.name || c.code === tenant.code || c.id === tenant.id) || (ZentridClientModel.clients as ZentridTenantClientRecordV42[])[0] || null;
 }
-function tenantAssignedPlants(tenant: FleetTenantRecord): FleetTenantPlantRecordV42[] {
+function tenantAssignedPlants(tenant: ZentridTenantRecord): ZentridTenantPlantRecordV42[] {
   const client = tenantClientRecord(tenant);
-  if (typeof FleetClientModel === 'undefined') return [];
-  const base = client ? (FleetClientModel.plantsForClient(client.id) as FleetTenantPlantRecordV42[]) : [];
-  const custom = (FleetClientModel.plants as FleetTenantPlantRecordV42[]).filter((p: FleetTenantPlantRecordV42) => p.tenantId === tenant.id && (!client || p.clientId !== client.id));
+  if (typeof ZentridClientModel === 'undefined') return [];
+  const base = client ? (ZentridClientModel.plantsForClient(client.id) as ZentridTenantPlantRecordV42[]) : [];
+  const custom = (ZentridClientModel.plants as ZentridTenantPlantRecordV42[]).filter((p: ZentridTenantPlantRecordV42) => p.tenantId === tenant.id && (!client || p.clientId !== client.id));
   return [...base, ...custom];
 }
-function tenantPlantSummaryCards(tenant: FleetTenantRecord): string {
-  if (typeof FleetClientModel === 'undefined') return '<p class="muted">Plant hierarchy model is not loaded.</p>';
+function tenantPlantSummaryCards(tenant: ZentridTenantRecord): string {
+  if (typeof ZentridClientModel === 'undefined') return '<p class="muted">Plant hierarchy model is not loaded.</p>';
   const client = tenantClientRecord(tenant);
   const plants = tenantAssignedPlants(tenant);
   if (!plants.length) return '<div class="empty-state"><strong>No assigned plants yet</strong><small>Create a plant and attach it to an owning client. This tenant will manage the plant workspace.</small></div>';
   return `<div class="client-flow-v17 tenant-plant-flow-v18"><div><b>Managing Tenant</b><span>${tenant.name}</span></div><em>→</em><div><b>Managed Plants</b><span>${plants.length} plant workspaces</span></div><em>→</em><div><b>Owning Clients & Device</b><span>Client-owned plants · inverters, strings, meters, BESS</span></div></div><div class="plant-card-grid-v17 tenant-assigned-plants-v18">${plants.map(p => {
-    const ds = FleetClientModel.devicesForPlant(p.id);
+    const ds = ZentridClientModel.devicesForPlant(p.id);
     return `<article class="plant-card-v17 clickable-row" data-plant="${p.id}" data-client="${p.clientId || client?.id || ''}">
-      <div class="plant-card-top-v17"><div><strong>${p.name}</strong><small>${p.code} · ${p.portfolio}</small></div><span class="badge ${FleetClientModel.badge(p.health)}">${p.health}</span></div>
+      <div class="plant-card-top-v17"><div><strong>${p.name}</strong><small>${p.code} · ${p.portfolio}</small></div><span class="badge ${ZentridClientModel.badge(p.health)}">${p.health}</span></div>
       <div class="plant-card-metrics-v17"><div><span>Capacity</span><b>${p.capacityDc}</b></div><div><span>Now</span><b>${p.powerNow}</b></div><div><span>Today</span><b>${p.energyToday}</b></div><div><span>Alerts</span><b>${p.alerts}</b></div></div>
       <div class="device-strip-v17"><span>Inverters ${p.inverters}</span><span>Meters ${p.meters}</span><span>BESS ${p.battery}</span><span>${ds.length} device records</span></div>
       <div class="plant-card-footer-v18"><button class="small-btn" type="button" data-open-plant="${p.id}">Open Plant Detail</button><small>${p.country}, ${p.region}, ${p.city}</small></div>
@@ -203,14 +203,14 @@ function tenantPlantSummaryCards(tenant: FleetTenantRecord): string {
 }
 
 
-function tenantPlantBuilderCatalogByKind(kind: string): FleetDeviceCatalogLegacyApi['catalog'] {
-  if (typeof FleetDeviceCatalog === 'undefined') return [];
-  return FleetDeviceCatalog.catalog.filter(x => x.kind === kind);
+function tenantPlantBuilderCatalogByKind(kind: string): ZentridDeviceCatalogLegacyApi['catalog'] {
+  if (typeof ZentridDeviceCatalog === 'undefined') return [];
+  return ZentridDeviceCatalog.catalog.filter(x => x.kind === kind);
 }
-function tenantPlantBuilderClientOptions(tenant: FleetTenantRecord): string {
-  if (typeof FleetClientModel === 'undefined') return '';
+function tenantPlantBuilderClientOptions(tenant: ZentridTenantRecord): string {
+  if (typeof ZentridClientModel === 'undefined') return '';
   const preferred = tenantClientRecord(tenant);
-  return FleetClientModel.clients.map(c => `<option value="${c.id}" ${preferred && c.id === preferred.id ? 'selected' : ''}>${c.name} · ${c.code}</option>`).join('');
+  return ZentridClientModel.clients.map(c => `<option value="${c.id}" ${preferred && c.id === preferred.id ? 'selected' : ''}>${c.name} · ${c.code}</option>`).join('');
 }
 function tenantBuilderOptions(list: string[], selected: unknown): string {
   return list.map(v => `<option value="${v}" ${String(selected || '').toLowerCase() === String(v).toLowerCase() ? 'selected' : ''}>${v}</option>`).join('');
@@ -218,7 +218,7 @@ function tenantBuilderOptions(list: string[], selected: unknown): string {
 function tenantBuilderCapacityOptions(values: string[], selected: unknown): string {
   return values.map(v => `<option value="${v}" ${String(selected || '').toLowerCase() === String(v).toLowerCase() ? 'selected' : ''}>${v}</option>`).join('');
 }
-function tenantBuilderCompatibleCatalog(kind: string): FleetDeviceCatalogLegacyApi['catalog'] {
+function tenantBuilderCompatibleCatalog(kind: string): ZentridDeviceCatalogLegacyApi['catalog'] {
   const catalog = tenantPlantBuilderCatalogByKind(kind);
   if (!tenantPlantBuilderDevicesV28.length) return catalog;
   const hasInverter = tenantPlantBuilderDevicesV28.some(d => d.kind === 'Inverter');
@@ -237,7 +237,7 @@ function tenantPlantBuilderModelOptions(kind: string): string {
   if (!rows.length) return `<option value="">Add the required related device first</option>`;
   return rows.map(x=>`<option value="${x.kind}|${x.vendor}|${x.model}">${x.vendor} · ${x.model} · ${x.rating}</option>`).join('');
 }
-function tenantPlantBuilderModal(tenant: FleetTenantRecord): string {
+function tenantPlantBuilderModal(tenant: ZentridTenantRecord): string {
   const kindOptions = ['Inverter','Meter','Logger','BESS','PCS','Weather Station','Transformer','Switchgear'].map(x=>`<option value="${x}">${x}</option>`).join('');
   const initialModels = tenantPlantBuilderModelOptions('Inverter');
   return `<div class="tenant-plant-builder-modal-v28" id="tenantPlantBuilderModalV28" aria-hidden="true">
@@ -255,7 +255,7 @@ function tenantPlantBuilderModal(tenant: FleetTenantRecord): string {
         <button type="button" data-builder-step="2"><b>2</b><span>Device</span></button>
         <button type="button" data-builder-step="3"><b>3</b><span>Review</span></button>
       </div>
-      <form id="tenantPlantBuilderFormV28" class="tenant-builder-body-v28" data-fleet-form-readiness="local" data-fleet-form-contract="TenantPlantDraft" data-fleet-form-endpoint="/api/admin/plants" data-fleet-form-method="POST" data-fleet-form-api-note="Plant builder output remains local until the final backend payload is approved.">
+      <form id="tenantPlantBuilderFormV28" class="tenant-builder-body-v28" data-zentrid-form-readiness="local" data-zentrid-form-contract="TenantPlantDraft" data-zentrid-form-endpoint="/api/admin/plants" data-zentrid-form-method="POST" data-zentrid-form-api-note="Plant builder output remains local until the final backend payload is approved.">
         <section class="builder-step-panel-v28 active" data-step-panel="1">
           <div class="section-title-v17 mini"><div><h3>Plant Information</h3><p class="muted">Only plant-level fields are entered here. Device model data comes from the catalog.</p></div></div>
           <div class="builder-form-grid-v28">
@@ -314,7 +314,7 @@ let tenantPlantBuilderStepV28 = 1;
 function builderSelectedCatalogItem(){
   const value = document.getElementById('builderDeviceModelV28')?.value || '';
   const [kind,vendor,model] = value.split('|');
-  return (FleetDeviceCatalog?.catalog || []).find(x => x.kind === kind && x.vendor === vendor && x.model === model) || null;
+  return (ZentridDeviceCatalog?.catalog || []).find(x => x.kind === kind && x.vendor === vendor && x.model === model) || null;
 }
 
 function refreshTenantBuilderModelOptions(){
@@ -362,7 +362,7 @@ function renderTenantBuilderReview(){
   const form = document.getElementById('tenantPlantBuilderFormV28');
   if (!host || !form) return;
   const fd = new FormData(form as HTMLFormElement);
-  const client = FleetClientModel?.getClient(String(fd.get('clientId') || ''));
+  const client = ZentridClientModel?.getClient(String(fd.get('clientId') || ''));
   const counts = tenantPlantBuilderDevicesV28.reduce<Record<string, number>>((acc,d)=>{ acc[d.kind]=(acc[d.kind]||0)+1; return acc; },{});
   host.innerHTML = `<div class="builder-review-grid-v28">
     <article><span>Plant</span><strong>${fd.get('plantName') || 'New Plant'}</strong><small>${fd.get('plantCode') || 'AUTO'} · ${fd.get('country') || '—'}, ${fd.get('city') || '—'}</small></article>
@@ -391,12 +391,12 @@ function openTenantPlantBuilder(){
 }
 function closeTenantPlantBuilder(){ document.getElementById('tenantPlantBuilderModalV28')?.classList.remove('open'); }
 function createTenantPlantFromBuilder(){
-  if (typeof FleetClientModel === 'undefined') return;
+  if (typeof ZentridClientModel === 'undefined') return;
   const form = document.getElementById('tenantPlantBuilderFormV28') as HTMLFormElement | null;
   if (!form) return;
   const fd = new FormData(form);
-  const client = FleetClientModel.getClient(String(fd.get('clientId') || ''));
-  if (!client) { FleetLayout.toast('Select a valid client before creating a plant'); return; }
+  const client = ZentridClientModel.getClient(String(fd.get('clientId') || ''));
+  if (!client) { ZentridLayout.toast('Select a valid client before creating a plant'); return; }
   const plantId = 'PL-CUSTOM-' + Date.now().toString().slice(-6);
   const plant = {
     id: plantId,
@@ -414,7 +414,7 @@ function createTenantPlantFromBuilder(){
     meters: tenantPlantBuilderDevicesV28.filter(d=>d.kind==='Meter').length,
     battery: tenantPlantBuilderDevicesV28.some(d=>d.kind==='BESS') ? 'Yes' : 'No',
     devices: []
-  } as FleetTenantPlantRecordV42;
+  } as ZentridTenantPlantRecordV42;
   const devices = tenantPlantBuilderDevicesV28.map((d,i)=>({
     id: `${(d.kind.split(' ')[0] || d.kind).toUpperCase().slice(0,4)}-${plantId}-${i+1}`,
     plantId,
@@ -431,52 +431,52 @@ function createTenantPlantFromBuilder(){
     children: d.individual || 'Instance data required'
   }));
   plant.devices = devices.map(d=>d.id);
-  const customPlants = (JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]') as FleetTenantPlantRecordV42[]).filter((x: FleetTenantPlantRecordV42) => x.id !== plant.id);
-  const customDevices = (JSON.parse(localStorage.getItem('zentrid_custom_devices') || '[]') as FleetTenantDeviceRecordV42[]).filter((x: FleetTenantDeviceRecordV42) => x.plantId !== plant.id);
+  const customPlants = (JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]') as ZentridTenantPlantRecordV42[]).filter((x: ZentridTenantPlantRecordV42) => x.id !== plant.id);
+  const customDevices = (JSON.parse(localStorage.getItem('zentrid_custom_devices') || '[]') as ZentridTenantDeviceRecordV42[]).filter((x: ZentridTenantDeviceRecordV42) => x.plantId !== plant.id);
   customPlants.push(plant);
   customDevices.push(...devices);
   localStorage.setItem('zentrid_custom_plants', JSON.stringify(customPlants));
   localStorage.setItem('zentrid_custom_devices', JSON.stringify(customDevices));
-  if (!(FleetClientModel.plants as FleetTenantPlantRecordV42[]).some((x: FleetTenantPlantRecordV42)=>x.id===plant.id)) FleetClientModel.plants.push(plant);
-  devices.forEach((d: FleetTenantDeviceRecordV42)=>{ if (!(FleetClientModel.devices as FleetTenantDeviceRecordV42[]).some((x: FleetTenantDeviceRecordV42)=>x.id===d.id)) FleetClientModel.devices.push(d); });
+  if (!(ZentridClientModel.plants as ZentridTenantPlantRecordV42[]).some((x: ZentridTenantPlantRecordV42)=>x.id===plant.id)) ZentridClientModel.plants.push(plant);
+  devices.forEach((d: ZentridTenantDeviceRecordV42)=>{ if (!(ZentridClientModel.devices as ZentridTenantDeviceRecordV42[]).some((x: ZentridTenantDeviceRecordV42)=>x.id===d.id)) ZentridClientModel.devices.push(d); });
   closeTenantPlantBuilder();
-  FleetLayout.toast('Plant created and attached to client');
+  ZentridLayout.toast('Plant created and attached to client');
   setTenantDetailEditMode(false);
 }
 
 
 let tenantDetailEditMode = false;
 let tenantDetailEditSnapshot = '';
-let tenantDetailDraft: FleetTenantRecord | null = null;
+let tenantDetailDraft: ZentridTenantRecord | null = null;
 let tenantDetailBusy = false;
 type TenantDetailFeedbackTone = 'info' | 'warning' | 'danger' | 'success';
 
-function tenantComplianceValue(c: FleetTenantRecord): string { return String(c.compliance || c.status || c.health || 'Active'); }
-function tenantStatusValue(c: FleetTenantRecord): string { return String(c.status || 'Active'); }
+function tenantComplianceValue(c: ZentridTenantRecord): string { return String(c.compliance || c.status || c.health || 'Active'); }
+function tenantStatusValue(c: ZentridTenantRecord): string { return String(c.status || 'Active'); }
 function tenantDisplayValue(v: unknown): string { return (v === undefined || v === null || v === '') ? '—' : String(v); }
 function tenantActiveDetailTab(): string { return document.querySelector<HTMLElement>('[data-tenant-tab].active')?.dataset.tenantTab || 'general'; }
 function tenantEscapeHtml(value: unknown): string {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 function tenantEscapeAttr(value: unknown): string { return tenantEscapeHtml(value).replace(/`/g, '&#096;'); }
-function tenantCloneRecord(record: FleetTenantRecord): FleetTenantRecord { return JSON.parse(JSON.stringify(record)) as FleetTenantRecord; }
-function tenantDetailOrigin(record: FleetTenantRecord): FleetDataOrigin { return FleetEntityDetailUX.origin(record, 'tenant'); }
-function tenantDetailBackendManaged(record: FleetTenantRecord): boolean { return FleetEntityDetailUX.backendManaged(record, 'tenant'); }
-function tenantDetailIsArchived(record: FleetTenantRecord): boolean { return FleetEntityDetailUX.archived(tenantStatusValue(record)); }
+function tenantCloneRecord(record: ZentridTenantRecord): ZentridTenantRecord { return JSON.parse(JSON.stringify(record)) as ZentridTenantRecord; }
+function tenantDetailOrigin(record: ZentridTenantRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'tenant'); }
+function tenantDetailBackendManaged(record: ZentridTenantRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'tenant'); }
+function tenantDetailIsArchived(record: ZentridTenantRecord): boolean { return ZentridEntityDetailUX.archived(tenantStatusValue(record)); }
 function tenantDetailTabEditable(tab = tenantActiveDetailTab()): boolean { return tab !== 'plants'; }
-function tenantDetailCanEdit(record: FleetTenantRecord, tab = tenantActiveDetailTab()): boolean {
+function tenantDetailCanEdit(record: ZentridTenantRecord, tab = tenantActiveDetailTab()): boolean {
   return !tenantDetailIsArchived(record) && tenantDetailTabEditable(tab);
 }
-function tenantDetailRaw(record: FleetTenantRecord): Record<string, unknown> {
+function tenantDetailRaw(record: ZentridTenantRecord): Record<string, unknown> {
   return record.raw && typeof record.raw === 'object' ? record.raw as Record<string, unknown> : {};
 }
-function tenantDetailFreshness(record: FleetTenantRecord): string {
-  return FleetEntityDetailUX.freshness(record, 'tenant', {
+function tenantDetailFreshness(record: ZentridTenantRecord): string {
+  return ZentridEntityDetailUX.freshness(record, 'tenant', {
     timestampKeys:['lastSyncAt','last_sync_at','raw.lastSyncAt','raw.lastSyncAtUtc','raw.updatedAt','updated']
   });
 }
-function tenantDetailModeCopy(record: FleetTenantRecord): { title: string; message: string; tone: TenantDetailFeedbackTone } {
-  return FleetEntityDetailUX.modeCopy(record, 'tenant', {
+function tenantDetailModeCopy(record: ZentridTenantRecord): { title: string; message: string; tone: TenantDetailFeedbackTone } {
+  return ZentridEntityDetailUX.modeCopy(record, 'tenant', {
     status:tenantStatusValue(record),
     backendTitle:'Live tenant · local override available',
     backendMessage:'Edit creates a browser-only override for tenant metadata. Lifecycle commands remain separate and no backend update request is sent.',
@@ -484,19 +484,19 @@ function tenantDetailModeCopy(record: FleetTenantRecord): { title: string; messa
     archivedMessage:'Archived tenant identity, contacts and compliance data cannot be edited from this workspace.'
   });
 }
-function renderTenantDetailControls(record: FleetTenantRecord): string {
+function renderTenantDetailControls(record: ZentridTenantRecord): string {
   const copy = tenantDetailModeCopy(record);
   return `<section class="tenant-detail-control-v117 ${copy.tone}" id="tenantDetailControl" data-tenant-detail-origin="${tenantEscapeAttr(tenantDetailOrigin(record))}" role="status" aria-live="polite" aria-busy="false">
-    <div class="tenant-detail-control-source-v117"><span>Data source</span>${FleetDataSource.badge(record, 'tenant', true)}<small>${tenantEscapeHtml(tenantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="tenant"></span></div>
+    <div class="tenant-detail-control-source-v117"><span>Data source</span>${ZentridDataSource.badge(record, 'tenant', true)}<small>${tenantEscapeHtml(tenantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="tenant"></span></div>
     <div class="tenant-detail-control-copy-v117"><strong>${tenantEscapeHtml(copy.title)}</strong><small>${tenantEscapeHtml(copy.message)}</small></div>
     <div class="tenant-detail-feedback-v117" id="tenantDetailFeedback" hidden></div>
   </section>`;
 }
 function setTenantDetailFeedback(tone: TenantDetailFeedbackTone, title: string, message: string): void {
-  FleetEntityDetailUX.setFeedback({ id:'tenantDetailFeedback', className:'tenant-detail-feedback-v117', tone, title, message, escape:tenantEscapeHtml });
+  ZentridEntityDetailUX.setFeedback({ id:'tenantDetailFeedback', className:'tenant-detail-feedback-v117', tone, title, message, escape:tenantEscapeHtml });
 }
 function clearTenantDetailFeedback(): void {
-  FleetEntityDetailUX.clearFeedback('tenantDetailFeedback', 'tenant-detail-feedback-v117');
+  ZentridEntityDetailUX.clearFeedback('tenantDetailFeedback', 'tenant-detail-feedback-v117');
 }
 function tenantEditableControl(key: string, value: unknown, label: string): string {
   const safe = tenantEscapeAttr(value ?? '');
@@ -531,10 +531,10 @@ function tenantEditableControl(key: string, value: unknown, label: string): stri
   if (textarea) return `<textarea name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}">${tenantEscapeHtml(value ?? '')}</textarea>`;
   return `<input type="${type}" name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" value="${safe}">`;
 }
-function tenantInfo(items: FleetTenantInfoItem[], editable = tenantDetailEditMode): string { return `<div class="info-grid ${editable ? 'editing-grid' : ''}">${items.map(([a,b,k]: FleetTenantInfoItem)=>`<div><span>${tenantEscapeHtml(a)}</span>${editable && k ? tenantEditableControl(k,b,a) : `<strong>${tenantEscapeHtml(tenantDisplayValue(b))}</strong>`}</div>`).join('')}</div>`; }
-function tenantNotesValue(c: FleetTenantRecord, section: string): unknown { return (c.notes && c.notes[section]) || c[section + 'Notes'] || ''; }
-function tenantNotesBlock(c: FleetTenantRecord, section: string, label: string, editable = tenantDetailEditMode): string { const key = `notes::${section}`; const value = tenantNotesValue(c, section); return `<div class="tenant-notes-block"><span>${tenantEscapeHtml(label)}</span>${editable ? `<textarea name="tenant-edit-notes-${tenantEscapeAttr(section)}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" placeholder="${tenantEscapeAttr(label)}...">${tenantEscapeHtml(value || '')}</textarea>` : `<strong>${tenantEscapeHtml(tenantDisplayValue(value))}</strong>`}</div>`; }
-function updateSelectedTenant(mutator: (tenant: FleetTenantRecord) => void): void {
+function tenantInfo(items: ZentridTenantInfoItem[], editable = tenantDetailEditMode): string { return `<div class="info-grid ${editable ? 'editing-grid' : ''}">${items.map(([a,b,k]: ZentridTenantInfoItem)=>`<div><span>${tenantEscapeHtml(a)}</span>${editable && k ? tenantEditableControl(k,b,a) : `<strong>${tenantEscapeHtml(tenantDisplayValue(b))}</strong>`}</div>`).join('')}</div>`; }
+function tenantNotesValue(c: ZentridTenantRecord, section: string): unknown { return (c.notes && c.notes[section]) || c[section + 'Notes'] || ''; }
+function tenantNotesBlock(c: ZentridTenantRecord, section: string, label: string, editable = tenantDetailEditMode): string { const key = `notes::${section}`; const value = tenantNotesValue(c, section); return `<div class="tenant-notes-block"><span>${tenantEscapeHtml(label)}</span>${editable ? `<textarea name="tenant-edit-notes-${tenantEscapeAttr(section)}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" placeholder="${tenantEscapeAttr(label)}...">${tenantEscapeHtml(value || '')}</textarea>` : `<strong>${tenantEscapeHtml(tenantDisplayValue(value))}</strong>`}</div>`; }
+function updateSelectedTenant(mutator: (tenant: ZentridTenantRecord) => void): void {
   const rows = getTenants();
   const id = selectedTenant().id;
   const idx = rows.findIndex(x => x.id === id);
@@ -542,7 +542,7 @@ function updateSelectedTenant(mutator: (tenant: FleetTenantRecord) => void): voi
   const tenant = rows[idx];
   if (!tenant) return;
   mutator(tenant);
-  rows[idx] = FleetDataSource.markChanged(tenant, 'tenant');
+  rows[idx] = ZentridDataSource.markChanged(tenant, 'tenant');
   if (Array.isArray(window.ZentridLiveTenants) && window.ZentridLiveTenants === rows) window.ZentridLiveTenants = rows;
   else saveTenants(rows);
 }
@@ -555,12 +555,12 @@ function tenantDetailHasUnsavedEdits(): boolean {
   return tenantDetailEditMode && tenantDetailEditSnapshot !== tenantDetailCurrentEditSnapshot();
 }
 function tenantDetailConfirmDiscard(message = 'Discard unsaved tenant changes?'): boolean {
-  return FleetEntityDetailUX.confirmDiscard(tenantDetailHasUnsavedEdits(), message);
+  return ZentridEntityDetailUX.confirmDiscard(tenantDetailHasUnsavedEdits(), message);
 }
 function tenantDetailControl(key: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null {
   return document.querySelector(`#detailContent [data-tenant-edit-key="${CSS.escape(key)}"]`);
 }
-function syncTenantDetailInputs(record: FleetTenantRecord): void {
+function syncTenantDetailInputs(record: ZentridTenantRecord): void {
   const inputs = Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('#detailContent [data-tenant-edit-key]'));
   inputs.forEach(input => {
     const key = input.dataset.tenantEditKey;
@@ -644,14 +644,14 @@ function tenantDetailMeaningful(value: unknown): boolean {
   const text = String(value ?? '').trim();
   return Boolean(text && text !== '—' && text.toLowerCase() !== 'not set');
 }
-function validateTenantDetailEdits(): FleetFormValidationResult {
+function validateTenantDetailEdits(): ZentridFormValidationResult {
   const root = requireTenantElement('detailContent');
   const summary = tenantElement('tenantDetailEditSummary');
   const draft = tenantDetailDraft;
   if (!draft) return { valid:false, issues:[{ message:'Tenant edit draft is unavailable.' }] };
   syncTenantDetailInputs(draft);
   const tab = tenantActiveDetailTab();
-  const issues: FleetFormIssue[] = [];
+  const issues: ZentridFormIssue[] = [];
   const required = (key: string, label: string) => {
     const control = tenantDetailControl(key);
     if (!control || !tenantDetailMeaningful(control.value)) issues.push({ control, message:`${label} is required.` });
@@ -717,8 +717,8 @@ function validateTenantDetailEdits(): FleetFormValidationResult {
       if (!tenantDetailMeaningful(documentRecord.type)) issues.push({ control:tenantDetailControl(`documents::${index}::type`), message:`Document ${index + 1}: Type is required.` });
     });
   }
-  const result = FleetFormUX.validate(root, issues, summary, `Review ${tenantTabLabel(tab)} before saving`);
-  if (!result.valid) FleetFormUX.focusFirst(result, summary);
+  const result = ZentridFormUX.validate(root, issues, summary, `Review ${tenantTabLabel(tab)} before saving`);
+  if (!result.valid) ZentridFormUX.focusFirst(result, summary);
   return result;
 }
 function refreshTenantDetailSummary(): void {
@@ -736,14 +736,14 @@ function refreshTenantDetailSummary(): void {
   setText('tenantDetailRiskKpi', record.risk || '—');
   setText('tenantDetailPriorityKpi', `${record.priority || '—'} priority`);
   const heroBadge = document.querySelector<HTMLElement>('.page-hero .record-origin-chip');
-  if (heroBadge) heroBadge.outerHTML = FleetDataSource.badge(record, 'tenant', true);
+  if (heroBadge) heroBadge.outerHTML = ZentridDataSource.badge(record, 'tenant', true);
   const control = document.getElementById('tenantDetailControl');
   if (control) control.outerHTML = renderTenantDetailControls(record);
 }
 function saveTenantDetailEdits(): void {
   if (tenantDetailBusy || !tenantDetailDraft) return;
   const record = selectedTenant();
-  if (!FleetActionPermissions.guard({ action:'edit', resource:'tenant', record, status:tenantStatusValue(record), origin:tenantDetailOrigin(record), updateAvailable:false, localOverride:true })) return;
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'tenant', record, status:tenantStatusValue(record), origin:tenantDetailOrigin(record), updateAvailable:false, localOverride:true })) return;
   if (!tenantDetailCanEdit(record)) {
     setTenantDetailFeedback('warning', 'Tenant section is read-only', 'No local override was created.');
     return;
@@ -753,7 +753,7 @@ function saveTenantDetailEdits(): void {
   syncTenantDetailInputs(tenantDetailDraft);
   const saveButton = tenantElement<HTMLButtonElement>('saveTenantEdit');
   tenantDetailBusy = true;
-  if (saveButton) FleetFormUX.setBusy(saveButton, true, 'Saving locally…');
+  if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Saving locally…');
   document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'true');
   try {
     const next = tenantCloneRecord(tenantDetailDraft);
@@ -769,13 +769,13 @@ function saveTenantDetailEdits(): void {
     setTenantDetailEditMode(false, true);
     refreshTenantDetailSummary();
     setTenantDetailFeedback('success', 'Tenant section saved locally', 'This prototype change was stored only in the current browser. No backend request was sent.');
-    FleetLayout.toast('Tenant section saved locally');
+    ZentridLayout.toast('Tenant section saved locally');
   } catch {
     setTenantDetailFeedback('danger', 'Unable to save tenant section', 'Review browser storage and try again.');
   } finally {
     tenantDetailBusy = false;
     document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'false');
-    if (saveButton) FleetFormUX.setBusy(saveButton, false);
+    if (saveButton) ZentridFormUX.setBusy(saveButton, false);
     updateTenantDetailEditButtons();
   }
 }
@@ -817,12 +817,12 @@ function removeTenantDetailDocument(index: number): void {
   renderTenantDetailCurrentTab();
 }
 
-function tenantRows(rows: FleetTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: FleetTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${FleetDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`; }).join('')}</div>`; }
+function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`; }).join('')}</div>`; }
 function renderTenantRegistry(){ const rows=getTenants(); return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>x.compliance!=='Approved').length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option><option>Active</option><option>Inactive</option><option>Suspended</option><option>Archived</option></select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`; }
 
 function stepIntro(name: string, text: string): string { return `<div class="wizard-description full"><strong>${name}</strong><p>${text}</p><textarea name="${name.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_notes" placeholder="Notes for ${name}..."></textarea></div>`; }
 function yesNo(name: string, label: string, yes='Yes'): string { return `<label>${label}<select name="${name}"><option>${yes}</option><option>${yes==='Yes'?'No':'Yes'}</option></select></label>`; }
-function tenantWizard(){ const steps=['General Information','Address Information','Contact Persons','Tenant Classification','Communication Preferences','Legal & Compliance']; return `<aside class="modal" id="tenantModal" role="dialog" aria-modal="true" aria-labelledby="tenantWizardTitle" aria-hidden="true"><div class="modal-card wide-modal"><button class="modal-close" id="closeTenantModal" type="button" aria-label="Close tenant wizard">x</button><p class="eyebrow">Tenant Provisioning Wizard</p><h2 id="tenantWizardTitle">Create Tenant</h2><div class="setup-layout"><div class="setup-rail" aria-label="Tenant creation steps">${steps.map((s,i)=>`<button class="${i===0?'active':''}" data-step="${i}"><b>${i+1}</b><span>${s}</span></button>`).join('')}</div><form id="tenantForm" class="form-grid setup-form" novalidate data-fleet-form-readiness="local" data-fleet-form-contract="TenantCreateDraft" data-fleet-form-endpoint="/api/admin/tenants" data-fleet-form-method="POST" data-fleet-form-api-note="The wizard currently stores a local prototype record; its DTO is ready for the Tenant create contract.">
+function tenantWizard(){ const steps=['General Information','Address Information','Contact Persons','Tenant Classification','Communication Preferences','Legal & Compliance']; return `<aside class="modal" id="tenantModal" role="dialog" aria-modal="true" aria-labelledby="tenantWizardTitle" aria-hidden="true"><div class="modal-card wide-modal"><button class="modal-close" id="closeTenantModal" type="button" aria-label="Close tenant wizard">x</button><p class="eyebrow">Tenant Provisioning Wizard</p><h2 id="tenantWizardTitle">Create Tenant</h2><div class="setup-layout"><div class="setup-rail" aria-label="Tenant creation steps">${steps.map((s,i)=>`<button class="${i===0?'active':''}" data-step="${i}"><b>${i+1}</b><span>${s}</span></button>`).join('')}</div><form id="tenantForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="TenantCreateDraft" data-zentrid-form-endpoint="/api/admin/tenants" data-zentrid-form-method="POST" data-zentrid-form-api-note="The wizard currently stores a local prototype record; its DTO is ready for the Tenant create contract.">
 <div class="form-validation-summary full" id="tenantValidationSummary" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
 <div class="wizard-step active" data-tenant-step="0">
   <label>Tenant ID <input disabled value="Auto-generated after save"></label>
@@ -943,7 +943,7 @@ function wireTenantRegistry(): void {
   let isSaving = false;
 
   const normalizeDuplicateValue = (value: unknown) => String(value || '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-  const draftSnapshot = () => `${FleetFormUX.snapshot(tenantForm)}\ncontacts:${JSON.stringify(window.tenantWizardContacts || [])}\ndocuments:${JSON.stringify(window.tenantWizardDocuments || [])}`;
+  const draftSnapshot = () => `${ZentridFormUX.snapshot(tenantForm)}\ncontacts:${JSON.stringify(window.tenantWizardContacts || [])}\ndocuments:${JSON.stringify(window.tenantWizardDocuments || [])}`;
 
   const show = (index: number) => {
     step = Math.max(0, Math.min(steps.length - 1, index));
@@ -1056,9 +1056,9 @@ function wireTenantRegistry(): void {
     });
   };
 
-  const customStepIssues = (index: number, includeDuplicates = false): FleetFormIssue[] => {
-    const issues: FleetFormIssue[] = [];
-    const field = <T extends FleetFormControl = FleetFormControl>(name: string) => tenantForm.elements.namedItem(name) as T | null;
+  const customStepIssues = (index: number, includeDuplicates = false): ZentridFormIssue[] => {
+    const issues: ZentridFormIssue[] = [];
+    const field = <T extends ZentridFormControl = ZentridFormControl>(name: string) => tenantForm.elements.namedItem(name) as T | null;
     if (index === 0) {
       const name = field<HTMLInputElement>('name');
       const legal = field<HTMLInputElement>('legal');
@@ -1088,7 +1088,7 @@ function wireTenantRegistry(): void {
       if (!same && businessPostal) businessPostal.value = businessPostal.value.trim();
     }
     if (index === 2) {
-      const contacts = window.tenantWizardContacts as FleetTenantContact[];
+      const contacts = window.tenantWizardContacts as ZentridTenantContact[];
       const primary = contacts.find(contact => contact.role === 'Primary' && contact.active !== 'No');
       if (!contacts.length) issues.push({ message:'Add at least one contact person before continuing.' });
       else if (!primary) issues.push({ message:'Assign one active contact as the Primary contact.' });
@@ -1111,14 +1111,14 @@ function wireTenantRegistry(): void {
   const validateStep = (index: number, includeDuplicates = false): boolean => {
     const section = steps[index];
     if (!section) return true;
-    const result = FleetFormUX.validate(section, customStepIssues(index, includeDuplicates), validationSummary, `Step ${index + 1} needs attention`);
+    const result = ZentridFormUX.validate(section, customStepIssues(index, includeDuplicates), validationSummary, `Step ${index + 1} needs attention`);
     rails[index]?.classList.toggle('has-error', !result.valid);
     if (result.valid) rails[index]?.classList.add('completed');
     else {
       rails[index]?.classList.remove('completed');
       show(index);
-      FleetFormUX.renderSummary(validationSummary, result.issues, `Step ${index + 1} needs attention`);
-      FleetFormUX.focusFirst(result, validationSummary);
+      ZentridFormUX.renderSummary(validationSummary, result.issues, `Step ${index + 1} needs attention`);
+      ZentridFormUX.focusFirst(result, validationSummary);
     }
     return result.valid;
   };
@@ -1143,7 +1143,7 @@ function wireTenantRegistry(): void {
   window.tenantWizardDocuments = window.tenantWizardDocuments || [];
   window.tenantWizardEditContactIndex = null;
 
-  const fillContactForm = (contact: FleetTenantContact = {}) => {
+  const fillContactForm = (contact: ZentridTenantContact = {}) => {
     requireTenantElement<HTMLInputElement>('contactFirst').value = contact.first || '';
     requireTenantElement<HTMLInputElement>('contactLast').value = contact.last || '';
     requireTenantElement<HTMLInputElement>('contactPosition').value = contact.position || '';
@@ -1167,7 +1167,7 @@ function wireTenantRegistry(): void {
   const renderWizardContacts = () => {
     const box = document.getElementById('wizardContactsTable');
     if (!box) return;
-    const contacts = window.tenantWizardContacts as FleetTenantContact[];
+    const contacts = window.tenantWizardContacts as ZentridTenantContact[];
     const head = '<div class="data-head"><span>Full Name</span><span>Role</span><span>Email</span><span>Phone</span><span>Actions</span></div>';
     if (!contacts.length) { box.innerHTML = head + '<div class="empty-state">No contacts added yet. Add at least one Primary contact.</div>'; return; }
     box.innerHTML = head + contacts.map((contact, index) => `<div class="data-row"><div><strong>${contact.full || '—'}</strong></div><div><span>${contact.role || '—'}</span></div><div><span>${contact.email || '—'}</span></div><div><span>${contact.mobile || contact.phone || '—'}</span></div><div class="mini-row-actions"><button type="button" class="secondary-action" data-edit-wizard-contact="${index}">Edit</button><button type="button" class="danger-action" data-delete-wizard-contact="${index}">Delete</button></div></div>`).join('');
@@ -1176,7 +1176,7 @@ function wireTenantRegistry(): void {
   const renderWizardDocuments = () => {
     const box = document.getElementById('wizardDocumentsTable');
     if (!box) return;
-    const documents = window.tenantWizardDocuments as FleetTenantDocument[];
+    const documents = window.tenantWizardDocuments as ZentridTenantDocument[];
     const head = '<div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry</span><span>File</span><span>Actions</span></div>';
     if (!documents.length) { box.innerHTML = head + '<div class="empty-state">No documents attached yet.</div>'; return; }
     box.innerHTML = head + documents.map((documentRecord, index) => `<div class="data-row"><strong>${documentRecord.name || '—'}</strong><span>${documentRecord.type || '—'}</span><span>${documentRecord.expiry || '—'}</span><span>${documentRecord.file || documentRecord.name || '—'}</span><div class="mini-row-actions"><button type="button" class="danger-action" data-delete-wizard-document="${index}">Delete</button></div></div>`).join('');
@@ -1193,7 +1193,7 @@ function wireTenantRegistry(): void {
     renderWizardContacts();
     renderWizardDocuments();
     rails.forEach(rail => rail.classList.remove('completed', 'has-error'));
-    FleetFormUX.clearErrors(tenantForm, validationSummary);
+    ZentridFormUX.clearErrors(tenantForm, validationSummary);
     updateCountryRules();
     toggleBusiness();
     show(0);
@@ -1219,13 +1219,13 @@ function wireTenantRegistry(): void {
     firstControl.value = firstControl.value.trim();
     lastControl.value = lastControl.value.trim();
     emailControl.value = emailControl.value.trim();
-    const contacts = window.tenantWizardContacts as FleetTenantContact[];
+    const contacts = window.tenantWizardContacts as ZentridTenantContact[];
     const editIndex = typeof window.tenantWizardEditContactIndex === 'number' ? window.tenantWizardEditContactIndex : null;
     const duplicateEmail = contacts.find((contact, index) => index !== editIndex && normalizeDuplicateValue(contact.email) === normalizeDuplicateValue(emailControl.value));
-    const contactIssues: FleetFormIssue[] = duplicateEmail ? [{ control:emailControl, message:`This email is already assigned to ${duplicateEmail.full || 'another contact'}.` }] : [];
-    const contactValidation = FleetFormUX.validate(inlineContact, contactIssues, validationSummary, 'Complete the contact details');
+    const contactIssues: ZentridFormIssue[] = duplicateEmail ? [{ control:emailControl, message:`This email is already assigned to ${duplicateEmail.full || 'another contact'}.` }] : [];
+    const contactValidation = ZentridFormUX.validate(inlineContact, contactIssues, validationSummary, 'Complete the contact details');
     if (!contactValidation.valid) {
-      FleetFormUX.focusFirst(contactValidation, validationSummary);
+      ZentridFormUX.focusFirst(contactValidation, validationSummary);
       return;
     }
     const first = firstControl.value;
@@ -1235,7 +1235,7 @@ function wireTenantRegistry(): void {
     if (role === 'Primary') window.tenantWizardContacts = contacts.map((contact, index) => ({ ...contact, role: contact.role === 'Primary' && index !== editIndex ? 'Contact' : contact.role }));
     const mobile = requireTenantElement<HTMLInputElement>('contactPhone').value.trim();
     const office = requireTenantElement<HTMLInputElement>('contactOfficePhone').value.trim();
-    const item: FleetTenantContact = {
+    const item: ZentridTenantContact = {
       first, last, full: `${first} ${last}`,
       position: requireTenantElement<HTMLInputElement>('contactPosition').value.trim(),
       department: requireTenantElement<HTMLSelectElement>('contactDepartment').value,
@@ -1244,9 +1244,9 @@ function wireTenantRegistry(): void {
       method: requireTenantElement<HTMLSelectElement>('contactMethod').value,
       active: requireTenantElement<HTMLInputElement>('contactActive').checked ? 'Yes' : 'No'
     };
-    const currentContacts = window.tenantWizardContacts as FleetTenantContact[];
-    if (editIndex !== null && currentContacts[editIndex]) { currentContacts[editIndex] = item; FleetLayout.toast('Contact updated'); }
-    else { currentContacts.push(item); FleetLayout.toast('Contact added'); }
+    const currentContacts = window.tenantWizardContacts as ZentridTenantContact[];
+    if (editIndex !== null && currentContacts[editIndex]) { currentContacts[editIndex] = item; ZentridLayout.toast('Contact updated'); }
+    else { currentContacts.push(item); ZentridLayout.toast('Contact added'); }
     clearContactForm();
     document.getElementById('inlineContactForm')?.classList.add('is-hidden');
     renderWizardContacts();
@@ -1260,7 +1260,7 @@ function wireTenantRegistry(): void {
     requireTenantElement<HTMLInputElement>('contactFirst').focus();
   };
   requireTenantElement<HTMLButtonElement>('saveInlineContact').onclick = addContact;
-  requireTenantElement<HTMLButtonElement>('cancelInlineContact').onclick = () => { const inline = document.getElementById('inlineContactForm'); if (inline) FleetFormUX.clearErrors(inline, validationSummary); clearContactForm(); inline?.classList.add('is-hidden'); };
+  requireTenantElement<HTMLButtonElement>('cancelInlineContact').onclick = () => { const inline = document.getElementById('inlineContactForm'); if (inline) ZentridFormUX.clearErrors(inline, validationSummary); clearContactForm(); inline?.classList.add('is-hidden'); };
 
   document.getElementById('wizardContactsTable')?.addEventListener('click', event => {
     const target = event.target;
@@ -1269,7 +1269,7 @@ function wireTenantRegistry(): void {
     const remove = target.closest<HTMLElement>('[data-delete-wizard-contact]');
     if (edit) {
       const index = Number(edit.dataset.editWizardContact);
-      const item = (window.tenantWizardContacts as FleetTenantContact[])[index];
+      const item = (window.tenantWizardContacts as ZentridTenantContact[])[index];
       if (item) {
         window.tenantWizardEditContactIndex = index;
         fillContactForm(item);
@@ -1282,7 +1282,7 @@ function wireTenantRegistry(): void {
     }
     if (remove) {
       const index = Number(remove.dataset.deleteWizardContact);
-      const contacts = window.tenantWizardContacts as FleetTenantContact[];
+      const contacts = window.tenantWizardContacts as ZentridTenantContact[];
       const contact = contacts[index];
       if (!contact) return;
       const warning = contact.role === 'Primary'
@@ -1292,7 +1292,7 @@ function wireTenantRegistry(): void {
       contacts.splice(index, 1);
       renderWizardContacts();
       rails[2]?.classList.remove('completed');
-      FleetLayout.toast('Contact deleted');
+      ZentridLayout.toast('Contact deleted');
     }
   });
 
@@ -1302,21 +1302,21 @@ function wireTenantRegistry(): void {
     if (!(target instanceof Element)) return;
     const remove = target.closest<HTMLElement>('[data-delete-wizard-document]');
     if (!remove) return;
-    const documents = window.tenantWizardDocuments as FleetTenantDocument[];
+    const documents = window.tenantWizardDocuments as ZentridTenantDocument[];
     const index = Number(remove.dataset.deleteWizardDocument);
     const documentRecord = documents[index];
     if (!documentRecord || !window.confirm(`Remove ${documentRecord.name || 'this document'} from the tenant draft?`)) return;
     documents.splice(index, 1);
     renderWizardDocuments();
-    FleetLayout.toast('Document removed');
+    ZentridLayout.toast('Document removed');
   });
 
   const docUpload = tenantElement<HTMLInputElement>('tenantDocUpload');
   if (docUpload) docUpload.onchange = () => {
     const files = Array.from(docUpload.files || []);
-    files.forEach(file => (window.tenantWizardDocuments as FleetTenantDocument[]).push({ name:file.name, type:file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'Uploaded', expiry:'Not set', file:file.name }));
+    files.forEach(file => (window.tenantWizardDocuments as ZentridTenantDocument[]).push({ name:file.name, type:file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'Uploaded', expiry:'Not set', file:file.name }));
     renderWizardDocuments();
-    FleetLayout.toast('Tenant documents selected');
+    ZentridLayout.toast('Tenant documents selected');
   };
 
   rails.forEach(rail => rail.onclick = () => {
@@ -1337,7 +1337,7 @@ function wireTenantRegistry(): void {
     const rows = getTenants().filter(tenant => (status === 'All Statuses' || tenant.status === status) && `${tenant.name} ${tenant.legal} ${tenant.country} ${tenant.tax} ${tenant.registration}`.toLowerCase().includes(query));
     tenantTable.innerHTML = tenantRows(rows);
   };
-  tenantSearch.oninput = () => FleetRuntimeStability.debounce('registry:tenants:search', filter, 220);
+  tenantSearch.oninput = () => ZentridRuntimeStability.debounce('registry:tenants:search', filter, 220);
   tenantStatus.onchange = filter;
   tenantTable.onclick = event => {
     const target = event.target;
@@ -1359,7 +1359,7 @@ function wireTenantRegistry(): void {
 
   tenantForm.onsubmit = event => {
     event.preventDefault();
-    if (!FleetActionPermissions.guard({ action:'create', resource:'tenant' })) return;
+    if (!ZentridActionPermissions.guard({ action:'create', resource:'tenant' })) return;
     if (isSaving) return;
     for (let index = 0; index < steps.length; index += 1) {
       if (!validateStep(index, index === 0)) return;
@@ -1368,10 +1368,10 @@ function wireTenantRegistry(): void {
     const name = tenantFormText(formData, 'name').trim();
     const legal = tenantFormText(formData, 'legal').trim();
     const tax = tenantFormText(formData, 'tax').trim();
-    const contacts = window.tenantWizardContacts as FleetTenantContact[];
-    const documents = window.tenantWizardDocuments as FleetTenantDocument[];
+    const contacts = window.tenantWizardContacts as ZentridTenantContact[];
+    const documents = window.tenantWizardDocuments as ZentridTenantDocument[];
     const countryKey = tenantFormText(formData, 'country', 'Armenia');
-    const tenant: FleetTenantRecord = {
+    const tenant: ZentridTenantRecord = {
       dataOrigin:'local',
       id:genId(), entityType:tenantFormText(formData, 'entityType', 'Legal Entity'), code:genCode(), name, legal,
       trade:tenantFormText(formData, 'trade', name), displayName:tenantFormText(formData, 'displayName', tenantFormText(formData, 'trade', name)),
@@ -1389,24 +1389,24 @@ function wireTenantRegistry(): void {
       created:new Date().toISOString().slice(0,10), updated:new Date().toISOString().slice(0,10)
     };
     isSaving = true;
-    FleetFormUX.setBusy(saveButton, true, 'Creating Tenant…');
+    ZentridFormUX.setBusy(saveButton, true, 'Creating Tenant…');
     try {
-      if (window.FleetLocalStore) FleetLocalStore.addTenant(tenant);
+      if (window.ZentridLocalStore) ZentridLocalStore.addTenant(tenant);
       else { const rows = getTenants(); rows.unshift(tenant); saveTenants(rows); }
       localStorage.setItem('zentrid_selected_tenant', tenant.id);
       initialDraftSnapshot = draftSnapshot();
-      window.FleetFormReadiness?.markCommitted(tenantForm);
-      FleetLayout.toast('Tenant created. Opening Tenant Detail.');
+      window.ZentridFormReadiness?.markCommitted(tenantForm);
+      ZentridLayout.toast('Tenant created. Opening Tenant Detail.');
       window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
     } catch (error) {
       isSaving = false;
-      FleetFormUX.setBusy(saveButton, false);
-      FleetFormUX.renderSummary(validationSummary, [{ message:'Unable to save the tenant locally. Review browser storage and try again.' }], 'Tenant was not created');
+      ZentridFormUX.setBusy(saveButton, false);
+      ZentridFormUX.renderSummary(validationSummary, [{ message:'Unable to save the tenant locally. Review browser storage and try again.' }], 'Tenant was not created');
       validationSummary.focus();
     }
   };
 
-  FleetFormUX.bindClearOnInput(tenantForm, validationSummary);
+  ZentridFormUX.bindClearOnInput(tenantForm, validationSummary);
   updateCountryRules();
   toggleBusiness();
   show(0);
@@ -1415,9 +1415,9 @@ function wireTenantRegistry(): void {
 
 function renderTenantDetail(){
   const c=selectedTenant();
-  const lifecycle = window.FleetTenantLifecycle?.render(c) || '';
+  const lifecycle = window.ZentridTenantLifecycle?.render(c) || '';
   const canEdit = tenantDetailCanEdit(c, 'general');
-  return `<section class="page-hero"><div><p class="eyebrow">Tenant Detail · ${tenantEscapeHtml(c.entityType || 'Legal Entity')} ${FleetDataSource.badge(c, 'tenant', true)}</p><h1 id="tenantDetailHeroName">${tenantEscapeHtml(c.name)}</h1><p class="muted" id="tenantDetailHeroMeta">${tenantEscapeHtml(c.legal)} · ${tenantEscapeHtml(c.country)}, ${tenantEscapeHtml(c.city)} · ${tenantEscapeHtml(c.code)}</p></div><div class="tenant-hero-actions-v111"><button class="freshness-card" id="connectFirstIntegration" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>Connect First Integration</strong><small>Vendor → credentials → discovery</small></div></button>${lifecycle}</div></section>
+  return `<section class="page-hero"><div><p class="eyebrow">Tenant Detail · ${tenantEscapeHtml(c.entityType || 'Legal Entity')} ${ZentridDataSource.badge(c, 'tenant', true)}</p><h1 id="tenantDetailHeroName">${tenantEscapeHtml(c.name)}</h1><p class="muted" id="tenantDetailHeroMeta">${tenantEscapeHtml(c.legal)} · ${tenantEscapeHtml(c.country)}, ${tenantEscapeHtml(c.city)} · ${tenantEscapeHtml(c.code)}</p></div><div class="tenant-hero-actions-v111"><button class="freshness-card" id="connectFirstIntegration" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>Connect First Integration</strong><small>Vendor → credentials → discovery</small></div></button>${lifecycle}</div></section>
   ${renderTenantDetailControls(c)}
   <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Status</span><strong id="tenantDetailStatusKpi">${tenantEscapeHtml(tenantStatusValue(c))}</strong><small id="tenantDetailComplianceKpi">${tenantEscapeHtml(tenantComplianceValue(c))}</small></article><article class="kpi-card"><span>Setup Progress</span><strong>${Number(c.setup || 0)}%</strong><small>6 documented areas</small></article><article class="kpi-card"><span>Country</span><strong id="tenantDetailCountryKpi">${tenantEscapeHtml(c.country)}</strong><small id="tenantDetailRegionKpi">${tenantEscapeHtml(c.region || c.city)}</small></article><article class="kpi-card"><span>Entity Type</span><strong id="tenantDetailEntityKpi">${tenantEscapeHtml(c.entityType || 'Legal Entity')}</strong><small id="tenantDetailTypesKpi">${tenantEscapeHtml(Array.isArray(c.types) ? c.types.join(', ') : '')}</small></article><article class="kpi-card"><span>Contacts</span><strong id="tenantDetailContactCountKpi">${(c.contacts||[]).length}</strong><small>tenant records</small></article><article class="kpi-card"><span>Managed Plants</span><strong>${tenantAssignedPlants(c).length}</strong><small>Tenant → Client → Plant hierarchy</small></article><article class="kpi-card"><span>Risk</span><strong id="tenantDetailRiskKpi">${tenantEscapeHtml(c.risk || '—')}</strong><small id="tenantDetailPriorityKpi">${tenantEscapeHtml(c.priority || '—')} priority</small></article></section>
   <section class="client-layout-v17 detail-layout-standard">
@@ -1439,11 +1439,11 @@ function renderTenantDetail(){
   </section>`;
 }
 
-function tenantTabLabel(tab: FleetTenantTabKey): string {
+function tenantTabLabel(tab: ZentridTenantTabKey): string {
   return ({general:'General Information',address:'Address Information',contacts:'Contact Persons',classification:'Tenant Classification',communication:'Communication Preferences',legal:'Legal & Compliance',plants:'Managed Plants'})[tab] || 'Tenant Detail';
 }
-function info(items: FleetTenantInfoItem[]): string { return tenantInfo(items, tenantDetailEditMode); }
-function tenantContactTable(c: FleetTenantRecord, editable = tenantDetailEditMode): string {
+function info(items: ZentridTenantInfoItem[]): string { return tenantInfo(items, tenantDetailEditMode); }
+function tenantContactTable(c: ZentridTenantRecord, editable = tenantDetailEditMode): string {
   const actionHead = editable ? '<span>Actions</span>' : '';
   const head = `<div class="data-head"><span>First Name</span><span>Last Name</span><span>Position</span><span>Department</span><span>Contact Role</span><span>Email</span><span>Mobile Phone</span><span>Office Phone</span><span>Preferred Language</span><span>Preferred Contact Method</span><span>Active</span>${actionHead}</div>`;
   const rows = (c.contacts||[]).map((x,i)=>`<div class="data-row tenant-contact-wide-row" data-tenant-contact-row="${i}">
@@ -1462,15 +1462,15 @@ function tenantContactTable(c: FleetTenantRecord, editable = tenantDetailEditMod
   </div>`).join('');
   return `<div class="tenant-detail-table-head-v117"><div><h3>Contact Persons</h3><p class="muted">At least one active Primary contact is required before local save.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-contact>Add Contact</button>' : ''}</div><div class="data-table tenant-contact-table wide-scroll-table ${editable ? 'editing-grid tenant-contact-actions-v117' : ''}">${head}${rows || '<div class="empty-state">No contact persons added.</div>'}</div>${tenantNotesBlock(c,'contacts','Notes for Contact Person', editable)}`;
 }
-function tenantDocumentsTable(c: FleetTenantRecord, editable = tenantDetailEditMode): string {
+function tenantDocumentsTable(c: ZentridTenantRecord, editable = tenantDetailEditMode): string {
   return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">Document rows are local metadata until a document API is available.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>`<div class="data-row" data-tenant-document-row="${i}"><div>${editable ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::type`, d.type, 'Type') : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::file`, d.file || d.name, 'Document File') : `<span>${tenantEscapeHtml(d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions"><button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button></div>` : ''}</div>`).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
 }
-function tenantSectionContext(c: FleetTenantRecord, tab: FleetTenantTabKey, editable = tenantDetailEditMode): string {
+function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const origin = tenantDetailOrigin(c);
   const mode = editable ? 'Local edit draft' : tenantDetailIsArchived(c) ? 'Archived read-only' : tenantDetailBackendManaged(c) ? 'Live data · local override available' : 'View mode';
-  return `<div class="tenant-section-context-v117"><div><span>${tenantEscapeHtml(tenantTabLabel(tab))}</span>${FleetDataSource.badge(c, 'tenant', true)}</div><small>${tenantEscapeHtml(tenantDetailFreshness(c))}</small><strong>${tenantEscapeHtml(mode)}</strong></div>`;
+  return `<div class="tenant-section-context-v117"><div><span>${tenantEscapeHtml(tenantTabLabel(tab))}</span>${ZentridDataSource.badge(c, 'tenant', true)}</div><small>${tenantEscapeHtml(tenantDetailFreshness(c))}</small><strong>${tenantEscapeHtml(mode)}</strong></div>`;
 }
-function detailTab(c: FleetTenantRecord, t: FleetTenantTabKey, editable = tenantDetailEditMode): string {
+function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const context = tenantSectionContext(c, t, editable);
   if(t==='address') return `${context}${tenantInfo([['Legal Country',c.country,'country'],['Legal State / Region',c.region,'region'],['Legal City',c.city,'city'],['Legal Street Address',c.address,'address'],['Legal Building Number',c.building,'building'],['Legal Postal Code',c.postal,'postal'],['Business Address Same as Legal',c.businessSame?'Yes':'No','businessSame'],['Business Address Country',c.businessSame?c.country:c.businessCountry,'businessCountry'],['Business Address State / Region',c.businessSame?c.region:c.businessRegion,'businessRegion'],['Business Address City',c.businessSame?c.city:c.businessCity,'businessCity'],['Business Address Street Address',c.businessSame?c.address:c.businessAddress,'businessAddress'],['Business Address Postal Code',c.businessSame?c.postal:c.businessPostal,'businessPostal']], editable)}${tenantNotesBlock(c,'address','Notes for Address Information', editable)}`;
   if(t==='contacts') return `${context}${tenantContactTable(c, editable)}`;
@@ -1483,15 +1483,15 @@ function detailTab(c: FleetTenantRecord, t: FleetTenantTabKey, editable = tenant
   if(t==='communication') return `${context}${tenantInfo([['Preferred Language',c.language,'language'],['Preferred Time Zone',c.timezone,'timezone'],['Preferred Communication Channel',c.channel,'channel'],['Business Hours',c.businessHours,'businessHours'],['Receive Platform Notifications',c.platformNotifications,'platformNotifications'],['Receive Service Notifications',c.serviceNotifications,'serviceNotifications'],['Receive Invoice Notifications',c.invoiceNotifications,'invoiceNotifications'],['Receive Security Notifications',c.securityNotifications,'securityNotifications'],['Notification Recipients',c.notificationRecipients,'notificationRecipients']], editable)}${tenantNotesBlock(c,'communication','Notes for Communication Preferences', editable)}`;
   if(t==='legal') return `${context}${tenantInfo([['Data Processing Agreement',c.dpa,'dpa'],['NDA Status',c.nda,'nda'],['Compliance Status',tenantComplianceValue(c),'compliance'],['Confidentiality Level',c.confidentiality,'confidentiality'],['Data Controller Type',c.controllerType,'controllerType'],['Consent Status',c.consent,'consent'],['Consent Expiry Date',c.consentExpiry,'consentExpiry']], editable)}${tenantNotesBlock(c,'legal','Notes for Legal & Compliance', editable)}${tenantDocumentsTable(c, editable)}`;
   const isIndividual=(c.entityType||'Legal Entity')==='Individual';
-  const base: FleetTenantInfoItem[]=[['Tenant ID',c.id],['Tenant Code',c.code],['Entity Type',c.entityType||'Legal Entity','entityType'],[isIndividual?'Tenant Display Name':'Tenant Name',c.name,'name'],[isIndividual?'Full Legal Name':'Legal Name',c.legal,'legal'],[isIndividual?'Individual Display Name / Alias':'Trade Name',c.trade,'trade'],['Display Name',c.displayName || c.trade || c.name,'displayName'],[isIndividual?'Personal ID / Passport Number':'Registration Number',c.registration,'registration'],[isIndividual?'Tax ID / SSN / ITIN':'Tax ID / VAT Number',c.tax,'tax'],['Tenant Status',tenantStatusValue(c)],['Tenant Type',(Array.isArray(c.types) ? c.types : []).join(', '),'types'],['Account Manager',c.account,'account']];
-  const org: FleetTenantInfoItem[]=[['Industry Sector',c.industry,'industry'],['Business Category',c.businessCategory,'businessCategory'],['Parent Company',c.parentCompany,'parentCompany'],['Number of Employees',c.employees,'employees'],['Annual Revenue Range',c.annualRevenue,'annualRevenue'],['Website',c.webplant,'webplant'],['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']];
-  return `${context}${tenantInfo(isIndividual?base.concat([['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']] as FleetTenantInfoItem[]):base.concat(org), editable)}${tenantNotesBlock(c,'general','Notes for General Information', editable)}`;
+  const base: ZentridTenantInfoItem[]=[['Tenant ID',c.id],['Tenant Code',c.code],['Entity Type',c.entityType||'Legal Entity','entityType'],[isIndividual?'Tenant Display Name':'Tenant Name',c.name,'name'],[isIndividual?'Full Legal Name':'Legal Name',c.legal,'legal'],[isIndividual?'Individual Display Name / Alias':'Trade Name',c.trade,'trade'],['Display Name',c.displayName || c.trade || c.name,'displayName'],[isIndividual?'Personal ID / Passport Number':'Registration Number',c.registration,'registration'],[isIndividual?'Tax ID / SSN / ITIN':'Tax ID / VAT Number',c.tax,'tax'],['Tenant Status',tenantStatusValue(c)],['Tenant Type',(Array.isArray(c.types) ? c.types : []).join(', '),'types'],['Account Manager',c.account,'account']];
+  const org: ZentridTenantInfoItem[]=[['Industry Sector',c.industry,'industry'],['Business Category',c.businessCategory,'businessCategory'],['Parent Company',c.parentCompany,'parentCompany'],['Number of Employees',c.employees,'employees'],['Annual Revenue Range',c.annualRevenue,'annualRevenue'],['Website',c.webplant,'webplant'],['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']];
+  return `${context}${tenantInfo(isIndividual?base.concat([['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']] as ZentridTenantInfoItem[]):base.concat(org), editable)}${tenantNotesBlock(c,'general','Notes for General Information', editable)}`;
 }
 function wireTenantDetail(): void {
   const tenant = selectedTenant();
   const requestedEditTab = localStorage.getItem('zentrid_tenant_detail_edit');
   if (requestedEditTab) localStorage.removeItem('zentrid_tenant_detail_edit');
-  window.FleetTenantLifecycle?.wire(tenant);
+  window.ZentridTenantLifecycle?.wire(tenant);
   updateTenantDetailEditButtons();
   document.getElementById('connectFirstIntegration')?.addEventListener('click', () => {
     if (!tenantDetailConfirmDiscard('Discard unsaved tenant changes and open Integrations?')) return;
@@ -1537,7 +1537,7 @@ function wireTenantDetail(): void {
     if (stepButton) { setTenantBuilderStep(Number(stepButton.dataset.builderStep || 1)); return; }
     if (target.closest('[data-add-builder-device]')) {
       const item = builderSelectedCatalogItem();
-      if (!item) { FleetLayout.toast('Select a compatible model first'); return; }
+      if (!item) { ZentridLayout.toast('Select a compatible model first'); return; }
       tenantPlantBuilderDevicesV28.push({ ...item, role: item.kind === 'Meter' ? 'Grid / POI' : item.kind === 'BESS' || item.kind === 'PCS' ? 'Linked to BESS' : item.kind === 'Weather Station' ? 'Weather context' : 'Plant-level device' });
       renderTenantBuilderDeviceRows();
       return;
@@ -1547,18 +1547,18 @@ function wireTenantDetail(): void {
     if (target.closest('[data-create-tenant-plant]')) { createTenantPlantFromBuilder(); return; }
     const plantTarget = target.closest<HTMLElement>('[data-plant]');
     const plantId = plantTarget?.dataset.plant;
-    if (!plantId || typeof FleetClientModel === 'undefined') return;
+    if (!plantId || typeof ZentridClientModel === 'undefined') return;
     if (!tenantDetailConfirmDiscard('Discard unsaved tenant changes and open Plant Detail?')) return;
     const clientId = plantTarget.dataset.client || tenantClientRecord(selectedTenant())?.id;
-    if (clientId) FleetClientModel.selectClient(clientId);
-    FleetClientModel.selectPlant(plantId);
+    if (clientId) ZentridClientModel.selectClient(clientId);
+    ZentridClientModel.selectPlant(plantId);
     location.href = 'plant-detail.html';
   });
   detail?.addEventListener('change', event => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
     const summary = tenantElement('tenantDetailEditSummary');
-    if (tenantDetailEditMode) FleetFormUX.clearErrors(detail, summary);
+    if (tenantDetailEditMode) ZentridFormUX.clearErrors(detail, summary);
     if (target.id === 'builderDeviceKindV28') {
       const model = document.getElementById('builderDeviceModelV28');
       if (model) model.innerHTML = tenantPlantBuilderModelOptions(target.value);
@@ -1575,7 +1575,7 @@ function wireTenantDetail(): void {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
     const summary = tenantElement('tenantDetailEditSummary');
-    if (tenantDetailEditMode) FleetFormUX.clearErrors(detail, summary);
+    if (tenantDetailEditMode) ZentridFormUX.clearErrors(detail, summary);
     const field = target.dataset.builderField;
     const row = target.closest<HTMLElement>('[data-builder-device-row]');
     const index = Number(row?.dataset.builderDeviceRow);
@@ -1584,7 +1584,7 @@ function wireTenantDetail(): void {
     if (target.closest('#tenantPlantBuilderFormV28')) renderTenantBuilderReview();
   });
   if (requestedEditTab === 'general' && tenantDetailCanEdit(tenant, 'general')) setTenantDetailEditMode(true);
-  FleetEntityDetailUX.bindBeforeUnload('tenant-detail', tenantDetailHasUnsavedEdits);
+  ZentridEntityDetailUX.bindBeforeUnload('tenant-detail', tenantDetailHasUnsavedEdits);
 }
 
 

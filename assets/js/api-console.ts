@@ -17,7 +17,7 @@ type AuthEndpointKind = 'me' | 'validate' | 'refresh';
 let zentridApiResults: ApiConsoleResult[] = [];
 let zentridManualResult: ApiConsoleResult | null = null;
 let zentridAuthResult: ApiConsoleResult | null = null;
-let zentridApiDeltas: Record<string, FleetApiDiagnosticDelta> = {};
+let zentridApiDeltas: Record<string, ZentridApiDiagnosticDelta> = {};
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '')
@@ -61,8 +61,8 @@ function apiPreviewData(result: ApiConsoleResult): unknown {
 }
 
 
-function apiArray(value: unknown): FleetContractRecord[] {
-  if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) as FleetContractRecord[];
+function apiArray(value: unknown): ZentridContractRecord[] {
+  if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) as ZentridContractRecord[];
   if (!value || typeof value !== 'object') return [];
   const row = value as Record<string, unknown>;
   for (const key of ['items', 'data', 'records', 'rows', 'results', 'content', 'value']) {
@@ -71,7 +71,7 @@ function apiArray(value: unknown): FleetContractRecord[] {
   return [];
 }
 
-function apiFieldAuditEntity(path: string): FleetContractEntity | null {
+function apiFieldAuditEntity(path: string): ZentridContractEntity | null {
   if (/\/api\/admin\/clients(?:\?|$)/i.test(path)) return 'clients';
   if (/\/api\/admin\/tenants(?:\?|$)/i.test(path)) return 'tenants';
   if (/\/api\/admin\/plants(?:\?|$)/i.test(path) || /\/api\/plants(?:\?|$)/i.test(path)) return 'plants';
@@ -81,19 +81,19 @@ function apiFieldAuditEntity(path: string): FleetContractEntity | null {
   return null;
 }
 
-function apiAuditFirstOf(row: FleetContractRecord, keys: string[], fallback: unknown = ''): unknown {
+function apiAuditFirstOf(row: ZentridContractRecord, keys: string[], fallback: unknown = ''): unknown {
   for (const key of keys) {
     let value: unknown = row;
     for (const part of key.split('.')) {
       if (!value || typeof value !== 'object' || Array.isArray(value)) { value = undefined; break; }
-      value = (value as FleetContractRecord)[part];
+      value = (value as ZentridContractRecord)[part];
     }
     if (value !== undefined && value !== null && value !== '') return value;
   }
   return fallback;
 }
 
-const apiFieldAuditContext: FleetContractMapperContext = {
+const apiFieldAuditContext: ZentridContractMapperContext = {
   safeText(value, fallback = '—') { return value === undefined || value === null || value === '' ? String(fallback) : String(value); },
   firstOf: apiAuditFirstOf,
   displayName(row, keys, entityLabel, index, typeHint) {
@@ -113,28 +113,28 @@ const apiFieldAuditContext: FleetContractMapperContext = {
   }
 };
 
-function runApiFieldAudit(results: ApiConsoleResult[]): FleetFieldAuditSummary | null {
-  if (typeof FleetAPIContracts === 'undefined' || !FleetAPIContracts.fieldAudit) return null;
-  FleetAPIContracts.fieldAudit.clear();
-  const offsets = new Map<FleetContractEntity, number>();
+function runApiFieldAudit(results: ApiConsoleResult[]): ZentridFieldAuditSummary | null {
+  if (typeof ZentridAPIContracts === 'undefined' || !ZentridAPIContracts.fieldAudit) return null;
+  ZentridAPIContracts.fieldAudit.clear();
+  const offsets = new Map<ZentridContractEntity, number>();
   results.forEach(result => {
     if (!result.ok) return;
     const entity = apiFieldAuditEntity(result.path || '');
     if (!entity) return;
     const rows = apiArray(result.data);
-    const contract = FleetAPIContracts[entity];
+    const contract = ZentridAPIContracts[entity];
     let offset = offsets.get(entity) || 0;
     rows.forEach((row, rowIndex) => contract.map(row, offset + rowIndex, apiFieldAuditContext));
     offsets.set(entity, offset + rows.length);
   });
-  return FleetAPIContracts.fieldAudit.summary();
+  return ZentridAPIContracts.fieldAudit.summary();
 }
 
 function apiFieldAuditPanel(): string {
-  if (typeof FleetAPIContracts === 'undefined' || !FleetAPIContracts.fieldAudit) {
+  if (typeof ZentridAPIContracts === 'undefined' || !ZentridAPIContracts.fieldAudit) {
     return '<div class="empty-state"><strong>Field audit unavailable</strong><small>The mapping audit module is not loaded.</small></div>';
   }
-  const summary = FleetAPIContracts.fieldAudit.summary();
+  const summary = ZentridAPIContracts.fieldAudit.summary();
   if (!summary.records) return '<div class="empty-state"><strong>No mapped API records yet</strong><small>Run safe endpoint diagnostics to audit backend fields against Zentrid UI mappings.</small></div>';
   const rows = summary.byEntity.map(item => `<div class="data-row">
     <strong>${escapeHtml(item.entity)}</strong>
@@ -145,10 +145,10 @@ function apiFieldAuditPanel(): string {
     <span class="${item.unmappedFields ? 'api-audit-warning' : ''}">${item.unmappedFields}</span>
   </div>`).join('');
   const details = summary.affectedEntities.map(entity => {
-    const records = FleetAPIContracts.fieldAudit.list(entity);
+    const records = ZentridAPIContracts.fieldAudit.list(entity);
     const missing = [...new Set(records.flatMap(record => record.missingExpectedFields))];
     const unmapped = [...new Set(records.flatMap(record => record.unmappedFields))];
-    const manifest = FleetAPIContracts.fieldAudit.manifest(entity) as FleetFieldMappingDefinition[];
+    const manifest = ZentridAPIContracts.fieldAudit.manifest(entity) as ZentridFieldMappingDefinition[];
     const manifestRows = manifest.map(item => `<div class="api-field-map-row">
       <strong>${escapeHtml(item.canonicalField)}</strong>
       <span>${escapeHtml(item.aliases.join(' · '))}</span>
@@ -183,7 +183,7 @@ function apiFormatBytes(value: number | undefined): string {
 function apiResultCard(result: ApiConsoleResult, index: number): string {
   const count = result.count === null || result.count === undefined ? '—' : result.count;
   const methodClass = String(result.method || 'GET').toLowerCase();
-  const diagnosticKey = FleetAPIDiagnostics.endpointKey(result);
+  const diagnosticKey = ZentridAPIDiagnostics.endpointKey(result);
   const delta = zentridApiDeltas[diagnosticKey];
   const page = result.pagination?.page;
   const totalPages = result.pagination?.totalPages;
@@ -327,7 +327,7 @@ function renderApiConsole(): string {
     <div class="panel-head"><div><h2>Contract Snapshot Coverage</h2><p>Sanitized fixtures lock the currently supported response shapes without storing tokens, credentials or production payloads.</p></div></div>
     <div class="data-table compact-table api-contract-snapshot-table">
       <div class="data-head"><span>Entity</span><span>Fixture</span><span>Endpoint</span><span>Coverage</span></div>
-      ${FleetAPIDiagnostics.contractCatalog.map(item => `<div class="data-row"><strong>${escapeHtml(item.entity)}</strong><code>${escapeHtml(item.fixture)}</code><span>${escapeHtml(item.endpoint)}</span><span class="badge success">Snapshot tested</span></div>`).join('')}
+      ${ZentridAPIDiagnostics.contractCatalog.map(item => `<div class="data-row"><strong>${escapeHtml(item.entity)}</strong><code>${escapeHtml(item.fixture)}</code><span>${escapeHtml(item.endpoint)}</span><span class="badge success">Snapshot tested</span></div>`).join('')}
     </div>
   </section>
 
@@ -427,7 +427,7 @@ async function wireApiConsole(): Promise<void> {
     resultsHost.innerHTML = '';
     groupHost.style.display = 'none';
     zentridApiResults = await ZentridPlatformAPI.checkCatalog({ includeUnsafe: false });
-    zentridApiDeltas = FleetAPIDiagnostics.captureRun(zentridApiResults);
+    zentridApiDeltas = ZentridAPIDiagnostics.captureRun(zentridApiResults);
     runApiFieldAudit(zentridApiResults);
     const auditHost = document.getElementById('apiFieldMappingAudit');
     if (auditHost) auditHost.innerHTML = apiFieldAuditPanel();
@@ -438,7 +438,7 @@ async function wireApiConsole(): Promise<void> {
     groupHost.innerHTML = '<div class="data-head"><span>Group</span><span>OK</span><span>Errors</span><span>Skipped</span></div>' + apiGroupSummary(zentridApiResults);
     resultsHost.innerHTML = zentridApiResults.map(apiResultCard).join('');
     reportField.value = buildBackendReport(zentridApiResults);
-    FleetLayout.toast(`${ok}/${zentridApiResults.length} API checks passed`);
+    ZentridLayout.toast(`${ok}/${zentridApiResults.length} API checks passed`);
   }
 
   async function runManual(): Promise<void> {
@@ -467,7 +467,7 @@ async function wireApiConsole(): Promise<void> {
     zentridManualResult.label = 'Manual Request';
     zentridManualResult.group = 'Manual';
     zentridManualResult.notes = 'Manual diagnostic result. Add to backend report if needed.';
-    zentridApiDeltas = { ...zentridApiDeltas, ...FleetAPIDiagnostics.captureRun([zentridManualResult]) };
+    zentridApiDeltas = { ...zentridApiDeltas, ...ZentridAPIDiagnostics.captureRun([zentridManualResult]) };
     manualEl.innerHTML = apiResultCard(zentridManualResult, 0);
   }
 
@@ -475,9 +475,9 @@ async function wireApiConsole(): Promise<void> {
   async function copyDiagnosticValue(text: string, successMessage: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
-      FleetLayout.toast(successMessage, 'success');
+      ZentridLayout.toast(successMessage, 'success');
     } catch (error) {
-      FleetLayout.toast('Clipboard access is unavailable.', 'warning');
+      ZentridLayout.toast('Clipboard access is unavailable.', 'warning');
     }
   }
 
@@ -493,8 +493,8 @@ async function wireApiConsole(): Promise<void> {
     const result = host?.id === 'manualApiResult' ? zentridManualResult : host?.id === 'authApiResult' ? zentridAuthResult : zentridApiResults[index];
     if (!result) return;
     if (responseButton) void copyDiagnosticValue(apiPretty(result.data), 'Response copied');
-    if (diagnosticButton) void copyDiagnosticValue(FleetAPIDiagnostics.diagnosticsText(result, zentridApiDeltas[FleetAPIDiagnostics.endpointKey(result)]), 'Diagnostics copied');
-    if (snapshotButton) void copyDiagnosticValue(apiPretty(FleetAPIDiagnostics.safeSnapshot(result)), 'Safe snapshot copied');
+    if (diagnosticButton) void copyDiagnosticValue(ZentridAPIDiagnostics.diagnosticsText(result, zentridApiDeltas[ZentridAPIDiagnostics.endpointKey(result)]), 'Diagnostics copied');
+    if (snapshotButton) void copyDiagnosticValue(apiPretty(ZentridAPIDiagnostics.safeSnapshot(result)), 'Safe snapshot copied');
   });
 
   document.getElementById('runApiChecks')?.addEventListener('click', run);
@@ -503,7 +503,7 @@ async function wireApiConsole(): Promise<void> {
     resultsHost.innerHTML = '';
     groupHost.style.display = 'none';
     reportField.value = '';
-    FleetAPIContracts.fieldAudit.clear();
+    ZentridAPIContracts.fieldAudit.clear();
     const auditHost = document.getElementById('apiFieldMappingAudit');
     if (auditHost) auditHost.innerHTML = apiFieldAuditPanel();
     statusEl.innerHTML = '<strong>Ready</strong><small>Click Run diagnostics after login as globaladmin.</small>';
@@ -511,12 +511,12 @@ async function wireApiConsole(): Promise<void> {
   document.getElementById('copyBackendReport')?.addEventListener('click', async () => {
     const text = reportField.value || buildBackendReport(zentridApiResults);
     if (!text.trim()) {
-      FleetLayout.toast('Run diagnostics first');
+      ZentridLayout.toast('Run diagnostics first');
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      FleetLayout.toast('Backend report copied');
+      ZentridLayout.toast('Backend report copied');
     } catch (e) {
       reportField.classList.remove('hidden');
       reportField.focus();

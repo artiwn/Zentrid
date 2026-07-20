@@ -156,7 +156,7 @@
   }
 
   function render(): void {
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero incident-detail-hero workorder-detail-hero sop-detail-hero">
         <div><p class="eyebrow">Global Admin · SOP Detail</p><h1>${escape(current.name)}</h1><p class="muted">${escape(current.id)} · ${escape(current.category)} · ${escape(current.version)}</p></div>
         <div class="hero-actions"><button type="button" class="secondary-action" onclick="location.href='sop-center.html'">Back to SOPs</button><button type="button" class="primary-action" data-sop-detail-action="version">Create Version</button></div>
@@ -185,7 +185,7 @@
       const tab = target.closest('[data-sop-detail-tab]');
       if (tab) { state.tab = tab.dataset.sopDetailTab; render(); return; }
       const action = target.closest('[data-sop-detail-action]');
-      if (action) FleetLayout.toast(`${action.dataset.sopDetailAction} action prepared`);
+      if (action) ZentridLayout.toast(`${action.dataset.sopDetailAction} action prepared`);
     });
   }
 

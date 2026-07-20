@@ -62,7 +62,7 @@ interface ZentridDevicePrimaryMetric {
   hint: string;
 }
 
-declare const FleetLocalStore: FleetLocalStoreApi;
+declare const ZentridLocalStore: ZentridLocalStoreApi;
 declare function plants(): Array<Record<string, unknown>>;
 
 const demoDevices: ZentridDeviceRecord[] = [
@@ -74,7 +74,7 @@ const demoDevices: ZentridDeviceRecord[] = [
   { id:'DEV-TRF-00007', externalId:'HUA-TRF-00007', name:'Transformer T1', type:'Transformer', subtype:'Step-up Transformer', manufacturer:'ABB', model:'TX-2500', serial:'SN-TRF-00007', firmware:'N/A', ip:'—', mac:'—', plantId:'PLT-000720', plant:'Lyon PV Park', tenant:'Tenant Delta Enterprise', vendor:'Huawei', integration:'Tenant Delta Enterprise — Huawei FusionSolar', status:'Online', lifecycle:'Active', capacity:'2.5 MVA', installation:'2023-08-20', warranty:'2033-08-20', lastSeen:'3 min ago', alerts:0, power:'2.1 MVA', voltage:'20 kV', current:'61 A', temperature:'51 °C', sourceStatus:'Linked Existing', parent:'Subplant A', children:'Inverter group A · Meter group A' },
   { id:'DEV-GTW-00031', externalId:'DEY-GTW-00031', name:'Gateway 31', type:'Gateway', subtype:'Communication Device', manufacturer:'Deye', model:'Solarman Logger', serial:'SN-GTW-00031', firmware:'3.6.1', ip:'10.41.2.31', mac:'C8:5B:76:31:11:02', plantId:'PLT-000817', plant:'Plant B', tenant:'Tenant Alpha Energy', vendor:'Deye', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', status:'Online', lifecycle:'Active', capacity:'Logger', installation:'2025-01-29', warranty:'2027-01-29', lastSeen:'4 min ago', alerts:0, signal:'Good', dataLag:'4 min', sourceStatus:'Mapped', parent:'Masis Communication Cabinet', children:'8 inverters · 2 meters' }
 ];
-function saveDevices(list: ZentridDeviceRecord[]): void { if (window.FleetLocalStore) FleetLocalStore.write(FleetLocalStore.KEYS.devices, list); else localStorage.setItem('zentrid_demo_devices', JSON.stringify(list)); }
+function saveDevices(list: ZentridDeviceRecord[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.devices, list); else localStorage.setItem('zentrid_demo_devices', JSON.stringify(list)); }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
 function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${d.status || 'Unknown'}</span>`; }
 function selectedDevice(): ZentridDeviceRecord { const list=devices(); const id=localStorage.getItem('zentrid_selected_device'); const selected=list.find(d=>d.id===id) ?? list[0]; if(!selected) throw new Error('Device registry requires a default device.'); return selected; }
@@ -86,19 +86,19 @@ function wireDevices(): void {
   const plantFilter=()=>localStorage.getItem('zentrid_device_filter_plant') || '';
   function baseList(){ const pf=plantFilter(); return pf ? devices().filter(d=>d.plantId===pf) : devices(); }
   function apply(resetPage = true){
-    if (resetPage && !window.FleetRegistryQuery?.pagination('devices')) ZentridDevicePager.page = 1;
+    if (resetPage && !window.ZentridRegistryQuery?.pagination('devices')) ZentridDevicePager.page = 1;
     const q=(search.value||'').toLowerCase();
     let list=baseList().filter(d=>[d.name,d.id,d.serial,d.plant,d.tenant,d.vendor,d.type,d.status,d.model].join(' ').toLowerCase().includes(q));
     if(type.value!=='All Types') list=list.filter(d=>d.type===type.value);
     if(status.value!=='All Statuses') list=list.filter(d=>d.status===status.value);
-    FleetRuntimeStability.replaceHtml(table, deviceRows(list));
-    window.FleetRegistryQuery?.update('devices', { search: q || null, deviceType: type.value === 'All Types' ? null : type.value, deviceStatus: status.value === 'All Statuses' ? null : status.value }, { replace: true, emit: false });
+    ZentridRuntimeStability.replaceHtml(table, deviceRows(list));
+    window.ZentridRegistryQuery?.update('devices', { search: q || null, deviceType: type.value === 'All Types' ? null : type.value, deviceStatus: status.value === 'All Statuses' ? null : status.value }, { replace: true, emit: false });
     const scope = document.getElementById('deviceFilterScopeV126');
-    if (scope) scope.innerHTML = window.FleetRegistryQuery?.filterScopeHtml('devices') || '';
+    if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('devices') || '';
     bindRows();
   }
-  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, device:d.name, metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ localStorage.setItem('zentrid_alert_context', JSON.stringify({deviceId:d.id, plantId:d.plantId, tenant:d.tenant})); location.href='alerts.html'; } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.FleetRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
-  search?.addEventListener('input', () => FleetRuntimeStability.debounce('registry:devices:search', () => apply(true), 220));
+  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, device:d.name, metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ localStorage.setItem('zentrid_alert_context', JSON.stringify({deviceId:d.id, plantId:d.plantId, tenant:d.tenant})); location.href='alerts.html'; } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.ZentridRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
+  search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:devices:search', () => apply(true), 220));
   [type,status].forEach(el=> el && el.addEventListener('change', ()=>apply(true)));
   bindRows();
   document.getElementById('clearPlantDeviceFilter')?.addEventListener('click',()=>{ localStorage.removeItem('zentrid_device_filter_plant'); location.reload(); });
@@ -107,7 +107,7 @@ function wireDevices(): void {
     const select = document.getElementById('devicePlantSelect') as HTMLSelectElement | null;
     if (select) {
       let plantRows: Array<Record<string, unknown>> = [];
-      try { plantRows = typeof plants === 'function' ? plants() : (window.FleetLocalStore ? FleetLocalStore.read(FleetLocalStore.KEYS.plants, []) as Array<Record<string, unknown>> : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]') as Array<Record<string, unknown>>); } catch(e) { plantRows = []; }
+      try { plantRows = typeof plants === 'function' ? plants() : (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.plants, []) as Array<Record<string, unknown>> : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]') as Array<Record<string, unknown>>); } catch(e) { plantRows = []; }
       const current = localStorage.getItem('zentrid_device_filter_plant') || '';
       select.innerHTML = plantRows.map(p => `<option value="${String(p.id || '')}" ${String(p.id || '')===current?'selected':''}>${String(p.name || p.id || 'Plant')} · ${String(p.tenant || p.operator || 'Tenant')}</option>`).join('') || '<option value="">No plant selected</option>';
     }
@@ -151,11 +151,11 @@ function wireDevices(): void {
       parent: field('location', 'Plant level'),
       children:'No child objects yet'
     };
-    if (window.FleetLocalStore) FleetLocalStore.addDevice(device);
+    if (window.ZentridLocalStore) ZentridLocalStore.addDevice(device);
     else { const rows = devices(); rows.unshift(device); saveDevices(rows); }
     localStorage.setItem('zentrid_selected_device', id);
-    window.FleetFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement);
-    FleetLayout.toast('Device saved locally');
+    window.ZentridFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement);
+    ZentridLayout.toast('Device saved locally');
     closeDeviceCreate();
     table.innerHTML = deviceRows(baseList());
     bindRows();
@@ -314,17 +314,17 @@ function pagerHtml(kind: string, state: ZentridDevicePageSlice<unknown>): string
   return `<div class="pagination-bar"><span>Showing ${state.start + 1}-${state.end} of ${state.total}</span><div class="row-actions"><button data-${kind}-page="prev" ${state.page<=1?'disabled':''}>Prev</button><strong>Page ${state.page} / ${state.pages}</strong><button data-${kind}-page="next" ${state.page>=state.pages?'disabled':''}>Next</button></div></div>`;
 }
 function deviceRows(list: ZentridDeviceRecord[]): string {
-  const serverPagination = window.FleetRegistryQuery?.pagination('devices');
+  const serverPagination = window.ZentridRegistryQuery?.pagination('devices');
   const state = serverPagination
     ? { total: serverPagination.totalCount, pages: serverPagination.totalPages, page: serverPagination.page, start: (serverPagination.page - 1) * serverPagination.pageSize, end: Math.min(serverPagination.page * serverPagination.pageSize, serverPagination.totalCount), rows: list }
     : pageSlice(list, ZentridDevicePager);
-  const pager = serverPagination ? window.FleetRegistryQuery?.pagerHtml('devices', list.length) || '' : pagerHtml('device', state);
-  return `${pager}<div class="data-table device-table"><div class="data-head"><span>Device</span><span>Plant / Tenant</span><span>Type</span><span>Vendor Source</span><span>Status</span><span>Actions</span></div>${state.rows.map(d=>`<div class="data-row" data-id="${d.id}"><div>${FleetDataSource.badge(d, 'device')}<strong>${d.name}</strong><small>${d.id}<br>${d.serial}</small></div><div><strong>${d.plant}</strong><small>${d.tenant}</small></div><div><strong>${d.type}</strong><small>${d.subtype} · ${d.capacity}</small></div><div><strong>${d.vendor}</strong><small>${d.integration}<br>${d.sourceStatus}</small></div><div><span class="badge ${deviceStatusCls(d.status)}">${d.status}</span><small>${d.alerts} alerts · ${d.lastSeen}</small></div><div class="row-actions"><button data-action="open">Open</button><button data-action="plant">Plant</button><button data-action="telemetry">Telemetry</button><button data-action="alerts">Alerts</button></div></div>`).join('')}</div>${pager}`;
+  const pager = serverPagination ? window.ZentridRegistryQuery?.pagerHtml('devices', list.length) || '' : pagerHtml('device', state);
+  return `${pager}<div class="data-table device-table"><div class="data-head"><span>Device</span><span>Plant / Tenant</span><span>Type</span><span>Vendor Source</span><span>Status</span><span>Actions</span></div>${state.rows.map(d=>`<div class="data-row" data-id="${d.id}"><div>${ZentridDataSource.badge(d, 'device')}<strong>${d.name}</strong><small>${d.id}<br>${d.serial}</small></div><div><strong>${d.plant}</strong><small>${d.tenant}</small></div><div><strong>${d.type}</strong><small>${d.subtype} · ${d.capacity}</small></div><div><strong>${d.vendor}</strong><small>${d.integration}<br>${d.sourceStatus}</small></div><div><span class="badge ${deviceStatusCls(d.status)}">${d.status}</span><small>${d.alerts} alerts · ${d.lastSeen}</small></div><div class="row-actions"><button data-action="open">Open</button><button data-action="plant">Plant</button><button data-action="telemetry">Telemetry</button><button data-action="alerts">Alerts</button></div></div>`).join('')}</div>${pager}`;
 }
 function renderDevices(): string {
   const all=devices();
-  const queryState = window.FleetRegistryQuery?.read('devices');
-  const serverPagination = window.FleetRegistryQuery?.pagination('devices');
+  const queryState = window.ZentridRegistryQuery?.read('devices');
+  const serverPagination = window.ZentridRegistryQuery?.pagination('devices');
   const initialSearch = queryState?.search || '';
   const initialType = queryState?.params.deviceType || 'All Types';
   const initialStatus = queryState?.params.deviceStatus || 'All Statuses';
@@ -339,8 +339,8 @@ function renderDevices(): string {
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>Device List</h1><p class="muted">All devices connected to Plants, grouped by plant, tenant, vendor source and operational status.</p></div><div class="hero-actions"><button class="create-action" id="openDeviceCreate" type="button"><span class="pulse"></span><div><strong>+ Add Device</strong><small>Save to localStorage</small></div></button><button class="freshness-card" id="openDeviceSource"><span class="pulse"></span><div><strong>Source Traceability</strong><small>Vendor ID → Zentrid Device</small></div></button></div></section>
   ${filterBanner}
   <section class="context-bar glass-card"><button class="ctx-item"><span>Total Devices</span><strong>${(serverPagination?.totalCount || list.length).toLocaleString()}</strong></button><button class="ctx-item"><span>Online</span><strong>${online}</strong></button><button class="ctx-item"><span>Attention</span><strong>${attention}</strong></button><button class="ctx-item"><span>Mapped Devices</span><strong>${mapped}</strong></button></section>
-  <section class="panel glass-card"><div class="panel-head"><div><h2>Device List</h2><p>Search by device, plant, tenant, vendor, type, serial or status.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${t}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option><option ${initialStatus === 'Online' ? 'selected' : ''}>Online</option><option ${initialStatus === 'Warning' ? 'selected' : ''}>Warning</option><option ${initialStatus === 'Offline' ? 'selected' : ''}>Offline</option></select></div></div><div id="deviceFilterScopeV126">${window.FleetRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
-  <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head"><div><h2>Add Device</h2><p>Creates a local device record and shows it in Device List and Device Detail after refresh.</p></div><span class="badge info">localStorage</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-fleet-form-readiness="local" data-fleet-form-contract="DeviceCreateDraft" data-fleet-form-method="POST" data-fleet-form-validation="native" data-fleet-form-api-note="A Device create endpoint is not confirmed; Save Device continues to store a local record only."><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect"></select></label><label>Status<select name="status"><option>Online</option><option>Warning</option><option>Offline</option><option>Draft</option></select></label><label>Vendor<input name="vendor" placeholder="Huawei / GoodWe / Manual"></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Capacity / Role<input name="capacity" placeholder="100 kW / Bidirectional / Logger"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<input name="location" placeholder="Area A / Control room"></label><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Save Device</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
+  <section class="panel glass-card"><div class="panel-head"><div><h2>Device List</h2><p>Search by device, plant, tenant, vendor, type, serial or status.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${t}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option><option ${initialStatus === 'Online' ? 'selected' : ''}>Online</option><option ${initialStatus === 'Warning' ? 'selected' : ''}>Warning</option><option ${initialStatus === 'Offline' ? 'selected' : ''}>Offline</option></select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
+  <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head"><div><h2>Add Device</h2><p>Creates a local device record and shows it in Device List and Device Detail after refresh.</p></div><span class="badge info">localStorage</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-zentrid-form-readiness="local" data-zentrid-form-contract="DeviceCreateDraft" data-zentrid-form-method="POST" data-zentrid-form-validation="native" data-zentrid-form-api-note="A Device create endpoint is not confirmed; Save Device continues to store a local record only."><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect"></select></label><label>Status<select name="status"><option>Online</option><option>Warning</option><option>Offline</option><option>Draft</option></select></label><label>Vendor<input name="vendor" placeholder="Huawei / GoodWe / Manual"></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Capacity / Role<input name="capacity" placeholder="100 kW / Bidirectional / Logger"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<input name="location" placeholder="Area A / Control room"></label><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Save Device</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
 }
 function devicePrimaryMetric(d: ZentridDeviceRecord): ZentridDevicePrimaryMetric {
   const k=deviceTypeKey(d);
@@ -449,7 +449,7 @@ function remoteControlPanel(d: ZentridDeviceRecord): string {
   return `<div class="device-control-grid-v58">${actions.map(a=>`<button type="button"><strong>${a}</strong><small>Capability-gated · audit required</small></button>`).join('')}</div><p class="muted device-note-v58">Write-actions are mock controls for UX validation. In production they must use capability flags, confirmation, approval rules and immutable audit log.</p>`;
 }
 function deviceLazyPanel(tab: ZentridDeviceTab, content: string): string {
-  return window.FleetDetailLazyTabs?.panel('device', String(tab || 'overview'), content) || content;
+  return window.ZentridDetailLazyTabs?.panel('device', String(tab || 'overview'), content) || content;
 }
 function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): string {
   if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${operatingDataGrid(d)}`;
@@ -476,15 +476,15 @@ function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): strin
 }
 function renderDeviceDetail(): string {
   const d=selectedDevice();
-  return `<section class="page-hero device-hero-v58 device-hero-v59"><div><p class="eyebrow">Global Admin · Device Detail ${FleetDataSource.badge(d, 'device', true)}</p><h1>${d.name}</h1><p class="muted">${deviceTypeLabel(d)} · ${d.manufacturer || d.vendor} ${d.model} · ${d.serial}</p></div><div class="hero-actions">${deviceHeroActions(d)}</div></section>
+  return `<section class="page-hero device-hero-v58 device-hero-v59"><div><p class="eyebrow">Global Admin · Device Detail ${ZentridDataSource.badge(d, 'device', true)}</p><h1>${d.name}</h1><p class="muted">${deviceTypeLabel(d)} · ${d.manufacturer || d.vendor} ${d.model} · ${d.serial}</p></div><div class="hero-actions">${deviceHeroActions(d)}</div></section>
   <section class="context-bar glass-card device-context-v58"><div><span>Plant</span><strong>${d.plant}</strong></div><div><span>Tenant</span><strong>${d.tenant}</strong></div><div><span>Device Type</span><strong>${deviceTypeLabel(d)}</strong></div><div><span>Last Communication</span><strong>${d.lastSeen}</strong></div></section>
   ${deviceKpis(d)}
   <section class="detail-layout-v58 device-detail-layout-v58 device-detail-layout-v59">${universalDeviceSidebar(d, deviceDetailActiveTab)}<main class="glass-card detail-main-v58"><div id="deviceDetailContent">${deviceDetailPanel(d,deviceDetailActiveTab)}</div></main></section>`;
 }
 function wireDeviceDetail(): void {
   const d=selectedDevice();
-  document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>FleetLayout.toast(`Device data refresh requested for ${d.name}`));
-  window.FleetDetailLazyTabs?.observe('device', 'device-detail-content', () => {
+  document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>ZentridLayout.toast(`Device data refresh requested for ${d.name}`));
+  window.ZentridDetailLazyTabs?.observe('device', 'device-detail-content', () => {
     const content=document.getElementById('deviceDetailContent');
     if(content) content.innerHTML=deviceDetailPanel(selectedDevice(), deviceDetailActiveTab);
   });
@@ -495,7 +495,7 @@ function wireDeviceDetail(): void {
       item.classList.toggle('active', active);
       if (active) item.setAttribute('aria-current','page'); else item.removeAttribute('aria-current');
     });
-    window.FleetDetailLazyTabs?.activate('device', String(deviceDetailActiveTab));
+    window.ZentridDetailLazyTabs?.activate('device', String(deviceDetailActiveTab));
     const content=document.getElementById('deviceDetailContent');
     if(content) content.innerHTML=deviceDetailPanel(d, deviceDetailActiveTab);
   }));

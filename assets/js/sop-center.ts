@@ -335,7 +335,7 @@
   }
 
   function render(): void {
-    FleetLayout.mount(`
+    ZentridLayout.mount(`
       <section class="page-hero">
         <div><p class="eyebrow">Global Admin · Operations Center</p><h1>SOP Templates</h1><p class="muted">Operational playbooks that decide how alerts become incidents, Bitrix work objects, work orders, evidence and closure.</p></div>
         <button class="freshness-card" type="button" data-sop-action="export"><span class="pulse"></span><div><strong>Version controlled</strong><small>5 templates · 1 draft</small></div></button>
@@ -364,7 +364,7 @@
       if (action) {
         const name = action.dataset.sopAction;
         if (isSopDrawerKind(name)) createDrawer(name);
-        else FleetLayout.toast('SOP governance snapshot exported');
+        else ZentridLayout.toast('SOP governance snapshot exported');
       }
     });
     main.addEventListener('input', (event: Event) => {
@@ -384,7 +384,7 @@
     if (!close) return;
     const d = document.getElementById('sopDrawer');
     if (d) d.classList.remove('open');
-    if (close.dataset.sopCloseToast) FleetLayout.toast(close.dataset.sopCloseToast);
+    if (close.dataset.sopCloseToast) ZentridLayout.toast(close.dataset.sopCloseToast);
   });
 
   render();

@@ -1,11 +1,11 @@
 /* Zentrid release readiness and production observability.
    Captures frontend failures, exposes safe diagnostics and reports build metadata without storing credentials. */
 (function () {
-  type FleetReleaseHealth = 'healthy' | 'attention' | 'offline';
-  type FleetObservedIssueKind = 'runtime-error' | 'unhandled-rejection' | 'resource-error';
-  type FleetObservedIssue = {
+  type ZentridReleaseHealth = 'healthy' | 'attention' | 'offline';
+  type ZentridObservedIssueKind = 'runtime-error' | 'unhandled-rejection' | 'resource-error';
+  type ZentridObservedIssue = {
     id: string;
-    kind: FleetObservedIssueKind;
+    kind: ZentridObservedIssueKind;
     message: string;
     source: string;
     line: number | null;
@@ -14,12 +14,12 @@
     at: string;
     count: number;
   };
-  type FleetObservedEvent = {
+  type ZentridObservedEvent = {
     type: string;
     at: string;
     detail: unknown;
   };
-  type FleetReleaseManifest = {
+  type ZentridReleaseManifest = {
     schemaVersion: number;
     app: string;
     version: string;
@@ -32,10 +32,10 @@
     commit: string | null;
     commitShort: string | null;
   };
-  type FleetReleaseSnapshot = {
-    release: FleetReleaseManifest;
+  type ZentridReleaseSnapshot = {
+    release: ZentridReleaseManifest;
     collectedAt: string;
-    health: FleetReleaseHealth;
+    health: ZentridReleaseHealth;
     route: string;
     online: boolean;
     visibility: DocumentVisibilityState;
@@ -53,11 +53,11 @@
     forms: unknown;
     contractDiagnostics: unknown;
     fieldAudit: unknown;
-    recentIssues: FleetObservedIssue[];
-    recentEvents: FleetObservedEvent[];
+    recentIssues: ZentridObservedIssue[];
+    recentEvents: ZentridObservedEvent[];
   };
 
-  const FALLBACK_MANIFEST: FleetReleaseManifest = {
+  const FALLBACK_MANIFEST: ZentridReleaseManifest = {
     schemaVersion: 1,
     app: 'Zentrid Global Admin',
     version: '1.39.0',
@@ -79,9 +79,9 @@
     ? new URL('../release-manifest.json', currentScript.src).toString()
     : new URL('assets/release-manifest.json', window.location.href).toString();
 
-  let manifest: FleetReleaseManifest = { ...FALLBACK_MANIFEST };
-  let issues: FleetObservedIssue[] = [];
-  let events: FleetObservedEvent[] = [];
+  let manifest: ZentridReleaseManifest = { ...FALLBACK_MANIFEST };
+  let issues: ZentridObservedIssue[] = [];
+  let events: ZentridObservedEvent[] = [];
   let chip: HTMLButtonElement | null = null;
   let panel: HTMLElement | null = null;
   let notice: HTMLElement | null = null;
@@ -155,7 +155,7 @@
     if (events.length > MAX_EVENTS) events = events.slice(-MAX_EVENTS);
   }
 
-  function recordIssue(input: Omit<FleetObservedIssue, 'id' | 'at' | 'count' | 'route'>): FleetObservedIssue {
+  function recordIssue(input: Omit<ZentridObservedIssue, 'id' | 'at' | 'count' | 'route'>): ZentridObservedIssue {
     const signature = `${input.kind}|${input.message}|${input.source}|${input.line || 0}|${input.column || 0}`;
     const existing = issues.find(issue => issue.id === signature);
     if (existing) {
@@ -165,7 +165,7 @@
       updateChip();
       return existing;
     }
-    const issue: FleetObservedIssue = {
+    const issue: ZentridObservedIssue = {
       id: signature,
       kind: input.kind,
       message: input.message.slice(0, 500),
@@ -187,12 +187,12 @@
     return issue;
   }
 
-  function health(): FleetReleaseHealth {
+  function health(): ZentridReleaseHealth {
     if (!navigator.onLine) return 'offline';
     return issues.length ? 'attention' : 'healthy';
   }
 
-  function manifestIsValid(value: unknown): value is FleetReleaseManifest {
+  function manifestIsValid(value: unknown): value is ZentridReleaseManifest {
     if (!value || typeof value !== 'object') return false;
     const row = value as Record<string, unknown>;
     return typeof row.version === 'string'
@@ -201,7 +201,7 @@
       && typeof row.builtAt === 'string';
   }
 
-  async function fetchManifest(): Promise<FleetReleaseManifest> {
+  async function fetchManifest(): Promise<ZentridReleaseManifest> {
     const response = await fetch(manifestUrl, { cache: 'no-store', credentials: 'same-origin' });
     if (!response.ok) throw new Error(`Release manifest unavailable (${response.status})`);
     const value: unknown = await response.json();
@@ -259,7 +259,7 @@
     };
   }
 
-  function snapshot(): FleetReleaseSnapshot {
+  function snapshot(): ZentridReleaseSnapshot {
     const session = window.ZentridAuth?.getSession?.();
     const roles = session?.roles ? [...session.roles] : [];
     return {
@@ -291,13 +291,13 @@
         localKeys: localStorage.length,
         sessionKeys: sessionStorage.length
       },
-      runtime: sanitize(window.FleetRuntimeStability?.snapshot?.() || null),
-      session: sanitize(window.FleetSessionResilience?.snapshot?.() || null),
-      security: sanitize(window.FleetBrowserSecurity?.snapshot?.() || null),
-      freshness: sanitize(window.FleetDataFreshness?.snapshot?.() || null),
-      forms: sanitize(window.FleetFormReadiness?.snapshot?.() || []),
-      contractDiagnostics: sanitize(window.FleetAPIContracts?.diagnostics?.summary?.() || null),
-      fieldAudit: sanitize(window.FleetAPIContracts?.fieldAudit?.summary?.() || null),
+      runtime: sanitize(window.ZentridRuntimeStability?.snapshot?.() || null),
+      session: sanitize(window.ZentridSessionResilience?.snapshot?.() || null),
+      security: sanitize(window.ZentridBrowserSecurity?.snapshot?.() || null),
+      freshness: sanitize(window.ZentridDataFreshness?.snapshot?.() || null),
+      forms: sanitize(window.ZentridFormReadiness?.snapshot?.() || []),
+      contractDiagnostics: sanitize(window.ZentridAPIContracts?.diagnostics?.summary?.() || null),
+      fieldAudit: sanitize(window.ZentridAPIContracts?.fieldAudit?.summary?.() || null),
       recentIssues: issues.map(issue => ({ ...issue })),
       recentEvents: events.map(event => ({ ...event }))
     };
@@ -316,9 +316,9 @@
   }
 
   function createChip(): HTMLButtonElement {
-    const button = findOrCreate('button', 'fleetReleaseChip');
+    const button = findOrCreate('button', 'zentridReleaseChip');
     button.type = 'button';
-    button.className = 'fleet-release-chip';
+    button.className = 'zentrid-release-chip';
     button.setAttribute('aria-label', 'Open Zentrid release and diagnostics information');
     button.addEventListener('click', openPanel);
     chip = button;
@@ -343,34 +343,34 @@
     const state = health();
     chip.dataset.health = state;
     const label = manifest.release || manifest.version;
-    chip.innerHTML = `<span class="fleet-release-dot" aria-hidden="true"></span><span>${escapeHtml(label)}</span>`;
+    chip.innerHTML = `<span class="zentrid-release-dot" aria-hidden="true"></span><span>${escapeHtml(label)}</span>`;
     chip.title = `${manifest.app} ${manifest.version} · ${state}`;
   }
 
   function createPanel(): HTMLElement {
-    const overlay = findOrCreate('div', 'fleetReleasePanel');
-    overlay.className = 'fleet-release-panel';
+    const overlay = findOrCreate('div', 'zentridReleasePanel');
+    overlay.className = 'zentrid-release-panel';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <div class="fleet-release-panel-backdrop" data-release-close></div>
-      <section class="fleet-release-dialog" role="dialog" aria-modal="true" aria-labelledby="fleetReleaseTitle">
-        <header class="fleet-release-dialog-header">
+      <div class="zentrid-release-panel-backdrop" data-release-close></div>
+      <section class="zentrid-release-dialog" role="dialog" aria-modal="true" aria-labelledby="zentridReleaseTitle">
+        <header class="zentrid-release-dialog-header">
           <div>
-            <span class="fleet-release-eyebrow">Release & diagnostics</span>
-            <h2 id="fleetReleaseTitle">Zentrid runtime health</h2>
+            <span class="zentrid-release-eyebrow">Release & diagnostics</span>
+            <h2 id="zentridReleaseTitle">Zentrid runtime health</h2>
           </div>
-          <button type="button" class="icon-btn fleet-release-close" data-release-close aria-label="Close diagnostics">×</button>
+          <button type="button" class="icon-btn zentrid-release-close" data-release-close aria-label="Close diagnostics">×</button>
         </header>
-        <div class="fleet-release-summary" id="fleetReleaseSummary"></div>
-        <div class="fleet-release-actions">
+        <div class="zentrid-release-summary" id="zentridReleaseSummary"></div>
+        <div class="zentrid-release-actions">
           <button type="button" class="primary-action" data-release-copy>Copy safe report</button>
           <button type="button" class="secondary-action" data-release-download>Download JSON</button>
           <button type="button" class="secondary-action" data-release-check>Check deployment</button>
           <button type="button" class="secondary-action" data-release-clear>Clear local issues</button>
         </div>
-        <details class="fleet-release-report-shell">
+        <details class="zentrid-release-report-shell">
           <summary>Safe diagnostic payload</summary>
-          <pre id="fleetReleaseReport"></pre>
+          <pre id="zentridReleaseReport"></pre>
         </details>
       </section>`;
     overlay.querySelectorAll<HTMLElement>('[data-release-close]').forEach(element => element.addEventListener('click', closePanel));
@@ -391,12 +391,12 @@
 
   function summaryCard(label: string, value: string, tone = ''): string {
     const safeTone = tone ? ` data-tone="${tone}"` : '';
-    return `<div class="fleet-release-summary-card"${safeTone}><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+    return `<div class="zentrid-release-summary-card"${safeTone}><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
   }
 
   function updatePanel(): void {
     if (!panel) return;
-    const summary = panel.querySelector<HTMLElement>('#fleetReleaseSummary');
+    const summary = panel.querySelector<HTMLElement>('#zentridReleaseSummary');
     if (summary) {
       const state = health();
       summary.innerHTML = [
@@ -408,7 +408,7 @@
         summaryCard('Frontend issues', String(issues.reduce((total, issue) => total + issue.count, 0)), issues.length ? 'attention' : 'healthy')
       ].join('');
     }
-    const report = panel.querySelector<HTMLElement>('#fleetReleaseReport');
+    const report = panel.querySelector<HTMLElement>('#zentridReleaseReport');
     if (report) report.textContent = reportJson();
   }
 
@@ -416,20 +416,20 @@
     const activePanel = panel || createPanel();
     updatePanel();
     activePanel.hidden = false;
-    document.body.classList.add('fleet-release-dialog-open');
+    document.body.classList.add('zentrid-release-dialog-open');
     activePanel.querySelector<HTMLElement>('[data-release-close]')?.focus();
   }
 
   function closePanel(): void {
     if (!panel) return;
     panel.hidden = true;
-    document.body.classList.remove('fleet-release-dialog-open');
+    document.body.classList.remove('zentrid-release-dialog-open');
     chip?.focus({ preventScroll: true });
   }
 
   function showNotice(message: string, actionLabel?: string, action?: () => void): void {
-    const banner = notice || findOrCreate('div', 'fleetReleaseNotice');
-    banner.className = 'fleet-release-notice';
+    const banner = notice || findOrCreate('div', 'zentridReleaseNotice');
+    banner.className = 'zentrid-release-notice';
     banner.setAttribute('role', 'status');
     banner.setAttribute('aria-live', 'polite');
     banner.replaceChildren();
@@ -463,19 +463,19 @@
         const textarea = document.createElement('textarea');
         textarea.value = value;
         textarea.setAttribute('readonly', '');
-        textarea.className = 'fleet-release-copy-buffer';
+        textarea.className = 'zentrid-release-copy-buffer';
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
         textarea.remove();
       }
       recordEvent('diagnostic-report-copied', { release: manifest.release });
-      window.FleetLayout?.toast?.('Safe diagnostic report copied.');
+      window.ZentridLayout?.toast?.('Safe diagnostic report copied.');
       updatePanel();
       return true;
     } catch (error) {
       recordEvent('diagnostic-copy-failed', { message: readableError(error) });
-      window.FleetLayout?.toast?.('Could not copy the diagnostic report.');
+      window.ZentridLayout?.toast?.('Could not copy the diagnostic report.');
       return false;
     }
   }
@@ -594,7 +594,7 @@
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    window.FleetRuntimeStability?.registerCleanup?.('release-observability:topbar-observer', () => observer.disconnect());
+    window.ZentridRuntimeStability?.registerCleanup?.('release-observability:topbar-observer', () => observer.disconnect());
     void loadManifest();
   }
 
@@ -632,9 +632,9 @@
       updateChip();
       updatePanel();
     },
-    manifest(): FleetReleaseManifest { return { ...manifest }; }
+    manifest(): ZentridReleaseManifest { return { ...manifest }; }
   };
-  window.FleetReleaseObservability = api;
+  window.ZentridReleaseObservability = api;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
   else mount();

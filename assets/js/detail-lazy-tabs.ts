@@ -118,7 +118,7 @@
     void load(page, tab);
   }
 
-  function snapshot(page: string, tabOrResource: string): FleetDetailLazySnapshot | null {
+  function snapshot(page: string, tabOrResource: string): ZentridDetailLazySnapshot | null {
     const resource = resourceFor(page, tabOrResource);
     if (!resource) return null;
     return {
@@ -185,6 +185,6 @@
 
   if (typeof window.addEventListener === 'function') window.addEventListener('pagehide', () => dispose(), { once: true });
 
-  const api: FleetDetailLazyTabsApi = { register, activate, load, snapshot, panel, observe, unobserve, reset, dispose };
-  window.FleetDetailLazyTabs = api;
+  const api: ZentridDetailLazyTabsApi = { register, activate, load, snapshot, panel, observe, unobserve, reset, dispose };
+  window.ZentridDetailLazyTabs = api;
 })();

@@ -1,19 +1,19 @@
 (function () {
-type FleetTenantLifecycleAction = 'activate' | 'deactivate' | 'archive';
-type FleetTenantLifecycleRecord = Record<string, unknown> & {
+type ZentridTenantLifecycleAction = 'activate' | 'deactivate' | 'archive';
+type ZentridTenantLifecycleRecord = Record<string, unknown> & {
   id?: unknown;
   name?: unknown;
   status?: unknown;
   dataOrigin?: unknown;
 };
 
-type FleetTenantLifecycleApi = {
-  render(record: FleetTenantLifecycleRecord): string;
-  wire(record: FleetTenantLifecycleRecord): void;
-  isBackendManaged(record: FleetTenantLifecycleRecord): boolean;
+type ZentridTenantLifecycleApi = {
+  render(record: ZentridTenantLifecycleRecord): string;
+  wire(record: ZentridTenantLifecycleRecord): void;
+  isBackendManaged(record: ZentridTenantLifecycleRecord): boolean;
 };
 
-const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
+const ZentridTenantLifecycle: ZentridTenantLifecycleApi = (() => {
   const FLASH_KEY = 'zentrid_tenant_lifecycle_flash';
 
   function text(value: unknown, fallback = ''): string {
@@ -30,47 +30,47 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
       .replace(/'/g, '&#039;');
   }
 
-  function origin(record: FleetTenantLifecycleRecord): string {
-    if (window.FleetDataSource) return window.FleetDataSource.origin(record, 'tenant');
+  function origin(record: ZentridTenantLifecycleRecord): string {
+    if (window.ZentridDataSource) return window.ZentridDataSource.origin(record, 'tenant');
     return text(record.dataOrigin, 'mock').toLowerCase();
   }
 
-  function isBackendManaged(record: FleetTenantLifecycleRecord): boolean {
+  function isBackendManaged(record: ZentridTenantLifecycleRecord): boolean {
     const value = origin(record);
     return value === 'live' || value === 'mixed';
   }
 
-  function normalizedStatus(record: FleetTenantLifecycleRecord): string {
+  function normalizedStatus(record: ZentridTenantLifecycleRecord): string {
     return text(record.status, 'Active').toLowerCase();
   }
 
-  function availableActions(record: FleetTenantLifecycleRecord): FleetTenantLifecycleAction[] {
+  function availableActions(record: ZentridTenantLifecycleRecord): ZentridTenantLifecycleAction[] {
     const status = normalizedStatus(record);
     if (status === 'archived') return [];
     if (status === 'active') return ['deactivate', 'archive'];
     return ['activate', 'archive'];
   }
 
-  function actionLabel(action: FleetTenantLifecycleAction): string {
+  function actionLabel(action: ZentridTenantLifecycleAction): string {
     if (action === 'activate') return 'Activate';
     if (action === 'deactivate') return 'Deactivate';
     return 'Archive';
   }
 
-  function actionClass(action: FleetTenantLifecycleAction): string {
+  function actionClass(action: ZentridTenantLifecycleAction): string {
     if (action === 'activate') return 'primary-action';
     if (action === 'archive') return 'danger-action';
     return 'secondary-action';
   }
 
-  function confirmation(action: FleetTenantLifecycleAction, record: FleetTenantLifecycleRecord): string | null {
+  function confirmation(action: ZentridTenantLifecycleAction, record: ZentridTenantLifecycleRecord): string | null {
     const name = text(record.name, 'this tenant');
     if (action === 'archive') return `Archive ${name}? This changes the tenant lifecycle state on the backend.`;
     if (action === 'deactivate') return `Deactivate ${name}? Tenant access and operations may be affected.`;
     return null;
   }
 
-  function render(record: FleetTenantLifecycleRecord): string {
+  function render(record: ZentridTenantLifecycleRecord): string {
     const backendManaged = isBackendManaged(record);
     const status = text(record.status, 'Active');
     const actions = backendManaged ? availableActions(record) : [];
@@ -101,7 +101,7 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     </section>`;
   }
 
-  function setBusy(container: HTMLElement, action: FleetTenantLifecycleAction | null): void {
+  function setBusy(container: HTMLElement, action: ZentridTenantLifecycleAction | null): void {
     container.setAttribute('aria-busy', action ? 'true' : 'false');
     container.querySelectorAll<HTMLButtonElement>('[data-tenant-lifecycle-action], [data-tenant-lifecycle-retry]').forEach(button => {
       button.disabled = Boolean(action);
@@ -116,7 +116,7 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     return document.getElementById('tenantLifecycleMessage');
   }
 
-  function showMessage(message: string, tone: 'success' | 'error', retryAction?: FleetTenantLifecycleAction): void {
+  function showMessage(message: string, tone: 'success' | 'error', retryAction?: ZentridTenantLifecycleAction): void {
     const target = messageElement();
     if (!target) return;
     target.hidden = false;
@@ -136,10 +136,10 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     }
   }
 
-  function mutationFor(action: FleetTenantLifecycleAction, id: string): Promise<FleetMutationResult> {
-    if (action === 'activate') return FleetAPIMutations.tenants.activate(id);
-    if (action === 'deactivate') return FleetAPIMutations.tenants.deactivate(id);
-    return FleetAPIMutations.tenants.archive(id);
+  function mutationFor(action: ZentridTenantLifecycleAction, id: string): Promise<ZentridMutationResult> {
+    if (action === 'activate') return ZentridAPIMutations.tenants.activate(id);
+    if (action === 'deactivate') return ZentridAPIMutations.tenants.deactivate(id);
+    return ZentridAPIMutations.tenants.archive(id);
   }
 
   function saveFlash(message: string): void {
@@ -154,7 +154,7 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     } catch (error) { return ''; }
   }
 
-  async function execute(action: FleetTenantLifecycleAction, record: FleetTenantLifecycleRecord, container: HTMLElement): Promise<void> {
+  async function execute(action: ZentridTenantLifecycleAction, record: ZentridTenantLifecycleRecord, container: HTMLElement): Promise<void> {
     if (!isBackendManaged(record)) {
       showMessage('This record is not backed by the live Tenant API. No backend request was sent.', 'error');
       return;
@@ -166,8 +166,8 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     }
     const prompt = confirmation(action, record);
     if (prompt) {
-      const confirmed = typeof FleetUX !== 'undefined'
-        ? await FleetUX.confirmAction({
+      const confirmed = typeof ZentridUX !== 'undefined'
+        ? await ZentridUX.confirmAction({
             title: `${actionLabel(action)} tenant?`,
             message: prompt,
             confirmLabel: actionLabel(action),
@@ -176,7 +176,7 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
         : window.confirm(prompt);
       if (!confirmed) return;
     }
-    if (!window.FleetAPIMutations) {
+    if (!window.ZentridAPIMutations) {
       showMessage('The mutation service is unavailable on this page.', 'error');
       return;
     }
@@ -185,7 +185,7 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
     const result = await mutationFor(action, id);
     if (result.ok) {
       showMessage(result.message, 'success');
-      FleetLayout.toast(result.message);
+      ZentridLayout.toast(result.message);
       saveFlash(result.message);
       window.setTimeout(() => window.location.reload(), 650);
       return;
@@ -193,23 +193,23 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
 
     setBusy(container, null);
     showMessage(result.message, 'error', result.error.retriable ? action : undefined);
-    FleetLayout.toast(result.message);
+    ZentridLayout.toast(result.message);
   }
 
-  function wire(record: FleetTenantLifecycleRecord): void {
+  function wire(record: ZentridTenantLifecycleRecord): void {
     const container = document.getElementById('tenantLifecycleActions');
     if (!container || container.dataset.lifecycleWired === 'true') return;
     container.dataset.lifecycleWired = 'true';
     const flash = consumeFlash();
-    if (flash) FleetLayout.toast(flash);
+    if (flash) ZentridLayout.toast(flash);
     container.addEventListener('click', event => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const actionButton = target.closest<HTMLElement>('[data-tenant-lifecycle-action]');
       const retryButton = target.closest<HTMLElement>('[data-tenant-lifecycle-retry]');
-      const action = text(actionButton?.dataset.tenantLifecycleAction || retryButton?.dataset.tenantLifecycleRetry) as FleetTenantLifecycleAction;
+      const action = text(actionButton?.dataset.tenantLifecycleAction || retryButton?.dataset.tenantLifecycleRetry) as ZentridTenantLifecycleAction;
       if (action !== 'activate' && action !== 'deactivate' && action !== 'archive') return;
-      if (typeof FleetActionPermissions !== 'undefined' && !FleetActionPermissions.guard({ action, resource:'tenant', record, status:record.status })) return;
+      if (typeof ZentridActionPermissions !== 'undefined' && !ZentridActionPermissions.guard({ action, resource:'tenant', record, status:record.status })) return;
       void execute(action, record, container);
     });
   }
@@ -217,5 +217,5 @@ const FleetTenantLifecycle: FleetTenantLifecycleApi = (() => {
   return { render, wire, isBackendManaged };
 })();
 
-window.FleetTenantLifecycle = FleetTenantLifecycle;
+window.ZentridTenantLifecycle = ZentridTenantLifecycle;
 })();

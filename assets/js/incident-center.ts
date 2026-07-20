@@ -384,7 +384,7 @@
   }
 
   function render() {
-    FleetLayout.mount(`${hero()}<section class="production-workspace-v92 incident-workspace-v92">${tabs()}<div class="incident-main-card-v92">${body()}</div></section>`);
+    ZentridLayout.mount(`${hero()}<section class="production-workspace-v92 incident-workspace-v92">${tabs()}<div class="incident-main-card-v92">${body()}</div></section>`);
     bind();
   }
 
@@ -548,9 +548,9 @@
       const timeline = target.closest('[data-open-incident-timeline]') as IncidentDatasetElement | null;
       if (timeline) { openTimelineDrawer(timeline.dataset.openIncidentTimeline); return; }
       const sync = target.closest('[data-sync-incident]') as IncidentDatasetElement | null;
-      if (sync) { FleetLayout.toast(`Manual sync requested for ${sync.dataset.syncIncident}`); return; }
+      if (sync) { ZentridLayout.toast(`Manual sync requested for ${sync.dataset.syncIncident}`); return; }
       const toast = target.closest('[data-incident-toast]') as IncidentDatasetElement | null;
-      if (toast) FleetLayout.toast(toast.dataset.incidentToast);
+      if (toast) ZentridLayout.toast(toast.dataset.incidentToast);
     });
     document.body.addEventListener('click', (e: MouseEvent) => {
       const target = asIncidentTarget(e.target);
@@ -562,9 +562,9 @@
         document.getElementById('incidentUtilityDrawer')?.classList.remove('open');
       }
       const sync = target.closest('[data-sync-incident]') as IncidentDatasetElement | null;
-      if (sync) { FleetLayout.toast(`Manual sync requested for ${sync.dataset.syncIncident}`); return; }
+      if (sync) { ZentridLayout.toast(`Manual sync requested for ${sync.dataset.syncIncident}`); return; }
       const toast = target.closest('[data-incident-toast]') as IncidentDatasetElement | null;
-      if (toast) FleetLayout.toast(toast.dataset.incidentToast);
+      if (toast) ZentridLayout.toast(toast.dataset.incidentToast);
     });
   }
 

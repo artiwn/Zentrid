@@ -75,7 +75,7 @@ type ZentridAuthAPI = {
   isAuthenticated(): boolean;
 };
 
-type FleetAPIClient = {
+type ZentridAPIClient = {
   request<T = unknown>(path: string, options?: ZentridRequestOptions): Promise<T>;
   auth: ZentridAuthAPI;
   config: ZentridConfigAPI;
@@ -97,10 +97,14 @@ class ZentridRequestError extends Error {
 
 const ZentridConfig: ZentridConfigAPI = (() => {
   const LOCAL_PROXY_BASE_URL = 'http://localhost:5050';
-  const LEGACY_DIRECT_BACKENDS = [
-    'https://fleetosauth.unisys.am',
-    'https://fleetosapi.unisys.am'
-  ];
+  function isLegacyDirectBackend(value: string): boolean {
+    if (!/^https?:\/\//i.test(value)) return false;
+    try {
+      return new URL(value).hostname.toLowerCase().endsWith('.unisys.am');
+    } catch (_error) {
+      return false;
+    }
+  }
 
   function isLocalFrontend(): boolean {
     return ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
@@ -121,14 +125,14 @@ const ZentridConfig: ZentridConfigAPI = (() => {
 
     // Previous patches may have stored the real Swagger domains in localStorage.
     // That bypasses the proxy and causes browser OPTIONS/CORS errors, so ignore them.
-    if (LEGACY_DIRECT_BACKENDS.includes(stored)) return defaultBaseUrl();
+    if (isLegacyDirectBackend(stored)) return defaultBaseUrl();
 
     return stored || defaultBaseUrl();
   }
 
   function set(key: string, value: string): void {
     const next = clean(value);
-    if (!next || LEGACY_DIRECT_BACKENDS.includes(next)) localStorage.removeItem(key);
+    if (!next || isLegacyDirectBackend(next)) localStorage.removeItem(key);
     else localStorage.setItem(key, next);
   }
 
@@ -704,7 +708,7 @@ const ZentridAuth: ZentridAuthAPI = (() => {
   };
 })();
 
-const FleetAPI: FleetAPIClient = (() => {
+const ZentridAPI: ZentridAPIClient = (() => {
   async function request<T = unknown>(path: string, options: ZentridRequestOptions = {}): Promise<T> {
     return ZentridAuth.request<T>(path, { ...options, baseUrl: options.baseUrl || ZentridConfig.apiBaseUrl });
   }
@@ -719,4 +723,4 @@ const FleetAPI: FleetAPIClient = (() => {
 window.ZentridRequestError = ZentridRequestError;
 window.ZentridConfig = ZentridConfig;
 window.ZentridAuth = ZentridAuth;
-window.FleetAPI = FleetAPI;
+window.ZentridAPI = ZentridAPI;

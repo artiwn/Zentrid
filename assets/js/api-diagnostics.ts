@@ -3,7 +3,7 @@
   interface DiagnosticRun {
     version: 1;
     capturedAt: string;
-    endpoints: Record<string, FleetApiDiagnosticEndpoint>;
+    endpoints: Record<string, ZentridApiDiagnosticEndpoint>;
   }
 
 const api = (() => {
@@ -31,7 +31,7 @@ const api = (() => {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  function pagination(value: unknown): FleetApiDiagnosticPagination {
+  function pagination(value: unknown): ZentridApiDiagnosticPagination {
     if (!isRecord(value)) return { page: null, pageSize: null, totalCount: null, totalPages: null };
     return {
       page: numberOrNull(value.page ?? value.pageNumber ?? value.currentPage),
@@ -76,7 +76,7 @@ const api = (() => {
     return (current >>> 0).toString(16).padStart(8, '0');
   }
 
-  function endpoint(result: ZentridRawRequestResult): FleetApiDiagnosticEndpoint {
+  function endpoint(result: ZentridRawRequestResult): ZentridApiDiagnosticEndpoint {
     const resultShape = shape(result.data);
     return {
       key: endpointKey(result),
@@ -105,7 +105,7 @@ const api = (() => {
     }
   }
 
-  function compare(current: FleetApiDiagnosticEndpoint, previous?: FleetApiDiagnosticEndpoint): FleetApiDiagnosticDelta {
+  function compare(current: ZentridApiDiagnosticEndpoint, previous?: ZentridApiDiagnosticEndpoint): ZentridApiDiagnosticDelta {
     if (!previous) return { available: false, tone: 'neutral', durationDeltaMs: 0, responseBytesDelta: 0, rowsDelta: null, statusChanged: false, shapeChanged: false, summary: 'No previous run' };
     const durationDeltaMs = current.durationMs - previous.durationMs;
     const responseBytesDelta = current.responseBytes - previous.responseBytes;
@@ -125,10 +125,10 @@ const api = (() => {
     return { available: true, tone, durationDeltaMs, responseBytesDelta, rowsDelta, statusChanged, shapeChanged, summary: parts.join(' · ') };
   }
 
-  function captureRun(results: ZentridRawRequestResult[]): Record<string, FleetApiDiagnosticDelta> {
+  function captureRun(results: ZentridRawRequestResult[]): Record<string, ZentridApiDiagnosticDelta> {
     const previous = loadPrevious();
-    const endpoints: Record<string, FleetApiDiagnosticEndpoint> = { ...(previous?.endpoints || {}) };
-    const deltas: Record<string, FleetApiDiagnosticDelta> = {};
+    const endpoints: Record<string, ZentridApiDiagnosticEndpoint> = { ...(previous?.endpoints || {}) };
+    const deltas: Record<string, ZentridApiDiagnosticDelta> = {};
     results.forEach(result => {
       const item = endpoint(result);
       endpoints[item.key] = item;
@@ -159,7 +159,7 @@ const api = (() => {
     };
   }
 
-  function diagnosticsText(result: ZentridRawRequestResult, delta?: FleetApiDiagnosticDelta): string {
+  function diagnosticsText(result: ZentridRawRequestResult, delta?: ZentridApiDiagnosticDelta): string {
     const item = endpoint(result);
     return [
       `${item.method} ${item.path}`,
@@ -184,5 +184,5 @@ const api = (() => {
   return { endpointKey, pagination, redact, shape, hash, endpoint, compare, captureRun, safeSnapshot, diagnosticsText, clear, contractCatalog };
 })();
 
-window.FleetAPIDiagnostics = api;
+window.ZentridAPIDiagnostics = api;
 })();
