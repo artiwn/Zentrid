@@ -1,0 +1,2 @@
+FleetLayout.mount(renderTenantRegistry());
+    wireTenantRegistry();

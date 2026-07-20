@@ -1,0 +1,4 @@
+(() => {
+FleetLayout.mount(CommercialLicensing.render());
+
+})();

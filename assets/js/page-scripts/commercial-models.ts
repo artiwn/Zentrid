@@ -1,0 +1,4 @@
+(() => {
+Commercial.render();
+
+})();

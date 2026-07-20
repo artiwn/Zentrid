@@ -1,0 +1,11 @@
+(() => {
+const revenueRows = [
+      {segment:'Subscription Revenue', current:'€418k MRR', trend:'+8.4%', driver:'New operator plans', status:'Healthy'},
+      {segment:'Marketplace Revenue', current:'€142k', trend:'+12.1%', driver:'Equipment GMV growth', status:'Healthy'},
+      {segment:'Trading Revenue', current:'€28k', trend:'Pilot', driver:'Aggregator settlements', status:'Watch'},
+      {segment:'API Revenue', current:'€36k', trend:'+5.7%', driver:'ERP and reporting API usage', status:'Healthy'}
+    ];
+    const rows = revenueRows.map(r=>`<div class="data-row commercial-revenue-table-row-v126"><div><strong>${r.segment}</strong><small>${r.driver}</small></div><div><strong>${r.current}</strong><small>Current period</small></div><div><strong>${r.trend}</strong><small>Trend</small></div><span class="badge ${r.status==='Healthy'?'success':'warning'}">${r.status}</span></div>`).join('');
+    FleetLayout.mount(`<section class="page-hero"><div><p class="eyebrow">Global Admin · Financial Operations</p><h1>Revenue Analytics</h1><p class="muted">MRR, ARR, GMV, revenue mix, collection efficiency, forecasts and commercial performance.</p></div><button class="secondary-action" onclick="location.href='commercial-models.html'">Back to Commercial Models</button></section><section class="module-grid commercial-kpis-v78"><article class="kpi-card"><span>MRR</span><strong>€418k</strong><small>Recurring platform revenue</small></article><article class="kpi-card"><span>ARR</span><strong>€5.02M</strong><small>Annualized recurring revenue</small></article><article class="kpi-card"><span>GMV</span><strong>€2.8M</strong><small>Marketplace volume</small></article><article class="kpi-card"><span>Collection Rate</span><strong>96.8%</strong><small>Paid vs due</small></article></section><section class="panel glass-card"><div class="panel-head"><div><h2>Revenue Mix</h2><p>This page will be expanded after Billing and Payment Management are completed.</p></div><button class="primary-action" onclick="FleetLayout.toast('Revenue forecast refreshed')">Refresh Forecast</button></div><div class="data-table commercial-stakeholder-table-v126"><div class="data-head"><span>Segment</span><span>Current</span><span>Trend</span><span>Status</span></div>${rows}</div></section>`);
+
+})();
