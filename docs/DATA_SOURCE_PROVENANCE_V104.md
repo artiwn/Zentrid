@@ -9,7 +9,7 @@ Zentrid active API screens now identify where each displayed record came from in
 - **Local changes** — the record was created or changed in this browser and has not been written to the backend.
 - **Mixed sources** — a live record has local unsaved changes, or a page combines records from more than one origin.
 
-The shared runtime helper is `window.FleetDataSource` in `assets/js/data.ts`. It owns origin classification, labels, record chips, collection summaries and local-change transitions.
+The shared runtime helper is `window.ZentridDataSource` in `assets/js/data.ts`. It owns origin classification, labels, record chips, collection summaries and local-change transitions.
 
 ## Active screens
 

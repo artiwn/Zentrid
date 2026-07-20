@@ -8,7 +8,7 @@ Zentrid v132 adds a shared browser runtime coordinator without changing backend 
 
 ## DOM render stability
 
-High-frequency registry renders use `FleetRuntimeStability.replaceHtml(...)`. It preserves container scroll, restorable focus/selection and expanded UI state where an element has a stable identity.
+High-frequency registry renders use `ZentridRuntimeStability.replaceHtml(...)`. It preserves container scroll, restorable focus/selection and expanded UI state where an element has a stable identity.
 
 ## Observer lifecycle
 
@@ -20,7 +20,7 @@ The repository coordinator exposes `cancelAll()` and aborts all active grouped r
 
 ## Diagnostics
 
-`FleetRuntimeStability.snapshot()` reports active timers, animation frames, idle jobs, cleanup registrations, detected long tasks and aggregate long-task duration.
+`ZentridRuntimeStability.snapshot()` reports active timers, animation frames, idle jobs, cleanup registrations, detected long tasks and aggregate long-task duration.
 
 Run:
 

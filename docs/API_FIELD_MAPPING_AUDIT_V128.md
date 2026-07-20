@@ -26,8 +26,8 @@ Each canonical field records:
 The manifest is available at runtime:
 
 ```ts
-FleetAPIContracts.fieldAudit.manifest()
-FleetAPIContracts.fieldAudit.manifest('devices')
+ZentridAPIContracts.fieldAudit.manifest()
+ZentridAPIContracts.fieldAudit.manifest('devices')
 ```
 
 ## Runtime audit

@@ -16,8 +16,8 @@ The repository layer covers:
 Each repository exposes:
 
 ```ts
-list(): Promise<FleetRepositoryListResult>
-get(id: string): Promise<FleetRepositoryItemResult>
+list(): Promise<ZentridRepositoryListResult>
+get(id: string): Promise<ZentridRepositoryItemResult>
 ```
 
 A list result contains normalized `items`, original `rawItems`, source metadata and non-blocking supporting request errors.
@@ -32,7 +32,7 @@ The repository layer owns:
 - identity-based deduplication;
 - live/admin Plant source merging;
 - live/admin Integration fallback selection;
-- DTO mapping through `FleetAPIContracts`;
+- DTO mapping through `ZentridAPIContracts`;
 - normalized item lookup by Zentrid or external identity.
 
 `live-api-ui.ts` now owns only page orchestration, relation enrichment, render calls and live-data state presentation. It no longer calls the six entity APIs or contract mappers directly.

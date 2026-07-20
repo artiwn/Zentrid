@@ -4,7 +4,7 @@ Zentrid forms now expose a declarative contract layer without introducing unconf
 
 ## Runtime
 
-`assets/js/form-readiness.ts` enhances forms marked with `data-fleet-form-readiness` and provides:
+`assets/js/form-readiness.ts` enhances forms marked with `data-zentrid-form-readiness` and provides:
 
 - dirty-state tracking and `beforeunload` protection;
 - explicit `api`, `local`, `unavailable`, and `readonly` modes;
@@ -15,17 +15,17 @@ Zentrid forms now expose a declarative contract layer without introducing unconf
 - validation summary;
 - safe DTO preview with credential redaction;
 - `markCommitted()` after a successful save;
-- runtime diagnostics through `FleetFormReadiness.snapshot()`.
+- runtime diagnostics through `ZentridFormReadiness.snapshot()`.
 
 ## Declarative attributes
 
 ```html
 <form
-  data-fleet-form-readiness="unavailable"
-  data-fleet-form-contract="ClientUpdateDraft"
-  data-fleet-form-endpoint=""
-  data-fleet-form-method="PATCH"
-  data-fleet-form-api-note="Client update endpoint is not available.">
+  data-zentrid-form-readiness="unavailable"
+  data-zentrid-form-contract="ClientUpdateDraft"
+  data-zentrid-form-endpoint=""
+  data-zentrid-form-method="PATCH"
+  data-zentrid-form-api-note="Client update endpoint is not available.">
 ```
 
 `unavailable` disables submit controls but keeps validation and DTO preview available. Existing Zentrid create wizards remain in `local` mode, so their current localStorage behavior is preserved.
@@ -43,13 +43,13 @@ Field-level attributes:
 ## Public API
 
 ```js
-FleetFormReadiness.serialize(form)
-FleetFormReadiness.validate(form)
-FleetFormReadiness.updatePreview(form)
-FleetFormReadiness.isDirty(form)
-FleetFormReadiness.markCommitted(form)
-FleetFormReadiness.setMode(form, 'unavailable', 'Endpoint not confirmed')
-FleetFormReadiness.snapshot()
+ZentridFormReadiness.serialize(form)
+ZentridFormReadiness.validate(form)
+ZentridFormReadiness.updatePreview(form)
+ZentridFormReadiness.isDirty(form)
+ZentridFormReadiness.markCommitted(form)
+ZentridFormReadiness.setMode(form, 'unavailable', 'Endpoint not confirmed')
+ZentridFormReadiness.snapshot()
 ```
 
 ## Verification

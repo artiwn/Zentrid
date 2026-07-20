@@ -4,7 +4,7 @@ This patch strengthens the shared authentication and HTTP request layer without 
 
 ## Request lifecycle
 
-All requests through `ZentridAuth.request` and `FleetAPI.request` now use a shared 15-second timeout by default. Callers may override it with `timeoutMs`.
+All requests through `ZentridAuth.request` and `ZentridAPI.request` now use a shared 15-second timeout by default. Callers may override it with `timeoutMs`.
 
 The client exposes normalized error information through `ZentridRequestError`:
 

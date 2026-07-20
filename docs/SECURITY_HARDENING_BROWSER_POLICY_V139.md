@@ -32,4 +32,4 @@ Access token, refresh token, user metadata and token expiry are now tab-scoped i
 
 ## Diagnostics
 
-`FleetBrowserSecurity.snapshot()` exposes counts and storage key names only. It never reads or exports token values. The snapshot is included in the v138 safe release report.
+`ZentridBrowserSecurity.snapshot()` exposes counts and storage key names only. It never reads or exports token values. The snapshot is included in the v138 safe release report.

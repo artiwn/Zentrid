@@ -23,7 +23,7 @@ Each entity contract exposes:
 
 Backend field aliases belong in `api-contracts.ts`. Page renderers and `live-api-ui.ts` must not add new DTO aliases directly. For example, Plant naming compatibility such as `plantName`, `sourcePlantName`, `stationName`, and `siteName` is resolved by the Plant contract before the record reaches the page renderer.
 
-The live API bridge still owns request orchestration, relation enrichment, pagination, loading states, and mock fallback. It delegates entity mapping to `FleetAPIContracts`.
+The live API bridge still owns request orchestration, relation enrichment, pagination, loading states, and mock fallback. It delegates entity mapping to `ZentridAPIContracts`.
 
 ## Migration rule
 

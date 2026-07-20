@@ -40,11 +40,11 @@ INVALID_FIELD_TYPE
 ## Runtime API
 
 ```ts
-FleetAPIContracts.diagnostics.clear()
-FleetAPIContracts.diagnostics.clear('devices')
-FleetAPIContracts.diagnostics.list()
-FleetAPIContracts.diagnostics.list('plants')
-FleetAPIContracts.diagnostics.summary()
+ZentridAPIContracts.diagnostics.clear()
+ZentridAPIContracts.diagnostics.clear('devices')
+ZentridAPIContracts.diagnostics.list()
+ZentridAPIContracts.diagnostics.list('plants')
+ZentridAPIContracts.diagnostics.summary()
 ```
 
 Identical issues are deduplicated by entity, record index, issue code, field, and message.

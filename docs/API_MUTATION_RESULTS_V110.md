@@ -4,12 +4,12 @@ Zentrid now exposes a non-throwing mutation facade for active Global Admin write
 
 ## Runtime API
 
-`FleetAPIMutations` wraps the existing `ZentridPlatformAPI` write methods. The Platform API remains backward-compatible and continues to return raw backend payloads. Forms may opt into the normalized facade when they are connected to real backend operations.
+`ZentridAPIMutations` wraps the existing `ZentridPlatformAPI` write methods. The Platform API remains backward-compatible and continues to return raw backend payloads. Forms may opt into the normalized facade when they are connected to real backend operations.
 
 Every call resolves to a discriminated result:
 
 ```ts
-const result = await FleetAPIMutations.clients.create(payload);
+const result = await ZentridAPIMutations.clients.create(payload);
 if (result.ok) {
   console.log(result.data, result.meta);
 } else {

@@ -27,4 +27,4 @@ Overview, Client/Tenant/Plant/Device/Alert/Integration registries and their live
 
 ## Diagnostics
 
-`FleetDataFreshness.snapshot()` returns the active resource, freshness state, last update, age, auto-refresh interval, network state, and visibility state.
+`ZentridDataFreshness.snapshot()` returns the active resource, freshness state, last update, age, auto-refresh interval, network state, and visibility state.

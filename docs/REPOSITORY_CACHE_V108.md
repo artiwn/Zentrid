@@ -21,9 +21,9 @@ If Overview, a list page and a detail workflow request the same repository while
 
 ```ts
 await Promise.all([
-  FleetAPIRepositories.devices.list(),
-  FleetAPIRepositories.devices.list(),
-  FleetAPIRepositories.devices.get(deviceId)
+  ZentridAPIRepositories.devices.list(),
+  ZentridAPIRepositories.devices.list(),
+  ZentridAPIRepositories.devices.get(deviceId)
 ]);
 ```
 
@@ -40,9 +40,9 @@ Failed requests are not cached. A later call retries the backend normally.
 Repositories accept optional read controls:
 
 ```ts
-FleetAPIRepositories.devices.list({ forceRefresh: true });
-FleetAPIRepositories.alerts.list({ maxAgeMs: 2_000 });
-FleetAPIRepositories.plants.get(id, { maxAgeMs: 0 });
+ZentridAPIRepositories.devices.list({ forceRefresh: true });
+ZentridAPIRepositories.alerts.list({ maxAgeMs: 2_000 });
+ZentridAPIRepositories.plants.get(id, { maxAgeMs: 0 });
 ```
 
 - `forceRefresh` ignores a completed cache entry.
@@ -61,9 +61,9 @@ Invalidation also detaches old in-flight reads. A response started before an aut
 Manual controls are available:
 
 ```ts
-FleetAPIRepositories.cache.invalidate('devices');
-FleetAPIRepositories.cache.invalidate();
-FleetAPIRepositories.cache.snapshot();
+ZentridAPIRepositories.cache.invalidate('devices');
+ZentridAPIRepositories.cache.invalidate();
+ZentridAPIRepositories.cache.snapshot();
 ```
 
 `snapshot()` reports cache presence, in-flight state, age, TTL, hits, misses, deduplicated reads and invalidations.

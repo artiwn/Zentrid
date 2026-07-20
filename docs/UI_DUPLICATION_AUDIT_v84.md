@@ -351,7 +351,7 @@ These two files are also identical, but contain only two calls:
 They currently both execute:
 
 ```ts
-FleetLayout.mount(renderPlants());
+ZentridLayout.mount(renderPlants());
 wirePlants();
 ```
 
@@ -412,12 +412,12 @@ Repeated utility concepts found across files:
 Recommended shared globals before ES modules:
 
 ```ts
-FleetUI.escapeHtml(...)
-FleetUI.statusBadge(...)
-FleetUI.infoCell(...)
-FleetUI.money(...)
-FleetUI.openModal(...)
-FleetUI.closeModal(...)
+ZentridUI.escapeHtml(...)
+ZentridUI.statusBadge(...)
+ZentridUI.infoCell(...)
+ZentridUI.money(...)
+ZentridUI.openModal(...)
+ZentridUI.closeModal(...)
 ```
 
 These can be exposed through one classic browser script and loaded before page scripts, preserving the current runtime architecture.

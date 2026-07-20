@@ -9,7 +9,7 @@ interface ZentridDataMutationDetail {
   action: string;
   path: string;
   method: string;
-  entities: FleetContractEntity[];
+  entities: ZentridContractEntity[];
   completedAt: string;
 }
 ```
@@ -29,8 +29,8 @@ Integration lifecycle actions clear dependent live caches because provider avail
 ## Repository API
 
 ```ts
-FleetAPIRepositories.cache.invalidate('devices');
-FleetAPIRepositories.cache.invalidateMany(['plants', 'devices', 'alerts']);
+ZentridAPIRepositories.cache.invalidate('devices');
+ZentridAPIRepositories.cache.invalidateMany(['plants', 'devices', 'alerts']);
 ```
 
 ## Verification
