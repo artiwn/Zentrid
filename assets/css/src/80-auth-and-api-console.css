@@ -145,7 +145,7 @@
 @media(max-width:480px){.registry-page-size-group,.registry-page-jump-group{flex:1 1 100%;justify-content:flex-start}.registry-pagination-nav{flex:1 1 auto}.registry-pagination-nav-end{justify-content:flex-end}}
 
 /* API console metric cards */
-.api-diagnostic-metrics,.api-audit-metrics{display:grid;gap:10px}
+.api-diagnostic-metrics,.api-audit-metrics{display:flex;gap:10px}
 .api-diagnostic-metrics>div,.api-audit-metrics>div{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;padding:12px 14px;border:1px solid rgba(148,163,184,.16);border-radius:13px;background:rgba(15,23,42,.38)}
 .api-diagnostic-metrics>div>span,.api-audit-metrics>div>span{min-width:0;color:#8fa6bd;font-size:11px;font-weight:800;line-height:1.35;letter-spacing:.055em;text-transform:uppercase}
 .api-diagnostic-metrics>div>strong,.api-audit-metrics>div>strong{flex:0 1 auto;min-width:0;color:#f8fafc;font-size:14px;font-weight:850;line-height:1.35;text-align:right}
