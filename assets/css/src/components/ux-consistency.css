@@ -57,6 +57,21 @@
 
 .zentrid-ux-state-empty { border-style: dashed; color: var(--muted); }
 .zentrid-ux-state-empty .zentrid-ux-state-icon { color: #94a3b8; }
+
+/* Keep enhanced empty-state copy at the full available width. */
+.empty-state.zentrid-ux-state.zentrid-ux-state-empty {
+  justify-items: stretch;
+}
+.empty-state.zentrid-ux-state.zentrid-ux-state-empty .zentrid-ux-state-copy,
+.empty-state.zentrid-ux-state.zentrid-ux-state-empty .zentrid-ux-state-copy > strong {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+.empty-state.zentrid-ux-state.zentrid-ux-state-empty .zentrid-ux-state-copy > strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .zentrid-ux-state-loading { border-color: rgba(56, 189, 248, .34); background: rgba(14, 116, 144, .11); }
 .zentrid-ux-state-loading .zentrid-ux-state-icon { color: #7dd3fc; animation: zentrid-ux-spin 1.1s linear infinite; }
 .zentrid-ux-state-error { border-color: rgba(248, 113, 113, .38); background: rgba(127, 29, 29, .16); }
