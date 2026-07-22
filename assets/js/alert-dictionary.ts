@@ -93,7 +93,7 @@ function renderOverview(): string {
   const c=AlertDictionaryState.data?.counts||{};
   const vendors=[...new Set(alertDictMappings().map(m=>m.source_alert?.vendor).filter(Boolean))].sort();
   const catCount=alertDictGroups().length-1;
-  return `${alertDictTitleBlock('Zentrid Alert Dictionary','Canonical alert taxonomy loaded from Alert Mapping Registry. No local mock codes are used on this page.')}
+  return `${alertDictTitleBlock('Zentrid Alert Dictionary','Canonical alert taxonomy loaded from Alert Mapping Registry. No local business records are used on this page.')}
   <section class="kpi-grid compact-kpis alert-dict-kpis-v95"><article class="kpi-card cyan"><span>Canonical Alerts</span><strong>${c.canonical_alerts||alertDictCanonical().length}</strong><small>Zentrid high-level alert buckets</small></article><article class="kpi-card blue"><span>Vendor Mappings</span><strong>${c.vendor_mappings||alertDictMappings().length}</strong><small>source code → Zentrid code</small></article><article class="kpi-card green"><span>Vendors</span><strong>${vendors.length}</strong><small>${alertDictEsc(vendors.join(' · '))}</small></article><article class="kpi-card yellow"><span>Categories</span><strong>${catCount}</strong><small>GRID · PV · BATTERY · INVERTER...</small></article></section>
   <div class="normalization-empty-grid">${alertDictGroups().filter(g=>g!=='All').map(g=>`<article data-group="${alertDictEsc(g)}"><strong>${alertDictEsc(g)}</strong><small>${alertDictCanonical().filter(a=>a.category===g).length} Zentrid alerts · ${alertDictMappings().filter(m=>m.zentrid_alert?.category===g).length} vendor mappings</small></article>`).join('')}</div>`;
 }

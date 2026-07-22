@@ -14,7 +14,7 @@ interface OverviewIntegrationItem { name: string; sync: string; status: string; 
 interface OverviewQualityItem { label: string; value: string; }
 interface OverviewTenantItem { name: string; plants: number | string; revenue: string; health: string; }
 interface OverviewState { tenant: string; time: string; region: string; }
-interface ZentridOverviewMock {
+interface ZentridOverviewDataStore {
   kpis: OverviewKpi[];
   zentridHealth: OverviewPortfolioHealthItem[];
   alerts: OverviewAlertItem[];
@@ -23,7 +23,7 @@ interface ZentridOverviewMock {
   tenants: OverviewTenantItem[];
   activity: string[];
 }
-declare const ZentridMock: ZentridOverviewMock;
+declare const ZentridOverviewData: ZentridOverviewDataStore;
 
 function overviewEscape(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -40,27 +40,27 @@ function overviewEmpty(title: string, message: string): string {
   return `<div class="empty-state zentrid-ux-state zentrid-ux-state-empty" role="status"><strong>${overviewEscape(title)}</strong><small>${overviewEscape(message)}</small></div>`;
 }
 function overviewProgressBars(): string {
-  if (!ZentridMock.zentridHealth.length) return overviewEmpty('No fleet status data', 'The backend has not returned status distribution fields.');
-  return ZentridMock.zentridHealth.map(item => {
+  if (!ZentridOverviewData.zentridHealth.length) return overviewEmpty('No fleet status data', 'The backend has not returned status distribution fields.');
+  return ZentridOverviewData.zentridHealth.map(item => {
     const value = Number(item.value || 0);
     return `<button class="health-row drill" data-panel="fleet" data-title="${overviewEscape(item.label)}" data-route="plants"><div class="health-label"><span>${overviewEscape(item.label)}</span><strong>${value}</strong></div><div class="progress"><div style="width:${Math.max(0, Math.min(100, value))}%"></div></div></button>`;
   }).join('');
 }
 function overviewKpis(): string {
-  if (!ZentridMock.kpis.length) return `<section class="panel glass-card">${overviewEmpty('No overview metrics', 'Core API requests have not returned records yet.')}</section>`;
-  return `<section class="kpi-grid">${ZentridMock.kpis.map(kpi => `<button class="kpi-card ${overviewEscape(kpi.tone)} drill" data-panel="kpi" data-title="${overviewEscape(kpi.label)}" data-route="${overviewEscape(kpi.route)}"><div class="kpi-icon">${overviewEscape(kpi.icon)}</div><div class="kpi-label">${overviewEscape(kpi.label)}</div><div class="kpi-value">${overviewEscape(kpi.value)}</div><div class="kpi-delta">${overviewEscape(kpi.delta)}</div></button>`).join('')}</section>`;
+  if (!ZentridOverviewData.kpis.length) return `<section class="panel glass-card">${overviewEmpty('No overview metrics', 'Core API requests have not returned records yet.')}</section>`;
+  return `<section class="kpi-grid">${ZentridOverviewData.kpis.map(kpi => `<button class="kpi-card ${overviewEscape(kpi.tone)} drill" data-panel="kpi" data-title="${overviewEscape(kpi.label)}" data-route="${overviewEscape(kpi.route)}"><div class="kpi-icon">${overviewEscape(kpi.icon)}</div><div class="kpi-label">${overviewEscape(kpi.label)}</div><div class="kpi-value">${overviewEscape(kpi.value)}</div><div class="kpi-delta">${overviewEscape(kpi.delta)}</div></button>`).join('')}</section>`;
 }
 function overviewAlerts(): string {
-  if (!ZentridMock.alerts.length) return overviewEmpty('No alert records', 'The alert API returned no records or has not completed yet.');
-  return `<div class="table-list">${ZentridMock.alerts.map(item => `<div class="table-row actionable"><button class="row-main drill" data-panel="alert" data-title="${overviewEscape(item.title)}" data-route="alerts"><strong>${overviewEscape(item.title)}</strong><small>${overviewEscape(item.tenant)} · ${overviewEscape(item.plant)}</small></button><span class="badge ${overviewStatusClass(item.severity)}">${overviewEscape(item.severity)}</span><small>${overviewEscape(item.time)}</small></div>`).join('')}</div>`;
+  if (!ZentridOverviewData.alerts.length) return overviewEmpty('No alert records', 'The alert API returned no records or has not completed yet.');
+  return `<div class="table-list">${ZentridOverviewData.alerts.map(item => `<div class="table-row actionable"><button class="row-main drill" data-panel="alert" data-title="${overviewEscape(item.title)}" data-route="alerts"><strong>${overviewEscape(item.title)}</strong><small>${overviewEscape(item.tenant)} · ${overviewEscape(item.plant)}</small></button><span class="badge ${overviewStatusClass(item.severity)}">${overviewEscape(item.severity)}</span><small>${overviewEscape(item.time)}</small></div>`).join('')}</div>`;
 }
 function overviewIntegrations(): string {
-  if (!ZentridMock.integrations.length) return overviewEmpty('No integration records', 'The integration API returned no records or has not completed yet.');
-  return `<div class="table-list">${ZentridMock.integrations.map(item => `<div class="table-row actionable"><button class="row-main drill" data-panel="integration" data-title="${overviewEscape(item.name)}" data-route="integrations"><strong>${overviewEscape(item.name)}</strong><small>Last sync: ${overviewEscape(item.sync)}</small></button><span class="badge ${overviewStatusClass(item.status)}">${overviewEscape(item.status)}</span><small>${overviewEscape(item.errors)} errors</small></div>`).join('')}</div>`;
+  if (!ZentridOverviewData.integrations.length) return overviewEmpty('No integration records', 'The integration API returned no records or has not completed yet.');
+  return `<div class="table-list">${ZentridOverviewData.integrations.map(item => `<div class="table-row actionable"><button class="row-main drill" data-panel="integration" data-title="${overviewEscape(item.name)}" data-route="integrations"><strong>${overviewEscape(item.name)}</strong><small>Last sync: ${overviewEscape(item.sync)}</small></button><span class="badge ${overviewStatusClass(item.status)}">${overviewEscape(item.status)}</span><small>${overviewEscape(item.errors)} errors</small></div>`).join('')}</div>`;
 }
 function overviewQuality(): string {
-  if (!ZentridMock.quality.length) return overviewEmpty('No API quality summary', 'Quality counters appear only when provider and integration endpoints respond.');
-  return `<div class="quality-grid">${ZentridMock.quality.map(item => `<button class="drill" data-panel="quality" data-title="${overviewEscape(item.label)}" data-route="api-console"><strong>${overviewEscape(item.value)}</strong><span>${overviewEscape(item.label)}</span></button>`).join('')}</div>`;
+  if (!ZentridOverviewData.quality.length) return overviewEmpty('No API quality summary', 'Quality counters appear only when provider and integration endpoints respond.');
+  return `<div class="quality-grid">${ZentridOverviewData.quality.map(item => `<button class="drill" data-panel="quality" data-title="${overviewEscape(item.label)}" data-route="api-console"><strong>${overviewEscape(item.value)}</strong><span>${overviewEscape(item.label)}</span></button>`).join('')}</div>`;
 }
 function overviewRender(state: OverviewState = ZentridLayout.state): string {
   return `<section class="page-hero"><div><p class="eyebrow">Platform Operations Center · API-only</p><h1>Global Admin Overview</h1><p class="muted">This screen contains only values derived from backend responses. Prototype metrics, maps, trends and activity records were removed.</p></div><button class="freshness-card" type="button" data-live-refresh="overview"><span class="pulse"></span><div><strong>Data status</strong><small>Waiting for API response</small></div></button></section>

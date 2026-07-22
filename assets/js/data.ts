@@ -1,4 +1,4 @@
-type ZentridMockKpi = {
+type ZentridOverviewKpiData = {
   label: string;
   value: string;
   delta: string;
@@ -7,17 +7,17 @@ type ZentridMockKpi = {
   route: string;
 };
 
-type ZentridMockHealthItem = {
+type ZentridOverviewHealthData = {
   label: string;
   value: number;
 };
 
-type ZentridMockQualityItem = {
+type ZentridOverviewQualityData = {
   label: string;
   value: string;
 };
 
-type ZentridMockAlert = {
+type ZentridOverviewAlertData = {
   title: string;
   tenant: string;
   plant: string;
@@ -25,27 +25,27 @@ type ZentridMockAlert = {
   time: string;
 };
 
-type ZentridMockIntegration = {
+type ZentridOverviewIntegrationData = {
   name: string;
   status: string;
   sync: string;
   errors: number;
 };
 
-type ZentridMockTenant = {
+type ZentridOverviewTenantData = {
   name: string;
   plants: number;
   revenue: string;
   health: string;
 };
 
-type ZentridMockData = {
-  kpis: ZentridMockKpi[];
-  zentridHealth: ZentridMockHealthItem[];
-  quality: ZentridMockQualityItem[];
-  alerts: ZentridMockAlert[];
-  integrations: ZentridMockIntegration[];
-  tenants: ZentridMockTenant[];
+type ZentridOverviewRuntimeStore = {
+  kpis: ZentridOverviewKpiData[];
+  zentridHealth: ZentridOverviewHealthData[];
+  quality: ZentridOverviewQualityData[];
+  alerts: ZentridOverviewAlertData[];
+  integrations: ZentridOverviewIntegrationData[];
+  tenants: ZentridOverviewTenantData[];
   activity: string[];
 };
 
@@ -79,7 +79,7 @@ type ZentridLocalStoreApi = {
   normalizeDeviceForClientModel: (device?: ZentridStoreRecord) => ZentridStoreRecord;
 };
 
-type ZentridDataOrigin = 'live' | 'mock' | 'local' | 'mixed';
+type ZentridDataOrigin = 'live' | 'unavailable' | 'local' | 'mixed';
 
 type ZentridDataSourceSummary = {
   origin: ZentridDataOrigin;
@@ -99,7 +99,7 @@ type ZentridDataSourceApi = {
 window.ZentridDataSource = window.ZentridDataSource || (() => {
   const labels: Record<ZentridDataOrigin, string> = {
     live: 'Live API',
-    mock: 'Mock data',
+    unavailable: 'Unavailable',
     local: 'Local changes',
     mixed: 'Mixed sources'
   };
@@ -114,7 +114,7 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
 
   function explicitOrigin(record: Record<string, unknown>): ZentridDataOrigin | null {
     const candidate = normalizedText(record.dataOrigin || record.sourceOrigin || record._dataOrigin);
-    return candidate === 'live' || candidate === 'mock' || candidate === 'local' || candidate === 'mixed'
+    return candidate === 'live' || candidate === 'unavailable' || candidate === 'local' || candidate === 'mixed'
       ? candidate
       : null;
   }
@@ -122,7 +122,7 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
   function origin(record: unknown, entity = 'record'): ZentridDataOrigin {
     if (typeof record === 'string') {
       const value = normalizedText(record);
-      if (value === 'live' || value === 'mock' || value === 'local' || value === 'mixed') return value;
+      if (value === 'live' || value === 'unavailable' || value === 'local' || value === 'mixed') return value;
     }
 
     const row = asRecord(record);
@@ -153,7 +153,7 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
 
     const entityKey = normalizedText(entity);
     if (row.createdAt && ['tenant', 'client', 'plant', 'device'].includes(entityKey)) return 'local';
-    return 'mock';
+    return 'unavailable';
   }
 
   function label(value: ZentridDataOrigin): string {
@@ -167,10 +167,10 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
   }
 
   function summary(records: unknown[], entity = 'record'): ZentridDataSourceSummary {
-    const counts: Record<ZentridDataOrigin, number> = { live: 0, mock: 0, local: 0, mixed: 0 };
+    const counts: Record<ZentridDataOrigin, number> = { live: 0, unavailable: 0, local: 0, mixed: 0 };
     for (const record of Array.isArray(records) ? records : []) counts[origin(record, entity)] += 1;
     const active = (Object.keys(counts) as ZentridDataOrigin[]).filter(key => counts[key] > 0);
-    const resolved: ZentridDataOrigin = active.length > 1 ? 'mixed' : active[0] || 'mock';
+    const resolved: ZentridDataOrigin = active.length > 1 ? 'mixed' : active[0] || 'unavailable';
     return { origin: resolved, counts, total: Object.values(counts).reduce((sum, count) => sum + count, 0) };
   }
 
@@ -186,7 +186,7 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
   return { origin, label, badge, summary, markLocal, markChanged } satisfies ZentridDataSourceApi;
 })();
 
-window.ZentridMock = {
+window.ZentridOverviewData = {
   kpis: [],
   zentridHealth: [],
   quality: [],
@@ -194,7 +194,7 @@ window.ZentridMock = {
   integrations: [],
   tenants: [],
   activity: []
-} satisfies ZentridMockData;
+} satisfies ZentridOverviewRuntimeStore;
 
 type ZentridApiOnlyApi = {
   enabled: true;
@@ -374,27 +374,27 @@ window.ZentridLocalStore = window.ZentridLocalStore || (() => {
   const addIntegration: ZentridLocalStoreApi['addIntegration'] = () => [];
   function normalizePlantForClientModel(p: ZentridStoreRecord = {}): ZentridStoreRecord {
     return {
-      id: p.id || `PL-${Date.now()}`,
-      code: p.code || p.plantCode || p.id || 'MANUAL-PLANT',
-      externalId: p.externalId || 'LOCAL-STORAGE',
-      name: p.name || p.plantName || 'New Plant',
-      clientId: p.clientId || p.ownerClientId || p.client || 'CL-LOCAL',
+      id: p.id || '',
+      code: p.code || p.plantCode || p.id || '—',
+      externalId: p.externalId || '—',
+      name: p.name || p.plantName || '—',
+      clientId: p.clientId || p.ownerClientId || p.client || '',
       tenantId: p.tenantId || p.managingTenantId || '',
-      portfolio: p.portfolio || 'Manual Portfolio',
+      portfolio: p.portfolio || '—',
       status: p.status || p.health || 'Draft',
-      type: p.type || 'Commercial',
-      country: p.country || 'Armenia',
+      type: p.type || '—',
+      country: p.country || '—',
       region: p.region || '—',
       city: p.city || '—',
       address: p.address || '—',
-      timezone: p.timezone || 'Asia/Yerevan',
+      timezone: p.timezone || '—',
       capacityDc: typeof p.capacityDc === 'number' ? `${p.capacityDc} MWp` : (p.capacityDc || '0 MWp'),
       capacityAc: typeof p.capacityAc === 'number' ? `${p.capacityAc} MW` : (p.capacityAc || '0 MW'),
       gridCapacity: typeof p.gridCapacity === 'number' ? `${p.gridCapacity} MW` : (p.gridCapacity || '0 MW'),
       commissioning: p.commissioning || p.commissioned || '—',
-      owner: p.owner || p.clientName || p.ownerName || 'Local Client',
-      operator: p.operator || p.tenant || 'Tenant workspace',
-      om: p.om || p.serviceProvider || p.operator || p.tenant || 'Tenant workspace',
+      owner: p.owner || p.clientName || p.ownerName || '—',
+      operator: p.operator || p.tenant || '—',
+      om: p.om || p.serviceProvider || p.operator || p.tenant || '—',
       powerNow: p.powerNow || p.livePower || '0 kW',
       energyToday: p.energyToday || p.today || '0 kWh',
       alerts: Number(p.alerts || 0),
@@ -409,8 +409,8 @@ window.ZentridLocalStore = window.ZentridLocalStore || (() => {
       dataOrigin: p.dataOrigin || 'local',
       updated: p.updated || p.updatedAt || '',
       lastSyncAt: p.lastSyncAt || '',
-      sourceSystem: p.sourceSystem || p.vendor || (p.externalId === 'LOCAL-STORAGE' ? 'Manual / Local storage' : ''),
-      integration: p.integration || p.sourceSystem || p.vendor || 'Manual / Local storage',
+      sourceSystem: p.sourceSystem || p.vendor || '',
+      integration: p.integration || p.sourceSystem || p.vendor || '—',
       latitude: p.latitude || p.lat || '',
       longitude: p.longitude || p.lng || '',
       raw: p.raw || undefined
@@ -418,20 +418,20 @@ window.ZentridLocalStore = window.ZentridLocalStore || (() => {
   }
   function normalizeDeviceForClientModel(d: ZentridStoreRecord = {}): ZentridStoreRecord {
     return {
-      id: d.id || `DEV-${Date.now()}`,
+      id: d.id || '',
       plantId: d.plantId || '',
-      type: d.type || d.deviceType || 'Device',
-      name: d.name || d.deviceName || 'New Device',
-      vendor: d.vendor || d.manufacturer || 'Manual',
+      type: d.type || d.deviceType || '—',
+      name: d.name || d.deviceName || '—',
+      vendor: d.vendor || d.manufacturer || '—',
       manufacturer: d.manufacturer || d.vendor || 'Manual',
-      model: d.model || 'Manual Model',
-      serial: d.serial || d.serialNumber || d.sn || d.id || 'LOCAL-SERIAL',
+      model: d.model || '—',
+      serial: d.serial || d.serialNumber || d.sn || d.id || '—',
       capacity: d.capacity || d.ratedPower || '—',
       firmware: d.firmware || '—',
-      status: d.status || 'Online',
-      location: d.location || d.parent || 'Plant level',
-      lastSeen: d.lastSeen || 'Local draft',
-      children: d.children || 'No child objects yet'
+      status: d.status || '—',
+      location: d.location || d.parent || '—',
+      lastSeen: d.lastSeen || '—',
+      children: d.children || '—'
     };
   }
   return { KEYS, read, write, upsert, remove, byId, addTenant, addClient, addPlant, addDevice, addIntegration, normalizePlantForClientModel, normalizeDeviceForClientModel } satisfies ZentridLocalStoreApi;

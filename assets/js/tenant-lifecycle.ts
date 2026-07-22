@@ -32,7 +32,7 @@ const ZentridTenantLifecycle: ZentridTenantLifecycleApi = (() => {
 
   function origin(record: ZentridTenantLifecycleRecord): string {
     if (window.ZentridDataSource) return window.ZentridDataSource.origin(record, 'tenant');
-    return text(record.dataOrigin, 'mock').toLowerCase();
+    return text(record.dataOrigin, 'unavailable').toLowerCase();
   }
 
   function isBackendManaged(record: ZentridTenantLifecycleRecord): boolean {

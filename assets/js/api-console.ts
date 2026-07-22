@@ -334,7 +334,7 @@ function renderApiConsole(): string {
     <div class="panel-head"><div><h2>Contract Snapshot Coverage</h2><p>Sanitized fixtures lock the currently supported response shapes without storing tokens, credentials or production payloads.</p></div></div>
     <div class="data-table compact-table api-contract-snapshot-table">
       <div class="data-head"><span>Entity</span><span>Fixture</span><span>Endpoint</span><span>Coverage</span></div>
-      ${ZentridAPIDiagnostics.contractCatalog.map(item => `<div class="data-row"><strong>${escapeHtml(item.entity)}</strong><code>${escapeHtml(item.fixture)}</code><span>${escapeHtml(item.endpoint)}</span><span class="badge success">Snapshot tested</span></div>`).join('')}
+      ${ZentridAPIDiagnostics.contractCatalog.map(item => `<div class="data-row"><strong>${escapeHtml(item.entity)}</strong><code>Build-time contract</code><span>${escapeHtml(item.endpoint)}</span><span class="badge success">Verified</span></div>`).join('')}
     </div>
   </section>
 

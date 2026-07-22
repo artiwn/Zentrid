@@ -10,13 +10,13 @@ const api = (() => {
   const STORAGE_KEY = 'zentrid_api_diagnostics_previous_v130';
   const sensitiveKey = /(authorization|access.?token|refresh.?token|password|secret|api.?key|credential|cookie|private.?key)/i;
   const contractCatalog = [
-    { entity: 'clients', fixture: 'assets/fixtures/api-contracts/clients-list.json', endpoint: 'GET /api/admin/clients' },
-    { entity: 'tenants', fixture: 'assets/fixtures/api-contracts/tenants-list.json', endpoint: 'GET /api/admin/tenants' },
-    { entity: 'plants', fixture: 'assets/fixtures/api-contracts/plants-list.json', endpoint: 'GET /api/plants' },
-    { entity: 'devices', fixture: 'assets/fixtures/api-contracts/devices-list.json', endpoint: 'GET /api/devices' },
-    { entity: 'alerts', fixture: 'assets/fixtures/api-contracts/alerts-list.json', endpoint: 'GET /api/alerts' },
-    { entity: 'telemetry', fixture: 'assets/fixtures/api-contracts/telemetry-list.json', endpoint: 'GET /api/telemetry' },
-    { entity: 'integrations', fixture: 'assets/fixtures/api-contracts/integrations-list.json', endpoint: 'GET /api/integrations' }
+    { entity: 'clients', endpoint: 'GET /api/admin/clients' },
+    { entity: 'tenants', endpoint: 'GET /api/admin/tenants' },
+    { entity: 'plants', endpoint: 'GET /api/plants' },
+    { entity: 'devices', endpoint: 'GET /api/devices' },
+    { entity: 'alerts', endpoint: 'GET /api/alerts' },
+    { entity: 'telemetry', endpoint: 'GET /api/telemetry' },
+    { entity: 'integrations', endpoint: 'GET /api/integrations' }
   ];
 
   function endpointKey(result: Pick<ZentridRawRequestResult, 'method' | 'path'>): string {

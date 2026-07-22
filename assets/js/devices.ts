@@ -65,7 +65,6 @@ interface ZentridDevicePrimaryMetric {
 declare const ZentridLocalStore: ZentridLocalStoreApi;
 declare function plants(): Array<Record<string, unknown>>;
 
-const demoDevices: ZentridDeviceRecord[] = [];
 function saveDevices(_list: ZentridDeviceRecord[]): void { /* API-only: use a confirmed backend mutation. */ }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
 function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${d.status || 'Unknown'}</span>`; }
@@ -99,7 +98,7 @@ function wireDevices(): void {
     const select = document.getElementById('devicePlantSelect') as HTMLSelectElement | null;
     if (select) {
       let plantRows: Array<Record<string, unknown>> = [];
-      try { plantRows = typeof plants === 'function' ? plants() : (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.plants, []) as Array<Record<string, unknown>> : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]') as Array<Record<string, unknown>>); } catch(e) { plantRows = []; }
+      try { plantRows = typeof plants === 'function' ? plants() : (Array.isArray(window.ZentridLivePlants) ? window.ZentridLivePlants as Array<Record<string, unknown>> : []); } catch(e) { plantRows = []; }
       const current = localStorage.getItem('zentrid_device_filter_plant') || '';
       select.innerHTML = plantRows.map(p => `<option value="${String(p.id || '')}" ${String(p.id || '')===current?'selected':''}>${String(p.name || p.id || 'Plant')} · ${String(p.tenant || p.operator || 'Tenant')}</option>`).join('') || '<option value="">No plant selected</option>';
     }
@@ -198,7 +197,7 @@ function telemetrySummaryPanelV92(d: ZentridDeviceRecord): string {
     key==='meter' ? [['Import Today',deviceMetricValue(d,'todayImport')],['Export Today',deviceMetricValue(d,'todayExport')],['Total Import',deviceMetricValue(d,'import')],['Total Export',deviceMetricValue(d,'export')],['Voltage',deviceMetricValue(d,'voltage')],['Frequency',deviceMetricValue(d,'frequency')]] :
     key==='logger' ? [['Signal',deviceMetricValue(d,'signal')],['Data Lag',deviceMetricValue(d,'dataLag')],['Linked Devices',deviceMetricValue(d,'linked')],['WLAN',deviceMetricValue(d,'wlan')],['LAN IP',deviceMetricValue(d,'lanIp')],['Last Seen',d.lastSeen]] :
     [['Current Power',deviceMetricValue(d,'activePower')],['Daily Yield',deviceMetricValue(d,'dailyEnergy')],['Monthly Yield',d.monthlyYield || '4.82 MWh'],['Total Yield',deviceMetricValue(d,'totalYield')],['Temperature',deviceMetricValue(d,'temperature')],['Voltage / Current',`${deviceMetricValue(d,'lineVoltage')} · ${deviceMetricValue(d,'phaseCurrent')}`]];
-  return `<div class="section-title-v17"><div><h2>Telemetry Summary</h2><p class="muted">Mock normalized telemetry values. This view prepares the UI before live API connection.</p></div></div>
+  return `<div class="section-title-v17"><div><h2>Telemetry Summary</h2><p class="muted">Values returned by the telemetry API. Unavailable metrics remain blank.</p></div></div>
   <div class="device-monitoring-grid-v58">${deviceMiniChart(key==='battery'?'Storage Power':'Power Trend')}${deviceMiniChart(key==='meter'?'Import / Export':'Energy Trend')}</div>
   ${cardGrid(rows, 'device-param-grid-v58')}`;
 }
@@ -259,8 +258,6 @@ function deviceAuditPanelV92(d: ZentridDeviceRecord): string {
 }
 
 /* v59 Device Detail v2: type-driven workspace, topology and architecture */
-const zentridExtraDeviceTypesV59: ZentridDeviceRecord[] = [];
-const zentridDefaultDevicesV59: ZentridDeviceRecord[] = [...demoDevices, ...zentridExtraDeviceTypesV59];
 function devices(): ZentridDeviceRecord[] {
   return Array.isArray(window.ZentridLiveDevices) ? window.ZentridLiveDevices : [];
 }
@@ -485,7 +482,7 @@ function operatingDataGrid(d: ZentridDeviceRecord): string {
   return cardGrid([['Active Power',deviceMetricValue(d,'activePower')],['Reactive Power',deviceMetricValue(d,'reactivePower')],['Power Factor',deviceMetricValue(d,'powerFactor')],['Grid Frequency',deviceMetricValue(d,'frequency')],['Daily Energy',deviceMetricValue(d,'dailyEnergy')],['Total Yield',deviceMetricValue(d,'totalYield')],['Phase Current',deviceMetricValue(d,'phaseCurrent')],['Line Voltage',deviceMetricValue(d,'lineVoltage')],['Internal Temperature',deviceMetricValue(d,'temperature')],['Insulation Resistance',deviceMetricValue(d,'insulation')],['Startup Time',deviceMetricValue(d,'startup')],['Shutdown Time',deviceMetricValue(d,'shutdown')]]);
 }
 function deviceMiniChart(label: string): string {
-  return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${label}</strong><small>Mock trend · Last 24h</small></div><div class="mini-bar-chart-v20"><span style="height:25%"></span><span style="height:42%"></span><span style="height:66%"></span><span style="height:78%"></span><span style="height:92%"></span><span style="height:74%"></span><span style="height:54%"></span><span style="height:35%"></span></div></div>`;
+  return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${label}</strong><small>Telemetry unavailable</small></div><div class="mini-bar-chart-v20"><span style="height:25%"></span><span style="height:42%"></span><span style="height:66%"></span><span style="height:78%"></span><span style="height:92%"></span><span style="height:74%"></span><span style="height:54%"></span><span style="height:35%"></span></div></div>`;
 }
 
 function deviceTelemetryCharts(d: ZentridDeviceRecord): string {
@@ -543,7 +540,7 @@ function configurationPanel(d: ZentridDeviceRecord): string {
 function remoteControlPanel(d: ZentridDeviceRecord): string {
   const key=deviceTypeKey(d);
   const actions = key==='logger' ? ['Restart Communication','Search for Devices','Run Connectivity Test','Refresh Linked Devices'] : key==='battery' ? ['Manual Battery Health Check','Charge / Discharge Mode','Set SOC Reserve','Emergency Stop'] : key==='meter' ? ['Refresh Measurements','Verify Accounting Point','Sync Meter Clock'] : key==='weather' ? ['Refresh Sensors','Run Sensor Check','Calibrate Sensor'] : key==='module' ? ['Refresh Module Data','Locate Module','Open Parent Microinverter'] : ['Device Start / Stop','Active Power Adjustment','Reactive Power Adjustment','Power Factor Adjustment','Firmware Upgrade'];
-  return `<div class="device-control-grid-v58">${actions.map(a=>`<button type="button"><strong>${a}</strong><small>Capability-gated · audit required</small></button>`).join('')}</div><p class="muted device-note-v58">Write-actions are mock controls for UX validation. In production they must use capability flags, confirmation, approval rules and immutable audit log.</p>`;
+  return `<div class="device-control-grid-v58">${actions.map(a=>`<button type="button"><strong>${a}</strong><small>Capability-gated · audit required</small></button>`).join('')}</div><p class="muted device-note-v58">Remote write actions remain disabled until the backend confirms capabilities, approval rules and audit support.</p>`;
 }
 function deviceLazyPanel(tab: ZentridDeviceTab, content: string): string {
   return window.ZentridDetailLazyTabs?.panel('device', String(tab || 'overview'), content) || content;

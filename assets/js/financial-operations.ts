@@ -65,7 +65,7 @@ window.FinancialOperations = (() => {
   function savePlans(rows: ZentridLegacyCompat){ localStorage.setItem(tariffStorageKey, JSON.stringify(rows)); }
   function assignments(){ return safeParse(assignmentStorageKey, []); }
   function saveAssignments(rows: ZentridLegacyCompat){ localStorage.setItem(assignmentStorageKey, JSON.stringify(rows)); }
-  function tenants(){ try { const rows = JSON.parse(localStorage.getItem('zentrid_demo_tenants') || '[]'); if(rows.length) return rows; } catch(e){} if(window.ZentridDemo?.tenants) return window.ZentridDemo.tenants(); return [{id:'TNT-1001',name:'Sunridge Energy Group',code:'TN-SUNRIDGE'},{id:'TNT-1002',name:'Northpeak Operations',code:'TN-NORTHOPS'},{id:'TNT-1003',name:'Gamma Grid Services',code:'TN-GAMMA'},{id:'TNT-1004',name:'HelioWest Enterprise',code:'TN-HELIO'}]; }
+  function tenants(){ return Array.isArray(window.ZentridLiveTenants) ? window.ZentridLiveTenants : []; }
   function currentPlanSnapshot(){ return { ...clone(state.draft), id: state.draft.id || 'TRF-' + Date.now(), updatedAt: new Date().toISOString(), calculationPreview: calc() }; }
 
   function esc(v: ZentridLegacyCompat){ return String(v ?? '').replace(/[&<>"']/g, (c: ZentridLegacyCompat) => (({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' } as ZentridLegacyCompat)[c])); }

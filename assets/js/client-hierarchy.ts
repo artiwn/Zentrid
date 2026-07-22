@@ -1387,7 +1387,7 @@ function clientDetailSectionTitle(tab: ClientDetailTabKey): string {
 }
 function clientDetailSectionContext(record: ZentridClientRecord, tab: ClientDetailTabKey, editable = clientDetailEditMode): string {
   const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:clientDetailBackendManaged(record), archived:clientDetailIsArchived(record), sectionEditable:clientDetailEditableTab(tab) });
-  const help = editable ? 'Review the highlighted fields before saving locally.' : clientDetailEditableTab(tab) ? 'Use Edit to change this local or mock client record.' : 'This section is derived from linked operational data.';
+  const help = editable ? 'Review the highlighted fields before saving locally.' : clientDetailEditableTab(tab) ? 'Editing is available only for supported backend or session records.' : 'This section is derived from linked operational data.';
   return `<div class="client-section-context-v118"><div><span>${clientDetailEscape(mode)}</span><strong>${clientDetailEscape(clientDetailSectionTitle(tab))}</strong><small>${clientDetailEscape(help)}</small></div></div>`;
 }
 function clientDetailInput(key: keyof ZentridClientRecord, label: string, value: unknown, options?: string[], type = 'text', required = false): string {
@@ -2027,7 +2027,7 @@ function clientContactsPortalTab(client: ZentridClientRecord, plants: ZentridPla
   <div class="section-title-v17 mini"><div><h3>Portal Usage</h3><p class="muted">Useful support indicators without exposing the full RBAC matrix here.</p></div></div>
   <div class="placeholder-grid compact-cards client-ops-grid-v40">
     <article><span>Portal Status</span><strong>${client.username ? 'Active' : 'Pending'}</strong><small>${client.activationAt || 'Activation date unavailable'}</small></article>
-    <article><span>Last Login</span><strong>${client.username ? '2 days ago' : 'No login yet'}</strong><small>Mock support signal</small></article>
+    <article><span>Last Login</span><strong>${client.username ? '2 days ago' : 'No login yet'}</strong><small>Backend support signal unavailable</small></article>
     <article><span>MFA</span><strong>${client.username ? 'Recommended' : 'Not configured'}</strong><small>Security policy snapshot</small></article>
     <article><span>Export Policy</span><strong>${client.exportPolicy || 'Not configured'}</strong><small>Reports and document exports</small></article>
   </div>`;
@@ -2134,7 +2134,7 @@ function clientCommercialPaymentsTab(client: ZentridClientRecord, plants: Zentri
   </div>
   <div class="info-grid commercial-client-grid-v90">
     <div><span>Commercial Model</span><strong>${profile.model}</strong><small>Defines how assigned plants create billable value</small></div>
-    <div><span>Estimated Monthly Revenue</span><strong>${profile.estimatedRevenue}</strong><small>Mock value from assigned plant production and sale rate</small></div>
+    <div><span>Estimated Monthly Revenue</span><strong>${profile.estimatedRevenue}</strong><small>Calculated value unavailable until the backend provides the required inputs</small></div>
     <div><span>Payment Terms</span><strong>${profile.paymentTerms}</strong><small>${profile.invoiceCycle}</small></div>
     <div><span>Energy Buyer</span><strong>${profile.energyBuyer}</strong><small>${profile.salesChannel}</small></div>
     <div><span>Payment Destination</span><strong>${profile.destination}</strong><small>${profile.bank} · ${profile.iban}</small></div>
@@ -2248,7 +2248,7 @@ function plantDetailFreshness(record: ZentridPlantRecord): string {
     timestampKeys:['lastSyncAt','updated','raw.lastSyncAt','raw.lastSyncAtUtc','raw.updatedAt'],
     localPrefix:'Last local change:',
     localEmpty:'Local prototype record · no backend freshness',
-    mockEmpty:'Mock record · no backend freshness'
+    unavailableEmpty:'No backend freshness available'
   });
 }
 function plantDetailModeCopy(record: ZentridPlantRecord): { tone: PlantDetailFeedbackTone; title: string; message: string } {
@@ -2282,7 +2282,7 @@ function plantDetailSectionTitle(tab: PlantDetailTabKey): string {
 }
 function plantDetailSectionContext(record: ZentridPlantRecord, tab: PlantDetailTabKey, editable = plantDetailEditMode): string {
   const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:plantDetailBackendManaged(record), archived:plantDetailArchived(record), sectionEditable:plantDetailEditableTab(tab), readonlyLabel:'Operational read-only' });
-  const help = editable ? 'Validate the highlighted fields before saving locally.' : plantDetailEditableTab(tab) ? 'Use Edit to change this local or mock plant record.' : 'This section is derived from devices, telemetry or operational records.';
+  const help = editable ? 'Validate the highlighted fields before saving locally.' : plantDetailEditableTab(tab) ? 'Editing is available only for supported backend or session records.' : 'This section is derived from devices, telemetry or operational records.';
   return `<div class="plant-section-context-v119"><div><span>Section mode</span><strong>${plantDetailEscape(mode)}</strong><small>${plantDetailEscape(help)}</small></div></div>`;
 }
 function plantDetailNumber(value: unknown): number {

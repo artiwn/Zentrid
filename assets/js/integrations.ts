@@ -815,12 +815,12 @@ function setWizardIntegrationStatus(status: string): void{
 function isArchivedIntegration(x: Partial<IntegrationRecord>): boolean{
   return String(x?.status || '').toLowerCase() === 'archived';
 }
-const archivedIntegrationMocks: IntegrationArchiveRecord[] = [];
+const archivedIntegrationPlaceholders: IntegrationArchiveRecord[] = [];
 
 function archivedIntegrationRecords(): IntegrationArchiveRecord[]{
   const existing = integrations.filter(isArchivedIntegration);
   const ids = new Set(existing.map(x => x.id));
-  return [...existing, ...archivedIntegrationMocks.filter(x => !ids.has(x.id))];
+  return [...existing, ...archivedIntegrationPlaceholders.filter(x => !ids.has(x.id))];
 }
 
 function archiveActionMenu(id: unknown): string{
@@ -951,7 +951,7 @@ function openArchivedIntegrationDetail(id: unknown): void{
     </section>
 
     <section class="archive-detail-section-v58">
-      <div class="section-title-v58"><h3>Related Documents</h3><p>Mock archive evidence and export artifacts.</p></div>
+      <div class="section-title-v58"><h3>Related Documents</h3><p>Archive evidence and export artifacts are unavailable until the backend provides them.</p></div>
       <div class="archive-doc-list-v58">
         ${docs.map((d, i) => `<article><strong>${d}</strong><small>${i === 0 ? 'Migration / archive evidence' : i === 1 ? 'Approval record' : 'Technical export package'}</small><button onclick="ZentridLayout.toast('Opening ${d}')">Open</button></article>`).join('')}
       </div>

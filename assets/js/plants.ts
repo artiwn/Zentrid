@@ -113,8 +113,6 @@ interface ZentridPlantSidebarGroup {
   description?: string;
 }
 
-const demoPlantSeed: ZentridPlant[] = [];
-
 function plants(): ZentridPlant[] {
   return Array.isArray(window.ZentridLivePlants) ? window.ZentridLivePlants : [];
 }

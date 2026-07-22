@@ -25,11 +25,11 @@ type ZentridEntityFreshnessOptions = {
   liveEmpty?: string;
   mixedEmpty?: string;
   localEmpty?: string;
-  mockEmpty?: string;
+  unavailableEmpty?: string;
   livePrefix?: string;
   mixedPrefix?: string;
   localPrefix?: string;
-  mockPrefix?: string;
+  unavailablePrefix?: string;
 };
 
 type ZentridEntityFeedbackOptions = {
@@ -130,8 +130,8 @@ const ZentridEntityDetailUX = (() => {
         : options.localEmpty || 'Stored only in this browser';
     }
     return value
-      ? `${options.mockPrefix || 'Prototype data · updated'} ${String(value)}`
-      : options.mockEmpty || 'Prototype dataset · no backend freshness';
+      ? `${options.unavailablePrefix || 'Backend freshness unavailable · updated'} ${String(value)}`
+      : options.unavailableEmpty || 'No backend freshness available';
   }
 
   function modeCopy(record: unknown, entity: string, options: ZentridEntityDetailModeOptions): ZentridEntityDetailModeCopy {

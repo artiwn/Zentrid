@@ -330,7 +330,7 @@
 
   const DATA_SOURCE_MESSAGES: Record<ZentridDataOrigin, string> = {
     live: 'Displayed records come from live backend responses.',
-    mock: 'Prototype records are disabled in API-only mode.',
+    unavailable: 'No backend-provenance record is displayed in API-only mode.',
     local: 'Browser-created business records are disabled in API-only mode.',
     mixed: 'Displayed records come from multiple backend endpoints or API cache layers.'
   };
@@ -341,7 +341,7 @@
     const origins = new Set<ZentridDataOrigin>();
     for (const chip of chips) {
       const origin = chip.dataset.recordOrigin;
-      if (origin === 'live' || origin === 'mock' || origin === 'local' || origin === 'mixed') origins.add(origin);
+      if (origin === 'live' || origin === 'unavailable' || origin === 'local' || origin === 'mixed') origins.add(origin);
     }
     if (origins.size > 1) return 'mixed';
     return origins.values().next().value || 'live';
@@ -695,7 +695,7 @@
   }
 
   function applyOverviewDataFromLive(payload: Required<LiveSnapshotPayload>): void {
-    const store = window.ZentridMock;
+    const store = window.ZentridOverviewData;
     if (!store) return;
     const snap = snapshotFromLive(payload);
     const currentPowerText = payload.plants.some(row => row.currentPowerKw !== undefined && row.currentPowerKw !== null)
