@@ -178,8 +178,8 @@ The repository includes `.github/workflows/ci.yml`. Push the project with Git so
 
 `scripts/check-package-registry.js` validates that `package-lock.json` references only `https://registry.npmjs.org/`. Vercel and CI also pass the public registry explicitly to `npm ci`, so deployment does not depend on uploading a hidden `.npmrc` file.
 
-- Unified live-data states for active API pages: loading, live, partial, empty, timeout, unauthorized, forbidden, unavailable, and mock fallback.
-- Explicit data provenance for active API screens: Live API, Mock data, Local changes, and Mixed sources.
+- Unified live-data states for active API pages: loading, live, partial, empty, timeout, unauthorized, forbidden, unavailable, and unavailable backend state.
+- Explicit data provenance for active API screens: Live API, Test fixtures, Local changes, and Mixed sources.
 
 ## API contract layer (v105)
 
@@ -200,7 +200,7 @@ Successful Tenant, Client, Plant and Provider Integration write actions now emit
 
 ## Tenant lifecycle actions (v111)
 
-Tenant Detail now performs real backend activate, deactivate and archive operations for Live API Tenant records through `assets/js/tenant-lifecycle.ts` and `ZentridAPIMutations`. Mock and local records are gated, destructive actions require confirmation, retriable failures expose Retry, and successful mutations reload from the backend after repository cache invalidation. Run `npm run check:tenant-lifecycle` to verify the workflow. See `docs/TENANT_LIFECYCLE_V111.md`.
+Tenant Detail now performs real backend activate, deactivate and archive operations for Live API Tenant records through `assets/js/tenant-lifecycle.ts` and `ZentridAPIMutations`. Unavailable and local records are gated, destructive actions require confirmation, retriable failures expose Retry, and successful mutations reload from the backend after repository cache invalidation. Run `npm run check:tenant-lifecycle` to verify the workflow. See `docs/TENANT_LIFECYCLE_V111.md`.
 
 
 ## API Field Mapping Audit v128
