@@ -147,7 +147,7 @@ window.BillingConfiguration = (() => {
         return `<section class="module-grid commercial-kpis-v78 billing-kpi-grid">
           <article class="module-card"><span>Active Billing Cycle</span><strong>${cycle.id}</strong><small>${cycle.progress}% completed</small></article>
           <article class="module-card"><span>Open Invoices</span><strong>${open}</strong><small>Draft / sent / overdue</small></article>
-          <article class="module-card"><span>Current Invoice Value</span><strong>${money(total)}</strong><small>Mixed source mock data</small></article>
+          <article class="module-card"><span>Current Invoice Value</span><strong>${money(total)}</strong><small>Backend source unavailable</small></article>
           <article class="module-card"><span>Overdue Invoices</span><strong>${overdue}</strong><small>Collections queue</small></article>
         </section>`;
       }

@@ -6,7 +6,7 @@ ZentridLayout.mount(`
           <h1>Exception Center</h1>
           <p class="muted">Operational queue for normalization failures across production, alerts, storage, mappings, units, timestamps and raw vendor payloads.</p>
         </div>
-        <button class="freshness-card" onclick="ZentridLayout.toast('Exception Center: mock governance workspace only')">
+        <button class="freshness-card" onclick="ZentridLayout.toast('Exception Center: backend endpoint not connected')">
           <span class="pulse"></span>
           <div><strong>1,742 open exceptions</strong><small>428 queued · 37 SLA risk</small></div>
         </button>
@@ -55,7 +55,7 @@ ZentridLayout.mount(`
         </div>
 
         <div class="pn-tab-panel active" data-panel="queue">
-          <div class="mapping-note"><strong>Exception Queue:</strong> every row represents a failed normalization group. Actions are UI mock actions now; later they will call Data Governance APIs.</div>
+          <div class="mapping-note"><strong>Exception Queue:</strong> every row represents a failed normalization group. Actions are disabled UI actions until the backend endpoint is connected; later they will call Data Governance APIs.</div>
           <div class="data-table pn-table ex-queue-table">
             <div class="data-head"><span>Exception</span><span>Source</span><span>Domain</span><span>Count</span><span>Owner</span><span>Actions</span><span>Status</span></div>
             <button class="data-row" onclick="ZentridLayout.toast('Unknown plant exception opened')"><div><strong>Unknown Plant</strong><small>vendor plant id PLANT_EXT_884 has no internal match</small></div><div>Huawei FusionSolar</div><div>Production</div><div>342</div><div>Data Governance</div><div class="row-actions"><span>Correct Mapping</span><span>Assign Owner</span></div><div><span class="badge danger">Open</span></div></button>

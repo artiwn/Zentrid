@@ -6,7 +6,7 @@ ZentridLayout.mount(`
           <h1>Mapping Rules</h1>
           <p class="muted">Central rule library for production, alert, storage, unit, timestamp, status, formula and conditional transformations before normalized data enters Zentrid core.</p>
         </div>
-        <button class="freshness-card" onclick="ZentridLayout.toast('Mapping rule governance workspace: mock view only')">
+        <button class="freshness-card" onclick="ZentridLayout.toast('Mapping rule governance workspace: backend endpoint not connected')">
           <span class="pulse"></span>
           <div><strong>Rule library v2.1</strong><small>64 active rules · 7 pending approval</small></div>
         </button>

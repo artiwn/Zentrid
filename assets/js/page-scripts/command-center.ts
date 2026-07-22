@@ -7,7 +7,7 @@ const commandCenterPlaceholder = `
         </div>
         <button class="freshness-card" onclick="ZentridLayout.toast('Placeholder: no invented data added')">
           <span class="pulse"></span>
-          <div><strong>Scope pending</strong><small>No mock operational content</small></div>
+          <div><strong>Scope pending</strong><small>No backend operational data</small></div>
         </button>
       </section>
       <section class="panel glass-card placeholder-page">

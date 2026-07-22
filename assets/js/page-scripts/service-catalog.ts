@@ -118,7 +118,7 @@ const serviceCatalog: ServiceCatalogRow[] = [
       open(type: string, title: string, meta: string): void{
         const layout = ZentridLayout as unknown as ZentridLayoutLegacyApi;
         if(window.ZentridLayout && layout.drawer){
-          layout.drawer(type, {Title:title, Context:meta, Status:'Mock detail'}, '<div class="drawer-action-grid"><button>Edit Draft</button><button>Validate</button><button>Map Pricing</button><button>View Audit</button></div>');
+          layout.drawer(type, {Title:title, Context:meta, Status:'Backend detail unavailable'}, '<div class="drawer-action-grid"><button>Edit Draft</button><button>Validate</button><button>Map Pricing</button><button>View Audit</button></div>');
         } else this.toast(type+': '+title);
       }
     };
