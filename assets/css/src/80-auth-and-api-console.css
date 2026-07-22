@@ -263,10 +263,19 @@
   width: 100%;
   max-width: none;
   align-self: stretch;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .api-check-card .api-diagnostic-metrics > div {
-  width: auto;
+  width: 100%;
   min-width: 0;
+}
+
+.api-check-card .api-diagnostic-metrics > div > strong {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

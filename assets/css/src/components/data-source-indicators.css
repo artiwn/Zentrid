@@ -1,4 +1,4 @@
-/* Zentrid record provenance: Live API, mock fallback, local browser changes, or mixed sources. */
+/* Zentrid record provenance: live API, unavailable, local session changes, or mixed sources. */
 .data-source-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -99,12 +99,12 @@
   color: #5eead4;
 }
 
-.record-origin-chip.mock,
-.data-source-summary.mock {
+.record-origin-chip.unavailable,
+.data-source-summary.unavailable {
   border-color: rgba(251, 191, 36, 0.34);
 }
 
-.record-origin-chip.mock {
+.record-origin-chip.unavailable {
   background: rgba(146, 64, 14, 0.16);
   color: #fcd34d;
 }
