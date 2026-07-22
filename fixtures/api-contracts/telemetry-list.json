@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "telemetryId": "TM-SNAPSHOT-001",
+      "metricName": "Current Power",
+      "value": 1250.5,
+      "unit": "kW",
+      "measuredAtUtc": "2026-07-22T08:00:00Z",
+      "sourcePlantId": "PLANT-SNAPSHOT-001",
+      "sourceDeviceId": "DEVICE-SNAPSHOT-001",
+      "provider": "Huawei",
+      "dataQualityStatus": "Fresh"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "totalCount": 1,
+  "totalPages": 1
+}
