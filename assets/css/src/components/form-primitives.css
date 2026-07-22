@@ -8,7 +8,18 @@ textarea { min-height: 84px; resize: vertical; padding: 12px; }
 label { display: grid; gap: 7px; color: #cbd8e7; font-size: 12px; font-weight: 750; }
 label.full, .full { grid-column: 1 / -1; }
 label.check { grid-template-columns: 18px 1fr; align-items: center; min-height: 42px; border: 1px solid rgba(148,163,184,.13); background: rgba(255,255,255,.035); border-radius: 13px; padding: 10px 12px; }
-label.check input { width: 18px; min-height: 18px; }
+label.check input { width: 16px; min-height: 16px; }
+label.check input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  padding: 0 !important;
+  margin: 0;
+  border-radius: 4px;
+  accent-color: #22d3ee;
+  justify-self: start;
+}
 
 /* Accessible focus and compact-screen form behavior. */
 input:focus-visible,

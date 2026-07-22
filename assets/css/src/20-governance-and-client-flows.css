@@ -1116,6 +1116,29 @@
   min-width: 0;
   box-sizing: border-box;
 }
+.client-user-editor-v118 input,
+.client-user-editor-v118 select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(8,18,34,.74);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+  font: inherit;
+  line-height: 1.2;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.client-user-editor-v118 input::placeholder { color: rgba(159,176,197,.72); }
+.client-user-editor-v118 input:focus,
+.client-user-editor-v118 select:focus {
+  border-color: rgba(80,203,255,.55);
+  box-shadow: 0 0 0 3px rgba(80,203,255,.10);
+  background: rgba(8,18,34,.9);
+}
+.client-user-editor-v118 input:invalid:not(:placeholder-shown) {
+  border-color: rgba(248,113,113,.52);
+}
 .client-edit-grid-v118 textarea { min-height: 92px; resize: vertical; }
 .client-detail-summary-v118 { margin-bottom: 14px; }
 .client-document-editor-v118,

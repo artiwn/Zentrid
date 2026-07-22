@@ -243,3 +243,30 @@
   overflow-wrap: anywhere;
 }
 
+/* API-only empty state spacing and diagnostics width */
+.empty-state.zentrid-api-data-empty > strong,
+.empty-state.zentrid-api-data-empty > small,
+.empty-state.zentrid-api-data-empty .zentrid-ux-state-copy > strong,
+.empty-state.zentrid-api-data-empty .zentrid-ux-state-copy > small {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.empty-state.zentrid-api-data-empty > strong + small,
+.empty-state.zentrid-api-data-empty .zentrid-ux-state-copy > strong + small {
+  margin-top: 8px;
+}
+
+.api-check-card .api-diagnostic-metrics {
+  display: grid;
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.api-check-card .api-diagnostic-metrics > div {
+  width: auto;
+  min-width: 0;
+}

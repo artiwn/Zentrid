@@ -374,6 +374,21 @@ h3.full { margin: 0; color: var(--text); }
   color: var(--muted);
   text-align: center;
 }
+
+/* Global empty-state typography: keep titles and supporting copy on separate lines. */
+.empty-state > :is(strong, small, span, p),
+.empty-state .zentrid-ux-state-copy > :is(strong, small, span, p) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+.empty-state > strong + :is(small, span, p),
+.empty-state .zentrid-ux-state-copy > strong + :is(small, span, p) {
+  margin-top: 8px;
+}
 @media (max-width: 1180px) {
   .filter-bar,
   .compact-kpis,
