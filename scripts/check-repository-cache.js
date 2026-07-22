@@ -48,7 +48,11 @@ const context = { safeText, firstOf, displayName, formatDate, integrationVendor,
 let releaseClients;
 let releaseAlerts;
 let clientCalls = 0;
+let clientDetailCalls = 0;
 let tenantCalls = 0;
+let tenantDetailCalls = 0;
+let plantDetailCalls = 0;
+let integrationDetailCalls = 0;
 let alertCalls = 0;
 const listeners = new Map();
 const clientGate = new Promise(resolve => { releaseClients = resolve; });
@@ -88,15 +92,29 @@ const sandbox = {
     clients: {
       async list() {
         return { items: [{ clientId: 'C-1', clientName: 'Client One', nested: { source: 'backend' } }] };
+      },
+      async get(id) {
+        clientDetailCalls += 1;
+        return { data: { clientId: id, clientName: 'Client One', nested: { source: 'detail' } } };
       }
     },
     tenants: {
       async list() {
         if (tenantCalls === 1) throw new Error('temporary tenant failure');
         return { items: [{ tenantId: 'T-1', tenantName: 'Tenant One' }] };
+      },
+      async get(id) {
+        tenantDetailCalls += 1;
+        return { data: { tenantId: id, tenantName: 'Tenant One', nested: { source: 'detail' } } };
       }
     },
-    plantRegistry: { async list() { return { items: [] }; } },
+    plantRegistry: {
+      async list() { return { items: [] }; },
+      async get(id) {
+        plantDetailCalls += 1;
+        return { data: { id, sourcePlantId: 'EXT-P-1', plantName: 'Plant One', installedPowerKw: 1000, nested: { source: 'detail' } } };
+      }
+    },
     live: {
       async plants() { return { items: [] }; },
       async devices() { return { items: [] }; },
@@ -105,7 +123,13 @@ const sandbox = {
       },
       async integrations() { return { items: [] }; }
     },
-    providerIntegrations: { async list() { return { items: [] }; } }
+    providerIntegrations: {
+      async list() { return { items: [] }; },
+      async get(id) {
+        integrationDetailCalls += 1;
+        return { data: { id, provider: 'Huawei', integrationName: 'Integration One', status: 'Active', nested: { source: 'detail' } } };
+      }
+    }
   }
 };
 sandbox.window.ZentridAPI = sandbox.ZentridAPI;
@@ -124,15 +148,21 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
 
     const first = repositories.clients.list();
     const shared = repositories.clients.list();
-    const sharedGet = repositories.clients.get('C-1');
+    const third = repositories.clients.list();
     expect(clientCalls === 1, 'Concurrent Client reads did not start as one backend request.');
     const pending = repositories.cache.snapshot('clients')[0];
     expect(pending.inFlight === true && pending.deduplicated === 2, 'In-flight Client reads were not recorded as deduplicated.');
 
     releaseClients();
-    const [firstResult, sharedResult, itemResult] = await Promise.all([first, shared, sharedGet]);
-    expect(firstResult.items[0].id === 'C-1' && itemResult.item?.id === 'C-1', 'Deduplicated Client results are incorrect.');
+    const [firstResult, sharedResult, thirdResult] = await Promise.all([first, shared, third]);
+    expect(firstResult.items[0].id === 'C-1' && thirdResult.items[0].id === 'C-1', 'Deduplicated Client results are incorrect.');
     expect(firstResult !== sharedResult && firstResult.items !== sharedResult.items, 'Concurrent consumers received the same result references.');
+
+    const detailFirst = repositories.clients.get('C-1');
+    const detailShared = repositories.clients.get('C-1');
+    const [detailFirstResult, detailSharedResult] = await Promise.all([detailFirst, detailShared]);
+    expect(clientDetailCalls === 1, 'Concurrent Client Detail reads did not deduplicate by selected ID.');
+    expect(detailFirstResult.item?.id === 'C-1' && detailSharedResult.item?.raw.nested.source === 'detail', 'Direct Client Detail cache results are incorrect.');
 
     firstResult.items[0].name = 'Mutated by first consumer';
     firstResult.items[0].raw.nested.source = 'mutated';
@@ -159,6 +189,24 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     expect(repositories.cache.snapshot('tenants')[0].cached === false, 'A failed Tenant request was cached.');
     const tenantResult = await repositories.tenants.list();
     expect(tenantCalls === 2 && tenantResult.items[0].id === 'T-1', 'Tenant retry after a failed request did not reach the backend.');
+
+    const tenantDetailFirst = repositories.tenants.get('T-1');
+    const tenantDetailShared = repositories.tenants.get('T-1');
+    const [tenantDetailFirstResult, tenantDetailSharedResult] = await Promise.all([tenantDetailFirst, tenantDetailShared]);
+    expect(tenantDetailCalls === 1, 'Concurrent Tenant Detail reads did not deduplicate by selected ID.');
+    expect(tenantDetailFirstResult.item?.id === 'T-1' && tenantDetailSharedResult.item?.raw.nested.source === 'detail', 'Direct Tenant Detail cache results are incorrect.');
+
+    const plantDetailFirst = repositories.plants.get('P-1');
+    const plantDetailShared = repositories.plants.get('P-1');
+    const [plantDetailFirstResult, plantDetailSharedResult] = await Promise.all([plantDetailFirst, plantDetailShared]);
+    expect(plantDetailCalls === 1, 'Concurrent Plant Detail reads did not deduplicate by selected ID.');
+    expect(plantDetailFirstResult.item?.id === 'P-1' && plantDetailSharedResult.item?.raw.adminRecord?.nested?.source === 'detail', 'Direct Plant Detail cache results are incorrect.');
+
+    const integrationDetailFirst = repositories.integrations.get('I-1');
+    const integrationDetailShared = repositories.integrations.get('I-1');
+    const [integrationDetailFirstResult, integrationDetailSharedResult] = await Promise.all([integrationDetailFirst, integrationDetailShared]);
+    expect(integrationDetailCalls === 1, 'Concurrent Integration Detail reads did not deduplicate by selected ID.');
+    expect(integrationDetailFirstResult.item?.id === 'I-1' && integrationDetailSharedResult.item?.raw.nested.source === 'detail', 'Direct Integration Detail cache results are incorrect.');
 
     const authListener = listeners.get('zentrid:auth');
     expect(typeof authListener === 'function', 'Repository cache did not subscribe to auth lifecycle changes.');

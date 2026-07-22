@@ -8,6 +8,9 @@ const hierarchy = read('assets/js/client-hierarchy.ts');
 const detailFoundation = read('assets/js/entity-detail-ux.ts');
 const detailSource = hierarchy + '\n' + detailFoundation;
 const live = read('assets/js/live-api-ui.ts');
+const plantsPage = read('assets/js/plants.ts');
+const repositories = read('assets/js/api-repositories.ts');
+const platform = read('assets/js/platform-api.ts');
 const data = read('assets/js/data.ts');
 const page = read('pages/plant-detail.html');
 const css = read('assets/css/src/20-governance-and-client-flows.css');
@@ -35,6 +38,15 @@ expect(page.includes('entity-detail-ux.js'), 'Detail page must load the shared E
 expect(page.indexOf('form-ux.js') < page.indexOf('entity-detail-ux.js'), 'Entity Detail UX must load after form-ux.js.');
 expect(page.indexOf('form-ux.js') < page.indexOf('client-hierarchy.js'), 'form-ux.js must load before client-hierarchy.js on Plant Detail.');
 expect(live.includes("dataOrigin: 'live'") && live.includes('lastSyncAt: plant.lastSyncAt'), 'Live Plant Detail records must preserve origin and freshness.');
+expect(live.includes('ZentridAPIRepositories.plants.get(selectedAdminId'), 'Plant Detail must call GET by ID only with a confirmed administrative plant ID.');
+expect(live.includes('selectedPlantAdministrativeId') && live.includes('zentrid_selected_plant_context'), 'Plant Detail must keep live and administrative plant identities paired.');
+expect(live.includes("sessionStorage.getItem('zentrid_plant_create_fallback')") && live.includes('No backend detail request was sent for the temporary local identifier.'), 'Plant Detail must open a temporary create fallback without sending its local ID to the backend.');
+expect(live.includes("localStorage.setItem('zentrid_selected_plant', renderedId)"), 'Plant Detail must retain the rendered plant identity without replacing it with an incompatible admin ID.');
+expect(plantsPage.includes('function rememberPlantSelection') && plantsPage.includes('plantAdministrativeId') && plantsPage.includes('zentrid_selected_plant_context'), 'Plant Registry must store a paired live/admin identity before opening Plant Detail.');
+expect(repositories.includes('ZentridPlatformAPI.plantRegistry.get(id, requestOptions)'), 'Plant repository does not use the backend administrative detail endpoint.');
+expect(repositories.includes("'/api/plants'") && repositories.includes('mergePlantSources(liveRecord ? [liveRecord] : [], [adminRecord])'), 'Plant Detail must preserve live operational enrichment after the direct administrative read.');
+expect(platform.includes("path: '/api/admin/plants/{id}'") && platform.includes("used: true") && platform.includes('Used by Plant Detail'), 'API Console must mark the Plant Detail endpoint as used.');
+expect(platform.includes("label: 'Create Admin Plant'") && platform.includes("path: '/api/admin/plants'") && platform.includes("used: true") && platform.includes('Used by the existing Create Plant wizard'), 'API Console must mark the Create Plant endpoint as used.');
 expect(data.includes("dataOrigin: p.dataOrigin || 'local'") && data.includes('sourceSystem: p.sourceSystem'), 'Local plant normalization must preserve source-aware metadata.');
 expect(hierarchy.includes('ZentridClientModel.plants[existingIndex] = { ...ZentridClientModel.plants[existingIndex]!, ...p }'), 'Saved local plant overrides must replace built-in records after reload.');
 [

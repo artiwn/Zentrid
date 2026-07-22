@@ -93,6 +93,7 @@ const ZentridAPI = {
     if (path.startsWith('/api/plants?')) return { items: [{ id: 'P-1', plantName: 'Plant One', provider: 'Huawei' }], totalPages: 1 };
     if (path.startsWith('/api/admin/plants?')) return { items: [{ id: 'P-1', plantName: 'Plant One', provider: 'Huawei' }], totalPages: 1 };
     if (path.startsWith('/api/devices?')) return { items: [{ id: 'D-1', deviceName: 'Device One', provider: 'Huawei', sourcePlantId: 'P-1' }], totalPages: 1 };
+    if (path.startsWith('/api/telemetry?')) return { items: [{ telemetryId: 'TM-1', metricName: 'Current Power', value: 1200, unit: 'kW' }], totalPages: 1 };
     if (path === '/api/alerts') return { items: [{ id: 'A-1', title: 'Alert One', provider: 'Huawei', severity: 'Warning' }] };
     if (path === '/api/integrations') return { items: [{ id: 'I-1', integrationName: 'Integration One', provider: 'Huawei', status: 'Active' }] };
     if (path === '/api/admin/provider-integrations') return { items: [] };
@@ -150,7 +151,7 @@ const repositories = sandbox.window.ZentridAPIRepositories;
 
     await Promise.all([
       repositories.clients.list(), repositories.tenants.list(), repositories.plants.list(),
-      repositories.devices.list(), repositories.alerts.list(), repositories.integrations.list()
+      repositories.devices.list(), repositories.alerts.list(), repositories.telemetry.list(), repositories.integrations.list()
     ]);
     expect(repositories.cache.snapshot().every(entry => entry.cached), 'Initial repository caches were not primed.');
 

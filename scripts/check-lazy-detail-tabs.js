@@ -42,11 +42,19 @@ expect(!deviceDetailSection.includes('void ZentridAPIRepositories.alerts.list'),
 expect(!plantDetailSection.includes('void ZentridAPIRepositories.devices.list'), 'Plant Detail still starts the old eager device relation request.');
 expect(!plantDetailSection.includes('void ZentridAPIRepositories.alerts.list'), 'Plant Detail still starts the old eager alert relation request.');
 expect(!integrationDetailSection.includes('void ZentridAPIRepositories.integrations.summary'), 'Integration Detail still starts the old eager operational summary request.');
+expect(deviceDetailSection.includes('ZentridAPIRepositories.telemetry.list'), 'Device Detail telemetry tab does not request the telemetry repository.');
+expect(deviceDetailSection.includes("detailReadOptions('device-detail:telemetry'"), 'Device Detail telemetry request is not isolated in its own request group.');
+expect(deviceDetailSection.includes("publishDetailTelemetry('device'"), 'Device Detail does not publish matched telemetry to the existing renderer.');
+expect(plantDetailSection.includes('ZentridAPIRepositories.telemetry.list'), 'Plant Detail energy tab does not request the telemetry repository.');
+expect(plantDetailSection.includes("detailReadOptions('plant-detail:telemetry'"), 'Plant Detail telemetry request is not isolated in its own request group.');
+expect(plantDetailSection.includes("publishDetailTelemetry('plant'"), 'Plant Detail does not publish matched telemetry to the existing renderer.');
 [
-  "ZentridDetailLazyTabs?.panel('plant'", "ZentridDetailLazyTabs?.activate('plant'", "ZentridDetailLazyTabs?.observe('plant'"
+  "ZentridDetailLazyTabs?.panel('plant'", "ZentridDetailLazyTabs?.activate('plant'", "ZentridDetailLazyTabs?.observe('plant'",
+  'plantTelemetryRecords', 'plantTelemetrySummary'
 ].forEach(token => expect(plants.includes(token), `Plant Detail is missing lazy integration: ${token}.`));
 [
-  "ZentridDetailLazyTabs?.panel('device'", "ZentridDetailLazyTabs?.activate('device'", "ZentridDetailLazyTabs?.observe('device'", 'deviceDetailActiveTab'
+  "ZentridDetailLazyTabs?.panel('device'", "ZentridDetailLazyTabs?.activate('device'", "ZentridDetailLazyTabs?.observe('device'", 'deviceDetailActiveTab',
+  'deviceTelemetryRecords', 'deviceTelemetryMetricValue', 'deviceTelemetryCharts'
 ].forEach(token => expect(devices.includes(token), `Device Detail is missing lazy integration: ${token}.`));
 [
   "ZentridDetailLazyTabs?.panel('integration'", "ZentridDetailLazyTabs?.activate('integration'", "ZentridDetailLazyTabs?.observe('integration'", 'integrationDetailActiveTab'

@@ -105,6 +105,7 @@ if (contracts?.fieldAudit) {
         solution: 'Solution', deviceSn: 'INV-1', acknowledgedAtUtc: '2026-07-14T14:55:00Z', canonicalSource: 'CanonicalAlarms'
       }
     },
+    telemetry: { telemetryId: 'TM-001', metricName: 'Current Power', value: 1250, unit: 'kW', measuredAtUtc: '2026-07-22T08:00:00Z', sourcePlantId: 'PLANT-001', sourceDeviceId: 'INV-001', dataQualityStatus: 'Fresh', provider: 'DeyeCloud' },
     integrations: {
       provider: 'DeyeCloud', displayName: 'DeyeCloud', status: 'Warning', plantsCount: 50000, plantsWithDataCount: 50000,
       stalePlantsCount: 50000, devicesCount: 100000, alertsCount: 2500000, errorRatePct: 100, lastSyncAtUtc: '2026-07-14T15:45:00Z',
@@ -117,12 +118,12 @@ if (contracts?.fieldAudit) {
   contracts.fieldAudit.clear();
   Object.entries(fixtures).forEach(([entity, fixture]) => contracts[entity].map(fixture, 0, context));
   const summary = contracts.fieldAudit.summary();
-  expect(summary.records === 6, `Expected 6 audited records, received ${summary.records}.`);
+  expect(summary.records === 7, `Expected 7 audited records, received ${summary.records}.`);
   expect(summary.missingExpectedFields === 0, `Known backend fixtures produced ${summary.missingExpectedFields} missing expected field(s).`);
   expect(summary.unmappedFields === 0, `Known backend fixtures produced ${summary.unmappedFields} unmapped field(s).`);
 
   const manifest = contracts.fieldAudit.manifest();
-  ['clients', 'tenants', 'plants', 'devices', 'alerts', 'integrations'].forEach(entity => {
+  ['clients', 'tenants', 'plants', 'devices', 'alerts', 'telemetry', 'integrations'].forEach(entity => {
     expect(Array.isArray(manifest[entity]) && manifest[entity].length >= 10, `${entity} mapping manifest is incomplete.`);
     expect(manifest[entity].every(item => item.uiTargets.length > 0), `${entity} contains mapping entries without UI targets.`);
   });
@@ -136,6 +137,10 @@ if (contracts?.fieldAudit) {
   const mappedAlert = contracts.alerts.map(fixtures.alerts, 1, context);
   expect(mappedAlert.probableCause === 'Reason', 'Alert reason was not mapped to probableCause.');
   expect(mappedAlert.recommendation === 'Solution', 'Alert solution was not mapped to recommendation.');
+
+  const mappedTelemetry = contracts.telemetry.map(fixtures.telemetry, 1, context);
+  expect(mappedTelemetry.metric === 'Current Power' && mappedTelemetry.displayValue === '1250 kW', 'Telemetry metric/value/unit were not mapped.');
+  expect(mappedTelemetry.plantId === 'PLANT-001' && mappedTelemetry.deviceId === 'INV-001', 'Telemetry relations were not mapped.');
 
   const mappedIntegration = contracts.integrations.map(fixtures.integrations, 1, context);
   expect(mappedIntegration.stalePlants === 50000, 'Integration stalePlantsCount was not mapped.');

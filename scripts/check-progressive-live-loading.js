@@ -36,6 +36,10 @@ expect(liveBridge.includes('ZentridAPIRepositories.integrations.summary({ ...det
 expect(liveBridge.includes("detailReadOptions('overview:alerts', 100, forceRefresh)") && liveBridge.includes('timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS'), 'Slow alerts are not loaded in the background.');
 expect(liveBridge.includes('mergeIntegrationSummaries'), 'Integration registry is not enriched progressively.');
 expect(liveBridge.includes('renderOverviewLiveSnapshot(payload);'), 'Overview is not rerendered as background data arrives.');
+expect(liveBridge.includes('plantTotalCount: null') && liveBridge.includes('deviceTotalCount: null') && liveBridge.includes('alertTotalCount: null'), 'Overview snapshot does not preserve repository totals.');
+expect(liveBridge.includes('plantsResult.value.pagination.totalCount') && liveBridge.includes('devicesResult.value.pagination.totalCount') && liveBridge.includes('result.pagination.totalCount'), 'Overview KPI totals are not sourced from server pagination metadata.');
+expect(liveBridge.includes("label: 'Alerts'") && !liveBridge.includes("label: 'Active Incidents'"), 'Overview still labels the unfiltered alert total as Active Incidents.');
+expect(liveBridge.includes('Current page total') && liveBridge.includes('overviewCoverageLabel'), 'Page-only power aggregation is not disclosed in the Overview KPI.');
 
 const plantsStart = liveBridge.indexOf('async function applyPlants');
 const plantsEnd = liveBridge.indexOf('async function applyDevices', plantsStart);

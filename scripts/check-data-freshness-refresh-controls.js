@@ -29,7 +29,7 @@ assert(liveUi.includes('registryReadOptions(\'alerts\', forceRefresh)'), 'Alert 
 assert(liveUi.includes('registryReadOptions(\'clients\', forceRefresh)'), 'Client refresh must bypass repository cache when requested.');
 assert(liveUi.includes('cacheFreshnessOptions(cacheInfo)'), 'Repository cache metadata must feed freshness state.');
 
-const pages = ['index.html', 'pages/clients.html', 'pages/client-detail.html', 'pages/tenants.html', 'pages/tenant-detail.html', 'pages/plants.html', 'pages/plant-detail.html', 'pages/devices.html', 'pages/device-detail.html', 'pages/alerts.html', 'pages/alert-detail.html', 'pages/integrations.html', 'pages/integration-detail.html'];
+const pages = ['index.html', 'pages/clients.html', 'pages/client-detail.html', 'pages/tenants.html', 'pages/tenant-detail.html', 'pages/plants.html', 'pages/plant-detail.html', 'pages/devices.html', 'pages/device-detail.html', 'pages/alerts.html', 'pages/telemetry.html', 'pages/alert-detail.html', 'pages/integrations.html', 'pages/integration-detail.html'];
 pages.forEach(relative => {
   const html = read(relative);
   const freshnessIndex = html.indexOf('data-freshness-controls.js');

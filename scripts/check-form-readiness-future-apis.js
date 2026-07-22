@@ -28,18 +28,18 @@ assert(cssIndex === primitiveIndex + 1, 'Form readiness CSS must load immediatel
   .forEach(token => assert(css.includes(token), `Form readiness CSS is missing ${token}.`));
 
 const annotatedSources = {
-  'assets/js/client-hierarchy.ts': ['ClientCreateDraft', '/api/admin/clients'],
-  'assets/js/tenants.ts': ['TenantCreateDraft', 'TenantPlantDraft', '/api/admin/tenants'],
-  'assets/js/plants.ts': ['PlantCreateDraft', '/api/admin/plants'],
-  'assets/js/integrations.ts': ['ProviderIntegrationCreateDraft', '/api/admin/provider-integrations'],
-  'assets/js/devices.ts': ['DeviceCreateDraft'],
-  'assets/js/tasks.ts': ['TaskCreateDraft', 'TaskAssignmentDraft']
+  'assets/js/client-hierarchy.ts': { tokens: ['ClientCreateDraft', '/api/admin/clients'], mode: 'api' },
+  'assets/js/tenants.ts': { tokens: ['TenantCreateDraft', 'TenantPlantDraft', '/api/admin/tenants'], mode: 'api' },
+  'assets/js/plants.ts': { tokens: ['PlantCreateDraft', '/api/admin/plants'], mode: 'api' },
+  'assets/js/integrations.ts': { tokens: ['ProviderIntegrationCreateDraft', '/api/admin/provider-integrations'], mode: 'api' },
+  'assets/js/devices.ts': { tokens: ['DeviceCreateDraft'], mode: 'local' },
+  'assets/js/tasks.ts': { tokens: ['TaskCreateDraft', 'TaskAssignmentDraft'], mode: 'local' }
 };
-Object.entries(annotatedSources).forEach(([relative, tokens]) => {
+Object.entries(annotatedSources).forEach(([relative, definition]) => {
   const content = read(relative);
-  tokens.forEach(token => assert(content.includes(token), `${relative} is missing ${token}.`));
-  assert(content.includes('data-zentrid-form-readiness="local"'), `${relative} must declare local form readiness.`);
-  assert(content.includes('ZentridFormReadiness?.markCommitted'), `${relative} must clear dirty state after a successful local save.`);
+  definition.tokens.forEach(token => assert(content.includes(token), `${relative} is missing ${token}.`));
+  assert(content.includes(`data-zentrid-form-readiness="${definition.mode}"`), `${relative} must declare ${definition.mode} form readiness.`);
+  assert(content.includes('ZentridFormReadiness?.markCommitted'), `${relative} must clear dirty state after a successful save.`);
 });
 
 const pages = [
@@ -142,4 +142,4 @@ if (failures.length) {
   failures.forEach(failure => console.error(`  ${failure}`));
   process.exit(1);
 }
-console.log(`Form readiness for future APIs OK: ${Object.keys(annotatedSources).length} source modules, ${pages.length} pages, typed DTO/file/dirty-state foundation.`);
+console.log(`Form readiness for future APIs OK: ${Object.keys(annotatedSources).length} source modules, ${pages.length} pages, API/local DTO/file/dirty-state foundation.`);

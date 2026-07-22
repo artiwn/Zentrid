@@ -83,11 +83,24 @@ if (contracts && contracts.diagnostics) {
   expect(invalidDevice.issues.some(issue => issue.code === 'INVALID_FIELD_TYPE' && issue.field === 'identity'), 'Invalid identity type was not diagnosed.');
   expect(invalidDevice.issues.some(issue => issue.code === 'MISSING_REQUIRED_FIELD' && issue.field === 'display name'), 'Missing device display name was not diagnosed.');
 
+  const tenantIdentityFallback = contracts.tenants.validate({
+    id: 'TENANT-RAW-1', tenantCode: 'TENANT-001', status: 'Active'
+  }, 0);
+  expect(tenantIdentityFallback.valid === true, 'Tenant identity/code fallback must remain renderable when the backend omits a display name.');
+  expect(!tenantIdentityFallback.issues.some(issue => issue.field === 'display label'), 'Tenant identity/code fallback produced a false display-label mismatch.');
+
   const integrationValidation = contracts.integrations.validate({
     provider: 'DeyeCloud', integrationName: 'Main', status: 'Active', plantsCount: 'not-a-number'
   }, 0);
   expect(integrationValidation.valid === true, 'Optional numeric warning must not invalidate an integration record.');
   expect(integrationValidation.issues.some(issue => issue.severity === 'warning' && issue.field === 'plantsCount'), 'Invalid optional numeric field was not diagnosed.');
+
+
+  const nestedIntegrationValidation = contracts.integrations.validate({
+    vendorExtensions: { provider: 'Huawei', displayName: 'Huawei Main', status: 'Active' }
+  }, 1);
+  expect(nestedIntegrationValidation.valid === true, 'Nested integration aliases must satisfy required provider/display/status fields.');
+  expect(!nestedIntegrationValidation.issues.some(issue => ['provider', 'display name', 'status'].includes(issue.field)), 'Nested integration aliases produced false contract issues.');
 
   contracts.diagnostics.clear();
   const mapped = contracts.devices.map({ id: { nested: true }, provider: 'Huawei' }, 4, context);

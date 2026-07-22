@@ -20,6 +20,9 @@ expect(/zentrid:session-expired/.test(apiSource) && /zentrid:session-expired/.te
 expect(/hasRole\(role: string\)/.test(apiSource), 'Role helper is missing from auth contract.');
 expect(/ensureSession\(requiredRole\?: string\)/.test(apiSource), 'Session validation helper is missing from auth contract.');
 expect(/GlobalAdmin/.test(guardSource), 'Global Admin role is not enforced by auth guard.');
+expect(/fetch\(`\$\{ZentridConfig\.authBaseUrl\}\/api\/Auth\/logout`/.test(apiSource), 'Global logout does not call the backend logout endpoint.');
+expect(/keepalive:\s*true/.test(apiSource), 'Backend logout request is not protected during page navigation.');
+expect(/zentrid:backend-logout/.test(apiSource), 'Backend logout outcome event is missing.');
 
 function base64Url(value) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -148,6 +151,37 @@ async function runBehaviorChecks() {
   expect(refreshCalls === 1, 'Refresh endpoint was not called exactly once.');
   expect(Array.isArray(devices.items) && devices.items.length === 1, 'Retried request did not return parsed response.');
 
+  let logoutCalls = 0;
+  let logoutAuthorization = '';
+  let logoutKeepalive = false;
+  fetchHandler = async (url, init = {}) => {
+    if (String(url).endsWith('/api/Auth/logout')) {
+      logoutCalls += 1;
+      logoutAuthorization = new Headers(init.headers || {}).get('Authorization') || '';
+      logoutKeepalive = init.keepalive === true;
+      return new Response(null, { status: 204 });
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  await auth.logout(false);
+  expect(logoutCalls === 1, 'Global logout did not call POST /api/Auth/logout exactly once.');
+  expect(logoutAuthorization === `Bearer ${refreshedToken}`, 'Backend logout did not preserve the active bearer token.');
+  expect(logoutKeepalive, 'Backend logout request did not enable keepalive.');
+  expect(sessionStorage.getItem('zentrid_access_token') === null, 'Logout did not clear the local access token.');
+  expect(sessionStorage.getItem('zentrid_refresh_token') === null, 'Logout did not clear the local refresh token.');
+
+  sessionStorage.setItem('zentrid_access_token', firstToken);
+  sessionStorage.setItem('zentrid_refresh_token', 'refresh-failure');
+  fetchHandler = async url => {
+    if (String(url).endsWith('/api/Auth/logout')) throw new Error('backend unavailable');
+    return new Response(null, { status: 404 });
+  };
+  await auth.logout(true);
+  expect(windowObject.location.href === 'login.html', 'Backend logout failure blocked redirect to the login page.');
+  expect(sessionStorage.getItem('zentrid_access_token') === null, 'Backend logout failure left the local access token behind.');
+  expect(events.some(event => event.type === 'zentrid:backend-logout' && event.detail?.ok === false), 'Backend logout failure outcome was not reported.');
+
   fetchHandler = async (url, init) => new Promise((resolve, reject) => {
     const signal = init.signal;
     if (signal?.aborted) reject(new Error('aborted'));
@@ -175,7 +209,7 @@ runBehaviorChecks().then(() => {
     failures.forEach(failure => console.error(`  ${failure}`));
     process.exit(1);
   }
-  console.log('Auth/API foundation checks OK: credentials removed, role/expiry enforced, 401 refresh retry and timeout verified.');
+  console.log('Auth/API foundation checks OK: credentials removed, role/expiry enforced, backend logout, 401 refresh retry and timeout verified.');
 }).catch(error => {
   console.error('Auth/API foundation checks failed with an unexpected error.');
   console.error(error);

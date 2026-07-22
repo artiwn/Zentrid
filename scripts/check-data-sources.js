@@ -76,6 +76,10 @@ function runBehaviorChecks() {
   const windowObject = { dispatchEvent() {} };
   const context = vm.createContext({
     window: windowObject,
+    document: { readyState: 'loading', addEventListener() {}, getElementById() { return null; }, querySelectorAll() { return []; } },
+    location: { pathname: '/pages/devices.html' },
+    setTimeout() { return 0; },
+    clearTimeout() {},
     localStorage,
     CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
     console,

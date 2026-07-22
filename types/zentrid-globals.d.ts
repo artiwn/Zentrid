@@ -252,7 +252,7 @@ interface ZentridContractMapperContext {
   integrationVendor(value: unknown): string;
   integrationSoftware(value: unknown): string;
 }
-type ZentridContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
+type ZentridContractEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'telemetry' | 'integrations';
 type ZentridContractSeverity = 'error' | 'warning';
 interface ZentridContractIssue {
   entity: ZentridContractEntity;
@@ -332,15 +332,47 @@ interface ZentridEntityContractApi {
   map(value: unknown, index: number, context: ZentridContractMapperContext): ZentridContractRecord;
   mapList(values: unknown[], context: ZentridContractMapperContext): ZentridContractRecord[];
 }
+type ZentridNormalizationDomain =
+  | 'country'
+  | 'clientType'
+  | 'entityType'
+  | 'tenantType'
+  | 'provider'
+  | 'integrationProvider'
+  | 'clientStatus'
+  | 'tenantStatus'
+  | 'plantStatus'
+  | 'deviceStatus'
+  | 'alertStatus'
+  | 'alertSeverity'
+  | 'integrationStatus';
+interface ZentridValueNormalizationApi {
+  country(value: unknown): string;
+  clientType(value: unknown): string;
+  entityType(value: unknown): string;
+  tenantType(value: unknown): string;
+  provider(value: unknown): string;
+  integrationProvider(value: unknown): string;
+  clientStatus(value: unknown): string;
+  tenantStatus(value: unknown): string;
+  plantStatus(value: unknown): string;
+  deviceStatus(value: unknown): string;
+  alertStatus(value: unknown): string;
+  alertSeverity(value: unknown): string;
+  integrationStatus(value: unknown): string;
+  normalize(domain: ZentridNormalizationDomain, value: unknown): string;
+}
 interface ZentridAPIContractsApi {
   clients: ZentridEntityContractApi;
   tenants: ZentridEntityContractApi;
   plants: ZentridEntityContractApi;
   devices: ZentridEntityContractApi;
   alerts: ZentridEntityContractApi;
+  telemetry: ZentridEntityContractApi;
   integrations: ZentridEntityContractApi;
   diagnostics: ZentridContractDiagnosticsApi;
   fieldAudit: ZentridFieldAuditApi;
+  normalization: ZentridValueNormalizationApi;
 }
 declare const ZentridAPIContracts: ZentridAPIContractsApi;
 interface Window { ZentridAPIContracts: ZentridAPIContractsApi; }
@@ -510,10 +542,19 @@ interface ZentridAPIRepositoriesApi {
   plants: ZentridEntityReadRepositoryApi;
   devices: ZentridEntityReadRepositoryApi;
   alerts: ZentridEntityReadRepositoryApi;
+  telemetry: ZentridEntityReadRepositoryApi;
   integrations: ZentridIntegrationReadRepositoryApi;
 }
 declare const ZentridAPIRepositories: ZentridAPIRepositoriesApi;
 interface Window { ZentridAPIRepositories: ZentridAPIRepositoriesApi; }
+
+interface ZentridTelemetryPageApi {
+  readOptions(): { page: number; pageSize: number };
+  setLoading(message?: string): void;
+  render(result: ZentridRepositoryListResult): void;
+  renderFailure(message: string): void;
+}
+interface Window { ZentridTelemetryPage?: ZentridTelemetryPageApi; }
 
 interface ZentridMutationMeta {
   operationId: string;
@@ -658,7 +699,7 @@ declare const ZentridRuntimeStability: ZentridRuntimeStabilityApi;
 interface Window { ZentridRuntimeStability: ZentridRuntimeStabilityApi; }
 
 type ZentridFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
-type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
+type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'telemetry' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
 interface ZentridFreshnessSyncInput {
   liveState: string;
   title?: string;

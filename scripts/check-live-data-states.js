@@ -55,6 +55,7 @@ const activePages = [
   'pages/devices.html',
   'pages/device-detail.html',
   'pages/alerts.html',
+  'pages/telemetry.html',
   'pages/alert-detail.html',
   'pages/integrations.html',
   'pages/integration-detail.html'
@@ -156,7 +157,9 @@ async function renderStateScenario(mode) {
     ZentridPlatformAPI: platform,
     ZentridAPI: { request },
     ZentridAPIRepositories: repositories,
-    ZentridDataSource: { label: value => ({ live: 'Live API', mock: 'Mock data', local: 'Local changes', mixed: 'Mixed sources' })[value] || value },
+    ZentridDataSource: { label: value => ({ live: 'Live API', mock: 'Unavailable', local: 'Disabled', mixed: 'Live API' })[value] || value },
+    ZentridLayout: { mount() {}, toast() {} },
+    ZentridApiOnly: { mountEmpty() {} },
     setTimeout,
     clearTimeout
   };
@@ -168,6 +171,9 @@ async function renderStateScenario(mode) {
     ZentridAPI: windowObject.ZentridAPI,
     ZentridAPIRepositories: repositories,
     ZentridDataSource: windowObject.ZentridDataSource,
+    ZentridLayout: windowObject.ZentridLayout,
+    renderDevices: () => '',
+    wireDevices: () => {},
     console,
     setTimeout,
     clearTimeout,
@@ -196,12 +202,12 @@ async function runBehaviorChecks() {
   const empty = await renderStateScenario('empty');
   expect(empty.state?.dataset?.liveState === 'empty', 'A successful empty device response is not rendered as the empty state.');
   expect(empty.state?.attributes?.role === 'status', 'Empty state must use role=status.');
-  expect(empty.source?.dataset?.dataOrigin === 'mock', 'An empty live response must identify the displayed fallback as mock data.');
+  expect(empty.source?.dataset?.dataOrigin === 'live', 'An empty live response must remain identified as an API response, not mock fallback data.');
 
   const timeout = await renderStateScenario('timeout');
   expect(timeout.state?.dataset?.liveState === 'timeout', 'A TIMEOUT request error is not rendered as the timeout state.');
   expect(timeout.state?.attributes?.role === 'alert', 'Timeout state must use role=alert.');
-  expect(timeout.source?.dataset?.dataOrigin === 'mock', 'A timeout must preserve the displayed fallback source as mock data.');
+  expect(timeout.source?.dataset?.dataOrigin === 'live', 'A timeout must not claim that mock fallback records are displayed.');
 }
 
 runBehaviorChecks().then(() => {
@@ -211,7 +217,7 @@ runBehaviorChecks().then(() => {
     process.exit(1);
   }
 
-  console.log(`Live data state checks OK: ${requiredStates.length} states, ${activePages.length} active API pages, empty/timeout behavior verified.`);
+  console.log(`Live data state checks OK: ${requiredStates.length} states, ${activePages.length} active API pages, API-only empty/timeout behavior verified.`);
 }).catch(error => {
   console.error('Live data state checks failed with an unexpected error.');
   console.error(error);

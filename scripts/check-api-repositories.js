@@ -25,13 +25,15 @@ expect(globals.includes('declare const ZentridAPIRepositories'), 'ZentridAPIRepo
 
 [
   'fetchCollectionPage', 'paginationFromPayload', 'mergePlantSources', 'uniqueByIdentity', 'mappedResult',
+  'directRecord', 'itemCacheVariant', 'ZentridPlatformAPI.clients.get(id, requestOptions)', 'ZentridPlatformAPI.tenants.get(id, requestOptions)',
+  'ZentridPlatformAPI.plantRegistry.get(id, requestOptions)', 'ZentridPlatformAPI.providerIntegrations.get(id, requestOptions)',
   "fetchCollectionPage('/api/admin/clients'", "fetchCollectionPage('/api/admin/tenants'",
   "fetchCollectionPage('/api/plants'", "fetchCollectionPage('/api/devices'",
-  "fetchCollectionPage('/api/alerts'", "'/api/integrations'",
+  "fetchCollectionPage('/api/alerts'", "fetchCollectionPage('/api/telemetry'", "'/api/integrations'",
   "fetchCollectionPage('/api/admin/provider-integrations'", 'contract.mapList'
 ].forEach(token => expect(repositorySource.includes(token), `Repository implementation token is missing: ${token}.`));
 
-['clients', 'tenants', 'plants', 'devices', 'alerts', 'integrations'].forEach(entity => {
+['clients', 'tenants', 'plants', 'devices', 'alerts', 'telemetry', 'integrations'].forEach(entity => {
   expect(liveBridge.includes(`ZentridAPIRepositories.${entity}.list(`), `Live bridge does not read ${entity} through ZentridAPIRepositories.`);
 });
 
@@ -65,7 +67,7 @@ for (const relativePath of htmlFiles()) {
   expect(repositoryIndex >= 0, `${relativePath} is missing api-repositories.js.`);
   expect(contractIndex < repositoryIndex && repositoryIndex < liveIndex, `${relativePath} must load contracts, repositories and live bridge in that order.`);
 }
-expect(repositoryPages === 13, `Expected 13 repository-enabled live API pages, found ${repositoryPages}.`);
+expect(repositoryPages === 14, `Expected 14 repository-enabled live API pages, found ${repositoryPages}.`);
 
 function firstOf(row, keys, fallback = '') {
   for (const key of keys) {
@@ -106,21 +108,36 @@ const sandbox = {
       if (path.startsWith('/api/admin/plants?')) return { items: [adminPlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/devices?')) return { items: [{ id: 'D-1', sourceDeviceId: 'INV-1', sourcePlantId: 'EXT-P-1', deviceName: 'Inverter A', provider: 'Huawei' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/alerts?')) return { items: [{ id: 'A-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/telemetry?')) return { telemetry: [{ metricName: 'Current Power', value: 1200, unit: 'kW', sourcePlantId: 'EXT-P-1', sourceDeviceId: 'INV-1', measuredAtUtc: '2026-07-22T08:00:00Z', dataQualityStatus: 'Fresh' }, { telemetry: { id: 'TM-2', metricName: 'Voltage' }, measurement: { value: 380, unit: 'V', measuredAtUtc: '2026-07-22T08:00:00Z', quality: 'Fresh' }, plant: { id: 'EXT-P-1', name: 'Yerevan North' }, device: { id: 'INV-1', name: 'Inverter A', type: 'Inverter' }, source: { provider: 'Huawei' } }], page: 1, pageSize: 50, totalCount: 2, totalPages: 1 };
       throw new Error(`Unexpected ZentridAPI path: ${path}`);
     }
   },
   ZentridPlatformAPI: {
-    clients: { async list() { return { items: [{ clientId: 'C-1', clientName: 'Client One' }] }; } },
-    tenants: { async list() { return { items: [{ tenantId: 'T-1', tenantName: 'Tenant One' }] }; } },
-    plantRegistry: { async list() { return { items: [adminPlant] }; } },
+    clients: {
+      async list() { return { items: [{ clientId: 'C-1', clientName: 'Client One' }] }; },
+      async get(id) { requests.push(`/api/admin/clients/${id}`); return { data: { clientId: id, clientName: 'Direct Client' } }; }
+    },
+    tenants: {
+      async list() { return { items: [{ tenantId: 'T-1', tenantName: 'Tenant One' }] }; },
+      async get(id) { requests.push(`/api/admin/tenants/${id}`); return { result: { tenantId: id, tenantName: 'Direct Tenant' } }; }
+    },
+    plantRegistry: {
+      async list() { return { items: [adminPlant] }; },
+      async get(id) {
+        requests.push(`/api/admin/plants/${id}`);
+        return { data: { ...adminPlant, id } };
+      }
+    },
     live: {
       async plants() { return { items: [livePlant] }; },
       async devices() { return { items: [] }; },
       async alerts() { return { items: [{ id: 'A-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }] }; },
+      async telemetry() { return { items: [{ telemetryId: 'TM-1', metricName: 'Current Power', value: 1200, unit: 'kW' }] }; },
       async integrations() { return { items: [{ provider: 'DeyeCloud', displayName: 'DeyeCloud', status: 'Warning', plantsCount: 10 }] }; }
     },
     providerIntegrations: {
-      async list() { return { items: [{ id: 'I-1', provider: 'DeyeCloud', integrationName: 'Deye Main', status: 'Active' }] }; }
+      async list() { return { items: [{ id: 'I-1', provider: 'DeyeCloud', integrationName: 'Deye Main', status: 'Active' }] }; },
+      async get(id) { requests.push(`/api/admin/provider-integrations/${id}`); return { data: { id, provider: 'DeyeCloud', integrationName: 'Direct Integration', status: 'Active' } }; }
     }
   }
 };
@@ -144,14 +161,30 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     expect(clients.items.length === 1 && clients.items[0].id === 'C-1', 'Client repository did not map the list response.');
     expect(clients.source === '/api/admin/clients' && clients.rawItems.length === 1, 'Client repository metadata is incorrect.');
 
+    const directClient = await repositories.clients.get('C-99', { forceRefresh: true });
+    expect(directClient.item && directClient.item.id === 'C-99' && directClient.item.name === 'Direct Client', 'Client repository did not map the direct detail response.');
+    expect(directClient.source === '/api/admin/clients/C-99', 'Client detail repository source is incorrect.');
+    expect(requests.includes('/api/admin/clients/C-99'), 'Client repository did not call the direct detail endpoint.');
+
     const tenants = await repositories.tenants.list();
     expect(tenants.items[0].id === 'T-1', 'Tenant repository did not map the list response.');
+
+    const directTenant = await repositories.tenants.get('T-99', { forceRefresh: true });
+    expect(directTenant.item && directTenant.item.id === 'T-99' && directTenant.item.name === 'Direct Tenant', 'Tenant repository did not map the direct detail response.');
+    expect(directTenant.source === '/api/admin/tenants/T-99', 'Tenant detail repository source is incorrect.');
+    expect(requests.includes('/api/admin/tenants/T-99'), 'Tenant repository did not call the direct detail endpoint.');
 
     const plants = await repositories.plants.list();
     expect(plants.items.length === 1, 'Plant repository did not deduplicate merged sources.');
     expect(plants.items[0].name === 'Yerevan North', 'Plant repository did not preserve the administrative display name.');
-    expect(plants.items[0].capacityDc === 2.5 && plants.items[0].livePower === '1.20 MW', 'Plant repository did not merge live and administrative metrics.');
+    expect(plants.items[0].capacityDc === 2.5 && plants.items[0].livePower === '1200 kW', 'Plant repository did not merge the exact live and administrative API metrics.');
     expect(plants.source === '/api/plants + /api/admin/plants', 'Plant repository source metadata is incorrect.');
+
+    const directPlant = await repositories.plants.get('ADMIN-P-1', { forceRefresh: true });
+    expect(directPlant.item && directPlant.item.name === 'Yerevan North', 'Plant repository did not map the direct administrative detail response.');
+    expect(directPlant.item && directPlant.item.livePower === '1200 kW' && directPlant.item.capacityDc === 2.5, 'Plant detail did not preserve live operational enrichment.');
+    expect(directPlant.source === '/api/admin/plants/ADMIN-P-1 + /api/plants', 'Plant detail repository source is incorrect.');
+    expect(requests.includes('/api/admin/plants/ADMIN-P-1'), 'Plant repository did not call the direct detail endpoint.');
 
     const devices = await repositories.devices.list();
     expect(devices.items[0].externalId === 'INV-1' && devices.items[0].plantId === 'EXT-P-1', 'Device repository mapping is incorrect.');
@@ -159,8 +192,18 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     const alerts = await repositories.alerts.list();
     expect(alerts.items[0].vendorCode === 'AL-1', 'Alert repository mapping is incorrect.');
 
+    const telemetry = await repositories.telemetry.list();
+    expect(telemetry.items.length === 2 && telemetry.items[0].metric === 'Current Power' && telemetry.items[0].displayValue === '1200 kW', 'Telemetry repository mapping is incorrect.');
+    expect(telemetry.items[1].metric === 'Voltage' && telemetry.items[1].displayValue === '380 V' && telemetry.source === '/api/telemetry', 'Nested telemetry envelope/record mapping is incorrect or records sharing one device were deduplicated.');
+    expect(telemetry.items[1].id === 'TM-2' && telemetry.items[1].plant === 'Yerevan North' && telemetry.items[1].device === 'Inverter A' && telemetry.items[1].provider === 'Huawei', 'Nested telemetry relationships are not preserved by the repository.');
+    expect(telemetry.items[0].raw.metricName === telemetry.rawItems[0].metricName, 'Telemetry repository provenance is incorrect.');
+
     const integrations = await repositories.integrations.list();
     expect(integrations.items.length === 1 && integrations.source === '/api/admin/provider-integrations', 'Integration registry repository is incorrect.');
+    const directIntegration = await repositories.integrations.get('I-99', { forceRefresh: true });
+    expect(directIntegration.item && directIntegration.item.id === 'I-99' && directIntegration.item.name === 'Direct Integration', 'Integration repository did not map the direct detail response.');
+    expect(directIntegration.source === '/api/admin/provider-integrations/I-99', 'Integration detail repository source is incorrect.');
+    expect(requests.includes('/api/admin/provider-integrations/I-99'), 'Integration repository did not call the direct detail endpoint.');
     const integrationSummary = await repositories.integrations.summary({ timeoutMs: 90000 });
     expect(integrationSummary.items.length === 1 && integrationSummary.source === '/api/integrations', 'Integration summary repository is incorrect.');
 
@@ -175,7 +218,7 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     failures.forEach(message => console.error(`  ${message}`));
     process.exit(1);
   }
-  console.log(`API repository checks OK: 6 typed repositories, bounded preview/merge behavior, get() lookup and ${repositoryPages} page load orders verified.`);
+  console.log(`API repository checks OK: 7 typed repositories, direct Client/Tenant/Plant/Integration Detail lookup, bounded preview/merge behavior and ${repositoryPages} page load orders verified.`);
 })().catch(error => {
   console.error('API repository checks failed with an unexpected error.');
   console.error(error);

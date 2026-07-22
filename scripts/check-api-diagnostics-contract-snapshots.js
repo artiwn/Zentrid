@@ -41,6 +41,8 @@ expect(page.indexOf('api-diagnostics.js') < page.indexOf('platform-api.js'), 'ap
 expect(page.indexOf('api-contracts.js') < page.indexOf('api-console.js'), 'api-contracts.js must load before api-console.js.');
 expect(globals.includes('interface ZentridApiDiagnosticsApi'), 'Missing ZentridApiDiagnosticsApi global type.');
 expect(packageJson.scripts?.['check:api-diagnostics-contract-snapshots'] === 'node scripts/check-api-diagnostics-contract-snapshots.js', 'Missing package check script.');
+expect(consoleSource.includes("return 'telemetry';"), 'API Console field audit does not classify /api/telemetry responses.');
+['telemetry', 'measurements', 'points', 'samples'].forEach(token => expect(consoleSource.includes(`'${token}'`), `API Console collection extraction is missing telemetry envelope: ${token}.`));
 
 const fixturePaths = {
   clients: 'assets/fixtures/api-contracts/clients-list.json',
@@ -48,6 +50,7 @@ const fixturePaths = {
   plants: 'assets/fixtures/api-contracts/plants-list.json',
   devices: 'assets/fixtures/api-contracts/devices-list.json',
   alerts: 'assets/fixtures/api-contracts/alerts-list.json',
+  telemetry: 'assets/fixtures/api-contracts/telemetry-list.json',
   integrations: 'assets/fixtures/api-contracts/integrations-list.json'
 };
 const fixtures = Object.fromEntries(Object.entries(fixturePaths).map(([entity, path]) => [entity, json(path)]));
@@ -72,6 +75,9 @@ vm.runInContext(ts.transpileModule(diagnosticSource, { compilerOptions: { target
 const diagnostics = sandbox.window.ZentridAPIDiagnostics;
 expect(Boolean(diagnostics), 'ZentridAPIDiagnostics did not initialize.');
 if (diagnostics) {
+  const nestedPagination = diagnostics.pagination({ data: { pagination: { page: 3, pageSize: 25, totalCount: 70, totalPages: 3 } } });
+  expect(nestedPagination.page === 3 && nestedPagination.pageSize === 25, 'Nested pagination page metadata is incorrect.');
+  expect(nestedPagination.totalCount === 70 && nestedPagination.totalPages === 3, 'Nested pagination totals are incorrect.');
   const base = { ok: true, status: 200, statusText: 'OK', ms: 100, path: '/api/devices', method: 'GET', source: 'test', count: 1, data: fixtures.devices, bodyText: JSON.stringify(fixtures.devices), error: '', responseBytes: 900, contentType: 'application/json', requestId: 'req-1', pagination: { page: 1, pageSize: 20, totalCount: 1, totalPages: 1 } };
   const first = diagnostics.captureRun([base]);
   expect(first['GET /api/devices']?.available === false, 'First diagnostic run should not have a previous comparison.');
@@ -83,7 +89,7 @@ if (diagnostics) {
   const safe = diagnostics.safeSnapshot({ ...base, data: { accessToken: 'secret', nested: { password: 'hidden', value: 1 } } });
   expect(safe.response.body.accessToken === '[redacted]', 'Top-level sensitive value was not redacted.');
   expect(safe.response.body.nested.password === '[redacted]', 'Nested sensitive value was not redacted.');
-  expect(diagnostics.contractCatalog.length === 6, 'Contract snapshot catalog must contain six entities.');
+  expect(diagnostics.contractCatalog.length === 7, 'Contract snapshot catalog must contain seven entities.');
 }
 
 const contractSource = read('assets/js/api-contracts.ts');
@@ -114,7 +120,7 @@ if (contracts?.fieldAudit) {
   contracts.fieldAudit.clear();
   Object.entries(fixtures).forEach(([entity, fixture]) => contracts[entity].map(fixture.items[0], 0, context));
   const summary = contracts.fieldAudit.summary();
-  expect(summary.records === 6, `Expected six contract snapshot records, received ${summary.records}.`);
+  expect(summary.records === 7, `Expected seven contract snapshot records, received ${summary.records}.`);
   expect(summary.missingExpectedFields === 0, `Contract snapshots have ${summary.missingExpectedFields} missing expected field(s).`);
   expect(summary.unmappedFields === 0, `Contract snapshots have ${summary.unmappedFields} unmapped field(s).`);
 } else {
@@ -126,4 +132,4 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('API diagnostics and contract snapshots OK: metadata, previous-run comparison, secret redaction, six sanitized fixtures and contract mappings verified.');
+console.log('API diagnostics and contract snapshots OK: metadata, nested pagination, previous-run comparison, secret redaction, seven sanitized fixtures and contract mappings verified.');
