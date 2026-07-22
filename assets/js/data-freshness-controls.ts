@@ -2,7 +2,7 @@
    Keeps freshness UX separate from backend contracts and never invents mutations. */
 (function () {
   type ZentridFreshnessStatus = 'live' | 'cached' | 'refreshing' | 'stale' | 'partial' | 'unavailable';
-  type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
+  type ZentridFreshnessResource = 'overview' | 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'telemetry' | 'integrations' | 'client-detail' | 'tenant-detail' | 'plant-detail' | 'device-detail' | 'alert-detail' | 'integration-detail' | 'unknown';
 
   interface ZentridFreshnessSyncInput {
     liveState: string;
@@ -57,6 +57,7 @@
       'devices.html': { resource: 'devices', label: 'Devices', staleAfterMs: 45_000, autoRefreshAllowed: true },
       'device-detail.html': { resource: 'device-detail', label: 'Device Detail', staleAfterMs: 60_000, autoRefreshAllowed: true },
       'alerts.html': { resource: 'alerts', label: 'Alerts', staleAfterMs: 30_000, autoRefreshAllowed: true },
+      'telemetry.html': { resource: 'telemetry', label: 'Telemetry', staleAfterMs: 30_000, autoRefreshAllowed: true },
       'alert-detail.html': { resource: 'alert-detail', label: 'Alert Detail', staleAfterMs: 45_000, autoRefreshAllowed: true },
       'integrations.html': { resource: 'integrations', label: 'Integrations', staleAfterMs: 120_000, autoRefreshAllowed: true },
       'integration-detail.html': { resource: 'integration-detail', label: 'Integration Detail', staleAfterMs: 120_000, autoRefreshAllowed: true }

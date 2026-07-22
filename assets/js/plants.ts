@@ -2,6 +2,8 @@ interface ZentridPlant {
   [key: string]: unknown;
   id?: string | number;
   externalId?: string | number;
+  adminId?: string | number;
+  raw?: Record<string, unknown>;
   code?: string | number;
   name?: string | number;
   tenant?: string | number;
@@ -60,6 +62,7 @@ interface ZentridPlantPageSlice {
 
 interface ZentridAssetClient {
   id?: string;
+  code?: string;
   name: string;
   tenant: string;
   country: string;
@@ -110,34 +113,13 @@ interface ZentridPlantSidebarGroup {
   description?: string;
 }
 
-const demoPlantSeed: ZentridPlant[] = [
-  { id:'PLT-000421', externalId:'HUA-10025', code:'ARM-BER-001', name:'Plant A', tenant:'Tenant Alpha Energy', portfolio:'EU Utility Portfolio', integration:'Tenant Alpha Energy — Huawei FusionSolar', vendor:'Huawei', status:'Normal', type:'Utility Scale', country:'Germany', region:'Berlin', city:'Berlin', address:'Solar Field North, Berlin', lat:'52.5200', lng:'13.4050', timezone:'Europe/Berlin', capacityDc:54.2, capacityAc:48.0, gridCapacity:50, panels:98210, inverters:42, strings:840, transformers:3, meters:8, battery:'Yes', devices:196, alerts:2, livePower:'31.8 MW', today:'182 MWh', month:'5.8 GWh', pr:'84.7%', lastData:'2 min ago', freshness:'Fresh', commissioned:'2023-04-16', owner:'Arpi Solar Group', operator:'Tenant Alpha O&M', om:'Tenant Alpha O&M' },
-  { id:'PLT-000422', externalId:'HUA-10026', code:'ARM-GYU-002', name:'Gyumri Solar West', tenant:'Tenant Alpha Energy', portfolio:'Armenia Portfolio', integration:'Tenant Alpha Energy — Huawei FusionSolar', vendor:'Huawei', status:'Warning', type:'Commercial', country:'Armenia', region:'Shirak', city:'Gyumri', address:'Industrial Zone 4', lat:'40.7894', lng:'43.8475', timezone:'Asia/Yerevan', capacityDc:12.4, capacityAc:10.0, gridCapacity:10, panels:22120, inverters:14, strings:188, transformers:1, meters:4, battery:'No', devices:74, alerts:5, livePower:'6.4 MW', today:'41 MWh', month:'1.2 GWh', pr:'78.1%', lastData:'11 min ago', freshness:'Delayed', commissioned:'2024-02-02', owner:'Arpi Solar Group', operator:'Tenant Alpha O&M', om:'Tenant Alpha O&M' },
-  { id:'PLT-000501', externalId:'SUN-55318', code:'NOR-ARM-101', name:'Armavir BESS Solar', tenant:'Tenant North Operations', portfolio:'Hybrid Devices', integration:'Tenant North Operations — Sungrow iSolarCloud', vendor:'Sungrow', status:'Warning', type:'Utility Scale', country:'Armenia', region:'Armavir', city:'Armavir', address:'Armavir Energy Park', lat:'40.1555', lng:'44.0382', timezone:'Asia/Yerevan', capacityDc:33.0, capacityAc:30.0, gridCapacity:30, panels:60200, inverters:27, strings:560, transformers:2, meters:6, battery:'Yes', devices:145, alerts:4, livePower:'18.5 MW', today:'96 MWh', month:'2.7 GWh', pr:'81.3%', lastData:'18 min ago', freshness:'Delayed', commissioned:'2022-09-18', owner:'North Valley Client', operator:'Tenant North Operations', om:'Tenant North Operations' },
-  { id:'PLT-000611', externalId:'SOL-77881', code:'HEL-MAD-014', name:'Madrid East', tenant:'Tenant Gamma Grid', portfolio:'Spain Portfolio', integration:'Tenant Gamma Grid — Solis SolisCloud', vendor:'Solis', status:'Fault', type:'Commercial', country:'Spain', region:'Madrid', city:'Madrid', address:'East Industrial PV Plant', lat:'40.4168', lng:'-3.7038', timezone:'Europe/Madrid', capacityDc:8.5, capacityAc:7.2, gridCapacity:7, panels:15100, inverters:9, strings:132, transformers:1, meters:3, battery:'No', devices:42, alerts:11, livePower:'0.0 MW', today:'6 MWh', month:'410 MWh', pr:'34.2%', lastData:'54 min ago', freshness:'Stale', commissioned:'2021-11-08', owner:'Gamma Grid Holdings', operator:'Tenant Gamma Grid Operations', om:'Tenant Gamma Grid Operations' },
-  { id:'PLT-000612', externalId:'SOL-77882', code:'HEL-VAL-015', name:'Valencia Rooftop Cluster', tenant:'Tenant Gamma Grid', portfolio:'Spain Portfolio', integration:'Tenant Gamma Grid — Solis SolisCloud', vendor:'Solis', status:'Normal', type:'Commercial', country:'Spain', region:'Valencia', city:'Valencia', address:'Rooftop Cluster A', lat:'39.4699', lng:'-0.3763', timezone:'Europe/Madrid', capacityDc:4.2, capacityAc:3.8, gridCapacity:4, panels:8120, inverters:7, strings:76, transformers:0, meters:3, battery:'No', devices:26, alerts:0, livePower:'2.1 MW', today:'19 MWh', month:'520 MWh', pr:'86.4%', lastData:'1 min ago', freshness:'Fresh', commissioned:'2024-06-12', owner:'Gamma Grid Holdings', operator:'Tenant Gamma Grid Operations', om:'Tenant Gamma Grid Operations' },
-  { id:'PLT-000720', externalId:'HUA-20481', code:'SOL-LYO-004', name:'Lyon PV Park', tenant:'Tenant Delta Enterprise', portfolio:'France Utility', integration:'Tenant Delta Enterprise — Huawei FusionSolar', vendor:'Huawei', status:'Normal', type:'Utility Scale', country:'France', region:'Auvergne-Rhône-Alpes', city:'Lyon', address:'Lyon South PV Park', lat:'45.7640', lng:'4.8357', timezone:'Europe/Paris', capacityDc:41.7, capacityAc:38.0, gridCapacity:40, panels:74400, inverters:36, strings:720, transformers:3, meters:7, battery:'Yes', devices:173, alerts:1, livePower:'25.2 MW', today:'148 MWh', month:'4.4 GWh', pr:'88.2%', lastData:'3 min ago', freshness:'Fresh', commissioned:'2023-08-20', owner:'Lyon Energy Client', operator:'Tenant Delta Enterprise', om:'Solaris Field Service' },
-  { id:'PLT-000817', externalId:'DEY-90012', code:'ARP-MAS-008', name:'Plant B', tenant:'Tenant Alpha Energy', portfolio:'Armenia Portfolio', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', vendor:'Deye', status:'Normal', type:'Industrial', country:'Armenia', region:'Ararat', city:'Masis', address:'Masis Industrial Zone', lat:'40.0676', lng:'44.4359', timezone:'Asia/Yerevan', capacityDc:5.6, capacityAc:5.0, gridCapacity:5, panels:10320, inverters:8, strings:96, transformers:1, meters:2, battery:'No', devices:34, alerts:0, livePower:'3.7 MW', today:'24 MWh', month:'690 MWh', pr:'85.1%', lastData:'4 min ago', freshness:'Fresh', commissioned:'2025-01-29', owner:'Arpi Solar Group', operator:'Tenant Alpha O&M', om:'Tenant Alpha O&M' }
-];
+const demoPlantSeed: ZentridPlant[] = [];
 
 function plants(): ZentridPlant[] {
-  if (Array.isArray(window.ZentridLivePlants) && window.ZentridLivePlants.length) return window.ZentridLivePlants;
-  const stored = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.plants, []) : JSON.parse(localStorage.getItem('zentrid_demo_plants') || '[]')) as ZentridPlant[];
-  if (!stored.length) { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.plants, demoPlantSeed); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(demoPlantSeed)); }
-  const base = stored.length ? stored : demoPlantSeed;
-  const clientPlants = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clientPlants, []) : JSON.parse(localStorage.getItem('zentrid_custom_plants') || '[]')) as ZentridPlant[];
-  const converted = clientPlants.map((p): ZentridPlant => ({
-    ...(p.id !== undefined ? { id: p.id } : {}),
-    externalId:p.externalId||'LOCAL-STORAGE',
-    ...(p.code !== undefined || p.id !== undefined ? { code: p.code || p.id } : {}),
-    ...(p.name !== undefined ? { name: p.name } : {}),
-    tenant:p.operator||p.tenant||'Tenant workspace', portfolio:p.portfolio||'Manual Portfolio', integration:'Manual / Local storage', vendor:'Manual', status:String(p.health||p.status||'Draft'), type:p.type||'Commercial', country:p.country||'Armenia', region:p.region||'—', city:p.city||'—', address:p.address||'—', lat:p.lat||'—', lng:p.lng||'—', timezone:p.timezone||'Asia/Yerevan', capacityDc:Number(p.capacityDc || 0), capacityAc:Number(p.capacityAc || 0), gridCapacity:Number(p.gridCapacity || 0), panels:Number(p.panels||0), inverters:Number(p.inverters||0), strings:Number(p.strings||0), transformers:Number(p.transformers||0), meters:Number(p.meters||0), battery:p.battery||'No', devices:Array.isArray(p.devices)?p.devices.length:Number(p.devices||0), alerts:Number(p.alerts||0), livePower:p.powerNow||'0 kW', today:p.energyToday||'0 kWh', month:p.month||'0 kWh', pr:p.pr||'—', lastData:p.lastData||'Local draft', freshness:p.freshness||'Local', commissioned:p.commissioning||p.commissioned||'—', owner:p.owner||'Local Client', operator:p.operator||'Tenant workspace', om:p.om||p.operator||'Tenant workspace'
-  }));
-  const byId = new Map(base.map(p => [p.id, p]));
-  converted.forEach(p => { if (p.id && !byId.has(p.id)) byId.set(p.id, p); });
-  return Array.from(byId.values());
+  return Array.isArray(window.ZentridLivePlants) ? window.ZentridLivePlants : [];
 }
-function savePlants(list: ZentridPlant[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.plants, list); else localStorage.setItem('zentrid_demo_plants', JSON.stringify(list)); }
+
+function savePlants(_list: ZentridPlant[]): void { /* API-only: use a confirmed backend mutation. */ }
 function plantStatusCls(v: unknown): string {
   const value = String(v).toLowerCase();
   if (value.includes('fault') || value.includes('offline')) return 'danger';
@@ -147,7 +129,168 @@ function plantStatusCls(v: unknown): string {
 function selectedPlant(): ZentridPlant {
   const list = plants();
   const id = localStorage.getItem('zentrid_selected_plant');
-  return list.find(p => p.id === id) || list[0] || {};
+  return list.find(p => String(p.id ?? '') === String(id ?? '')) || list[0] || {};
+}
+
+function plantAdministrativeId(plant: ZentridPlant | undefined): string {
+  if (!plant) return '';
+  const raw = plant.raw && typeof plant.raw === 'object' ? plant.raw : {};
+  const adminRecord = raw.adminRecord && typeof raw.adminRecord === 'object' ? raw.adminRecord as Record<string, unknown> : {};
+  const candidate = plant.adminId || adminRecord.id || adminRecord.plantId || adminRecord.canonicalId || adminRecord.sourceEntityId;
+  return candidate === undefined || candidate === null ? '' : String(candidate).trim();
+}
+
+function rememberPlantSelection(plant: ZentridPlant | undefined, selectedId: unknown): void {
+  const normalizedSelectedId = selectedId === undefined || selectedId === null ? '' : String(selectedId).trim();
+  if (!normalizedSelectedId) return;
+  localStorage.setItem('zentrid_selected_plant', normalizedSelectedId);
+  const adminId = plantAdministrativeId(plant);
+  if (!adminId) {
+    localStorage.removeItem('zentrid_selected_plant_context');
+    return;
+  }
+  localStorage.setItem('zentrid_selected_plant_context', JSON.stringify({ selectedId: normalizedSelectedId, adminId }));
+}
+
+const PLANT_CREATE_FALLBACK_KEY = 'zentrid_plant_create_fallback';
+
+function plantCreateResponseRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let row = value as Record<string, unknown>;
+  for (const key of ['data', 'plant', 'result', 'item']) {
+    const nested = row[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) row = nested as Record<string, unknown>;
+  }
+  return row;
+}
+
+function plantCreateBackendId(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  const row = plantCreateResponseRecord(value);
+  for (const key of ['id', 'plantId', 'canonicalId', 'sourceEntityId']) {
+    const id = String(row[key] || '').trim();
+    if (id) return id;
+  }
+  return '';
+}
+
+function plantCreateText(value: FormDataEntryValue | null): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function plantCreateNumber(value: FormDataEntryValue | null): number | null {
+  const text = plantCreateText(value).replace(',', '.');
+  if (!text) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function plantCreateVendorPayload(form: HTMLFormElement, formData: FormData): Record<string, unknown> {
+  const coreNames = new Set([
+    'assetType', 'client', 'tenant', 'clientContact', 'timezone', 'country', 'region', 'sourceScheme', 'status',
+    'creationMode', 'name', 'genericName', 'code', 'type', 'countryManual', 'city', 'address', 'timezoneManual',
+    'commissioned', 'capacityDc', 'capacityAc', 'gridCapacity', 'modules', 'batteryCapacity', 'serviceProvider'
+  ]);
+  const vendorPayload: Record<string, unknown> = {};
+  for (const [key, rawValue] of formData.entries()) {
+    if (coreNames.has(key)) continue;
+    if (rawValue instanceof File) {
+      if (rawValue.size > 0) vendorPayload[`has${key.charAt(0).toUpperCase()}${key.slice(1)}File`] = true;
+      continue;
+    }
+    const value = rawValue.trim();
+    if (!value) continue;
+    const existing = vendorPayload[key];
+    if (existing === undefined) vendorPayload[key] = value;
+    else if (Array.isArray(existing)) existing.push(value);
+    else vendorPayload[key] = [existing, value];
+  }
+  for (const input of Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"]'))) {
+    if (input.name && input.files?.length) vendorPayload[`has${input.name.charAt(0).toUpperCase()}${input.name.slice(1)}File`] = true;
+  }
+  return vendorPayload;
+}
+
+function plantCreateApiPayload(
+  form: HTMLFormElement,
+  formData: FormData,
+  client: ZentridAssetClient,
+  type: string,
+  isSolar: boolean
+): Record<string, unknown> {
+  const plantName = plantCreateText(formData.get(isSolar ? 'name' : 'genericName')) || `New ${type}`;
+  const sourceScheme = plantCreateText(formData.get('sourceScheme')) || 'Other / Manual';
+  const country = plantCreateText(formData.get('countryManual')) || client.country;
+  const timezone = plantCreateText(formData.get('timezoneManual')) || client.timezone;
+  const clientId = String(client.id || client.code || client.name).trim();
+  const clientReference = String(client.code || client.id || client.name).trim();
+  const clientName = String(client.name || clientReference).trim();
+  const managingTenant = String(client.tenant || plantCreateText(formData.get('tenant'))).trim();
+  const recordStatus = plantCreateText(formData.get('status')) || 'Draft';
+  const plantType = plantCreateText(formData.get('type')) || (isSolar ? 'Solar' : type);
+  const payload: Record<string, unknown> = {
+    plantName,
+    PlantName: plantName,
+    name: plantName,
+    Name: plantName,
+    clientId,
+    ClientId: clientId,
+    client: clientReference,
+    Client: clientReference,
+    clientName,
+    ClientName: clientName,
+    managingTenant,
+    ManagingTenant: managingTenant,
+    sourceScheme,
+    SourceScheme: sourceScheme,
+    recordStatus,
+    RecordStatus: recordStatus,
+    plantType,
+    PlantType: plantType,
+    countryRegion: country,
+    CountryRegion: country,
+    plantTimeZone: timezone,
+    PlantTimeZone: timezone
+  };
+  const optional = (key: string, value: unknown): void => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'string' && !value.trim()) return;
+    if (Array.isArray(value) && !value.length) return;
+    if (typeof value === 'object' && !Array.isArray(value) && !Object.keys(value as Record<string, unknown>).length) return;
+    payload[key] = value;
+  };
+  optional('plantCode', plantCreateText(formData.get('code')));
+  optional('creationMode', plantCreateText(formData.get('creationMode')));
+  optional('region', client.region);
+  optional('city', plantCreateText(formData.get('city')) || client.city);
+  optional('address', plantCreateText(formData.get('address')));
+  optional('commissioningDate', plantCreateText(formData.get('commissioned')));
+  optional('serviceProvider', plantCreateText(formData.get('serviceProvider')));
+  const capacityDcMw = plantCreateNumber(formData.get('capacityDc'));
+  const capacityAcMw = plantCreateNumber(formData.get('capacityAc'));
+  const gridCapacityMw = plantCreateNumber(formData.get('gridCapacity'));
+  const modulesCount = plantCreateNumber(formData.get('modules'));
+  const batteryCapacityKwh = plantCreateNumber(formData.get('batteryCapacity'));
+  if (capacityDcMw !== null) {
+    optional('installedCapacityDcMw', capacityDcMw);
+    optional('installedPowerKw', capacityDcMw * 1000);
+  }
+  if (capacityAcMw !== null) optional('installedCapacityAcMw', capacityAcMw);
+  if (gridCapacityMw !== null) optional('gridConnectionCapacityMw', gridCapacityMw);
+  if (modulesCount !== null) optional('modulesCount', modulesCount);
+  if (batteryCapacityKwh !== null) optional('batteryCapacityKwh', batteryCapacityKwh);
+  optional('vendorPayload', plantCreateVendorPayload(form, formData));
+  return payload;
+}
+
+function savePlantCreateFallback(plant: ZentridPlant): void {
+  sessionStorage.setItem(PLANT_CREATE_FALLBACK_KEY, JSON.stringify(plant));
+  localStorage.setItem('zentrid_selected_plant', String(plant.id || ''));
+  localStorage.removeItem('zentrid_selected_plant_context');
+}
+
+function clearPlantCreateFallback(): void {
+  sessionStorage.removeItem(PLANT_CREATE_FALLBACK_KEY);
 }
 var ZentridPlantPager: ZentridPlantPagerState = window.ZentridPlantPager || (window.ZentridPlantPager = { page: 1, size: 50 });
 function plantPageSlice(list: ZentridPlant[]): ZentridPlantPageSlice {
@@ -169,18 +312,14 @@ function plantRows(list: ZentridPlant[]): string {
   const pager = serverPagination ? window.ZentridRegistryQuery?.pagerHtml('plants', list.length) || '' : plantPagerHtml(state);
   return `${pager}<div class="data-table plant-table"><div class="data-head"><span>Plant</span><span>Tenant / Source</span><span>Location</span><span>Capacity</span><span>Status</span><span>Actions</span></div>${state.rows.map(p => `<div class="data-row" data-id="${p.id}"><div>${ZentridDataSource.badge(p, 'plant')}<strong>${p.name}</strong><small>${p.code}<br>${p.id}</small></div><div><strong>${p.tenant}</strong><small>${p.vendor} · ${p.integration}</small></div><div><strong>${p.country}</strong><small>${p.region} · ${p.city}</small></div><div><strong>${p.capacityDc} MWp DC</strong><small>${p.capacityAc} MW AC · ${p.devices} devices</small></div><div><span class="badge ${plantStatusCls(p.status)}">${p.status}</span><small>${p.alerts} alerts · ${p.lastData}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}">Open</button><button data-action="edit" data-permission-action="edit" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}" data-permission-update-available="false" data-permission-local-override="true">Edit</button><button data-action="devices" data-permission-action="view" data-permission-resource="plant">Devices</button><button data-action="telemetry" data-permission-action="view" data-permission-resource="plant">Telemetry</button><button data-action="alerts" data-permission-action="view" data-permission-resource="plant">Alerts</button></div></div>`).join('')}</div>${pager}`;
 }
-const fallbackAssetClients: ZentridAssetClient[] = [
-  { id:'CL-1001', name:'Arpi Solar Group', tenant:'Tenant Alpha Energy', country:'Armenia', region:'Yerevan', city:'Yerevan', timezone:'Asia/Yerevan', contact:'Anna Grigoryan' },
-  { id:'CL-1002', name:'North Valley Client', tenant:'Tenant North Operations', country:'Armenia', region:'Armavir', city:'Armavir', timezone:'Asia/Yerevan', contact:'Karen Petrosyan' },
-  { id:'CL-1003', name:'Gamma Grid Holdings', tenant:'Tenant Gamma Grid', country:'Spain', region:'Madrid', city:'Madrid', timezone:'Europe/Madrid', contact:'Miguel Santos' },
-  { id:'CL-1004', name:'Lyon Energy Client', tenant:'Tenant Delta Enterprise', country:'France', region:'Auvergne-Rhône-Alpes', city:'Lyon', timezone:'Europe/Paris', contact:'Claire Martin' }
-];
+const fallbackAssetClients: ZentridAssetClient[] = [];
 function assetClientRecords(): ZentridAssetClient[] {
   const stored = window.ZentridLocalStore
     ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clients, [])
     : (JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as Record<string, unknown>[]);
   const hydrated = stored.map((row): ZentridAssetClient => ({
     id: String(row.id || row.clientId || row.code || row.name || ''),
+    code: String(row.code || row.clientCode || row.externalId || ''),
     name: String(row.name || row.displayName || 'Unnamed Client'),
     tenant: String(row.tenant || row.managingTenant || row.operator || 'Tenant workspace'),
     country: String(row.country || 'Armenia'),
@@ -580,7 +719,7 @@ function plantCreateModal(){
         <div><p class="eyebrow">Groups · Plants</p><h2 id="plantCreateTitle">Create Plant</h2><p class="muted">Select client and vendor platform. Zentrid then loads the vendor-specific plant creation flow and conditions.</p></div>
         <span class="badge warning">Draft</span>
       </div>
-      <form id="plantCreateForm" class="plant-create-form client-create-form setup-layout asset-create-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="PlantCreateDraft" data-zentrid-form-endpoint="/api/admin/plants" data-zentrid-form-method="POST" data-zentrid-form-api-note="The wizard keeps its current local save while exposing an API-ready DTO preview.">
+      <form id="plantCreateForm" class="plant-create-form client-create-form setup-layout asset-create-form" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="PlantCreateDraft" data-zentrid-form-endpoint="/api/admin/plants" data-zentrid-form-method="POST" data-zentrid-form-api-note="The existing wizard creates the plant through the confirmed Global Admin API and keeps a session-only fallback for temporary backend outages.">
         <aside class="setup-rail client-create-rail asset-create-rail" aria-label="Create plant steps">
           <button class="active" type="button" data-asset-step="client"><b>1</b><span>Client Assignment</span></button>
           <button type="button" data-asset-step="plant-profile"><b>2</b><span>Vendor Platform</span></button>
@@ -670,12 +809,15 @@ function renderPlants(): string {
   const initialVendor = queryState?.params.plantVendor || 'All Vendors';
   const warnings = list.filter(p => p.status !== 'Normal').length;
   const totalMw = list.reduce((a,p)=>a + Number(p.capacityDc || 0),0).toFixed(1);
+  const plantStatuses = Array.from(new Set(['Normal','Warning','Fault','Offline','Pending Review','Draft','Inactive','Archived',...list.map(plant => String(plant.status || '').trim()).filter(Boolean)]));
+  const plantVendors = Array.from(new Set(list.map(plant => String(plant.vendor || '').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const optionText = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character] || character));
   const groups = getSidebarGroups().map(g => g.key === 'plants' ? {...g, objects:list.length, status:'Active'} : g);
   const openSolar = new URLSearchParams(window.location.search).get('view') === 'solar';
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>${openSolar ? 'Plant Registry' : 'Groups'}</h1><p class="muted">Groups control which typed registries appear in the main sidebar. Each group keeps its own table, filters, detail page and create form.</p></div>${openSolar ? `<button class="create-action" id="openPlantCreate" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button>` : `<button class="create-action" id="openGroupCreate" type="button"><span class="pulse"></span><div><strong>+ Create Group</strong><small>Show/hide in sidebar</small></div></button>`}</section>
   <section class="context-bar glass-card"><button class="ctx-item"><span>Visible Groups</span><strong>${groups.filter(g => g.show).length}</strong></button><button class="ctx-item"><span>Total Groups</span><strong>${groups.length}</strong></button><button class="ctx-item"><span>Plants</span><strong>${totalPlantCount.toLocaleString()}</strong></button><button class="ctx-item"><span>Attention</span><strong>${warnings}</strong></button><button class="ctx-item"><span>Installed Capacity DC</span><strong>${totalMw} MWp</strong></button></section>
   <section class="panel glass-card ${openSolar ? 'hidden' : ''}" id="groupsCatalogView"><div class="panel-head"><div><h2>Group Management</h2><p>Create groups and decide which ones appear in the main sidebar. This page does not mix Plants, Smart Homes, Chargers and BESS into one table.</p></div><div class="hero-actions"><button class="secondary-btn" id="openSolarPlantsFromGroups" type="button">Open Plants</button><button class="primary-btn" id="openGroupCreateInline" type="button">Create Group</button></div></div><div id="groupsTableHost">${groupRows(groups)}</div></section>
-  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Groups · Plants</p><h2>Plant Registry</h2><p>Plants have their own columns, filters, detail page and Create Plant wizard.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by plants, tenants, vendors..."/><select id="plantStatusFilter">${['All Statuses','Normal','Warning','Fault','Pending Review','Draft'].map(value => `<option ${value === initialStatus ? 'selected' : ''}>${value}</option>`).join('')}</select><select id="plantVendorFilter">${['All Vendors','Huawei FusionSolar','Deye / Solarman','GoodWe SEMS','SolisCloud','SolaX Cloud','Peimar','Sungrow iSolarCloud','Sofar','Other / Manual','Huawei','Sungrow','Solis','Deye'].map(value => `<option ${value === initialVendor ? 'selected' : ''}>${value}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
+  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Groups · Plants</p><h2>Plant Registry</h2><p>Plants have their own columns, filters, detail page and Create Plant wizard.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by plants, tenants, vendors..."/><select id="plantStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${plantStatuses.map(value => `<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select><select id="plantVendorFilter"><option ${initialVendor === 'All Vendors' ? 'selected' : ''}>All Vendors</option>${plantVendors.map(value => `<option ${value === initialVendor ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
   ${plantCreateModal()}${groupCreateModal()}`;
 }
 function plantEventTarget(event: Event): HTMLElement | null {
@@ -707,8 +849,8 @@ function wirePlants(){
     if (pageBtn && !window.ZentridRegistryQuery?.pagination('plants')) { ZentridPlantPager.page += pageBtn.dataset.plantPage === 'next' ? 1 : -1; apply(false); return; }
     const btn = target?.closest<HTMLButtonElement>('button');
     const row = target?.closest<HTMLElement>('.data-row'); const id = row?.dataset.id;
-    const p = plants().find(x => x.id === id);
-    if (id) localStorage.setItem('zentrid_selected_plant', id);
+    const p = plants().find(x => String(x.id ?? '') === String(id ?? ''));
+    if (id) rememberPlantSelection(p, id);
     if (!btn && id) { location.href = 'plant-detail.html'; return; }
     if (!btn) return;
     if (btn.dataset.action === 'open') location.href = 'plant-detail.html';
@@ -778,7 +920,14 @@ function wirePlants(){
   document.getElementById('closeGroupCreate')?.addEventListener('click', closeGroupCreateModal);
   document.getElementById('cancelGroupCreate')?.addEventListener('click', closeGroupCreateModal);
   document.getElementById('saveGroupCreate')?.addEventListener('click', saveNewGroup);
-  document.getElementById('groupCreateModal')?.setAttribute('inert','');
+  const groupCreateModalElement = document.getElementById('groupCreateModal');
+  if (groupCreateModalElement?.classList.contains('open')) {
+    groupCreateModalElement.removeAttribute('inert');
+    groupCreateModalElement.setAttribute('aria-hidden', 'false');
+  } else {
+    groupCreateModalElement?.setAttribute('inert', '');
+    groupCreateModalElement?.setAttribute('aria-hidden', 'true');
+  }
   document.getElementById('groupCreateModal')?.addEventListener('click', e => { if (plantEventTarget(e)?.id === 'groupCreateModal') closeGroupCreateModal(); });
   document.getElementById('groupsTableHost')?.addEventListener('change', e => {
     const input = plantEventTarget(e)?.closest<HTMLInputElement>('[data-group-toggle]');
@@ -833,6 +982,48 @@ function wirePlants(){
     }
     if (match) select.value = String(match.id || match.name);
   }
+
+  async function hydratePlantClientOptions(): Promise<void> {
+    const select = document.getElementById('assetClientSelect') as HTMLSelectElement | null;
+    if (!select || !window.ZentridAPIRepositories?.isConfigured()) return;
+    const wasDirty = plantCreateDirty();
+    const previousValue = select.value;
+    try {
+      const result = await ZentridAPIRepositories.clients.list({
+        page:1,
+        pageSize:100,
+        requestGroup:'plant-create:clients',
+        cacheVariant:'plant-create-client-options',
+        staleWhileRevalidate:true,
+        timeoutMs:12000
+      });
+      const apiClients = result.items.map((row): ZentridAssetClient => ({
+        id:String(row.id || row.clientId || row.code || row.name || '').trim(),
+        code:String(row.code || row.clientCode || row.externalId || '').trim(),
+        name:String(row.name || row.clientName || row.displayName || row.legalName || row.id || 'Unnamed Client'),
+        tenant:String(row.tenant || row.managingTenant || row.tenantName || 'Tenant workspace'),
+        country:String(row.country || 'Armenia'),
+        region:String(row.region || '—'),
+        city:String(row.city || '—'),
+        timezone:String(row.timezone || 'Asia/Yerevan'),
+        contact:String(row.primaryContact || row.contactName || row.contactEmail || row.email || '—')
+      })).filter(client => Boolean(client.id));
+      if (!apiClients.length) return;
+      const merged = new Map<string, ZentridAssetClient>();
+      [...apiClients, ...assetClientOptions].forEach(client => {
+        const key = String(client.id || client.name).trim().toLowerCase();
+        if (key && !merged.has(key)) merged.set(key, client);
+      });
+      assetClientOptions.splice(0, assetClientOptions.length, ...merged.values());
+      select.innerHTML = assetClientOptions.map(client => `<option value="${String(client.id || client.name).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${String(client.name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</option>`).join('');
+      applyCreateContext();
+      if (!queryCreateContext().get('client') && assetClientOptions.some(client => String(client.id || client.name) === previousValue)) select.value = previousValue;
+      syncClientDefaults();
+      if (!wasDirty && plantCreateForm) plantCreateInitialSnapshot = ZentridFormUX.snapshot(plantCreateForm);
+    } catch (error) {
+      console.info('Plant client options remain limited to the current context because the client endpoint was unavailable.', error);
+    }
+  }
   function resetPlantCreateForm(): void {
     if (!plantCreateForm) return;
     plantCreateForm.reset();
@@ -850,18 +1041,26 @@ function wirePlants(){
   function plantCreateDirty(): boolean {
     return !!plantCreateForm && ZentridFormUX.snapshot(plantCreateForm) !== plantCreateInitialSnapshot;
   }
+  function consumePlantCreateQuery(): void {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('create')) return;
+    url.searchParams.delete('create');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }
   function openPlantCreateModal(){
     const modal = document.getElementById('plantCreateModal');
-    if (!modal) return;
+    if (!modal || modal.classList.contains('open')) return;
+    consumePlantCreateQuery();
     resetPlantCreateForm();
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     modal.removeAttribute('inert');
+    void hydratePlantClientOptions();
     setTimeout(() => document.getElementById('assetClientSelect')?.focus(), 0);
   }
   function closePlantCreateModal(force = false){
     const modal = document.getElementById('plantCreateModal');
-    if (!modal || plantCreateSaving) return;
+    if (!modal || (plantCreateSaving && !force)) return;
     if (!force && plantCreateDirty() && !window.confirm('Close Create Plant? Unsaved wizard data will be lost.')) return;
     const activeElement = document.activeElement;
     if (activeElement instanceof HTMLElement && modal.contains(activeElement)) activeElement.blur?.();
@@ -869,7 +1068,14 @@ function wirePlants(){
     modal.setAttribute('aria-hidden', 'true');
     modal.setAttribute('inert', '');
   }
-  document.getElementById('plantCreateModal')?.setAttribute('inert', '');
+  const plantCreateModalElement = document.getElementById('plantCreateModal');
+  if (plantCreateModalElement?.classList.contains('open')) {
+    plantCreateModalElement.removeAttribute('inert');
+    plantCreateModalElement.setAttribute('aria-hidden', 'false');
+  } else {
+    plantCreateModalElement?.setAttribute('inert', '');
+    plantCreateModalElement?.setAttribute('aria-hidden', 'true');
+  }
   document.getElementById('openPlantCreate')?.addEventListener('click', openPlantCreateModal);
   document.getElementById('openPlantCreateInline')?.addEventListener('click', openPlantCreateModal);
   document.getElementById('closePlantCreate')?.addEventListener('click', () => closePlantCreateModal());
@@ -1130,56 +1336,100 @@ function wirePlants(){
   if (queryCreateContext().get('create') === '1') window.setTimeout(openPlantCreateModal, 0);
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.getElementById('plantCreateModal')?.classList.contains('open')) closePlantCreateModal(); });
 
-  document.getElementById('plantCreateForm')?.addEventListener('submit', e => {
+  document.getElementById('plantCreateForm')?.addEventListener('submit', async e => {
     e.preventDefault();
     if (!ZentridActionPermissions.guard({ action:'create', resource:'plant' })) return;
     if (plantCreateSaving || !validateAllAssetSteps()) return;
-    const fd = new FormData(e.currentTarget as HTMLFormElement);
+    const form = e.currentTarget as HTMLFormElement;
+    const fd = new FormData(form);
     const now = Date.now();
-    const type = fd.get('assetType') || 'Plant';
+    const type = plantCreateText(fd.get('assetType')) || 'Plant';
     const client = selectedClient();
     const isSolar = type === 'Plant';
     const newPlant: ZentridPlant = {
       dataOrigin: 'local',
-      id: `PLT-${String(now).slice(-6)}`,
-      externalId: 'MANUAL',
-      assetType: String(type),
-      code: String(fd.get('code') || `AST-${String(now).slice(-4)}`),
-      name: String((isSolar ? fd.get('name') : fd.get('genericName')) || `New ${type}`),
+      id: `LOCAL-PLT-${String(now).slice(-8)}`,
+      externalId: 'SESSION-FALLBACK',
+      assetType: type,
+      code: plantCreateText(fd.get('code')) || `AST-${String(now).slice(-4)}`,
+      name: plantCreateText(fd.get(isSolar ? 'name' : 'genericName')) || `New ${type}`,
       tenant: client.tenant,
       portfolio: isSolar ? 'Manual Solar Portfolio' : 'Future Device Portfolio',
-      integration: `${fd.get('sourceScheme') || 'Other / Manual'} · Manual Entry`,
-      vendor: String(fd.get('sourceScheme') || 'Other / Manual'),
+      integration: `${plantCreateText(fd.get('sourceScheme')) || 'Other / Manual'} · Manual Entry`,
+      vendor: plantCreateText(fd.get('sourceScheme')) || 'Other / Manual',
       vendorPayloadRule: 'core + selected vendor fields only',
-      status: String(fd.get('status') || 'Draft'),
-      type: String(isSolar ? (fd.get('type') || 'Commercial') : type),
-      country: String(fd.get('countryManual') || client.country),
+      status: plantCreateText(fd.get('status')) || 'Draft',
+      type: isSolar ? (plantCreateText(fd.get('type')) || 'Commercial') : type,
+      country: plantCreateText(fd.get('countryManual')) || client.country,
       region: client.region,
-      city: String(fd.get('city') || client.city),
-      address: String(fd.get('address') || '—'),
-      lat:'—', lng:'—', timezone: String(fd.get('timezoneManual') || client.timezone),
-      capacityDc: Number(fd.get('capacityDc') || 0), capacityAc: Number(fd.get('capacityAc') || 0), gridCapacity: Number(fd.get('gridCapacity') || 0),
-      panels:Number(fd.get('modules') || 0), inverters:0, strings:0, transformers:0, meters:0, battery: Number(fd.get('batteryCapacity') || 0) > 0 ? 'Yes' : 'No', devices:0, alerts:0,
-      livePower:'0 kW', today:'0 kWh', month:'0 kWh', pr:'—', lastData:'Manual record', freshness:'Pending', commissioned: String(fd.get('commissioned') || '—'),
+      city: plantCreateText(fd.get('city')) || client.city,
+      address: plantCreateText(fd.get('address')) || '—',
+      lat:'—', lng:'—', timezone: plantCreateText(fd.get('timezoneManual')) || client.timezone,
+      capacityDc: plantCreateNumber(fd.get('capacityDc')) || 0,
+      capacityAc: plantCreateNumber(fd.get('capacityAc')) || 0,
+      gridCapacity: plantCreateNumber(fd.get('gridCapacity')) || 0,
+      panels:plantCreateNumber(fd.get('modules')) || 0,
+      inverters:0, strings:0, transformers:0, meters:0,
+      battery: (plantCreateNumber(fd.get('batteryCapacity')) || 0) > 0 ? 'Yes' : 'No', devices:0, alerts:0,
+      livePower:'—', today:'—', month:'—', pr:'—', lastData:'Temporary session record', freshness:'Pending backend retry', commissioned: plantCreateText(fd.get('commissioned')) || '—',
       clientId: client.id || client.name,
-      owner: client.name, operator: client.tenant, om: String(fd.get('serviceProvider') || client.tenant)
+      owner: client.name, operator: client.tenant, om: plantCreateText(fd.get('serviceProvider')) || client.tenant
     };
+    const payload = plantCreateApiPayload(form, fd, client, type, isSolar);
     const submitButton = document.getElementById('submitAssetCreate') as HTMLButtonElement | null;
     plantCreateSaving = true;
     if (submitButton) ZentridFormUX.setBusy(submitButton, true, 'Creating Plant…');
     try {
-      if (window.ZentridLocalStore) ZentridLocalStore.addPlant(newPlant); else { const list = plants(); list.unshift(newPlant); savePlants(list); }
-      localStorage.setItem('zentrid_selected_plant', String(newPlant.id));
-      plantCreateInitialSnapshot = plantCreateForm ? ZentridFormUX.snapshot(plantCreateForm) : '';
-      if (plantCreateForm) window.ZentridFormReadiness?.markCommitted(plantCreateForm);
-      ZentridLayout.toast('Plant created locally. Opening Plant Detail.');
-      closePlantCreateModal(true);
-      setTimeout(() => { location.href = 'plant-detail.html'; }, 400);
-    } catch (error) {
+      if (!window.ZentridAPIMutations) throw new Error('Plant mutation runtime is unavailable.');
+      const result = await ZentridAPIMutations.plants.create(payload);
+      if (result.ok) {
+        const backendId = plantCreateBackendId(result.data);
+        clearPlantCreateFallback();
+        plantCreateInitialSnapshot = ZentridFormUX.snapshot(form);
+        window.ZentridFormReadiness?.markCommitted(form);
+        closePlantCreateModal(true);
+        if (backendId) {
+          rememberPlantSelection({ adminId:backendId }, backendId);
+          ZentridLayout.toast('Plant created in the backend. Opening Plant Detail.');
+          window.setTimeout(() => { location.href = 'plant-detail.html'; }, 450);
+        } else {
+          console.info('Plant create succeeded without a returned identifier.', plantCreateResponseRecord(result.data));
+          ZentridLayout.toast('Plant created in the backend. Refreshing Plant Registry.');
+          window.setTimeout(() => { location.href = 'plants.html?view=solar'; }, 450);
+        }
+        return;
+      }
+
+      if (result.error.retriable) {
+        savePlantCreateFallback(newPlant);
+        plantCreateInitialSnapshot = ZentridFormUX.snapshot(form);
+        window.ZentridFormReadiness?.markCommitted(form);
+        ZentridLayout.toast('Backend unavailable. Plant saved as a temporary session fallback.');
+        closePlantCreateModal(true);
+        window.setTimeout(() => { location.href = 'plant-detail.html'; }, 450);
+        return;
+      }
+
       plantCreateSaving = false;
       if (submitButton) ZentridFormUX.setBusy(submitButton, false);
-      ZentridFormUX.renderSummary(plantValidationSummary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant was not created');
+      const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
+      ZentridFormUX.renderSummary(plantValidationSummary, [{ message:detail }], 'Plant was not created');
       plantValidationSummary?.focus();
+    } catch (error) {
+      try {
+        savePlantCreateFallback(newPlant);
+        plantCreateInitialSnapshot = ZentridFormUX.snapshot(form);
+        window.ZentridFormReadiness?.markCommitted(form);
+        ZentridLayout.toast('Plant mutation runtime was unavailable. Plant saved as a temporary session fallback.');
+        closePlantCreateModal(true);
+        window.setTimeout(() => { location.href = 'plant-detail.html'; }, 450);
+      } catch (fallbackError) {
+        plantCreateSaving = false;
+        if (submitButton) ZentridFormUX.setBusy(submitButton, false);
+        ZentridFormUX.renderSummary(plantValidationSummary, [{ message:'Unable to create the plant through the backend or save the temporary fallback.' }], 'Plant was not created');
+        plantValidationSummary?.focus();
+        console.error('Plant create and fallback both failed.', error, fallbackError);
+      }
     }
   });
 }
@@ -1206,6 +1456,7 @@ function plantTab(p: ZentridPlant, tab: string): string {
 }
 function renderPlantDetail(){
   const p = selectedPlant();
+  if (!p.id) return window.ZentridApiOnly?.emptyState('Plant Detail', 'The plant endpoint has not returned a selected record.', '/api/plants') || '';
   return `<section class="page-hero"><div><p class="eyebrow">Plant Detail Workspace ${ZentridDataSource.badge(p, 'plant', true)}</p><h1>${p.name}</h1><p class="muted">${p.tenant} · ${p.country}, ${p.city} · ${p.vendor} source · ${p.id}</p></div><div class="hero-actions"><button class="freshness-card" id="plantSync"><span class="pulse"></span><div><strong>Run Plant Sync</strong><small>${p.lastData}</small></div></button><button class="freshness-card" onclick="location.href='plants.html'"><span class="pulse"></span><div><strong>Back to Registry</strong><small>All plants</small></div></button></div></section>
   <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Plant Status</span><strong>${p.status}</strong><small>${p.alerts} active alerts</small></article><article class="kpi-card"><span>Live Power</span><strong>${p.livePower}</strong><small>Real-time layer</small></article><article class="kpi-card"><span>Today Energy</span><strong>${p.today}</strong><small>Accounting period</small></article><article class="kpi-card"><span>Installed DC</span><strong>${p.capacityDc} MWp</strong><small>${p.capacityAc} MW AC</small></article><article class="kpi-card"><span>Devices</span><strong>${p.devices}</strong><small>${p.inverters} inverters · ${p.meters} meters</small></article><article class="kpi-card"><span>Data Freshness</span><strong>${p.freshness}</strong><small>${p.lastData}</small></article></section>
   <section class="client-layout-v17 detail-layout-standard">

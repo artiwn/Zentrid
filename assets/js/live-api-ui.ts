@@ -1,6 +1,6 @@
-/* Zentrid live API UI bridge
-   Uses working Swagger endpoints as primary data source when they return records.
-   If an endpoint returns [] or fails, the existing mock/localStorage data remains as fallback. */
+/* Zentrid API-only UI bridge.
+   Runtime business records are rendered exclusively from backend responses or cached backend responses.
+   Empty/error responses never fall back to prototype or browser-created data. */
 (function () {
   const SOURCE_LABEL = 'Live API';
   const SLOW_ENDPOINT_TIMEOUT_MS = 90_000;
@@ -37,6 +37,10 @@
     integrations?: AnyRecord[];
     providers?: unknown[];
     templates?: unknown[];
+    plantTotalCount?: number | null;
+    deviceTotalCount?: number | null;
+    alertTotalCount?: number | null;
+    integrationTotalCount?: number | null;
   };
 
   type RegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts';
@@ -68,6 +72,20 @@
       requestGroup: `detail:${entity}`,
       supersede: true,
       forceRefresh
+    };
+  }
+
+  function telemetryReadOptions(forceRefresh = false): ZentridRepositoryReadOptions {
+    const page = window.ZentridTelemetryPage?.readOptions() || { page: 1, pageSize: 50 };
+    return {
+      page: page.page,
+      pageSize: page.pageSize,
+      staleWhileRevalidate: true,
+      persist: true,
+      requestGroup: 'registry:telemetry',
+      supersede: true,
+      forceRefresh,
+      timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
     };
   }
 
@@ -171,6 +189,97 @@
     return value === undefined || value === null || value === '' ? String(fallback) : String(value);
   }
 
+
+  type DetailSelectionKind = 'device' | 'alert';
+  type DetailSelectionSnapshot = {
+    version: 1;
+    id: string;
+    savedAt: string;
+    record: AnyRecord;
+  };
+
+  const DETAIL_SELECTION_KEYS: Record<DetailSelectionKind, string> = {
+    device: 'zentrid_selected_device_record',
+    alert: 'zentrid_selected_alert_record'
+  };
+
+  function detailSelectionCandidates(record: AnyRecord | null | undefined): string[] {
+    if (!record) return [];
+    const raw = record.raw && typeof record.raw === 'object' ? record.raw as AnyRecord : {};
+    return [
+      record.id,
+      record.externalId,
+      record.serial,
+      record.serialNumber,
+      record.sourceDeviceId,
+      record.alertId,
+      raw.id,
+      raw.deviceId,
+      raw.alertId,
+      raw.sourceDeviceId,
+      raw.serialNumber
+    ].map(value => safeText(value, '').trim()).filter(Boolean);
+  }
+
+  function detailSelectionMatches(record: AnyRecord | null | undefined, expectedId: string | null | undefined): boolean {
+    const expected = safeText(expectedId, '').trim().toLowerCase();
+    if (!expected) return Boolean(record);
+    return detailSelectionCandidates(record).some(value => value.toLowerCase() === expected);
+  }
+
+  function saveDetailSelection(kind: DetailSelectionKind, record: AnyRecord | null | undefined): boolean {
+    if (!record) return false;
+    const id = detailSelectionCandidates(record)[0] || '';
+    if (!id) return false;
+    const snapshot: DetailSelectionSnapshot = { version: 1, id, savedAt: new Date().toISOString(), record };
+    try {
+      sessionStorage.setItem(DETAIL_SELECTION_KEYS[kind], JSON.stringify(snapshot));
+      return true;
+    } catch (error) {
+      console.warn(`Zentrid live API: could not preserve the selected ${kind} record for detail navigation.`, error);
+      return false;
+    }
+  }
+
+  function readDetailSelection(kind: DetailSelectionKind, expectedId?: string | null): AnyRecord | null {
+    try {
+      const raw = sessionStorage.getItem(DETAIL_SELECTION_KEYS[kind]);
+      if (!raw) return null;
+      const snapshot = JSON.parse(raw) as Partial<DetailSelectionSnapshot>;
+      const record = snapshot.record && typeof snapshot.record === 'object' ? snapshot.record as AnyRecord : null;
+      if (!record || !detailSelectionMatches(record, expectedId || snapshot.id || '')) return null;
+      return record;
+    } catch {
+      sessionStorage.removeItem(DETAIL_SELECTION_KEYS[kind]);
+      return null;
+    }
+  }
+
+  function resolveLiveSelection(kind: DetailSelectionKind, value: AnyRecord | string): AnyRecord | null {
+    if (value && typeof value === 'object') return value;
+    const id = safeText(value, '').trim();
+    const source = kind === 'device' ? window.ZentridLiveDevices : window.ZentridLiveAlerts;
+    return (Array.isArray(source) ? source : []).find((record: AnyRecord) => detailSelectionMatches(record, id)) || null;
+  }
+
+  function selectLiveDetail(kind: DetailSelectionKind, value: AnyRecord | string): void {
+    const record = resolveLiveSelection(kind, value);
+    const id = detailSelectionCandidates(record)[0] || safeText(value, '').trim();
+    if (!id) return;
+    if (record) saveDetailSelection(kind, record);
+    localStorage.setItem(kind === 'device' ? 'zentrid_selected_device' : 'zentrid_selected_alert', id);
+    location.href = kind === 'device' ? 'device-detail.html' : `alert-detail.html?id=${encodeURIComponent(id)}`;
+  }
+
+  window.ZentridLiveSelection = {
+    saveDevice: (record: AnyRecord) => saveDetailSelection('device', record),
+    saveAlert: (record: AnyRecord) => saveDetailSelection('alert', record),
+    readDevice: (id?: string | null) => readDetailSelection('device', id),
+    readAlert: (id?: string | null) => readDetailSelection('alert', id),
+    selectDevice: (value: AnyRecord | string) => selectLiveDetail('device', value),
+    selectAlert: (value: AnyRecord | string) => selectLiveDetail('alert', value)
+  };
+
   function requestErrorShape(error: unknown): RequestErrorShape {
     if (error instanceof Error) {
       const enriched = error as Error & RequestErrorShape;
@@ -204,7 +313,7 @@
     unauthorized: 'Session expired',
     forbidden: 'Access denied',
     unavailable: 'Backend unavailable',
-    fallback: 'Mock fallback active'
+    fallback: 'No live data available'
   };
 
   const LIVE_STATE_ICONS: Record<LiveDataState, string> = {
@@ -216,14 +325,14 @@
     unauthorized: '⌁',
     forbidden: '×',
     unavailable: '!',
-    fallback: '↺'
+    fallback: '∅'
   };
 
   const DATA_SOURCE_MESSAGES: Record<ZentridDataOrigin, string> = {
     live: 'Displayed records come from live backend responses.',
-    mock: 'Displayed records are prototype fallback data.',
-    local: 'Displayed records were created or changed in this browser.',
-    mixed: 'The current page combines records from more than one source.'
+    mock: 'Prototype records are disabled in API-only mode.',
+    local: 'Browser-created business records are disabled in API-only mode.',
+    mixed: 'Displayed records come from multiple backend endpoints or API cache layers.'
   };
 
   function renderedDataOrigin(): ZentridDataOrigin {
@@ -235,7 +344,7 @@
       if (origin === 'live' || origin === 'mock' || origin === 'local' || origin === 'mixed') origins.add(origin);
     }
     if (origins.size > 1) return 'mixed';
-    return origins.values().next().value || 'mock';
+    return origins.values().next().value || 'live';
   }
 
   function removeDataSourceSummary(): void {
@@ -289,7 +398,7 @@
 
     const legend = document.createElement('div');
     legend.className = 'data-source-legend';
-    (['live', 'mock', 'local', 'mixed'] as ZentridDataOrigin[]).forEach(value => {
+    (['live'] as ZentridDataOrigin[]).forEach(value => {
       const item = document.createElement('span');
       item.className = `record-origin-chip ${value} compact`;
       item.dataset.recordOrigin = value;
@@ -361,7 +470,7 @@
     title.textContent = summary.errors ? 'API contract mismatch' : 'API contract warning';
     const description = document.createElement('span');
     const entityCount = summary.affectedEntities.length;
-    description.textContent = `${summary.errors} required-field error(s) and ${summary.warnings} warning(s) across ${entityCount} entity type(s). Zentrid applied safe fallback values and preserved each raw payload.`;
+    description.textContent = `${summary.errors} required-field error(s) and ${summary.warnings} warning(s) across ${entityCount} entity type(s). Missing fields are shown as unavailable; each raw payload remains available for diagnostics.`;
     copy.append(title, description);
     heading.append(icon, copy);
 
@@ -398,7 +507,7 @@
       return;
     }
     const origin = options.dataOrigin
-      || (state === 'live' ? 'live' : state === 'partial' ? 'mixed' : renderedDataOrigin());
+      || (state === 'live' || state === 'partial' ? 'live' : renderedDataOrigin());
     setDataSourceSummary(origin, options);
   }
 
@@ -531,13 +640,41 @@
     return `${n}${suffix}`;
   }
 
-  function snapshotFromLive({ plants = [], devices = [], alerts = [], integrations = [], providers = [], templates = [] }: LiveSnapshotPayload) {
-    const plantCount = plants.length || sum(integrations.map(x => x.plantsCount || x.plants));
-    const deviceCount = devices.length || sum(integrations.map(x => x.devicesCount || x.devices));
-    const alertCount = alerts.length || sum(integrations.map(x => x.alertsCount || x.alerts));
+  function knownCollectionTotal(totalCount: number | null | undefined, rows: unknown[]): number | null {
+    if (typeof totalCount !== 'number' || !Number.isFinite(totalCount) || totalCount < 0) return null;
+    return Math.max(totalCount, rows.length);
+  }
+
+  function overviewCoverageLabel(loaded: number, totalCount: number | null, noun: string): string {
+    if (totalCount === null) return `${loaded} ${noun} row(s) loaded`;
+    if (loaded >= totalCount) return `All ${compactNumber(totalCount)} ${noun} row(s) loaded`;
+    return `Page sample · ${loaded} of ${compactNumber(totalCount)} ${noun}`;
+  }
+
+  function uniqueOverviewValues(values: unknown[]): unknown[] {
+    const seen = new Set<string>();
+    return values.filter(value => {
+      const key = safeText(value, '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function snapshotFromLive({
+    plants = [], devices = [], alerts = [], integrations = [], providers = [], templates = [],
+    plantTotalCount = null, deviceTotalCount = null, alertTotalCount = null, integrationTotalCount = null
+  }: LiveSnapshotPayload) {
+    const knownPlantTotal = knownCollectionTotal(plantTotalCount, plants);
+    const knownDeviceTotal = knownCollectionTotal(deviceTotalCount, devices);
+    const knownAlertTotal = knownCollectionTotal(alertTotalCount, alerts);
+    const knownIntegrationTotal = knownCollectionTotal(integrationTotalCount, integrations);
+    const plantCount = knownPlantTotal ?? (plants.length || sum(integrations.map(x => x.plantsCount || x.plants)));
+    const deviceCount = knownDeviceTotal ?? (devices.length || sum(integrations.map(x => x.devicesCount || x.devices)));
+    const alertCount = knownAlertTotal ?? (alerts.length || sum(integrations.map(x => x.alertsCount || x.alerts)));
     const currentPowerKw = sum(plants.map(x => x.currentPowerKw));
     const liveProviderNames = integrations.map(x => x.displayName || x.provider || x.name || x.vendor).filter(Boolean);
-    const providerNames = providers.length ? providers : liveProviderNames;
+    const providerNames = uniqueOverviewValues(providers.length ? providers : liveProviderNames);
     const staleCount = sum(integrations.map(x => x.stalePlantsCount || x.liveSummary?.raw?.stalePlantsCount));
     const errorRate = integrations.length ? (sum(integrations.map(x => x.errorRatePct || x.liveSummary?.raw?.errorRatePct)) / integrations.length) : 0;
     return {
@@ -548,51 +685,54 @@
       providerNames,
       staleCount,
       errorRate,
-      integrationCount: integrations.length,
-      templateCount: templates.length
+      integrationCount: knownIntegrationTotal ?? integrations.length,
+      templateCount: templates.length,
+      plantTotalCount: knownPlantTotal,
+      deviceTotalCount: knownDeviceTotal,
+      alertTotalCount: knownAlertTotal,
+      integrationTotalCount: knownIntegrationTotal
     };
   }
 
-  function applyOverviewMockFromLive(payload: Required<LiveSnapshotPayload>): void {
-    const zentridMock = window.ZentridMock;
-    if (!zentridMock) return;
+  function applyOverviewDataFromLive(payload: Required<LiveSnapshotPayload>): void {
+    const store = window.ZentridMock;
+    if (!store) return;
     const snap = snapshotFromLive(payload);
-    const currentPowerText = snap.currentPowerKw > 0 ? `${(snap.currentPowerKw / 1000).toFixed(2)} MW` : '0 kW';
-    zentridMock.kpis = [
-      { label: 'Live Providers', value: String(snap.providerNames.length || snap.integrationCount), delta: snap.providerNames.join(', ') || 'No provider names', icon: '🔗', tone: 'cyan', route: 'integrations' },
-      { label: 'Plants', value: compactNumber(snap.plantCount), delta: `Live endpoint rows: ${payload.plants.length}`, icon: '🏭', tone: 'green', route: 'plants' },
-      { label: 'Devices', value: compactNumber(snap.deviceCount), delta: `Live endpoint rows: ${payload.devices.length}`, icon: '🔌', tone: 'blue', route: 'devices' },
-      { label: 'Live Power', value: currentPowerText, delta: '/api/plants aggregate', icon: '⚡', tone: 'yellow', route: 'telemetry' },
-      { label: 'Active Incidents', value: compactNumber(snap.alertCount), delta: `Live endpoint rows: ${payload.alerts.length}`, icon: '🚨', tone: 'red', route: 'alerts' },
-      { label: 'Templates', value: compactNumber(snap.templateCount), delta: 'Provider integration templates', icon: '🧩', tone: 'violet', route: 'integrations' }
+    const currentPowerText = payload.plants.some(row => row.currentPowerKw !== undefined && row.currentPowerKw !== null)
+      ? `${snap.currentPowerKw} kW`
+      : '—';
+
+    store.kpis = [
+      { label: 'Live Providers', value: String(snap.providerNames.length || snap.integrationCount), delta: snap.providerNames.join(', ') || '—', icon: '🔗', tone: 'cyan', route: 'integrations' },
+      { label: 'Plants', value: compactNumber(snap.plantCount), delta: overviewCoverageLabel(payload.plants.length, snap.plantTotalCount, 'plant'), icon: '🏭', tone: 'green', route: 'plants' },
+      { label: 'Devices', value: compactNumber(snap.deviceCount), delta: overviewCoverageLabel(payload.devices.length, snap.deviceTotalCount, 'device'), icon: '🔌', tone: 'blue', route: 'devices' },
+      { label: 'Live Power', value: currentPowerText, delta: payload.plants.length ? `Current page total · ${overviewCoverageLabel(payload.plants.length, snap.plantTotalCount, 'plant')}` : 'No plant power rows returned', icon: '⚡', tone: 'yellow', route: 'telemetry' },
+      { label: 'Alerts', value: compactNumber(snap.alertCount), delta: overviewCoverageLabel(payload.alerts.length, snap.alertTotalCount, 'alert'), icon: '🚨', tone: 'red', route: 'alerts' },
+      { label: 'Templates', value: compactNumber(snap.templateCount), delta: 'Provider integration templates returned by API', icon: '🧩', tone: 'violet', route: 'integrations' }
     ];
 
-    if (payload.integrations.length) {
-      zentridMock.integrations = payload.integrations.map(row => ({
-        name: safeText(row.displayName || row.name, safeText(row.provider || row.vendor, 'Provider')),
-        status: safeText(row.operationalStatus || row.status || row.health, 'Unknown'),
-        sync: safeText(row.lastSyncText || row.lastSync, fmtDate(row.lastSyncAtUtc || row.updatedAt)),
-        errors: Number(row.vendorExtensions?.errorsCount || row.errorRatePct || 0)
-      }));
-    }
+    store.integrations = payload.integrations.map(row => ({
+      name: safeText(row.displayName || row.name || row.provider || row.vendor, '—'),
+      status: safeText(row.operationalStatus || row.status || row.health, '—'),
+      sync: safeText(row.lastSyncText || row.lastSync, fmtDate(row.lastSyncAtUtc || row.updatedAt, '—')),
+      errors: row.vendorExtensions?.errorsCount ?? row.errorRatePct ?? null
+    }));
 
-    if (payload.alerts.length) {
-      zentridMock.alerts = payload.alerts.slice(0, 6).map(row => ({
-        title: safeText(row.title || row.message || row.sourceAlertId || row.id, 'Live backend alert'),
-        vendorDisplayName: safeText(row.title || row.message || row.sourceAlertId || row.id, 'Live backend alert'),
-        registeredName: safeText(row.sourceAlertId || row.id || row.title, 'Live backend alert'),
-        tenant: 'Backend Live API',
-        plant: safeText(row.plantName, safeText(row.sourcePlantId, 'Unknown Plant')),
-        severity: safeText(row.severity, 'Unknown'),
-        time: fmtDate(row.occurredAtUtc, 'No occurrence time')
-      }));
-    }
+    store.alerts = payload.alerts.slice(0, 6).map(row => ({
+      title: safeText(row.title || row.message || row.sourceAlertId || row.id, '—'),
+      vendorDisplayName: safeText(row.title || row.message || row.sourceAlertId || row.id, '—'),
+      registeredName: safeText(row.sourceAlertId || row.id || row.title, '—'),
+      tenant: safeText(row.tenantName || row.managingTenant || row.tenant, '—'),
+      plant: safeText(row.plantName || row.sourcePlantId, '—'),
+      severity: safeText(row.severity, '—'),
+      time: fmtDate(row.occurredAtUtc, '—')
+    }));
 
-    zentridMock.quality = [
+    store.quality = [
       { label: 'Providers', value: String(snap.providerNames.length || snap.integrationCount) },
       { label: 'Templates', value: String(snap.templateCount) },
-      { label: 'Stale Plants', value: String(snap.staleCount) },
-      { label: 'Avg Error Rate', value: `${snap.errorRate.toFixed(1)}%` }
+      { label: 'Stale Plants', value: payload.integrations.some(row => row.stalePlantsCount !== undefined || row.liveSummary?.raw?.stalePlantsCount !== undefined) ? String(snap.staleCount) : '—' },
+      { label: 'Avg Error Rate', value: payload.integrations.some(row => row.errorRatePct !== undefined || row.liveSummary?.raw?.errorRatePct !== undefined) ? `${snap.errorRate.toFixed(1)}%` : '—' }
     ];
   }
 
@@ -657,6 +797,42 @@
     return sameId(alert.deviceId, device.externalId) || sameId(alert.deviceId, device.id) || sameId(alert.raw?.sourceDeviceId, device.externalId) || sameId(alert.raw?.sourceDeviceId, device.id);
   }
 
+  function sameLabel(a: unknown, b: unknown): boolean {
+    const left = safeText(a, '').trim().toLowerCase();
+    const right = safeText(b, '').trim().toLowerCase();
+    return Boolean(left && right && left === right && left !== '—');
+  }
+
+  function plantMatchesTelemetry(plant: AnyRecord, telemetry: AnyRecord): boolean {
+    return sameId(telemetry.plantId, plant.externalId)
+      || sameId(telemetry.plantId, plant.id)
+      || sameId(telemetry.raw?.sourcePlantId, plant.externalId)
+      || sameId(telemetry.raw?.sourcePlantId, plant.id)
+      || sameLabel(telemetry.plant, plant.name);
+  }
+
+  function deviceMatchesTelemetry(device: AnyRecord, telemetry: AnyRecord): boolean {
+    return sameId(telemetry.deviceId, device.externalId)
+      || sameId(telemetry.deviceId, device.id)
+      || sameId(telemetry.deviceId, device.serial)
+      || sameId(telemetry.raw?.sourceDeviceId, device.externalId)
+      || sameId(telemetry.raw?.sourceDeviceId, device.id)
+      || sameId(telemetry.raw?.sourceDeviceId, device.serial)
+      || sameLabel(telemetry.device, device.name);
+  }
+
+  function publishDetailTelemetry(scope: 'plant' | 'device', record: AnyRecord, rows: AnyRecord[]): void {
+    const key = safeText(record?.id, '').trim();
+    if (!key) return;
+    if (scope === 'plant') {
+      window.ZentridLiveTelemetryByPlant = { ...(window.ZentridLiveTelemetryByPlant || {}), [key]: rows };
+      window.ZentridLiveTelemetryLoadedPlants = { ...(window.ZentridLiveTelemetryLoadedPlants || {}), [key]: true };
+      return;
+    }
+    window.ZentridLiveTelemetryByDevice = { ...(window.ZentridLiveTelemetryByDevice || {}), [key]: rows };
+    window.ZentridLiveTelemetryLoadedDevices = { ...(window.ZentridLiveTelemetryLoadedDevices || {}), [key]: true };
+  }
+
   function enrichPlantRelations(plants: AnyRecord[], devices: AnyRecord[], alerts: AnyRecord[]): AnyRecord[] {
     return plants.map(plant => {
       const relatedDevices = devices.filter(device => plantMatchesDevice(plant, device));
@@ -708,7 +884,7 @@
       `<strong>${htmlEscape(d.name)}</strong><small>${htmlEscape(d.externalId)} · ${htmlEscape(d.serial)}</small>`,
       `<strong>${htmlEscape(d.type)}</strong><small>${htmlEscape(d.vendor)} · ${htmlEscape(d.sourceStatus)}</small>`,
       `<span class="badge ${badge(d.status)}">${htmlEscape(d.status)}</span><small>${htmlEscape(d.lastSeen)}</small>`,
-      `<button class="small-btn" type="button" onclick="localStorage.setItem('zentrid_selected_device','${htmlEscape(d.id)}');location.href='device-detail.html'">Open</button>`
+      `<button class="small-btn" type="button" onclick="window.ZentridLiveSelection.selectDevice('${htmlEscape(d.id)}')">Open</button>`
     ]);
     return liveTable('Plant Devices', `${devices.length} matched by sourcePlantId / plant id. Showing first ${Math.min(25, devices.length)}.`, ['Device', 'Type / Source', 'Status', 'Action'], rows, `No devices matched ${plant.externalId || plant.id}`);
   }
@@ -718,7 +894,7 @@
       `<strong>${htmlEscape(a.title)}</strong><small>${htmlEscape(a.description)}</small>`,
       `<span class="badge ${badge(a.severity)}">${htmlEscape(a.severity)}</span><small>${htmlEscape(a.status)}</small>`,
       `<strong>${htmlEscape(a.plant)}</strong><small>${htmlEscape(a.device)}</small>`,
-      `<button class="small-btn" type="button" onclick="localStorage.setItem('zentrid_selected_alert','${htmlEscape(a.id)}');location.href='alert-detail.html'">Open</button>`
+      `<button class="small-btn" type="button" onclick="window.ZentridLiveSelection.selectAlert('${htmlEscape(a.id)}')">Open</button>`
     ]);
     return liveTable('Related Alerts', `${alerts.length} matched for ${contextLabel}. Showing first ${Math.min(25, alerts.length)}.`, ['Alert', 'Severity / Status', 'Object', 'Action'], rows, 'No related alerts found');
   }
@@ -753,7 +929,7 @@
   }
 
   function renderOverviewLiveSnapshot(payload: Required<LiveSnapshotPayload>): void {
-    applyOverviewMockFromLive(payload);
+    applyOverviewDataFromLive(payload);
     const overviewRenderer = window.renderOverview;
     const overviewWireHandler = window.wireOverview;
     if (typeof overviewRenderer === 'function' && typeof overviewWireHandler === 'function') {
@@ -766,20 +942,23 @@
     if (!/(^|\/)index\.html$/.test(location.pathname) && !/\/$/.test(location.pathname)) return;
     setLiveDataState('loading', 'Loading core records first. Alerts and operational integration summaries will continue in the background.', { source: 'Zentrid Platform APIs' });
 
-    const payload: Required<LiveSnapshotPayload> = { plants: [], devices: [], alerts: [], integrations: [], providers: [], templates: [] };
+    const payload: Required<LiveSnapshotPayload> = {
+      plants: [], devices: [], alerts: [], integrations: [], providers: [], templates: [],
+      plantTotalCount: null, deviceTotalCount: null, alertTotalCount: null, integrationTotalCount: null
+    };
     const errors: unknown[] = [];
     const pending = new Set(['alerts', 'integration summaries']);
 
     const updateState = (): void => {
       const populatedGroups = [payload.plants, payload.devices, payload.alerts, payload.integrations, payload.providers, payload.templates].filter(rows => Array.isArray(rows) && rows.length > 0).length;
-      const totalRecords = [payload.plants, payload.devices, payload.alerts, payload.integrations, payload.providers, payload.templates]
-        .reduce((sum, rows) => sum + (Array.isArray(rows) ? rows.length : 0), 0);
+      const snap = snapshotFromLive(payload);
+      const totalRecords = snap.plantCount + snap.deviceCount + snap.alertCount + snap.integrationCount + payload.providers.length + payload.templates.length;
       const pendingText = [...pending].join(' and ');
       const state: LiveDataState = pending.size || errors.length ? 'partial' : 'live';
       const message = pending.size
         ? `Core dashboard data is ready. ${pendingText} ${pending.size === 1 ? 'is' : 'are'} still loading without blocking the page.`
         : errors.length
-          ? 'Available live records were applied. One or more background endpoints did not complete, so existing fallback values remain in those sections.'
+          ? 'Available live records were applied. One or more background endpoints did not complete, so those sections remain empty.'
           : 'Core and background live records were applied progressively.';
       setLiveDataState(state, message, {
         source: 'Zentrid Platform APIs',
@@ -788,9 +967,9 @@
         details: pending.size ? `Background: ${pendingText}` : errors.length ? `${errors.length} background request failure(s)` : 'Progressive loading complete'
       });
       insertIntegrationLiveSummary([
-        { label: 'Core plants / devices', value: `${payload.plants?.length || 0}/${payload.devices?.length || 0}`, meta: 'Rendered before slower relations' },
-        { label: 'Alerts', value: pending.has('alerts') ? 'Loading…' : `${payload.alerts?.length || 0} row(s)`, meta: pending.has('alerts') ? 'Background request' : 'Background request completed' },
-        { label: 'Integrations', value: pending.has('integration summaries') ? `${payload.integrations?.length || 0} registry row(s)` : `${payload.integrations?.length || 0} enriched row(s)`, meta: pending.has('integration summaries') ? 'Operational summary loading' : 'Registry enriched with live summary' }
+        { label: 'Core plants / devices', value: `${compactNumber(snap.plantCount)}/${compactNumber(snap.deviceCount)}`, meta: `${payload.plants.length}/${payload.devices.length} page row(s) loaded` },
+        { label: 'Alerts', value: pending.has('alerts') ? 'Loading…' : compactNumber(snap.alertCount), meta: pending.has('alerts') ? 'Background request' : `${payload.alerts.length} page row(s) loaded` },
+        { label: 'Integrations', value: compactNumber(snap.integrationCount), meta: pending.has('integration summaries') ? `${payload.integrations.length} registry row(s); operational summary loading` : `${payload.integrations.length} registry row(s) enriched` }
       ]);
     };
 
@@ -804,8 +983,11 @@
       ]);
       const [plantsResult, devicesResult, registryResult, providersResult, templatesResult] = results;
       payload.plants = plantsResult.status === 'fulfilled' ? plantsResult.value.rawItems : [];
+      payload.plantTotalCount = plantsResult.status === 'fulfilled' ? plantsResult.value.pagination.totalCount : null;
       payload.devices = devicesResult.status === 'fulfilled' ? devicesResult.value.rawItems : [];
+      payload.deviceTotalCount = devicesResult.status === 'fulfilled' ? devicesResult.value.pagination.totalCount : null;
       payload.integrations = registryResult.status === 'fulfilled' ? registryResult.value.items : [];
+      payload.integrationTotalCount = registryResult.status === 'fulfilled' ? registryResult.value.pagination.totalCount : null;
       payload.providers = providersResult.status === 'fulfilled' ? asArray(providersResult.value) : [];
       payload.templates = templatesResult.status === 'fulfilled' ? asArray(templatesResult.value) : [];
       results.forEach(result => { if (result.status === 'rejected') errors.push(result.reason); });
@@ -815,20 +997,21 @@
 
       const hasCoreSignal = Boolean(payload.plants.length || payload.devices.length || payload.integrations.length || payload.providers.length || payload.templates.length);
       if (!hasCoreSignal) {
-        if (errors.length) setRequestFailure('Overview core endpoints', errors[0], 'The dashboard keeps its mock context.');
-        else setLiveDataState('empty', 'Core endpoints returned no records. The dashboard keeps its mock context while background checks continue.', { source: 'Zentrid Platform APIs' });
+        if (errors.length) setRequestFailure('Overview core endpoints', errors[0], 'No prototype fallback is displayed.');
+        else setLiveDataState('empty', 'Core endpoints returned no records. The dashboard remains empty while background checks continue.', { source: 'Zentrid Platform APIs' });
       } else {
         renderOverviewLiveSnapshot(payload);
         updateState();
       }
     } catch (error) {
       errors.push(error);
-      setRequestFailure('Overview core endpoints', error, 'The dashboard keeps its mock context.');
+      setRequestFailure('Overview core endpoints', error, 'No prototype fallback is displayed.');
     }
 
     void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('overview:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
         payload.alerts = result.rawItems;
+        payload.alertTotalCount = result.pagination.totalCount;
         errors.push(...result.errors);
         renderOverviewLiveSnapshot(payload);
       })
@@ -874,10 +1057,13 @@
           details: 'Background: /api/integrations',
           recordCount: data.length
         });
-      } else if (errors.length) {
-        setRequestFailure('/api/admin/provider-integrations', errors[0], 'Mock connector data remains visible.');
       } else {
-        setLiveDataState('empty', 'The integration registry returned no records. Mock connector data remains visible.', { source: '/api/admin/provider-integrations' });
+        integrations = [];
+        window.ZentridLiveIntegrations = [];
+        ZentridLayout.mount(renderIntegrations());
+        wireIntegrations();
+        if (errors.length) setRequestFailure('/api/admin/provider-integrations', errors[0], 'No prototype connector records are displayed.');
+        else setLiveDataState('empty', 'The integration registry returned no records. The registry is empty.', { source: '/api/admin/provider-integrations', recordCount: 0 });
       }
 
       insertIntegrationLiveSummary([
@@ -917,7 +1103,7 @@
           });
         });
     } catch (error) {
-      setRequestFailure('/api/admin/provider-integrations', error, 'Mock connector data remains visible.');
+      setRequestFailure('/api/admin/provider-integrations', error, 'No prototype connector records are displayed.');
     }
   }
 
@@ -931,8 +1117,8 @@
       publishRegistryPagination('plants', live);
       const data = live.items;
       if (!data.length) {
-        if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'Mock Plant Registry data remains visible.');
-        else setLiveDataState('empty', 'The requested plant page returned no records. Mock Plant Registry data remains visible.', { source: live.source, recordCount: live.pagination.totalCount });
+        if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'No prototype plant records are displayed.');
+        else setLiveDataState('empty', 'The requested plant page returned no records. No prototype plant records are displayed.', { source: live.source, recordCount: live.pagination.totalCount });
         return;
       }
 
@@ -981,7 +1167,7 @@
         .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
-      if (isCurrentRegistryRequest('plants', requestVersion)) setRequestFailure('/api/plants', error, 'Mock Plant Registry data remains visible.');
+      if (isCurrentRegistryRequest('plants', requestVersion)) setRequestFailure('/api/plants', error, 'No prototype plant records are displayed.');
     }
   }
 
@@ -995,7 +1181,7 @@
       publishRegistryPagination('devices', live);
       const data = live.items;
       if (!data.length) {
-        setLiveDataState('empty', 'The requested device page returned no records. Mock Device List data remains visible.', { source: live.source, recordCount: live.pagination.totalCount });
+        setLiveDataState('empty', 'The requested device page returned no records. No prototype device records are displayed.', { source: live.source, recordCount: live.pagination.totalCount });
         return;
       }
 
@@ -1044,7 +1230,7 @@
         .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
-      if (isCurrentRegistryRequest('devices', requestVersion)) setRequestFailure('/api/devices', error, 'Mock Device List data remains visible.');
+      if (isCurrentRegistryRequest('devices', requestVersion)) setRequestFailure('/api/devices', error, 'No prototype device records are displayed.');
     }
   }
 
@@ -1058,7 +1244,7 @@
       publishRegistryPagination('alerts', result);
       const data = result.items;
       if (!data.length) {
-        setLiveDataState('empty', 'The requested alert page returned no records. Mock Alerts data remains visible.', { source: '/api/alerts', recordCount: result.pagination.totalCount });
+        setLiveDataState('empty', 'The requested alert page returned no records. No prototype alert records are displayed.', { source: '/api/alerts', recordCount: result.pagination.totalCount });
         return;
       }
       const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
@@ -1075,7 +1261,41 @@
         });
       }
     } catch (error) {
-      if (isCurrentRegistryRequest('alerts', requestVersion)) setRequestFailure('/api/alerts', error, 'Mock Alerts data remains visible.');
+      if (isCurrentRegistryRequest('alerts', requestVersion)) setRequestFailure('/api/alerts', error, 'No prototype alert records are displayed.');
+    }
+  }
+
+  function presentTelemetryResult(result: ZentridRepositoryListResult): void {
+    window.ZentridTelemetryPage?.render(result);
+    if (!result.items.length) {
+      setLiveDataState('empty', 'The requested telemetry page returned no records. No prototype telemetry records are displayed.', {
+        source: '/api/telemetry',
+        details: `Page ${result.pagination.page} of ${result.pagination.totalPages}`,
+        recordCount: result.pagination.totalCount
+      });
+      return;
+    }
+    const cacheInfo = repositoryCachePresentation(result);
+    setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}Telemetry page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`, {
+      source: '/api/telemetry',
+      details: [`Server pagination · ${result.pagination.pageSize} rows per page`, cacheInfo.details].filter(Boolean).join(' · '),
+      recordCount: result.pagination.totalCount,
+      ...cacheFreshnessOptions(cacheInfo)
+    });
+  }
+
+  async function applyTelemetry(backgroundRefresh = false, forceRefresh = false): Promise<void> {
+    if (!/telemetry\.html$/.test(location.pathname)) return;
+    if (!backgroundRefresh) {
+      window.ZentridTelemetryPage?.setLoading('Loading the requested telemetry page from /api/telemetry.');
+      setLiveDataState('loading', 'Loading the requested telemetry page.', { source: '/api/telemetry' });
+    }
+    try {
+      const result = await ZentridAPIRepositories.telemetry.list(telemetryReadOptions(forceRefresh));
+      presentTelemetryResult(result);
+    } catch (error) {
+      window.ZentridTelemetryPage?.renderFailure(liveErrorMessage(error));
+      setRequestFailure('/api/telemetry', error, 'No prototype telemetry records are displayed.');
     }
   }
 
@@ -1427,26 +1647,46 @@
 
   async function applyDeviceDetail(forceRefresh = false): Promise<void> {
     if (!/device-detail\.html$/.test(location.pathname)) return;
-    setLiveDataState('loading', 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/devices' });
+    const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device');
+    const selectedSnapshot = readDetailSelection('device', selectedId);
+    setLiveDataState('loading', selectedSnapshot
+      ? 'Restoring the selected device while the current API page is checked for a fresher copy.'
+      : 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/devices' });
     try {
       const deviceResult = await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:core', 100, forceRefresh));
-      const deviceRows = deviceResult.items;
-      if (!deviceRows.length) {
-        setLiveDataState('empty', 'The device endpoint returned no records. The existing Device Detail mock remains visible.', { source: '/api/devices' });
+      const networkRows = deviceResult.items;
+      const selectedDeviceFromNetwork = selectedId
+        ? networkRows.find(record => detailSelectionMatches(record, selectedId))
+        : networkRows[0];
+      const selectedRecord = selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined);
+      if (!selectedRecord) {
+        const message = selectedId
+          ? 'The selected device is not present on the loaded API page and no preserved selection snapshot is available.'
+          : 'The device endpoint returned no records. No prototype device detail is displayed.';
+        window.ZentridApiOnly?.mountEmpty('Device Detail', message, '/api/devices');
+        setLiveDataState('empty', message, { source: '/api/devices', recordCount: deviceResult.pagination.totalCount });
         return;
       }
 
+      const deviceRows = selectedDeviceFromNetwork
+        ? networkRows
+        : [selectedRecord, ...networkRows.filter(record => !detailSelectionMatches(record, selectedId))];
       let plantRows: AnyRecord[] = [];
       let alertRows: AnyRecord[] = [];
+      let telemetryRows: AnyRecord[] = [];
       const relationErrors: unknown[] = [...deviceResult.errors];
-      const selectedId = localStorage.getItem('zentrid_selected_device') || new URLSearchParams(location.search).get('id');
       const sync = (): AnyRecord | undefined => {
         const mappedDevices = enrichDeviceRelations(deviceRows, plantRows, alertRows);
         window.ZentridLivePlants = plantRows;
         window.ZentridLiveDevices = mappedDevices;
         window.ZentridLiveAlerts = alertRows;
-        const device = mappedDevices.find(d => d.id === selectedId || d.externalId === selectedId || d.serial === selectedId) || mappedDevices[0];
-        if (device) localStorage.setItem('zentrid_selected_device', device.id);
+        const device = selectedId
+          ? mappedDevices.find(record => detailSelectionMatches(record, selectedId))
+          : mappedDevices[0];
+        if (device) {
+          localStorage.setItem('zentrid_selected_device', device.id);
+          saveDetailSelection('device', device);
+        }
         return device;
       };
       const device = sync();
@@ -1465,7 +1705,7 @@
             setLiveDataState(result.errors.length ? 'partial' : 'live', 'The device record is visible and its parent plant relation was loaded on demand.', {
               source: `${deviceResult.source} + ${result.source}`,
               details: result.errors.length ? `${result.errors.length} relation error(s)` : 'Parent relation loaded on demand',
-              recordCount: deviceRows.length
+              recordCount: deviceResult.pagination.totalCount
             });
           }
         },
@@ -1482,7 +1722,7 @@
             setLiveDataState(result.errors.length ? 'partial' : 'live', 'Device alerts were loaded only after the Alerts tab was opened.', {
               source: `${deviceResult.source} + ${result.source}`,
               details: result.errors.length ? `${result.errors.length} alert error(s)` : 'Alerts loaded on demand',
-              recordCount: deviceRows.length
+              recordCount: deviceResult.pagination.totalCount
             });
           }
         },
@@ -1491,8 +1731,23 @@
           tabs: ['telemetry', 'monitoring'],
           label: 'Telemetry summary',
           loader: async () => {
-            // Current normalized device response already contains the available telemetry snapshot.
-            await Promise.resolve();
+            const selectedDevice = sync();
+            if (!selectedDevice) throw new Error('The selected device is not available for telemetry matching.');
+            const result = await ZentridAPIRepositories.telemetry.list({
+              ...detailReadOptions('device-detail:telemetry', 100, forceRefresh),
+              timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+            });
+            telemetryRows = result.items.filter(row => deviceMatchesTelemetry(selectedDevice, row));
+            relationErrors.push(...result.errors);
+            if (!result.items.length && result.errors.length) throw result.errors[0];
+            publishDetailTelemetry('device', selectedDevice, telemetryRows);
+            setLiveDataState(result.errors.length ? 'partial' : 'live', 'Device telemetry was loaded only after the Telemetry Summary tab was opened.', {
+              source: `${deviceResult.source} + ${result.source}`,
+              details: telemetryRows.length
+                ? `${telemetryRows.length} matching telemetry record(s) on API page ${result.pagination.page}`
+                : `No matching device telemetry on API page ${result.pagination.page} of ${result.pagination.totalPages}`,
+              recordCount: result.pagination.totalCount
+            });
           }
         }
       ]);
@@ -1500,41 +1755,110 @@
       if (!mountExistingRenderer('renderDeviceDetail', 'wireDeviceDetail') && device) {
         console.warn('Zentrid live API: existing Device Detail renderer was not found; keeping current page markup.');
       }
-      setLiveDataState(deviceResult.errors.length ? 'partial' : 'live', 'The device overview is ready. Parent plant, alerts and telemetry remain idle until their tabs are opened.', {
-        source: deviceResult.source,
-        details: 'Lazy sections: parent plant · alerts · telemetry',
-        recordCount: deviceRows.length
+      const usingSnapshot = Boolean(selectedSnapshot && !selectedDeviceFromNetwork);
+      setLiveDataState(deviceResult.errors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
+        ? 'The exact selected device was restored from this browser session because it is not present on API page 1. Lazy relations remain available.'
+        : 'The device overview is ready. Parent plant, alerts and telemetry remain idle until their tabs are opened.', {
+        source: usingSnapshot ? `${deviceResult.source} + selected session record` : deviceResult.source,
+        details: usingSnapshot ? `Selected record preserved · API page ${deviceResult.pagination.page} checked` : 'Lazy sections: parent plant · alerts · telemetry',
+        recordCount: deviceResult.pagination.totalCount
       });
     } catch (error) {
-      setRequestFailure('/api/devices', error, 'The existing Device Detail mock remains visible.');
+      if (selectedSnapshot) {
+        window.ZentridLivePlants = [];
+        window.ZentridLiveDevices = [selectedSnapshot];
+        window.ZentridLiveAlerts = [];
+        saveDetailSelection('device', selectedSnapshot);
+        mountExistingRenderer('renderDeviceDetail', 'wireDeviceDetail');
+        setLiveDataState('partial', 'The selected device was restored from this browser session while the live device request failed.', {
+          source: 'Selected session record',
+          details: liveErrorMessage(error),
+          recordCount: 1,
+          freshnessStatus: 'stale'
+        });
+        return;
+      }
+      setRequestFailure('/api/devices', error, 'No prototype device detail is displayed.');
+    }
+  }
+
+  function selectedPlantAdministrativeId(selectedId: string | null): string {
+    if (!selectedId) return '';
+    try {
+      const raw = localStorage.getItem('zentrid_selected_plant_context');
+      if (!raw) return '';
+      const context = JSON.parse(raw) as { selectedId?: unknown; adminId?: unknown };
+      const contextSelectedId = String(context.selectedId ?? '').trim();
+      const adminId = String(context.adminId ?? '').trim();
+      return contextSelectedId === String(selectedId).trim() ? adminId : '';
+    } catch {
+      localStorage.removeItem('zentrid_selected_plant_context');
+      return '';
     }
   }
 
   async function applyPlantDetail(forceRefresh = false): Promise<void> {
     if (!/plant-detail\.html$/.test(location.pathname)) return;
-    setLiveDataState('loading', 'Loading the plant record. Devices, alerts and telemetry will load only when their tabs are opened.', { source: '/api/plants' });
+    const selectedId = localStorage.getItem('zentrid_selected_plant') || new URLSearchParams(location.search).get('id');
+    let selectedLocalPlant: AnyRecord | null = null;
+    if (selectedId) {
+      try {
+        const raw = sessionStorage.getItem('zentrid_plant_create_fallback');
+        const parsed = raw ? JSON.parse(raw) as AnyRecord : null;
+        if (parsed && String(parsed.id || '').trim() === String(selectedId).trim() && parsed.dataOrigin === 'local') selectedLocalPlant = parsed;
+      } catch {
+        sessionStorage.removeItem('zentrid_plant_create_fallback');
+      }
+    }
+    if (selectedLocalPlant) {
+      window.ZentridLivePlants = [selectedLocalPlant];
+      window.ZentridLiveDevices = [];
+      window.ZentridLiveAlerts = [];
+      syncLiveClientModel([selectedLocalPlant], []);
+      ZentridLayout.mount(renderPlantDetail());
+      wirePlantDetail();
+      setLiveDataState('fallback', 'This plant is a temporary session fallback created while the backend was unavailable.', {
+        source: 'Browser session storage',
+        details: 'No backend detail request was sent for the temporary local identifier.',
+        dataOrigin: 'local',
+        recordCount: 1
+      });
+      return;
+    }
+    const selectedAdminId = selectedPlantAdministrativeId(selectedId);
+    const detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/plants + /api/admin/plants';
+    setLiveDataState('loading', selectedAdminId ? 'Loading the selected Global Admin plant record.' : 'Resolving the selected plant from the available live and administrative registries.', { source: detailSource });
     try {
-      const live = await ZentridAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
+      const live = selectedAdminId
+        ? await ZentridAPIRepositories.plants.get(selectedAdminId, detailReadOptions('plant-detail:core', 100, forceRefresh))
+        : await ZentridAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
       const data = live.items;
       if (!data.length) {
-        if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'The existing Plant Detail mock remains visible.');
-        else setLiveDataState('empty', 'Plant endpoints returned no records. The existing Plant Detail mock remains visible.', { source: live.source, recordCount: 0 });
+        if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'No prototype plant detail is displayed.');
+        else setLiveDataState('empty', selectedId ? 'The selected plant endpoint returned no matching record.' : 'Plant endpoints returned no records. No prototype plant detail is displayed.', { source: live.source || detailSource, recordCount: 0 });
         return;
       }
 
       let deviceRows: AnyRecord[] = [];
       let alertRows: AnyRecord[] = [];
+      let telemetryRows: AnyRecord[] = [];
       const relationErrors: unknown[] = [...live.errors];
-      const selectedId = localStorage.getItem('zentrid_selected_plant') || new URLSearchParams(location.search).get('id');
       const sync = (): AnyRecord | undefined => {
         const mapped = enrichPlantRelations(data, deviceRows, alertRows);
         window.ZentridLivePlants = mapped;
         window.ZentridLiveDevices = deviceRows;
         window.ZentridLiveAlerts = alertRows;
         syncLiveClientModel(mapped, deviceRows);
-        const plant = mapped.find(p => p.id === selectedId || p.externalId === selectedId || p.code === selectedId) || mapped[0];
+        const plant = mapped.find(p => p.id === selectedId || p.externalId === selectedId || p.code === selectedId || p.adminId === selectedAdminId) || mapped[0];
         if (plant) {
-          localStorage.setItem('zentrid_selected_plant', plant.id);
+          const renderedId = String(plant.id || selectedId || selectedAdminId || '').trim();
+          const administrativeId = String(plant.adminId || plant.raw?.adminRecord?.id || plant.raw?.adminRecord?.plantId || selectedAdminId || '').trim();
+          if (renderedId) localStorage.setItem('zentrid_selected_plant', renderedId);
+          if (renderedId && administrativeId) {
+            localStorage.setItem('zentrid_selected_plant_context', JSON.stringify({ selectedId: renderedId, adminId: administrativeId }));
+          } else {
+            localStorage.removeItem('zentrid_selected_plant_context');
+          }
           ensureLiveClientModelPlant(plant, Array.isArray(plant.relatedDevices) ? plant.relatedDevices : []);
         }
         return plant;
@@ -1581,8 +1905,23 @@
           tabs: ['energy'],
           label: 'Plant telemetry',
           loader: async () => {
-            // The current plant DTO already contains its normalized power and energy snapshot.
-            await Promise.resolve();
+            const selectedPlant = sync();
+            if (!selectedPlant) throw new Error('The selected plant is not available for telemetry matching.');
+            const result = await ZentridAPIRepositories.telemetry.list({
+              ...detailReadOptions('plant-detail:telemetry', 100, forceRefresh),
+              timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+            });
+            telemetryRows = result.items.filter(row => plantMatchesTelemetry(selectedPlant, row));
+            relationErrors.push(...result.errors);
+            if (!result.items.length && result.errors.length) throw result.errors[0];
+            publishDetailTelemetry('plant', selectedPlant, telemetryRows);
+            setLiveDataState(result.errors.length ? 'partial' : 'live', 'Plant telemetry was loaded only after the Energy & Telemetry tab was opened.', {
+              source: `${live.source} + ${result.source}`,
+              details: telemetryRows.length
+                ? `${telemetryRows.length} matching telemetry record(s) on API page ${result.pagination.page}`
+                : `No matching plant telemetry on API page ${result.pagination.page} of ${result.pagination.totalPages}`,
+              recordCount: result.pagination.totalCount
+            });
           }
         }
       ]);
@@ -1590,54 +1929,129 @@
       if (!mountExistingRenderer('renderPlantDetailPage', '')) {
         console.warn('Zentrid live API: existing Plant Detail renderer was not found; keeping current page markup.');
       }
+      const usedDirectDetail = Boolean(selectedId && live.source.startsWith(detailSource));
       setLiveDataState(live.errors.length ? 'partial' : 'live', 'The plant overview is ready. Devices, alerts and telemetry remain idle until their tabs are opened.', {
         source: live.source,
-        details: 'Lazy sections: devices · alerts · telemetry',
+        details: [
+          usedDirectDetail ? 'Direct detail endpoint with live operational enrichment' : selectedId ? 'Fallback list lookup' : 'Merged plant collection lookup',
+          live.errors.length ? (usedDirectDetail ? 'Live operational enrichment returned an error; administrative detail remains available.' : 'The direct detail request failed; the bounded list fallback was used.') : '',
+          'Lazy sections: devices · alerts · telemetry'
+        ].filter(Boolean).join(' · '),
         recordCount: data.length
       });
     } catch (error) {
-      setRequestFailure('/api/plants', error, 'The existing Plant Detail mock remains visible.');
+      setRequestFailure(detailSource, error, 'No prototype plant detail is displayed.');
     }
   }
 
   async function applyAlertDetail(forceRefresh = false): Promise<void> {
     if (!/alert-detail\.html$/.test(location.pathname)) return;
-    setLiveDataState('loading', 'Loading normalized alert data for this detail page.', { source: '/api/alerts' });
+    const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_alert');
+    const selectedSnapshot = readDetailSelection('alert', selectedId);
+    setLiveDataState('loading', selectedSnapshot
+      ? 'Restoring the selected alert while the current API page is checked for a fresher copy.'
+      : 'Loading normalized alert data for this detail page.', { source: '/api/alerts' });
     try {
       const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       const data = result.items;
-      if (!data.length) {
-        setLiveDataState('empty', 'The alert endpoint responded successfully but returned no records. Alert Detail keeps its mock fallback.', { source: '/api/alerts', recordCount: 0 });
+      const selectedAlertFromNetwork = selectedId
+        ? data.find(record => detailSelectionMatches(record, selectedId))
+        : data[0];
+      const selectedRecord = selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined);
+      if (!selectedRecord) {
+        const message = selectedId
+          ? 'The selected alert is not present on the loaded API page and no preserved selection snapshot is available.'
+          : 'The alert endpoint returned no records.';
+        window.ZentridApiOnly?.mountEmpty('Alert Detail', message, '/api/alerts');
+        setLiveDataState('empty', message, { source: '/api/alerts', recordCount: result.pagination.totalCount });
         return;
       }
       if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
         const target = window.ZentridAlerts || ZentridAlerts;
-        target.splice(0, target.length, ...data);
+        const detailRows = selectedAlertFromNetwork
+          ? data
+          : [selectedRecord, ...data.filter(record => !detailSelectionMatches(record, selectedId))];
+        target.splice(0, target.length, ...detailRows);
+        localStorage.setItem('zentrid_selected_alert', selectedRecord.id);
+        saveDetailSelection('alert', selectedRecord);
         ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
-        setLiveDataState('live', `${data.length} live alert record(s) were loaded for this detail page.`, { source: '/api/alerts', recordCount: data.length });
+        const usingSnapshot = Boolean(selectedSnapshot && !selectedAlertFromNetwork);
+        setLiveDataState(result.errors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
+          ? 'The exact selected alert was restored from this browser session because it is not present on API page 1.'
+          : 'The selected live alert record was loaded for this detail page.', {
+          source: usingSnapshot ? `${result.source} + selected session record` : result.source,
+          details: usingSnapshot ? `Selected record preserved · API page ${result.pagination.page} checked` : `API page ${result.pagination.page} of ${result.pagination.totalPages}`,
+          recordCount: result.pagination.totalCount
+        });
       }
     } catch (error) {
-      setRequestFailure('/api/alerts', error, 'Alert Detail keeps its mock fallback.');
+      if (selectedSnapshot && Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
+        const target = window.ZentridAlerts || ZentridAlerts;
+        target.splice(0, target.length, selectedSnapshot);
+        saveDetailSelection('alert', selectedSnapshot);
+        ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
+        wireAlertDetailPage();
+        setLiveDataState('partial', 'The selected alert was restored from this browser session while the live alert request failed.', {
+          source: 'Selected session record',
+          details: liveErrorMessage(error),
+          recordCount: 1,
+          freshnessStatus: 'stale'
+        });
+        return;
+      }
+      setRequestFailure('/api/alerts', error, 'No prototype alert detail is displayed.');
     }
   }
 
   async function applyIntegrationDetail(forceRefresh = false): Promise<void> {
     if (!/integration-detail\.html$/.test(location.pathname)) return;
-    setLiveDataState('loading', 'Loading the integration registry record. Operational summary will remain idle until Synchronization is opened.', { source: '/api/admin/provider-integrations' });
+    const selectedId = String(localStorage.getItem('zentrid_selected_integration') || '').trim();
+    let selectedLocalIntegration: AnyRecord | null = null;
+    if (selectedId) {
+      try {
+        const raw = sessionStorage.getItem('zentrid_integration_create_fallback');
+        const parsed = raw ? JSON.parse(raw) as AnyRecord : null;
+        if (parsed && String(parsed.id || '').trim() === selectedId && parsed.dataOrigin === 'local') selectedLocalIntegration = parsed;
+      } catch {
+        sessionStorage.removeItem('zentrid_integration_create_fallback');
+      }
+    }
+    if (selectedLocalIntegration) {
+      integrations = [selectedLocalIntegration];
+      window.ZentridLiveIntegrations = integrations;
+      ZentridLayout.mount(renderIntegrationDetail());
+      wireIntegrationDetail();
+      setLiveDataState('fallback', 'This connector is a temporary session fallback created while the backend was unavailable.', {
+        source: 'Browser session storage',
+        details: 'No backend detail request was sent for the temporary local identifier. Credential values were not stored.',
+        dataOrigin: 'local',
+        recordCount: 1
+      });
+      return;
+    }
+    const detailSource = selectedId
+      ? `/api/admin/provider-integrations/${encodeURIComponent(selectedId)}`
+      : '/api/admin/provider-integrations';
+    setLiveDataState('loading', selectedId
+      ? 'Loading the selected integration registry record. Operational summary will remain idle until Synchronization is opened.'
+      : 'Loading the integration registry record. Operational summary will remain idle until Synchronization is opened.', { source: detailSource });
     try {
-      const registry = await ZentridAPIRepositories.integrations.list(detailReadOptions('integration-detail:registry', 100, forceRefresh));
-      const data = registry.items;
+      const registry = selectedId
+        ? await ZentridAPIRepositories.integrations.get(selectedId, detailReadOptions('integration-detail', 20, forceRefresh))
+        : await ZentridAPIRepositories.integrations.list(detailReadOptions('integration-detail:fallback', 20, forceRefresh));
+      const data: AnyRecord[] = selectedId
+        ? ('item' in registry && registry.item ? [registry.item as AnyRecord] : [])
+        : (registry.items as AnyRecord[]).slice(0, 1);
       if (!data.length) {
-        if (registry.errors.length) setRequestFailure(registry.source, registry.errors[0], 'Integration Detail keeps its mock fallback.');
-        else setLiveDataState('empty', 'The integration registry returned no records. Integration Detail keeps its mock fallback.', { source: registry.source, recordCount: 0 });
+        if (registry.errors.length) setRequestFailure(registry.source, registry.errors[0], 'No prototype integration detail is displayed.');
+        else { window.ZentridApiOnly?.mountEmpty('Integration Detail', selectedId ? 'The selected integration record was not returned.' : 'The integration registry returned no records.', registry.source); setLiveDataState('empty', selectedId ? 'The selected integration record was not returned. Integration Detail is empty.' : 'The integration registry returned no records. Integration Detail is empty.', { source: registry.source, recordCount: 0 }); }
         return;
       }
       integrations = data;
       window.ZentridLiveIntegrations = integrations;
-      const selectedId = localStorage.getItem('zentrid_selected_integration');
       const firstIntegrationId = integrations[0]?.id;
-      if (!integrations.some(x => x.id === selectedId) && firstIntegrationId) localStorage.setItem('zentrid_selected_integration', firstIntegrationId);
+      if (!selectedId && firstIntegrationId) localStorage.setItem('zentrid_selected_integration', firstIntegrationId);
 
       window.ZentridDetailLazyTabs?.register('integration', [
         {
@@ -1662,13 +2076,18 @@
 
       ZentridLayout.mount(renderIntegrationDetail());
       wireIntegrationDetail();
-      setLiveDataState(registry.errors.length ? 'partial' : 'live', `${data.length} integration registry record(s) are ready. Operational health has not been requested yet.`, {
+      const usedDirectDetail = Boolean(selectedId && registry.source.startsWith(detailSource));
+      setLiveDataState(registry.errors.length ? 'partial' : 'live', 'The integration registry record is ready. Operational health has not been requested yet.', {
         source: registry.source,
-        details: 'Lazy section: Synchronization operational summary',
+        details: [
+          usedDirectDetail ? 'Direct detail endpoint' : selectedId ? 'Fallback list lookup' : 'Registry preview lookup',
+          registry.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
+          'Lazy section: Synchronization operational summary'
+        ].filter(Boolean).join(' · '),
         recordCount: data.length
       });
     } catch (error) {
-      setRequestFailure('/api/admin/provider-integrations', error, 'Integration Detail keeps its mock fallback.');
+      setRequestFailure(detailSource, error, 'No prototype integration detail is displayed.');
     }
   }
 
@@ -1676,56 +2095,123 @@
     if (!/clients\.html$/.test(location.pathname) && !/client-detail\.html$/.test(location.pathname)) return;
     const registry = /clients\.html$/.test(location.pathname);
     const requestVersion = registry ? beginRegistryRequest('clients') : 0;
-    if (!backgroundRefresh) setLiveDataState('loading', registry ? 'Loading the requested Global Admin client page.' : 'Loading Global Admin client records.', { source: '/api/admin/clients' });
+    const selectedId = registry ? '' : String(localStorage.getItem('zentrid_selected_client') || '').trim();
+    const clientModel = window.ZentridClientModel || (typeof ZentridClientModel !== 'undefined' ? ZentridClientModel : null);
+    const selectedLocalClient = !registry && selectedId
+      ? clientModel?.clients.find(client => client.id === selectedId && (client as unknown as AnyRecord).dataOrigin === 'local')
+      : null;
+    if (selectedLocalClient) {
+      renderClientDetailPage();
+      setLiveDataState('fallback', 'This client is a local fallback record created while the backend was unavailable.', {
+        source: 'Browser local storage',
+        details: 'No backend detail request was sent for the local fallback identifier.',
+        dataOrigin: 'local',
+        recordCount: 1
+      });
+      return;
+    }
+    const detailSource = selectedId ? `/api/admin/clients/${encodeURIComponent(selectedId)}` : '/api/admin/clients';
+    if (!backgroundRefresh) setLiveDataState('loading', registry ? 'Loading the requested Global Admin client page.' : selectedId ? 'Loading the selected Global Admin client record.' : 'Loading Global Admin client records.', { source: registry ? '/api/admin/clients' : detailSource });
     try {
-      const result = await ZentridAPIRepositories.clients.list(registry ? registryReadOptions('clients', forceRefresh) : detailReadOptions('clients', 100, forceRefresh));
+      const result = registry
+        ? await ZentridAPIRepositories.clients.list(registryReadOptions('clients', forceRefresh))
+        : selectedId
+          ? await ZentridAPIRepositories.clients.get(selectedId, detailReadOptions('client-detail', 20, forceRefresh))
+          : await ZentridAPIRepositories.clients.list(detailReadOptions('client-detail:fallback', 20, forceRefresh));
       if (registry && !isCurrentRegistryRequest('clients', requestVersion)) return;
       if (registry) publishRegistryPagination('clients', result);
-      const data = result.items;
+      const data: AnyRecord[] = registry
+        ? result.items as AnyRecord[]
+        : ('item' in result && result.item ? [result.item as AnyRecord] : (result.items as AnyRecord[]).slice(0, 1));
       if (!data.length) {
-        setLiveDataState('empty', 'The client endpoint responded successfully but returned no records. Client screens keep their mock fallback.', { source: '/api/admin/clients', recordCount: result.pagination.totalCount });
+        setLiveClients([]);
+        if (registry) renderClientsPage();
+        else window.ZentridApiOnly?.mountEmpty('Client Detail', selectedId ? 'The selected client endpoint returned no matching record.' : 'The client endpoint returned no records.', detailSource);
+        if (result.errors.length) setRequestFailure(detailSource, result.errors[0], 'No prototype client records are displayed.');
+        else setLiveDataState('empty', selectedId ? 'The selected client endpoint responded successfully but returned no matching record.' : 'The client endpoint responded successfully but returned no records. Client screens are empty.', { source: detailSource, recordCount: registry ? result.pagination.totalCount : 0 });
         return;
       }
       const mapped = data;
       if (!setLiveClients(mapped)) {
-        setLiveDataState('fallback', 'Live client records were returned, but the client model was unavailable. Existing client data remains visible.', { source: '/api/admin/clients' });
+        setLiveDataState('fallback', 'Live client records were returned, but the client model was unavailable. Existing client data remains visible.', { source: result.source || detailSource });
         return;
       }
-      const selectedId = localStorage.getItem('zentrid_selected_client');
-      const clientModel = window.ZentridClientModel || (typeof ZentridClientModel !== 'undefined' ? ZentridClientModel : null);
-      if (!mapped.some(x => x.id === selectedId) && mapped[0]) clientModel?.selectClient(mapped[0].id);
-      if (/client-detail\.html$/.test(location.pathname)) renderClientDetailPage();
-      else renderClientsPage();
+      if (registry) {
+        const currentSelectedId = localStorage.getItem('zentrid_selected_client');
+        if (!mapped.some(x => x.id === currentSelectedId) && mapped[0]) clientModel?.selectClient(mapped[0].id);
+        renderClientsPage();
+      } else {
+        if (mapped[0]?.id) clientModel?.selectClient(mapped[0].id);
+        renderClientDetailPage();
+      }
       const cacheInfo = repositoryCachePresentation(result);
-      setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}${registry
+      const usedDirectDetail = !registry && Boolean(selectedId) && result.source.includes('/api/admin/clients/');
+      setLiveDataState(result.errors.length ? 'partial' : cacheInfo.state, `${cacheInfo.prefix}${registry
         ? `Client page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`
-        : `${data.length} client record(s) were applied.`}`, {
-        source: '/api/admin/clients',
+        : usedDirectDetail ? 'The selected client record was loaded by ID.' : 'A client record was loaded from the bounded list fallback.'}`, {
+        source: result.source || detailSource,
         details: [
-          registry ? `Server pagination · ${result.pagination.pageSize} rows per page` : '',
+          registry ? `Server pagination · ${result.pagination.pageSize} rows per page` : usedDirectDetail ? 'Direct detail endpoint' : 'Fallback list lookup',
+          result.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
           cacheInfo.details
         ].filter(Boolean).join(' · '),
         recordCount: registry ? result.pagination.totalCount : data.length,
         ...cacheFreshnessOptions(cacheInfo)
       });
     } catch (error) {
-      if (!registry || isCurrentRegistryRequest('clients', requestVersion)) setRequestFailure('/api/admin/clients', error, 'Client screens keep their mock fallback.');
+      if (!registry || isCurrentRegistryRequest('clients', requestVersion)) setRequestFailure(registry ? '/api/admin/clients' : detailSource, error, 'No prototype client records are displayed.');
     }
   }
 
   async function applyTenants(forceRefresh = false): Promise<void> {
     if (!/tenants\.html$/.test(location.pathname) && !/tenant-detail\.html$/.test(location.pathname)) return;
-    setLiveDataState('loading', 'Loading Global Admin tenant records.', { source: '/api/admin/tenants' });
+    const registry = /tenants\.html$/.test(location.pathname);
+    const selectedId = registry ? '' : String(localStorage.getItem('zentrid_selected_tenant') || '').trim();
+    let selectedLocalTenant: AnyRecord | null = null;
+    if (!registry && selectedId) {
+      try {
+        const raw = sessionStorage.getItem('zentrid_tenant_create_fallback');
+        const parsed = raw ? JSON.parse(raw) as AnyRecord : null;
+        if (parsed && String(parsed.id || '').trim() === selectedId && parsed.dataOrigin === 'local') selectedLocalTenant = parsed;
+      } catch (error) {
+        sessionStorage.removeItem('zentrid_tenant_create_fallback');
+      }
+    }
+    if (selectedLocalTenant) {
+      setLiveTenants([selectedLocalTenant]);
+      ZentridLayout.mount(renderTenantDetail());
+      wireTenantDetail();
+      setLiveDataState('fallback', 'This tenant is a temporary local fallback created while the backend was unavailable.', {
+        source: 'Browser session storage',
+        details: 'No backend detail request was sent for the temporary local identifier.',
+        dataOrigin: 'local',
+        recordCount: 1
+      });
+      return;
+    }
+    const detailSource = selectedId ? `/api/admin/tenants/${encodeURIComponent(selectedId)}` : '/api/admin/tenants';
+    setLiveDataState('loading', registry ? 'Loading Global Admin tenant records.' : selectedId ? 'Loading the selected Global Admin tenant record.' : 'Loading Global Admin tenant records.', { source: registry ? '/api/admin/tenants' : detailSource });
     try {
-      const result = await ZentridAPIRepositories.tenants.list(detailReadOptions('tenants', 100, forceRefresh));
-      const data = result.items;
+      const result = registry
+        ? await ZentridAPIRepositories.tenants.list(detailReadOptions('tenants', 100, forceRefresh))
+        : selectedId
+          ? await ZentridAPIRepositories.tenants.get(selectedId, detailReadOptions('tenant-detail', 20, forceRefresh))
+          : await ZentridAPIRepositories.tenants.list(detailReadOptions('tenant-detail:fallback', 20, forceRefresh));
+      const data: AnyRecord[] = registry
+        ? result.items as AnyRecord[]
+        : ('item' in result && result.item ? [result.item as AnyRecord] : (result.items as AnyRecord[]).slice(0, 1));
       if (!data.length) {
-        setLiveDataState('empty', 'The tenant endpoint responded successfully but returned no records. Tenant screens keep their mock fallback.', { source: '/api/admin/tenants', recordCount: 0 });
+        setLiveTenants([]);
+        if (!registry) window.ZentridApiOnly?.mountEmpty('Tenant Detail', selectedId ? 'The selected tenant endpoint returned no matching record.' : 'The tenant endpoint returned no records.', detailSource);
+        else { ZentridLayout.mount(renderTenantRegistry()); wireTenantRegistry(); }
+        if (result.errors.length) setRequestFailure(detailSource, result.errors[0], 'No prototype tenant records are displayed.');
+        else setLiveDataState('empty', selectedId ? 'The selected tenant endpoint responded successfully but returned no matching record.' : 'The tenant endpoint responded successfully but returned no records. Tenant screens are empty.', { source: detailSource, recordCount: registry ? result.pagination.totalCount : 0 });
         return;
       }
       const mapped = data;
       setLiveTenants(mapped);
-      if (/tenant-detail\.html$/.test(location.pathname)) {
+      if (!registry) {
+        if (mapped[0]?.id) localStorage.setItem('zentrid_selected_tenant', mapped[0].id);
         ZentridLayout.mount(renderTenantDetail());
         wireTenantDetail();
       } else {
@@ -1733,23 +2219,39 @@
         wireTenantRegistry();
       }
       const cacheInfo = repositoryCachePresentation(result);
-      setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}${data.length} tenant record(s) were applied.`, {
-        source: '/api/admin/tenants',
-        details: cacheInfo.details,
-        recordCount: data.length,
+      const usedDirectDetail = !registry && Boolean(selectedId) && result.source.includes('/api/admin/tenants/');
+      setLiveDataState(result.errors.length ? 'partial' : cacheInfo.state, `${cacheInfo.prefix}${registry
+        ? `${data.length} tenant record(s) were applied.`
+        : usedDirectDetail ? 'The selected tenant record was loaded by ID.' : 'A tenant record was loaded from the bounded list fallback.'}`, {
+        source: result.source || detailSource,
+        details: [
+          registry ? 'Bounded tenant registry read' : usedDirectDetail ? 'Direct detail endpoint' : 'Fallback list lookup',
+          result.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
+          cacheInfo.details
+        ].filter(Boolean).join(' · '),
+        recordCount: registry ? result.pagination.totalCount : data.length,
         ...cacheFreshnessOptions(cacheInfo)
       });
     } catch (error) {
-      setRequestFailure('/api/admin/tenants', error, 'Tenant screens keep their mock fallback.');
+      setRequestFailure(registry ? '/api/admin/tenants' : detailSource, error, 'No prototype tenant records are displayed.');
     }
   }
 
-  const repositoryRefreshTimers = new Map<RegistryEntity, number>();
+  const repositoryRefreshTimers = new Map<RegistryEntity | 'telemetry', number>();
 
   function handleRepositoryUpdated(event: Event): void {
-    const detail = (event as CustomEvent<{ entity?: RegistryEntity; reason?: string; result?: ZentridRepositoryListResult }>).detail;
+    const detail = (event as CustomEvent<{ entity?: RegistryEntity | 'telemetry'; reason?: string; result?: ZentridRepositoryListResult }>).detail;
     const entity = detail?.entity;
-    if (!entity || detail?.reason !== 'revalidated' || !isRegistryPage(entity)) return;
+    if (!entity || detail?.reason !== 'revalidated') return;
+    if (entity === 'telemetry') {
+      if (!/telemetry\.html$/.test(location.pathname)) return;
+      const result = detail.result;
+      const current = window.ZentridTelemetryPage?.readOptions();
+      if (result && current && (result.pagination.page !== current.page || result.pagination.pageSize !== current.pageSize)) return;
+      if (result) presentTelemetryResult(result);
+      return;
+    }
+    if (!isRegistryPage(entity)) return;
     const current = window.ZentridRegistryQuery?.read(entity);
     const result = detail.result;
     if (result && current && (result.pagination.page !== current.page || result.pagination.pageSize !== current.pageSize)) return;
@@ -1787,20 +2289,26 @@
     if (resource === 'devices') void applyDevices(true, forceRefresh);
     if (resource === 'device-detail') void applyDeviceDetail(forceRefresh);
     if (resource === 'alerts') void applyAlerts(true, forceRefresh);
+    if (resource === 'telemetry') void applyTelemetry(false, forceRefresh);
     if (resource === 'alert-detail') void applyAlertDetail(forceRefresh);
     if (resource === 'integrations') void applyIntegrations(forceRefresh);
     if (resource === 'integration-detail') void applyIntegrationDetail(forceRefresh);
   }
 
+  function handleTelemetryPageChange(): void {
+    if (/telemetry\.html$/.test(location.pathname)) void applyTelemetry();
+  }
+
   if (typeof window.addEventListener === 'function') {
     window.addEventListener('zentrid:registry-query-change', handleRegistryQueryChange);
+    window.addEventListener('zentrid:telemetry-page-change', handleTelemetryPageChange);
     window.addEventListener('zentrid:repository-updated', handleRepositoryUpdated);
     window.addEventListener('zentrid:data-refresh-request', handleDataRefreshRequest);
   }
 
   async function run(): Promise<void> {
     if (!window.ZentridPlatformAPI || !window.ZentridAPI || !window.ZentridAPIRepositories || !ZentridAPIRepositories.isConfigured()) return;
-    await Promise.allSettled([applyOverview(), applyIntegrations(), applyPlants(), applyDevices(), applyAlerts(), applyDeviceDetail(), applyPlantDetail(), applyAlertDetail(), applyIntegrationDetail(), applyClients(), applyTenants()]);
+    await Promise.allSettled([applyOverview(), applyIntegrations(), applyPlants(), applyDevices(), applyAlerts(), applyTelemetry(), applyDeviceDetail(), applyPlantDetail(), applyAlertDetail(), applyIntegrationDetail(), applyClients(), applyTenants()]);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);

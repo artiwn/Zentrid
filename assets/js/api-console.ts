@@ -61,12 +61,18 @@ function apiPreviewData(result: ApiConsoleResult): unknown {
 }
 
 
-function apiArray(value: unknown): ZentridContractRecord[] {
+function apiArray(value: unknown, depth = 0): ZentridContractRecord[] {
+  if (depth > 5) return [];
   if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object' && !Array.isArray(item)) as ZentridContractRecord[];
   if (!value || typeof value !== 'object') return [];
   const row = value as Record<string, unknown>;
-  for (const key of ['items', 'data', 'records', 'rows', 'results', 'content', 'value']) {
-    if (Array.isArray(row[key])) return apiArray(row[key]);
+  for (const key of ['items', 'data', 'records', 'rows', 'results', 'content', 'telemetry', 'measurements', 'points', 'samples', 'value', 'values']) {
+    if (Array.isArray(row[key])) return apiArray(row[key], depth + 1);
+  }
+  for (const key of ['data', 'result', 'payload']) {
+    if (!row[key] || typeof row[key] !== 'object' || Array.isArray(row[key])) continue;
+    const nested = apiArray(row[key], depth + 1);
+    if (nested.length) return nested;
   }
   return [];
 }
@@ -77,6 +83,7 @@ function apiFieldAuditEntity(path: string): ZentridContractEntity | null {
   if (/\/api\/admin\/plants(?:\?|$)/i.test(path) || /\/api\/plants(?:\?|$)/i.test(path)) return 'plants';
   if (/\/api\/devices(?:\?|$)/i.test(path)) return 'devices';
   if (/\/api\/alerts(?:\?|$)/i.test(path)) return 'alerts';
+  if (/\/api\/telemetry(?:\?|$)/i.test(path)) return 'telemetry';
   if (/\/api\/admin\/provider-integrations(?:\?|$)/i.test(path) || /\/api\/integrations(?:\?|$)/i.test(path)) return 'integrations';
   return null;
 }

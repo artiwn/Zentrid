@@ -187,57 +187,169 @@ window.ZentridDataSource = window.ZentridDataSource || (() => {
 })();
 
 window.ZentridMock = {
-  kpis: [
-    { label: 'Tenants', value: '124', delta: '+8 this month', icon: '🏢', tone: 'cyan', route: 'tenants' },
-    { label: 'Plants', value: '4,285', delta: '+142 active', icon: '🏭', tone: 'green', route: 'asset-registry' },
-    { label: 'Devices', value: '68,521', delta: '99.1% online', icon: '🔌', tone: 'blue', route: 'devices' },
-    { label: 'Live Power', value: '1.24 GW', delta: '+2.1% vs yesterday', icon: '⚡', tone: 'yellow', route: 'telemetry' },
-    { label: 'Active Incidents', value: '187', delta: '15 critical', icon: '🚨', tone: 'red', route: 'incident-center' },
-    { label: 'Commercial Models', value: '€1.2M', delta: 'Financial Operations', icon: '💰', tone: 'violet', route: 'commercial-models' }
-  ],
-  zentridHealth: [
-    { label: 'Normal', value: 81 },
-    { label: 'Warning', value: 12 },
-    { label: 'Fault', value: 5 },
-    { label: 'Offline', value: 2 }
-  ],
-  quality: [
-    { label: 'Telemetry', value: '98.7%' },
-    { label: 'Alerts', value: '95.2%' },
-    { label: 'Devices', value: '99.1%' },
-    { label: 'Mappings', value: '97.4%' }
-  ],
-  alerts: [
-    { title: 'Plant offline', tenant: 'Tenant Alpha Energy', plant: 'Plant A', severity: 'Critical', time: '4 min ago' },
-    { title: 'BESS temperature warning', tenant: 'Tenant North Operations', plant: 'Armavir BESS', severity: 'High', time: '12 min ago' },
-    { title: 'Telemetry Missing', tenant: 'Tenant Gamma Grid', plant: 'Madrid East', severity: 'Medium', time: '21 min ago' },
-    { title: 'Inverter Fault Detected', tenant: 'Tenant Delta Enterprise', plant: 'Lyon PV Park', severity: 'Critical', time: '29 min ago' }
-  ],
-  integrations: [
-    { name: 'Huawei FusionSolar', status: 'Healthy', sync: '1 min ago', errors: 0 },
-    { name: 'Sungrow iSolarCloud', status: 'Delayed', sync: '18 min ago', errors: 4 },
-    { name: 'SolarEdge', status: 'Healthy', sync: '2 min ago', errors: 0 },
-    { name: 'Solis Cloud', status: 'Failed', sync: '54 min ago', errors: 12 }
-  ],
-  tenants: [
-    { name: 'Tenant Alpha Energy', plants: 318, revenue: '€248k', health: 'Warning' },
-    { name: 'Tenant North Operations', plants: 274, revenue: '€211k', health: 'Normal' },
-    { name: 'Tenant Gamma Grid', plants: 195, revenue: '€174k', health: 'Fault' },
-    { name: 'Tenant Delta Enterprise', plants: 166, revenue: '€132k', health: 'Normal' }
-  ],
-  activity: [
-    'Tenant Tenant Alpha Energy changed integration credentials',
-    'Critical alert assigned to Operations Team',
-    'Huawei connector recovered after retry',
-    'New plant commissioned: Gyumri Solar West',
-    'Report exported by Global Admin',
-    'User access policy updated for Tenant Admin role'
-  ]
+  kpis: [],
+  zentridHealth: [],
+  quality: [],
+  alerts: [],
+  integrations: [],
+  tenants: [],
+  activity: []
 } satisfies ZentridMockData;
 
+type ZentridApiOnlyApi = {
+  enabled: true;
+  legacyBusinessKeys: readonly string[];
+  clearLegacyBusinessData(): void;
+  emptyState(title: string, message: string, source?: string, actionHtml?: string): string;
+  mountEmpty(title: string, message: string, source?: string, actionHtml?: string): void;
+  guardUnsupportedPage(): void;
+  disableUnconfirmedWrites(): void;
+  isRouteSupported(route?: string): boolean;
+  contentForCurrentRoute(content: string): string;
+};
 
-/* Zentrid local persistence layer for prototype CRUD.
-   This keeps UI-created records visible after closing drawers, changing pages, or refreshing. */
+window.ZentridApiOnly = window.ZentridApiOnly || (() => {
+  const legacyBusinessKeys = [
+    'zentrid_demo_tenants',
+    'zentrid_custom_clients',
+    'zentrid_demo_plants',
+    'zentrid_custom_plants',
+    'zentrid_demo_devices',
+    'zentrid_custom_devices',
+    'zentrid_demo_integrations',
+    'zentrid_tasks_v62',
+    'zentrid_work_orders_v51',
+    'zentrid_sop_templates_v51',
+    'zentrid_incidents_v51',
+    'zentrid_billing_payments_v1',
+    'zentrid_financial_operations_v1'
+  ] as const;
+
+  const liveRoutes = new Set([
+    '', 'index.html', 'tenants.html', 'tenant-detail.html', 'clients.html', 'client-detail.html',
+    'plants.html', 'plant-detail.html', 'devices.html', 'device-detail.html', 'alerts.html',
+    'alert-detail.html', 'integrations.html', 'integration-detail.html', 'api-console.html',
+    'vendor-api-console.html'
+  ]);
+
+  const referenceRoutes = new Set([
+    'alert-dictionary.html', 'alert-normalization.html', 'data-quality.html',
+    'production-normalization.html', 'storage-normalization.html', 'ui-field-dictionary.html'
+  ]);
+
+  const routeLabels: Record<string, string> = {
+    'admin-console.html': 'Admin Console',
+    'analytics.html': 'Analytics',
+    'asset-registry.html': 'Asset Registry',
+    'asset-topology.html': 'Asset Topology',
+    'audit-center.html': 'Audit Center',
+    'audit.html': 'Audit',
+    'billing-management.html': 'Billing Management',
+    'billing-payments.html': 'Billing & Payments',
+    'client-onboarding.html': 'Client Onboarding',
+    'client-plant-assignment.html': 'Client Plant Assignment',
+    'client-users-permissions.html': 'Client Users & Permissions',
+    'command-center.html': 'Command Center',
+    'commercial-agreements.html': 'Commercial Agreements',
+    'commercial-models.html': 'Commercial Models',
+    'crm-service.html': 'CRM Service',
+    'data-governance.html': 'Data Governance',
+    'energy-accounting.html': 'Energy Accounting',
+    'exception-center.html': 'Exception Center',
+    'finance.html': 'Finance',
+    'group-detail.html': 'Group Detail',
+    'groups.html': 'Groups',
+    'incident-center.html': 'Incident Center',
+    'incident-detail.html': 'Incident Detail',
+    'integration-archive.html': 'Integration Archive',
+    'integration-operations.html': 'Integration Operations',
+    'invoice-center.html': 'Invoice Center',
+    'licenses-subscriptions.html': 'Licenses & Subscriptions',
+    'mapping-rules.html': 'Mapping Rules',
+    'payment-settings.html': 'Payment Settings',
+    'platform-operations.html': 'Platform Operations',
+    'production.html': 'Production',
+    'reports.html': 'Reports',
+    'revenue-analytics.html': 'Revenue Analytics',
+    'revenue-settlements.html': 'Revenue Settlements',
+    'service-catalog.html': 'Service Catalog',
+    'service-desk.html': 'Service Desk',
+    'settings.html': 'Settings',
+    'settlement-center.html': 'Settlement Center',
+    'sop-center.html': 'SOP Center',
+    'sop-detail.html': 'SOP Detail',
+    'tariff-management.html': 'Tariff Management',
+    'tariff-plans.html': 'Tariff Plans',
+    'task-detail.html': 'Task Detail',
+    'tasks-work-orders.html': 'Tasks & Work Orders',
+    'telemetry.html': 'Telemetry',
+    'tenant-provisioning.html': 'Tenant Provisioning',
+    'user-access-detail.html': 'User Access Detail',
+    'users.html': 'Users & Access',
+    'work-order-detail.html': 'Work Order Detail',
+    'work-orders.html': 'Work Orders'
+  };
+
+  function clearLegacyBusinessData(): void {
+    for (const key of legacyBusinessKeys) {
+      try { localStorage.removeItem(key); } catch (error) { /* storage may be blocked */ }
+    }
+  }
+
+  function escapeHtml(value: unknown): string {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char] || char));
+  }
+
+  function emptyState(title: string, message: string, source = 'Backend API', actionHtml = ''): string {
+    return `<section class="page-hero api-only-page-hero"><div><p class="eyebrow">API-only mode</p><h1>${escapeHtml(title)}</h1><p class="muted">Only records returned by the backend are displayed.</p></div></section>
+      <section class="panel glass-card api-only-empty-panel" data-api-only-empty="true">
+        <div class="empty-state zentrid-ux-state zentrid-ux-state-empty" role="status" aria-live="polite">
+          <strong>No API data available</strong>
+          <small>${escapeHtml(message)}</small>
+          <small>Source: ${escapeHtml(source)}</small>
+          ${actionHtml}
+        </div>
+      </section>`;
+  }
+
+  function mountEmpty(title: string, message: string, source = 'Backend API', actionHtml = ''): void {
+    const html = emptyState(title, message, source, actionHtml);
+    if (window.ZentridLayout && typeof window.ZentridLayout.mount === 'function') {
+      window.ZentridLayout.mount(html);
+      return;
+    }
+    const app = document.getElementById('app');
+    if (app) app.innerHTML = html;
+  }
+
+
+  function disableUnconfirmedWrites(): void { /* UI structure and controls remain unchanged. */ }
+
+  function currentRoute(): string {
+    const path = location.pathname.split('/').filter(Boolean).pop() || '';
+    return path.toLowerCase();
+  }
+
+  function isRouteSupported(route = currentRoute()): boolean {
+    const normalized = String(route || '').toLowerCase();
+    return normalized === 'login.html' || liveRoutes.has(normalized) || referenceRoutes.has(normalized);
+  }
+
+  function contentForCurrentRoute(content: string): string { return content; }
+
+  function guardUnsupportedPage(): void { /* Never replace existing page structure. */ }
+
+  clearLegacyBusinessData();
+  // Existing page structure, tabs and actions are preserved.
+  // Only legacy browser-stored business records are cleared.
+
+  return { enabled: true, legacyBusinessKeys, clearLegacyBusinessData, emptyState, mountEmpty, guardUnsupportedPage, disableUnconfirmedWrites, isRouteSupported, contentForCurrentRoute } satisfies ZentridApiOnlyApi;
+})();
+
+/* Compatibility surface for legacy forms. Business records are no longer persisted locally.
+   Create/update actions must use confirmed backend mutations or remain disabled/read-only. */
 window.ZentridLocalStore = window.ZentridLocalStore || (() => {
   const KEYS: ZentridStoreKeyMap = {
     tenants: 'zentrid_demo_tenants',
@@ -248,39 +360,18 @@ window.ZentridLocalStore = window.ZentridLocalStore || (() => {
     clientDevices: 'zentrid_custom_devices',
     integrations: 'zentrid_demo_integrations'
   };
-  const read: ZentridLocalStoreApi['read'] = (key, fallback = []) => {
-    try {
-      const value = JSON.parse(localStorage.getItem(key) || 'null');
-      return Array.isArray(value) ? value : fallback;
-    } catch (err) { return fallback; }
+  const read: ZentridLocalStoreApi['read'] = () => [];
+  const write: ZentridLocalStoreApi['write'] = key => {
+    window.dispatchEvent(new CustomEvent('zentrid:local-store-blocked', { detail: { key, reason: 'api-only-mode' } }));
   };
-  const write: ZentridLocalStoreApi['write'] = (key, rows) => {
-    localStorage.setItem(key, JSON.stringify(Array.isArray(rows) ? rows : []));
-    window.dispatchEvent(new CustomEvent('zentrid:local-store-updated', { detail: { key } }));
-  };
-  const upsert: ZentridLocalStoreApi['upsert'] = (key, item, idField = 'id') => {
-    const rows = read(key);
-    const id = item && item[idField];
-    if (!id) return rows;
-    const index = rows.findIndex(x => x && x[idField] === id);
-    if (index >= 0) rows[index] = { ...rows[index], ...item, updatedAt: new Date().toISOString() };
-    else rows.unshift({ ...item, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() });
-    write(key, rows);
-    return rows;
-  };
-  const remove: ZentridLocalStoreApi['remove'] = (key, id, idField = 'id') => write(key, read(key).filter(x => x && x[idField] !== id));
-  const byId: ZentridLocalStoreApi['byId'] = (key, id, idField = 'id') => read(key).find(x => x && x[idField] === id) || null;
-  const addTenant: ZentridLocalStoreApi['addTenant'] = item => upsert(KEYS.tenants, item);
-  const addClient: ZentridLocalStoreApi['addClient'] = item => upsert(KEYS.clients, item);
-  const addPlant: ZentridLocalStoreApi['addPlant'] = item => {
-    upsert(KEYS.plants, item);
-    upsert(KEYS.clientPlants, normalizePlantForClientModel(item));
-  };
-  const addDevice: ZentridLocalStoreApi['addDevice'] = item => {
-    upsert(KEYS.devices, item);
-    upsert(KEYS.clientDevices, normalizeDeviceForClientModel(item));
-  };
-  const addIntegration: ZentridLocalStoreApi['addIntegration'] = item => upsert(KEYS.integrations, item);
+  const upsert: ZentridLocalStoreApi['upsert'] = () => [];
+  const remove: ZentridLocalStoreApi['remove'] = () => undefined;
+  const byId: ZentridLocalStoreApi['byId'] = () => null;
+  const addTenant: ZentridLocalStoreApi['addTenant'] = () => [];
+  const addClient: ZentridLocalStoreApi['addClient'] = () => [];
+  const addPlant: ZentridLocalStoreApi['addPlant'] = () => undefined;
+  const addDevice: ZentridLocalStoreApi['addDevice'] = () => undefined;
+  const addIntegration: ZentridLocalStoreApi['addIntegration'] = () => [];
   function normalizePlantForClientModel(p: ZentridStoreRecord = {}): ZentridStoreRecord {
     return {
       id: p.id || `PL-${Date.now()}`,

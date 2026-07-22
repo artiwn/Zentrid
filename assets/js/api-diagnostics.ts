@@ -15,6 +15,7 @@ const api = (() => {
     { entity: 'plants', fixture: 'assets/fixtures/api-contracts/plants-list.json', endpoint: 'GET /api/plants' },
     { entity: 'devices', fixture: 'assets/fixtures/api-contracts/devices-list.json', endpoint: 'GET /api/devices' },
     { entity: 'alerts', fixture: 'assets/fixtures/api-contracts/alerts-list.json', endpoint: 'GET /api/alerts' },
+    { entity: 'telemetry', fixture: 'assets/fixtures/api-contracts/telemetry-list.json', endpoint: 'GET /api/telemetry' },
     { entity: 'integrations', fixture: 'assets/fixtures/api-contracts/integrations-list.json', endpoint: 'GET /api/integrations' }
   ];
 
@@ -31,14 +32,25 @@ const api = (() => {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  function pagination(value: unknown): ZentridApiDiagnosticPagination {
-    if (!isRecord(value)) return { page: null, pageSize: null, totalCount: null, totalPages: null };
-    return {
-      page: numberOrNull(value.page ?? value.pageNumber ?? value.currentPage),
-      pageSize: numberOrNull(value.pageSize ?? value.size ?? value.limit),
-      totalCount: numberOrNull(value.totalCount ?? value.total ?? value.count),
-      totalPages: numberOrNull(value.totalPages ?? value.pageCount)
+  function pagination(value: unknown, depth = 0): ZentridApiDiagnosticPagination {
+    const empty = { page: null, pageSize: null, totalCount: null, totalPages: null };
+    if (depth > 5 || !isRecord(value)) return empty;
+    const paginationRecord = isRecord(value.pagination) ? value.pagination : {};
+    const metaRecord = isRecord(value.meta) ? value.meta : {};
+    const result = {
+      page: numberOrNull(value.page ?? value.pageNumber ?? value.currentPage ?? paginationRecord.page ?? metaRecord.page),
+      pageSize: numberOrNull(value.pageSize ?? value.size ?? value.limit ?? value.take ?? paginationRecord.pageSize ?? metaRecord.pageSize),
+      totalCount: numberOrNull(value.totalCount ?? value.total ?? value.totalItems ?? value.totalRecords ?? value.count ?? paginationRecord.total ?? paginationRecord.totalCount ?? metaRecord.total ?? metaRecord.totalCount),
+      totalPages: numberOrNull(value.totalPages ?? value.pages ?? value.pageCount ?? paginationRecord.totalPages ?? metaRecord.totalPages)
     };
+    if (Object.values(result).some(item => item !== null)) return result;
+    for (const key of ['data', 'result', 'payload']) {
+      const nested = value[key];
+      if (!isRecord(nested)) continue;
+      const nestedResult = pagination(nested, depth + 1);
+      if (Object.values(nestedResult).some(item => item !== null)) return nestedResult;
+    }
+    return empty;
   }
 
   function redact(value: unknown, depth = 0): unknown {

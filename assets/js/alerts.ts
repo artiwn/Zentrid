@@ -202,68 +202,7 @@ function renderMappingValidation(a: ZentridAlertRecord): string {
   return `<div class="check-list validation-check-list-v86">${items.map(renderCheckRow).join('')}</div>`;
 }
 
-const ZentridAlerts: ZentridAlertRecord[] = [
-  {
-    id: 'ALT-2031', zentridCode: 'FL-COM-RS', vendorRawCode: '2010', vendorCode: 'Solis 2010', vendorMessage: 'EPM Comm. Fail', severity: 'Fault', priority: 'P1', title: 'RS485 Communication Error', status: 'Open', category: 'Communication',
-    tenant: 'Tenant Alpha Energy', plantId: 'PLT-000421', plant: 'Plant A', deviceId: 'DEV-INV-00432', device: 'INV-00432', deviceType: 'Inverter / Meter Link', vendor: 'Solis', source: 'SolisCloud', integration: 'Tenant Alpha Energy — Solis SolisCloud',
-    created: '08:12', updated: '08:21', age: '18 min', sla: '24 min remaining', owner: 'Unassigned', telemetry: 'RS485 link stale · Last data: 18 min ago',
-    description: 'Vendor sent raw alert code 2010: EPM communication failure. Zentrid mapped it to FL-COM-RS.',
-    probableCause: 'RS485 or EPM communication path is unavailable. Possible wiring issue, meter/EPM offline, or gateway link problem.',
-    recommendation: 'Acknowledge the alert, ask support to verify local connection status, and create a technical task if accounting or telemetry is affected.',
-    timeline: ['08:12 · Vendor code received: Solis 2010', '08:12 · Mapping resolved: 2010 → FL-COM-RS', '08:13 · Notification sent to Support + Client', '08:16 · SLA clock started', '08:21 · Waiting for acknowledgement'],
-    related: { telemetryMetric: 'Communication Status', caseId: 'CASE-0098', taskId: '—' }
-  },
-  {
-    id: 'ALT-2034', zentridCode: 'FL-GRD-OV', vendorRawCode: '2034', vendorCode: 'Huawei 2034', vendorMessage: 'Grid Overvoltage', severity: 'Fault', priority: 'P1', title: 'Grid Overvoltage', status: 'Open', category: 'Grid',
-    tenant: 'Tenant Alpha Energy', plantId: 'PLT-000421', plant: 'Plant A', deviceId: 'DEV-INV-00432', device: 'INV-00432', deviceType: 'Inverter', vendor: 'Huawei', source: 'FusionSolar', integration: 'Tenant Alpha Energy — Huawei FusionSolar',
-    created: '08:18', updated: '08:26', age: '12 min', sla: '31 min remaining', owner: 'Grid Operations', telemetry: 'AC voltage peak: 259 V · Last sample: 2 min ago',
-    description: 'Vendor sent raw alert code 2034: Grid Overvoltage. Zentrid mapped it to FL-GRD-OV.',
-    probableCause: 'Grid voltage exceeded normal range or inverter safety/grid-code parameters require validation.',
-    recommendation: 'Verify grid voltage, check whether the issue is repeated, and escalate to Operations if voltage remains unstable.',
-    timeline: ['08:18 · Vendor code received: Huawei 2034', '08:18 · Mapping resolved: 2034 → FL-GRD-OV', '08:19 · Support notified', '08:22 · Grid voltage trend attached'],
-    related: { telemetryMetric: 'AC Voltage', caseId: 'CASE-0099', taskId: 'TASK-0139' }
-  },
-  {
-    id: 'ALT-2044', zentridCode: 'FL-BAT-OT', vendorRawCode: '3105', vendorCode: 'Huawei 3105', vendorMessage: 'Battery Overtemperature', severity: 'Fault', priority: 'P2', title: 'Battery Overtemperature', status: 'Acknowledged', category: 'Battery / BMS',
-    tenant: 'Tenant North Operations', plantId: 'PLT-000501', plant: 'Armavir BESS Solar', deviceId: 'DEV-BESS-0002', device: 'BESS-RACK-02', deviceType: 'Battery', vendor: 'Huawei', source: 'FusionSolar / LUNA2000 ESS', integration: 'Tenant North Operations — Huawei FusionSolar',
-    created: '08:23', updated: '08:37', age: '29 min', sla: '1h 42m remaining', owner: 'BESS Specialist', telemetry: 'Rack temp: 47.6 °C · SOC: 71% · Last data: 4 min ago',
-    description: 'Vendor sent raw alert code 3105: Battery Overtemperature. Zentrid mapped it to FL-BAT-OT.',
-    probableCause: 'Thermal load increased in BESS rack 02. Cooling performance or ambient temperature should be reviewed.',
-    recommendation: 'Keep alert acknowledged, monitor temperature trend, and create a work order if temperature keeps rising.',
-    timeline: ['08:23 · Vendor code received: Huawei 3105', '08:23 · Mapping resolved: 3105 → FL-BAT-OT', '08:27 · Acknowledged by BESS Specialist', '08:31 · Remote check started'],
-    related: { telemetryMetric: 'Temperature', caseId: 'CASE-0101', taskId: 'TASK-0144' }
-  },
-  {
-    id: 'ALT-2050', zentridCode: 'FL-COM-SRV', vendorRawCode: 'NET Red', vendorCode: 'Solax NET Red', vendorMessage: 'Cloud Disconnect', severity: 'Warning', priority: 'P3', title: 'Cloud / Server Connection Error', status: 'Open', category: 'Communication',
-    tenant: 'Tenant Gamma Grid', plantId: 'PLT-000611', plant: 'Madrid East', deviceId: 'DEV-GW-019', device: 'GW-019', deviceType: 'Gateway', vendor: 'Solax', source: 'SolaxCloud / DataHub', integration: 'Tenant Gamma Grid — Solax SolaxCloud',
-    created: '08:36', updated: '08:44', age: '13 min', sla: '3h 18m remaining', owner: 'Integration Team', telemetry: 'Last normalized record older than freshness window',
-    description: 'Vendor sent raw status NET Red: Cloud disconnect. Zentrid mapped it to FL-COM-SRV.',
-    probableCause: 'Vendor polling delay, gateway communication issue, or normalization pipeline lag.',
-    recommendation: 'Check integration sync status, retry sample fetch, then assign to Data Operations if delay continues.',
-    timeline: ['08:36 · Vendor status received: Solax NET Red', '08:36 · Mapping resolved: NET Red → FL-COM-SRV', '08:42 · Retry policy started'],
-    related: { telemetryMetric: 'Data Freshness', caseId: '—', taskId: '—' }
-  },
-  {
-    id: 'ALT-2062', zentridCode: 'FL-INV-INT', vendorRawCode: '31', vendorCode: 'GoodWe 31', vendorMessage: 'Internal Comm Error', severity: 'Fault', priority: 'P1', title: 'Internal Hardware Fault', status: 'Escalated', category: 'Inverter',
-    tenant: 'Tenant Delta Enterprise', plantId: 'PLT-000720', plant: 'Lyon PV Park', deviceId: 'DEV-INV-021', device: 'INV-021', deviceType: 'Inverter', vendor: 'GoodWe', source: 'SEMS Portal', integration: 'Tenant Delta Enterprise — GoodWe SEMS Portal',
-    created: '08:44', updated: '09:02', age: '31 min', sla: 'Escalated', owner: 'Operations Team', telemetry: 'Active power dropped 42% after alert code was received',
-    description: 'Vendor sent raw alert code 31: Internal Comm Error. Zentrid mapped it to FL-INV-INT.',
-    probableCause: 'Device internal communication/hardware fault reported by vendor source.',
-    recommendation: 'Keep escalation active, open source device, and create a task for field inspection if not remotely recoverable.',
-    timeline: ['08:44 · Vendor code received: GoodWe 31', '08:44 · Mapping resolved: 31 → FL-INV-INT', '08:55 · Escalated to Operations Manager'],
-    related: { telemetryMetric: 'Current Power', caseId: 'CASE-0105', taskId: 'TASK-0150' }
-  },
-  {
-    id: 'ALT-2074', zentridCode: 'FL-MTR-COM', vendorRawCode: '2011', vendorCode: 'Solis 2011', vendorMessage: 'Meter_Comm_FAIL', severity: 'Fault', priority: 'P4', title: 'Meter Communication Lost', status: 'Open', category: 'Metering',
-    tenant: 'Tenant Alpha Energy', plantId: 'PLT-000817', plant: 'Plant B', deviceId: 'DEV-MTR-008', device: 'MTR-008', deviceType: 'Meter', vendor: 'Solis', source: 'SolisCloud', integration: 'Tenant Alpha Energy — Solis SolisCloud',
-    created: '09:05', updated: '09:07', age: '4 min', sla: '5h remaining', owner: 'Unassigned', telemetry: 'Meter interval record delayed by 11 min',
-    description: 'Vendor sent raw alert code 2011: Meter communication failure. Zentrid mapped it to FL-MTR-COM.',
-    probableCause: 'Meter ingestion interval lag or vendor endpoint delay.',
-    recommendation: 'Monitor next interval. Escalate only if delay affects billing-ready accounting records.',
-    timeline: ['09:05 · Vendor code received: Solis 2011', '09:05 · Mapping resolved: 2011 → FL-MTR-COM', '09:07 · Awaiting next import window'],
-    related: { telemetryMetric: 'Energy Produced', caseId: '—', taskId: '—' }
-  }
-];
+const ZentridAlerts: ZentridAlertRecord[] = [];
 
 function alertTone(value?: string): AlertTone {
   const v = String(value || '').toLowerCase();
@@ -344,13 +283,14 @@ function renderAlertFilters(): string {
     search: queryState?.search || ''
   };
   const opt = (value: string, current: string): string => `<option ${value === current ? 'selected' : ''}>${value}</option>`;
+  const apiValues = (field: keyof ZentridAlertRecord): string[] => ['All', ...Array.from(new Set(ZentridAlerts.map(alert => String(alert[field] || '').trim()).filter(Boolean)))];
   return `
     <section class="filter-bar glass-card alert-filter-bar">
-      <label>Severity<select id="severityFilter">${['All','Critical','Fault','Warning'].map(x => opt(x, selected.severity)).join('')}</select></label>
-      <label>Status<select id="statusFilter">${['All','Open','Acknowledged','Escalated','Resolved'].map(x => opt(x, selected.status)).join('')}</select></label>
-      <label>Tenant<select id="tenantFilter">${['All','Tenant Alpha Energy','Tenant North Operations','Tenant Gamma Grid','Tenant Delta Enterprise'].map(x => opt(x, selected.tenant)).join('')}</select></label>
-      <label>Plant<select id="plantFilter">${['All', ...Array.from(new Set(ZentridAlerts.map(a => a.plant)))].map(x => opt(x, selected.plant)).join('')}</select></label>
-      <label>Vendor<select id="vendorFilter">${['All','Huawei','Sungrow','Solis','GoodWe','Deye'].map(x => opt(x, selected.vendor)).join('')}</select></label>
+      <label>Severity<select id="severityFilter">${apiValues('severity').map(x => opt(x, selected.severity)).join('')}</select></label>
+      <label>Status<select id="statusFilter">${apiValues('status').map(x => opt(x, selected.status)).join('')}</select></label>
+      <label>Tenant<select id="tenantFilter">${apiValues('tenant').map(x => opt(x, selected.tenant)).join('')}</select></label>
+      <label>Plant<select id="plantFilter">${apiValues('plant').map(x => opt(x, selected.plant)).join('')}</select></label>
+      <label>Vendor<select id="vendorFilter">${apiValues('vendor').map(x => opt(x, selected.vendor)).join('')}</select></label>
       <label>Search<input id="alertSearch" value="${String(selected.search).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by alert, plant, device..." /></label>
     </section>
     <div id="alertFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('alerts') || ''}</div>`;
@@ -440,13 +380,15 @@ function alertDetailTabLegacy(a: ZentridAlertRecord, tab: AlertDetailTabId | str
 
 function selectedAlert(): ZentridAlertRecord {
   const firstAlert = ZentridAlerts[0];
-  if (!firstAlert) throw new Error('Alerts registry requires a default alert.');
   const params = new URLSearchParams(location.search);
-  const id = params.get('id') || localStorage.getItem('zentrid_selected_alert') || firstAlert.id;
-  return ZentridAlerts.find(x => x.id === id) ?? firstAlert;
+  const id = params.get('id') || localStorage.getItem('zentrid_selected_alert') || firstAlert?.id || '';
+  const snapshot = window.ZentridLiveSelection?.readAlert?.(id) as ZentridAlertRecord | null | undefined;
+  return ZentridAlerts.find(x => x.id === id) ?? snapshot ?? (!id ? firstAlert : undefined) ?? ({} as ZentridAlertRecord);
 }
 
 function openAlert(id: string): void {
+  const record = ZentridAlerts.find(alert => alert.id === id);
+  if (record && window.ZentridLiveSelection?.selectAlert) { window.ZentridLiveSelection.selectAlert(record); return; }
   localStorage.setItem('zentrid_selected_alert', id);
   location.href = `alert-detail.html?id=${encodeURIComponent(id)}`;
 }
@@ -474,7 +416,7 @@ function renderAlertsPage(): string {
   return `
     <section class="page-hero">
       <div><p class="eyebrow">Global Admin · Tenant Management</p><h1>Alerts</h1><p class="muted">Normalized alert list across plants, devices, vendors and tenants. Filter by plant, status, severity, tenant or source.</p></div>
-      <button class="freshness-card" onclick="ZentridLayout.toast('Alerts data refreshed')"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Updated 1 min ago</small></div></button>
+      <button class="freshness-card" type="button" data-live-refresh="alerts"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Waiting for API response</small></div></button>
     </section>
     ${renderAlertContextBanner()}
     <div id="alertKpiWrap">${alertKpis()}</div>
@@ -511,6 +453,7 @@ function wireAlertsPage(): void {
 
 function wireAlertDetailPage(): void {
   const a = selectedAlert();
+  if (!a.id) return;
   document.getElementById('detailAck')?.addEventListener('click', () => {
     saveAlertRuntimeState(a, { acknowledged: true });
     ZentridLayout.toast(`${a.id} acknowledged`);
@@ -874,6 +817,7 @@ function alertCurveBlock(a: ZentridAlertRecord, m: AlertDetailModel): string {
 }
 
 function renderAlertDetailContent(a: ZentridAlertRecord): string {
+  if (!a.id) return window.ZentridApiOnly?.emptyState('Alert Detail', 'The alert endpoint has not returned a selected record.', '/api/alerts') || '';
   const m = alertDetailModel(a);
   return `
     <section class="page-hero alert-detail-page-hero">

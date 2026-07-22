@@ -3,8 +3,8 @@
    UI bridges consume normalized repository results instead of raw API payloads. */
 (function () {
   type RepositoryRecord = Record<string, ZentridLegacyCompat>;
-  type RepositoryEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
-  type RepositoryIdentity = 'plant' | 'device' | 'alert' | 'generic';
+  type RepositoryEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'telemetry' | 'integrations';
+  type RepositoryIdentity = 'plant' | 'device' | 'alert' | 'telemetry' | 'generic';
 
   interface ZentridRepositoryMapperContext extends ZentridContractMapperContext {
     realDisplayName?(row: RepositoryRecord, entityLabel: string, typeHint?: unknown): string;
@@ -120,6 +120,7 @@
     plants: 15_000,
     devices: 15_000,
     alerts: 10_000,
+    telemetry: 10_000,
     integrations: 20_000
   };
 
@@ -129,6 +130,7 @@
     plants: 5 * 60_000,
     devices: 5 * 60_000,
     alerts: 2 * 60_000,
+    telemetry: 2 * 60_000,
     integrations: 5 * 60_000
   };
 
@@ -535,7 +537,7 @@
     if (Array.isArray(value)) return value as RepositoryRecord[];
     if (!value || typeof value !== 'object') return [];
     const payload = value as RepositoryRecord;
-    const keys = ['items', 'data', 'records', 'rows', 'results', 'content', 'value', 'values'];
+    const keys = ['items', 'data', 'records', 'rows', 'results', 'content', 'telemetry', 'measurements', 'points', 'samples', 'value', 'values'];
     for (const key of keys) {
       if (Array.isArray(payload[key])) return payload[key] as RepositoryRecord[];
     }
@@ -579,6 +581,19 @@
     const plantKeys = ['sourcePlantId','plantId','externalId','plantCode','code','id','canonicalId','sourceEntityId','vendorPlantId','vendorExtensions.sourcePlantId','vendorExtensions.plantId','vendorExtensions.externalId'];
     const deviceKeys = ['sourceDeviceId','deviceId','externalId','serialNumber','serial','registrationNumber','code','id','canonicalId','sourceEntityId','vendorDeviceId','vendorExtensions.sourceDeviceId','vendorExtensions.deviceId','vendorExtensions.serialNumber'];
     const alertKeys = ['sourceAlertId','alertId','eventId','code','id','canonicalId','sourceEntityId','vendorExtensions.sourceAlertId'];
+    if (entity === 'telemetry') {
+      const explicit = context.firstOf(row, ['telemetryId', 'metricId', 'id', 'canonicalId', 'sourceEntityId', 'telemetry.id', 'measurement.id', 'reading.id', 'data.id', 'payload.id'], '');
+      if (explicit !== undefined && explicit !== null && String(explicit).trim()) return [String(explicit).trim()];
+      const parts = [
+        context.firstOf(row, ['source.provider', 'source.vendor', 'source.system', 'provider', 'vendor', 'sourceSystem', 'providerName'], ''),
+        context.firstOf(row, ['plant.id', 'plant.plantId', 'plant.sourcePlantId', 'sourcePlantId', 'plantId'], ''),
+        context.firstOf(row, ['device.id', 'device.deviceId', 'device.sourceDeviceId', 'device.serialNumber', 'sourceDeviceId', 'deviceId', 'serialNumber'], ''),
+        context.firstOf(row, ['metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], ''),
+        context.firstOf(row, ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], '')
+      ].map(value => String(value ?? '').trim());
+      const composite = parts.join('|');
+      return composite.replace(/\|/g, '') ? [composite] : [];
+    }
     const keys = entity === 'plant' ? plantKeys : entity === 'device' ? deviceKeys : entity === 'alert' ? alertKeys : [...plantKeys, ...deviceKeys, ...alertKeys];
     const values = keys
       .map(key => context.firstOf(row, [key], ''))
@@ -744,34 +759,110 @@
     if (!expected) return false;
     const candidates = [
       item.id, item.externalId, item.code, item.serial, item.zentridCode, item.vendorCode,
-      item.raw?.id, item.raw?.sourceEntityId, item.raw?.sourcePlantId, item.raw?.sourceDeviceId, item.raw?.sourceAlertId
+      item.raw?.id, item.raw?.telemetryId, item.raw?.metricId, item.raw?.sourceEntityId, item.raw?.sourcePlantId, item.raw?.sourceDeviceId, item.raw?.sourceAlertId
     ];
     return candidates.some(value => value !== undefined && value !== null && String(value).trim().toLowerCase() === expected);
   }
 
+  type ZentridRepositoryItemLoader = (
+    id: string,
+    options?: ZentridRepositoryReadOptions
+  ) => Promise<ZentridRepositoryListResult>;
+
+  function directRecord(payload: unknown): RepositoryRecord | null {
+    if (Array.isArray(payload)) {
+      const first = payload.find(item => item && typeof item === 'object');
+      return first ? first as RepositoryRecord : null;
+    }
+    if (!payload || typeof payload !== 'object') return null;
+    const record = payload as RepositoryRecord;
+    const envelopeKeys = ['item', 'data', 'record', 'result', 'client', 'tenant', 'plant', 'integration', 'value'];
+    for (const key of envelopeKeys) {
+      const nested = record[key];
+      if (!nested || typeof nested !== 'object') continue;
+      const resolved = directRecord(nested);
+      if (resolved) return resolved;
+    }
+    const rows = asArray(payload);
+    if (rows[0]) return rows[0];
+    return record;
+  }
+
+  function itemCacheVariant(entity: RepositoryEntity, id: string): string {
+    const normalized = String(id || '').trim().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase() || 'unknown';
+    return `${entity}-detail-${normalized}`;
+  }
+
   function withGet(
     entity: RepositoryEntity,
-    loader: (options?: ZentridRepositoryReadOptions) => Promise<ZentridRepositoryListResult>
+    loader: (options?: ZentridRepositoryReadOptions) => Promise<ZentridRepositoryListResult>,
+    itemLoader?: ZentridRepositoryItemLoader
   ): ZentridEntityReadRepository {
     const list = (options: ZentridRepositoryReadOptions = {}): Promise<ZentridRepositoryListResult> =>
       readThroughCache(entity, signal => loader({ ...options, signal }), options);
     return {
       list,
-      async get(id: string, options?: ZentridRepositoryReadOptions): Promise<ZentridRepositoryItemResult> {
-        const result = await list(options);
-        return { ...result, item: result.items.find(item => itemMatches(item, id)) || null };
+      async get(id: string, options: ZentridRepositoryReadOptions = {}): Promise<ZentridRepositoryItemResult> {
+        const expected = String(id || '').trim();
+        if (!expected || !itemLoader) {
+          const result = await list(options);
+          return { ...result, item: result.items.find(item => itemMatches(item, expected)) || null };
+        }
+        const detailOptions: ZentridRepositoryReadOptions = {
+          ...options,
+          page: 1,
+          pageSize: 20,
+          cacheVariant: itemCacheVariant(entity, expected)
+        };
+        try {
+          const result = await readThroughCache(
+            entity,
+            signal => itemLoader(expected, { ...detailOptions, signal }),
+            detailOptions
+          );
+          const item = result.items.find(candidate => itemMatches(candidate, expected)) || result.items[0] || null;
+          if (item) return { ...result, item };
+          const fallback = await list(options);
+          return { ...fallback, item: fallback.items.find(candidate => itemMatches(candidate, expected)) || null };
+        } catch (error) {
+          if (options.signal?.aborted) throw error;
+          const fallback = await list(options);
+          return {
+            ...fallback,
+            errors: [...fallback.errors, error],
+            item: fallback.items.find(candidate => itemMatches(candidate, expected)) || null
+          };
+        }
       }
     };
   }
 
   const clients = withGet('clients', async options => {
-    const page = await fetchCollectionPage('/api/admin/clients', () => ZentridPlatformAPI.clients.list(), 'generic', options);
+    const page = await fetchCollectionPage('/api/admin/clients', requestOptions => ZentridPlatformAPI.clients.list(requestOptions), 'generic', options);
     return mappedResult('clients', page.rows, '/api/admin/clients', [], page.pagination);
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.clients.get(id, requestOptions);
+    const record = directRecord(payload);
+    const rawItems = record ? [record] : [];
+    return mappedResult('clients', rawItems, `/api/admin/clients/${encodeURIComponent(id)}`, [], fallbackPagination(rawItems.length, { page: 1, pageSize: 20 }));
   });
 
   const tenants = withGet('tenants', async options => {
-    const page = await fetchCollectionPage('/api/admin/tenants', () => ZentridPlatformAPI.tenants.list(), 'generic', options);
+    const page = await fetchCollectionPage('/api/admin/tenants', requestOptions => ZentridPlatformAPI.tenants.list(requestOptions), 'generic', options);
     return mappedResult('tenants', page.rows, '/api/admin/tenants', [], page.pagination);
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.tenants.get(id, requestOptions);
+    const record = directRecord(payload);
+    const rawItems = record ? [record] : [];
+    return mappedResult('tenants', rawItems, `/api/admin/tenants/${encodeURIComponent(id)}`, [], fallbackPagination(rawItems.length, { page: 1, pageSize: 20 }));
   });
 
   function selectPlantPagination(livePage: RepositoryCollectionPage | null, adminPage: RepositoryCollectionPage | null, rowCount: number, options: ZentridRepositoryReadOptions): ZentridRepositoryPagination {
@@ -795,7 +886,7 @@
   const plants = withGet('plants', async options => {
     const [liveResult, adminResult] = await Promise.allSettled([
       fetchCollectionPage('/api/plants', requestOptions => ZentridPlatformAPI.live.plants(requestOptions), 'plant', options),
-      fetchCollectionPage('/api/admin/plants', () => ZentridPlatformAPI.plantRegistry.list(), 'plant', options)
+      fetchCollectionPage('/api/admin/plants', requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions), 'plant', options)
     ]);
     const livePage = liveResult.status === 'fulfilled' ? liveResult.value : null;
     const adminPage = adminResult.status === 'fulfilled' ? adminResult.value : null;
@@ -812,6 +903,51 @@
       : liveRows.length ? '/api/plants' : adminRows.length ? '/api/admin/plants' : '/api/plants + /api/admin/plants';
     const pagination = selectPlantPagination(livePage, adminPage, rawItems.length, options || {});
     return mappedResult('plants', rawItems, source, errors, pagination);
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.plantRegistry.get(id, requestOptions);
+    const adminRecord = directRecord(payload);
+    if (!adminRecord) {
+      return mappedResult(
+        'plants',
+        [],
+        `/api/admin/plants/${encodeURIComponent(id)}`,
+        [],
+        fallbackPagination(0, { page: 1, pageSize: 20 })
+      );
+    }
+
+    let liveRecord: RepositoryRecord | null = null;
+    const errors: unknown[] = [];
+    try {
+      const livePage = await fetchCollectionPage(
+        '/api/plants',
+        liveOptions => ZentridPlatformAPI.live.plants(liveOptions),
+        'plant',
+        { ...options, page: 1, pageSize: 100 }
+      );
+      liveRecord = livePage.rows.find(row => rowsShareIdentity(row, adminRecord, 'plant')) ||
+        livePage.rows.find(row => itemMatches(row, id)) ||
+        null;
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      errors.push(error);
+    }
+
+    const mergedRows = mergePlantSources(liveRecord ? [liveRecord] : [], [adminRecord]);
+    const source = liveRecord
+      ? `/api/admin/plants/${encodeURIComponent(id)} + /api/plants`
+      : `/api/admin/plants/${encodeURIComponent(id)}`;
+    return mappedResult(
+      'plants',
+      mergedRows.slice(0, 1),
+      source,
+      errors,
+      fallbackPagination(mergedRows.length ? 1 : 0, { page: 1, pageSize: 20 })
+    );
   });
 
   const devices = withGet('devices', async options => {
@@ -824,9 +960,29 @@
     return mappedResult('alerts', page.rows, '/api/alerts', [], page.pagination);
   });
 
+  const telemetry = withGet('telemetry', async options => {
+    const page = await fetchCollectionPage('/api/telemetry', requestOptions => ZentridPlatformAPI.live.telemetry(requestOptions), 'telemetry', options);
+    return mappedResult('telemetry', page.rows, '/api/telemetry', [], page.pagination);
+  });
+
   const integrationRegistry = withGet('integrations', async options => {
-    const page = await fetchCollectionPage('/api/admin/provider-integrations', () => ZentridPlatformAPI.providerIntegrations.list(), 'generic', options);
+    const page = await fetchCollectionPage('/api/admin/provider-integrations', requestOptions => ZentridPlatformAPI.providerIntegrations.list(requestOptions), 'generic', options);
     return mappedResult('integrations', page.rows, '/api/admin/provider-integrations', [], page.pagination);
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.providerIntegrations.get(id, requestOptions);
+    const record = directRecord(payload);
+    const rawItems = record ? [record] : [];
+    return mappedResult(
+      'integrations',
+      rawItems,
+      `/api/admin/provider-integrations/${encodeURIComponent(id)}`,
+      [],
+      fallbackPagination(rawItems.length, { page: 1, pageSize: 20 })
+    );
   });
 
   const integrations: ZentridIntegrationReadRepository = {
@@ -903,6 +1059,7 @@
     plants,
     devices,
     alerts,
+    telemetry,
     integrations
   };
 

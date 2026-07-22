@@ -129,11 +129,7 @@ function tenantFormText(formData: FormData, key: string, fallback = ''): string 
   return typeof value === 'string' && value ? value : fallback;
 }
 
-const tenantSeed: ZentridTenantRecord[] = [
-  { id:'TNT-000125', entityType:'Legal Entity', code:'TN-000125', name:'Tenant Alpha Energy', legal:'Tenant Alpha Energy CJSC', trade:'Tenant Alpha', registration:'286.110.123456', tax:'01234567', status:'Active', types:['Owner','Operator'], country:'Armenia', region:'Yerevan', city:'Yerevan', address:'24 Energy Avenue', building:'12', postal:'0010', businessSame:true, plants:318, devices:4820, users:42, revenue:'€248k', health:'Attention Required', integrations:4, alerts:18, industry:'Solar Energy', businessCategory:'Enterprise', parentCompany:'None', employees:'101–500', annualRevenue:'$10M–$50M', webplant:'https://alpha-energy.example', category:'Strategic', tier:'Platinum', priority:'High', risk:'Medium', source:'Partner', account:'Mariam Sargsyan', language:'English', timezone:'Asia/Yerevan', channel:'Email', businessHours:'09:00–18:00', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'Yes', securityNotifications:'Yes', notificationRecipients:'Primary, Billing, Technical', dpa:'Signed', nda:'Signed', compliance:'Pending', confidentiality:'Restricted', controllerType:'Controller', consent:'Active', consentExpiry:'2027-06-30', setup:92, contacts:[{first:'Aram', last:'Hakobyan', full:'Aram Hakobyan', position:'Operations Lead', department:'Operations', role:'Primary', email:'aram@example.am', mobile:'+374 55 100 200', office:'+374 10 200 300', phone:'+374 55 100 200', language:'English', method:'Email', active:'Yes'}], documents:(window.tenantWizardDocuments&&window.tenantWizardDocuments.length?window.tenantWizardDocuments:[{name:'Registration Certificate', type:'Corporate', expiry:'2028-12-31', file:'Registration Certificate.pdf'}]), notes:{general:'', address:'', contacts:'', classification:'', communication:'', legal:''}, created:'2026-05-14', updated:'2026-06-03' },
-  { id:'TNT-000126', entityType:'Legal Entity', code:'TN-000126', name:'Tenant North Operations', legal:'North Region Operations Inc.', trade:'North Ops', registration:'2024-000123456', tax:'12-3456789', status:'Active', types:['Operator'], country:'United States', region:'California', city:'San Diego', address:'510 Grid Street', building:'Suite 420', postal:'92101', businessSame:true, plants:274, devices:3910, users:38, revenue:'$211k', health:'Healthy', integrations:3, alerts:4, industry:'Solar Energy', businessCategory:'Enterprise', parentCompany:'None', employees:'51–100', annualRevenue:'$5M–$10M', webplant:'https://north-ops.example', category:'Standard', tier:'Gold', priority:'Medium', risk:'Low', source:'Direct', account:'Daniel Weber', language:'English', timezone:'America/Los_Angeles', channel:'Portal', businessHours:'08:00–17:00', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'Yes', securityNotifications:'Yes', notificationRecipients:'Primary, Legal', dpa:'Signed', nda:'Signed', compliance:'Approved', confidentiality:'Standard', controllerType:'Processor', consent:'Active', consentExpiry:'2027-04-15', setup:96, contacts:[{first:'Laura', last:'Schmidt', full:'Laura Schmidt', position:'Program Manager', department:'Executive', role:'Primary', email:'laura@example.com', mobile:'+1 (619) 555-0180', office:'+1 (619) 555-0199', phone:'+1 (619) 555-0180', language:'English', method:'Portal', active:'Yes'}], documents:[{name:'NDA', type:'Legal', expiry:'2027-04-15', file:'NDA.pdf'}], created:'2026-05-18', updated:'2026-06-02' },
-  { id:'TNT-000127', entityType:'Legal Entity', code:'TN-000127', name:'Tenant Gamma Grid', legal:'Tenant Gamma Grid LLC', trade:'Tenant Gamma Grid', registration:'2025-000987654', tax:'98-7654321', status:'Suspended', types:['Owner','Investor'], country:'United States', region:'Texas', city:'Austin', address:'88 Storage Lane', building:'Unit 8', postal:'78701', businessSame:false, businessCountry:'United States', businessRegion:'Texas', businessCity:'Houston', businessAddress:'210 Battery Road', businessPostal:'77002', plants:195, devices:2508, users:29, revenue:'$174k', health:'At Risk', integrations:2, alerts:41, industry:'Solar Energy', businessCategory:'SME', parentCompany:'Energy Holdings Group', employees:'11–50', annualRevenue:'$1M–$5M', webplant:'https://gamma-grid.example', category:'Partner', tier:'Silver', priority:'High', risk:'High', source:'Referral', account:'Laura Garcia', language:'English', timezone:'America/Chicago', channel:'Email', businessHours:'08:30–17:30', platformNotifications:'Yes', serviceNotifications:'Yes', invoiceNotifications:'No', securityNotifications:'Yes', notificationRecipients:'Primary, Technical', dpa:'Not Signed', nda:'Signed', compliance:'Pending', confidentiality:'Critical', controllerType:'Controller', consent:'Expired', consentExpiry:'2026-08-01', setup:67, contacts:[{first:'Miguel', last:'Torres', full:'Miguel Torres', position:'Owner Representative', department:'Finance', role:'Billing', email:'miguel@example.com', mobile:'+1 (512) 555-0142', office:'+1 (512) 555-0149', phone:'+1 (512) 555-0142', language:'English', method:'Email', active:'Yes'}], documents:[{name:'Data Processing Agreement', type:'Compliance', expiry:'2026-08-01', file:'Data Processing Agreement.pdf'}], created:'2026-04-27', updated:'2026-06-01' }
-];
+const tenantSeed: ZentridTenantRecord[] = [];
 
 const tenantCountryRules: Record<string, ZentridTenantCountryRule> = {
   Armenia: {
@@ -164,16 +160,152 @@ function defaultTenantCountryRule(): ZentridTenantCountryRule {
   return rule;
 }
 function cls(v: unknown): string { const text=String(v).toLowerCase(); if(text.includes('risk')||text.includes('critical')||text.includes('suspend')||text.includes('non')||text.includes('expired')) return 'danger'; if(text.includes('attention')||text.includes('review')||text.includes('medium')||text.includes('inactive')||text.includes('pending')) return 'warning'; return 'success'; }
-function getTenants(): ZentridTenantRecord[] { const liveRows = window.ZentridLiveTenants as ZentridTenantRecord[] | undefined; if (Array.isArray(liveRows) && liveRows.length) return liveRows; const rows = window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.tenants, []) : JSON.parse(localStorage.getItem('zentrid_demo_tenants') || '[]'); if (rows && rows.length) return rows; if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.tenants, tenantSeed); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(tenantSeed)); return tenantSeed; }
-function saveTenants(rows: ZentridTenantRecord[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.tenants, rows); else localStorage.setItem('zentrid_demo_tenants', JSON.stringify(rows)); }
+function getTenants(): ZentridTenantRecord[] { const liveRows = window.ZentridLiveTenants as ZentridTenantRecord[] | undefined; return Array.isArray(liveRows) ? liveRows : []; }
+function saveTenants(_rows: ZentridTenantRecord[]): void { /* API-only: use a confirmed backend mutation. */ }
 function genId(){ return 'TNT-' + String(Math.floor(100000 + Math.random()*899999)); }
 function genCode(){ return 'TN-' + String(Math.floor(100000 + Math.random()*899999)); }
+
+const TENANT_CREATE_FALLBACK_KEY = 'zentrid_tenant_create_fallback';
+
+function tenantCreateResponseRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let row = value as Record<string, unknown>;
+  for (const key of ['data', 'tenant', 'result', 'item']) {
+    const nested = row[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) row = nested as Record<string, unknown>;
+  }
+  return row;
+}
+
+function tenantCreateBackendId(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  const row = tenantCreateResponseRecord(value);
+  for (const key of ['id', 'tenantId', 'canonicalId', 'sourceEntityId']) {
+    const id = String(row[key] || '').trim();
+    if (id) return id;
+  }
+  return '';
+}
+
+function tenantCreateApiPayload(
+  formData: FormData,
+  contacts: ZentridTenantContact[],
+  documents: ZentridTenantDocument[]
+): Record<string, unknown> {
+  const country = tenantFormText(formData, 'country', 'Armenia').trim();
+  const name = tenantFormText(formData, 'name').trim();
+  const legalName = tenantFormText(formData, 'legal').trim();
+  const businessSame = Boolean(formData.get('businessSame'));
+  const tenantStatus = tenantFormText(formData, 'status', 'Inactive').trim();
+  const tenantType = tenantFormText(formData, 'type', 'Owner').trim();
+  const entityType = tenantFormText(formData, 'entityType', 'Legal Entity').trim();
+  const payload: Record<string, unknown> = {
+    // The platform create DTO and list DTO currently use different property names.
+    // Keep the canonical camelCase fields and include exact create-contract aliases.
+    name,
+    Name: name,
+    tenantName: name,
+    TenantName: name,
+    legalName,
+    LegalName: legalName,
+    country,
+    Country: country,
+    tenantStatus,
+    TenantStatus: tenantStatus,
+    tenantType,
+    TenantType: tenantType,
+    entityType,
+    EntityType: entityType
+  };
+  const optional = (key: string, value: unknown): void => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'string' && !value.trim()) return;
+    if (Array.isArray(value) && !value.length) return;
+    payload[key] = value;
+  };
+  optional('tradeName', tenantFormText(formData, 'trade').trim());
+  optional('displayName', tenantFormText(formData, 'displayName').trim());
+  optional('registrationNumber', tenantFormText(formData, 'registration').trim());
+  optional('taxId', tenantFormText(formData, 'tax').trim());
+  optional('accountManager', tenantFormText(formData, 'account').trim());
+  optional('industrySector', tenantFormText(formData, 'industry').trim());
+  optional('businessCategory', tenantFormText(formData, 'businessCategory').trim());
+  optional('parentCompany', tenantFormText(formData, 'parentCompany').trim());
+  const employees = Number(tenantFormText(formData, 'employees'));
+  if (Number.isFinite(employees) && employees >= 0) optional('numberOfEmployees', employees);
+  optional('annualRevenueRange', tenantFormText(formData, 'annualRevenue').trim());
+  optional('website', tenantFormText(formData, 'webplant').trim());
+  optional('legalCountry', tenantFormText(formData, 'legalCountry', country).trim());
+  optional('region', tenantFormText(formData, 'region').trim());
+  optional('city', tenantFormText(formData, 'city').trim());
+  optional('address', tenantFormText(formData, 'address').trim());
+  optional('buildingNumber', tenantFormText(formData, 'building').trim());
+  optional('postalCode', tenantFormText(formData, 'postal').trim());
+  payload.businessAddressSameAsLegal = businessSame;
+  if (!businessSame) {
+    optional('businessCountry', tenantFormText(formData, 'businessCountry', country).trim());
+    optional('businessRegion', tenantFormText(formData, 'businessRegion').trim());
+    optional('businessCity', tenantFormText(formData, 'businessCity').trim());
+    optional('businessAddress', tenantFormText(formData, 'businessAddress').trim());
+    optional('businessPostalCode', tenantFormText(formData, 'businessPostal').trim());
+  }
+  optional('contacts', contacts.map(contact => ({
+    firstName: String(contact.first || '').trim(),
+    lastName: String(contact.last || '').trim(),
+    fullName: String(contact.full || '').trim(),
+    position: String(contact.position || '').trim(),
+    department: String(contact.department || '').trim(),
+    role: String(contact.role || '').trim(),
+    email: String(contact.email || '').trim(),
+    mobilePhone: String(contact.mobile || contact.phone || '').trim(),
+    officePhone: String(contact.office || '').trim(),
+    preferredLanguage: String(contact.language || '').trim(),
+    preferredContactMethod: String(contact.method || '').trim(),
+    active: String(contact.active || '').toLowerCase() !== 'no'
+  })));
+  optional('tenantCategory', tenantFormText(formData, 'category').trim());
+  optional('accountTier', tenantFormText(formData, 'tier').trim());
+  optional('priority', tenantFormText(formData, 'priority').trim());
+  optional('riskCategory', tenantFormText(formData, 'risk').trim());
+  optional('acquisitionSource', tenantFormText(formData, 'source').trim());
+  optional('preferredLanguage', tenantFormText(formData, 'language').trim());
+  optional('timezone', tenantFormText(formData, 'timezone').trim());
+  optional('communicationChannel', tenantFormText(formData, 'channel').trim());
+  optional('businessHours', tenantFormText(formData, 'businessHours').trim());
+  optional('platformNotifications', tenantFormText(formData, 'platformNotifications').trim());
+  optional('serviceNotifications', tenantFormText(formData, 'serviceNotifications').trim());
+  optional('invoiceNotifications', tenantFormText(formData, 'invoiceNotifications').trim());
+  optional('securityNotifications', tenantFormText(formData, 'securityNotifications').trim());
+  optional('notificationRecipients', tenantFormText(formData, 'notificationRecipients').trim());
+  optional('dataProcessingAgreementStatus', tenantFormText(formData, 'dpa').trim());
+  optional('ndaStatus', tenantFormText(formData, 'nda').trim());
+  optional('complianceStatus', tenantFormText(formData, 'compliance').trim());
+  optional('confidentialityLevel', tenantFormText(formData, 'confidentiality').trim());
+  optional('dataControllerType', tenantFormText(formData, 'controllerType').trim());
+  optional('consentStatus', tenantFormText(formData, 'consent').trim());
+  optional('consentExpiryDate', tenantFormText(formData, 'consentExpiry').trim());
+  optional('documents', documents.map(document => ({
+    name: String(document.name || '').trim(),
+    type: String(document.type || '').trim(),
+    expiry: String(document.expiry || '').trim(),
+    uploaded: Boolean(document.file)
+  })));
+  payload.hasUploadedDocuments = documents.some(document => Boolean(document.file));
+  return payload;
+}
+
+function saveTenantCreateFallback(tenant: ZentridTenantRecord): void {
+  sessionStorage.setItem(TENANT_CREATE_FALLBACK_KEY, JSON.stringify(tenant));
+  localStorage.setItem('zentrid_selected_tenant', tenant.id);
+}
+
+function clearTenantCreateFallback(): void {
+  sessionStorage.removeItem(TENANT_CREATE_FALLBACK_KEY);
+}
 function selectedTenant(): ZentridTenantRecord {
   const rows = getTenants();
   const id = localStorage.getItem('zentrid_selected_tenant');
-  const tenant = rows.find(x => x.id === id) || rows[0] || tenantSeed[0];
-  if (!tenant) throw new Error('Tenant registry is empty.');
-  return tenant;
+  return rows.find(x => x.id === id) || rows[0] || ({} as ZentridTenantRecord);
 }
 function tenantClientRecord(tenant: ZentridTenantRecord): ZentridTenantClientRecordV42 | null {
   if (typeof ZentridClientModel === 'undefined') return null;
@@ -818,11 +950,15 @@ function removeTenantDetailDocument(index: number): void {
 }
 
 function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`; }).join('')}</div>`; }
-function renderTenantRegistry(){ const rows=getTenants(); return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>x.compliance!=='Approved').length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option><option>Active</option><option>Inactive</option><option>Suspended</option><option>Archived</option></select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`; }
+function renderTenantRegistry(){
+  const rows=getTenants();
+  const statuses=Array.from(new Set(['Active','Inactive','Suspended','Archived',...rows.map(row=>String(row.status||'').trim()).filter(Boolean)]));
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>x.compliance!=='Approved').length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option>${statuses.map(value=>`<option>${tenantEscapeHtml(value)}</option>`).join('')}</select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`;
+}
 
 function stepIntro(name: string, text: string): string { return `<div class="wizard-description full"><strong>${name}</strong><p>${text}</p><textarea name="${name.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_notes" placeholder="Notes for ${name}..."></textarea></div>`; }
 function yesNo(name: string, label: string, yes='Yes'): string { return `<label>${label}<select name="${name}"><option>${yes}</option><option>${yes==='Yes'?'No':'Yes'}</option></select></label>`; }
-function tenantWizard(){ const steps=['General Information','Address Information','Contact Persons','Tenant Classification','Communication Preferences','Legal & Compliance']; return `<aside class="modal" id="tenantModal" role="dialog" aria-modal="true" aria-labelledby="tenantWizardTitle" aria-hidden="true"><div class="modal-card wide-modal"><button class="modal-close" id="closeTenantModal" type="button" aria-label="Close tenant wizard">x</button><p class="eyebrow">Tenant Provisioning Wizard</p><h2 id="tenantWizardTitle">Create Tenant</h2><div class="setup-layout"><div class="setup-rail" aria-label="Tenant creation steps">${steps.map((s,i)=>`<button class="${i===0?'active':''}" data-step="${i}"><b>${i+1}</b><span>${s}</span></button>`).join('')}</div><form id="tenantForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="TenantCreateDraft" data-zentrid-form-endpoint="/api/admin/tenants" data-zentrid-form-method="POST" data-zentrid-form-api-note="The wizard currently stores a local prototype record; its DTO is ready for the Tenant create contract.">
+function tenantWizard(){ const steps=['General Information','Address Information','Contact Persons','Tenant Classification','Communication Preferences','Legal & Compliance']; return `<aside class="modal" id="tenantModal" role="dialog" aria-modal="true" aria-labelledby="tenantWizardTitle" aria-hidden="true"><div class="modal-card wide-modal"><button class="modal-close" id="closeTenantModal" type="button" aria-label="Close tenant wizard">x</button><p class="eyebrow">Tenant Provisioning Wizard</p><h2 id="tenantWizardTitle">Create Tenant</h2><div class="setup-layout"><div class="setup-rail" aria-label="Tenant creation steps">${steps.map((s,i)=>`<button class="${i===0?'active':''}" data-step="${i}"><b>${i+1}</b><span>${s}</span></button>`).join('')}</div><form id="tenantForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="TenantCreateDraft" data-zentrid-form-endpoint="/api/admin/tenants" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Tenant is connected to the confirmed backend mutation. Uploaded document files remain local metadata until a document upload API is available.">
 <div class="form-validation-summary full" id="tenantValidationSummary" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
 <div class="wizard-step active" data-tenant-step="0">
   <label>Tenant ID <input disabled value="Auto-generated after save"></label>
@@ -919,7 +1055,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <label>Consent Status <select name="consent"><option>Active</option><option>Expired</option></select></label>
   <label>Consent Expiry Date <input type="date" name="consentExpiry"></label>
   <input type="file" id="tenantDocUpload" accept=".pdf,.doc,.docx" multiple hidden>
-  <div class="document-table-toolbar full"><button type="button" class="table-add-btn document-add-btn" id="tenantDocUploadAction" data-trigger-tenant-doc-upload title="Add documents">+ Add Documents</button></div>
+  <div class="document-table-toolbar full"><button type="button" class="small-btn primary document-add-btn" id="tenantDocUploadAction" data-trigger-tenant-doc-upload title="Add documents">+ Add Documents</button></div>
   <div class="data-table full compact-table tenant-document-table wizard-document-table" id="wizardDocumentsTable"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry</span><span>File</span><span>Actions</span></div></div>
   ${stepIntro('Legal & Compliance','Compliance and document information for the tenant. Audit data is kept in Audit Center, not in this form.')}
 </div>
@@ -1357,7 +1493,7 @@ function wireTenantRegistry(): void {
     }
   };
 
-  tenantForm.onsubmit = event => {
+  tenantForm.onsubmit = async event => {
     event.preventDefault();
     if (!ZentridActionPermissions.guard({ action:'create', resource:'tenant' })) return;
     if (isSaving) return;
@@ -1388,21 +1524,57 @@ function wireTenantRegistry(): void {
       notes:{ general:tenantFormText(formData, 'general_information_notes'), address:tenantFormText(formData, 'address_information_notes'), contacts:tenantFormText(formData, 'contact_persons_notes'), classification:tenantFormText(formData, 'tenant_classification_notes'), communication:tenantFormText(formData, 'communication_preferences_notes'), legal:tenantFormText(formData, 'legal_compliance_notes') },
       created:new Date().toISOString().slice(0,10), updated:new Date().toISOString().slice(0,10)
     };
+    const payload = tenantCreateApiPayload(formData, contacts, documents);
     isSaving = true;
     ZentridFormUX.setBusy(saveButton, true, 'Creating Tenant…');
     try {
-      if (window.ZentridLocalStore) ZentridLocalStore.addTenant(tenant);
-      else { const rows = getTenants(); rows.unshift(tenant); saveTenants(rows); }
-      localStorage.setItem('zentrid_selected_tenant', tenant.id);
-      initialDraftSnapshot = draftSnapshot();
-      window.ZentridFormReadiness?.markCommitted(tenantForm);
-      ZentridLayout.toast('Tenant created. Opening Tenant Detail.');
-      window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
-    } catch (error) {
+      if (!window.ZentridAPIMutations) throw new Error('Tenant mutation runtime is unavailable.');
+      const result = await ZentridAPIMutations.tenants.create(payload);
+      if (result.ok) {
+        const backendId = tenantCreateBackendId(result.data);
+        clearTenantCreateFallback();
+        initialDraftSnapshot = draftSnapshot();
+        window.ZentridFormReadiness?.markCommitted(tenantForm);
+        if (backendId) {
+          localStorage.setItem('zentrid_selected_tenant', backendId);
+          ZentridLayout.toast('Tenant created in the backend. Opening Tenant Detail.');
+          window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
+        } else {
+          console.info('Tenant create succeeded without a returned identifier.', tenantCreateResponseRecord(result.data));
+          ZentridLayout.toast('Tenant created in the backend. Refreshing Tenant Registry.');
+          window.setTimeout(() => { location.href = 'tenants.html'; }, 450);
+        }
+        return;
+      }
+
+      if (result.error.retriable) {
+        saveTenantCreateFallback(tenant);
+        initialDraftSnapshot = draftSnapshot();
+        window.ZentridFormReadiness?.markCommitted(tenantForm);
+        ZentridLayout.toast('Backend unavailable. Tenant saved as a temporary local fallback.');
+        window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
+        return;
+      }
+
       isSaving = false;
       ZentridFormUX.setBusy(saveButton, false);
-      ZentridFormUX.renderSummary(validationSummary, [{ message:'Unable to save the tenant locally. Review browser storage and try again.' }], 'Tenant was not created');
+      const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
+      ZentridFormUX.renderSummary(validationSummary, [{ message:detail }], 'Tenant was not created');
       validationSummary.focus();
+    } catch (error) {
+      try {
+        saveTenantCreateFallback(tenant);
+        initialDraftSnapshot = draftSnapshot();
+        window.ZentridFormReadiness?.markCommitted(tenantForm);
+        ZentridLayout.toast('Tenant mutation runtime was unavailable. Tenant saved as a temporary local fallback.');
+        window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
+      } catch (fallbackError) {
+        isSaving = false;
+        ZentridFormUX.setBusy(saveButton, false);
+        ZentridFormUX.renderSummary(validationSummary, [{ message:'Unable to create the tenant through the backend or save the temporary fallback.' }], 'Tenant was not created');
+        validationSummary.focus();
+        console.error('Tenant create and fallback both failed.', error, fallbackError);
+      }
     }
   };
 
@@ -1415,6 +1587,7 @@ function wireTenantRegistry(): void {
 
 function renderTenantDetail(){
   const c=selectedTenant();
+  if (!c.id) return window.ZentridApiOnly?.emptyState('Tenant Detail', 'The tenant endpoint has not returned a selected record.', '/api/admin/tenants') || '';
   const lifecycle = window.ZentridTenantLifecycle?.render(c) || '';
   const canEdit = tenantDetailCanEdit(c, 'general');
   return `<section class="page-hero"><div><p class="eyebrow">Tenant Detail · ${tenantEscapeHtml(c.entityType || 'Legal Entity')} ${ZentridDataSource.badge(c, 'tenant', true)}</p><h1 id="tenantDetailHeroName">${tenantEscapeHtml(c.name)}</h1><p class="muted" id="tenantDetailHeroMeta">${tenantEscapeHtml(c.legal)} · ${tenantEscapeHtml(c.country)}, ${tenantEscapeHtml(c.city)} · ${tenantEscapeHtml(c.code)}</p></div><div class="tenant-hero-actions-v111"><button class="freshness-card" id="connectFirstIntegration" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>Connect First Integration</strong><small>Vendor → credentials → discovery</small></div></button>${lifecycle}</div></section>

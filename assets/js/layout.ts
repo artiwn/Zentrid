@@ -247,10 +247,7 @@ const ZentridLayout = (() => {
           <div class="menu-wrap">
             <button class="context-pill" id="tenantBtn">Scope: <strong id="tenantLabel">${state.tenant}</strong> ▾</button>
             ${menu('tenantMenu', [
-              { label: 'All Tenants', value: 'All Tenants' },
-              { label: 'Tenant Alpha Energy', value: 'Tenant Alpha Energy' },
-              { label: 'Tenant Beta Operations', value: 'Tenant Beta Operations' },
-              { label: 'Tenant Gamma Grid', value: 'Tenant Gamma Grid' }
+              { label: 'All Tenants', value: 'All Tenants' }
             ])}
           </div>
           <div class="menu-wrap">
@@ -264,13 +261,10 @@ const ZentridLayout = (() => {
             ])}
           </div>
           <div class="menu-wrap">
-            <button class="notification-btn" id="notifyBtn">🔔<span>4</span></button>
+            <button class="notification-btn" id="notifyBtn" aria-label="Notifications">🔔</button>
             <div class="dropdown-menu wide" id="notifyMenu">
               <div class="dropdown-title">Global Admin Notifications</div>
-              <button data-action="integration-operations">🟡 Connector sync delayed</button>
-              <button data-action="data-quality">🔴 Data quality rule failed</button>
-              <button data-action="audit">🔵 Permission policy changed</button>
-              <button data-action="payment-settings">🟢 Payment policy updated</button>
+              <div class="empty-state compact"><strong>No API notifications</strong><small>A notification endpoint is not connected.</small></div>
             </div>
           </div>
           <div class="menu-wrap">
@@ -417,7 +411,24 @@ const ZentridLayout = (() => {
     }
   }
 
+  function syncTenantMenuFromApi(): void {
+    const menuEl = document.getElementById('tenantMenu');
+    if (!menuEl) return;
+    const rows = Array.isArray(window.ZentridLiveTenants) ? window.ZentridLiveTenants as Record<string, unknown>[] : [];
+    const names = rows.map(row => ['name', 'tenantName', 'displayName', 'legalName', 'code', 'id'].map(key => row[key]).find(value => value !== undefined && value !== null && String(value).trim()) || '').map(String).map(value => value.trim()).filter(Boolean);
+    const uniqueNames = Array.from(new Set(names));
+    const options = ['All Tenants', ...uniqueNames];
+    menuEl.innerHTML = options.map(value => `<button type="button" data-value="${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">${value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</button>`).join('');
+    if (!options.includes(state.tenant)) {
+      state.tenant = 'All Tenants';
+      localStorage.setItem('zentrid_tenant', state.tenant);
+      const label = document.getElementById('tenantLabel');
+      if (label) label.textContent = state.tenant;
+    }
+  }
+
   function wireHeader(): void {
+    syncTenantMenuFromApi();
     document.getElementById('toggleSidebar')?.addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
     document.getElementById('goHome')?.addEventListener('click', () => {
       saveSidebarScroll();
@@ -429,6 +440,7 @@ const ZentridLayout = (() => {
     headerMenus.forEach(([btn, menuId]) => {
       document.getElementById(btn)?.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (menuId === 'tenantMenu') syncTenantMenuFromApi();
         const menuEl = document.getElementById(menuId);
         if (!menuEl) return;
         const wasOpen = menuEl.classList.contains('open');
@@ -460,7 +472,7 @@ const ZentridLayout = (() => {
     });
     document.getElementById('profileMenu')?.addEventListener('click', async e => {
       const b = layoutEventTarget(e)?.closest<HTMLButtonElement>('button[data-action]'); if (!b) return;
-      if (b.dataset.action === 'logout') { window.ZentridAuth?.logout?.(true); return; }
+      if (b.dataset.action === 'logout') { void window.ZentridAuth?.logout?.(true); return; }
       if (b.dataset.action === 'refresh-auth') {
         try {
           await window.ZentridAuth?.me?.();
@@ -494,43 +506,55 @@ const ZentridLayout = (() => {
       keywords: [group.section, item.label, item.key.replace('.html', '')]
     })));
 
-    const globalSearchIndex: ZentridSearchItem[] = [
-      ...navIndex,
-      { type: 'Tenant', label: 'Tenant Alpha Energy', meta: 'Tenant Registry · Armenia · Platinum · Pending setup', action: 'tenants', keywords: ['tenant', 'alpha', 'energy', 'tenant alpha energy', 'company', 'legal entity', 'plants'] },
-      { type: 'Tenant', label: 'Tenant North Operations', meta: 'Tenant Registry · O&M partner · Active', action: 'tenants', keywords: ['tenant north operations', 'north', 'operator', 'o&m'] },
-      { type: 'Client', label: 'Arpi Solar Group', meta: 'Client Registry · Legal entity · 3 plants · 6 alerts', action: 'client-detail', keywords: ['arpi', 'solar', 'group', 'client', 'legal entity', 'owner'] },
-      { type: 'Client', label: 'Ivan Petrov', meta: 'Client Registry · Individual · Owner portal pending', action: 'client-detail', keywords: ['ivan', 'petrov', 'individual', 'client', 'owner portal'] },
-      { type: 'Plant', label: 'Plant A', meta: 'Plant Registry · Berlin · Huawei · 54.2 MWp', action: 'plant-detail', keywords: ['plant a', 'plant', 'plant', 'berlin', 'huawei', 'normal'] },
-      { type: 'Plant', label: 'Arpi Rooftop 01', meta: 'Plant Registry · Yerevan · GoodWe · 820 kWp', action: 'plant-detail', keywords: ['arpi rooftop', 'plant', 'yerevan', 'goodwe', 'rooftop'] },
-      { type: 'Group', label: 'Plants', meta: 'Groups · Visible sidebar section · Plant registry', action: 'plants', keywords: ['groups', 'plants', 'plant registry', 'create plant', 'add plant'] },
-      { type: 'Group', label: 'Smart Homes', meta: 'Groups · Configurable sidebar group', action: 'groups', keywords: ['smart home', 'smart homes', 'groups', 'future'] },
-      { type: 'Device', label: 'INV-00432', meta: 'Device List · Inverter · Huawei SUN2000 · Online', action: 'device-detail', keywords: ['inv-00432', 'inverter', 'huawei', 'sun2000', 'device', 'pv strings', 'mppt'] },
-      { type: 'Device', label: 'Battery-1', meta: 'Device List · Battery · SOC/SOH · Online', action: 'device-detail', keywords: ['battery', 'battery-1', 'bess', 'soc', 'soh', 'charge', 'discharge'] },
-      { type: 'Device', label: 'Logger 3877560314', meta: 'Device List · Datalogger · Subordinate devices', action: 'device-detail', keywords: ['logger', 'datalogger', 'dongle', 'wifi', 'lan', 'subordinate devices', 'communication module'] },
-      { type: 'Device', label: 'Grid Meter GM-001', meta: 'Device List · Smart Meter · Import / Export', action: 'device-detail', keywords: ['meter', 'grid meter', 'smart meter', 'import', 'export', 'accounting'] },
-      { type: 'Device', label: 'Weather Station WS-01', meta: 'Device List · Irradiance · Wind · Ambient temperature', action: 'device-detail', keywords: ['weather', 'weather station', 'irradiance', 'wind', 'humidity', 'temperature'] },
-      { type: 'Topology', label: 'Device Architecture / Relations', meta: 'Device Detail · Parent logger · connected inverter/meter/battery', action: 'device-detail', keywords: ['architecture', 'topology', 'relations', 'device relations', 'parent', 'subordinate', 'connected devices'] },
-      { type: 'Production', label: 'Production Center', meta: 'Tenant → Client → Plant production and revenue', action: 'production', keywords: ['production', 'energy', 'tenant production', 'client production', 'revenue', 'grid export', 'battery charge'] },
-      { type: 'Alert', label: 'Plant Offline', meta: 'Alerts · Critical · Plant A · INV-00432', action: 'alerts', keywords: ['alerts', 'alert center', 'plant offline', 'critical', 'plant a', 'inv-00432', 'open alert'] },
-      { type: 'Alert', label: 'BESS Temperature Warning', meta: 'Alerts · High · Armavir BESS Solar · Battery', action: 'alerts', keywords: ['alerts', 'bess temperature', 'battery warning', 'sungrow', 'acknowledged'] },
-      { type: 'Alert', label: 'No Telemetry Data', meta: 'Alerts · Medium · Gateway · Data Quality', action: 'alerts', keywords: ['alerts', 'no telemetry', 'data quality', 'gateway', 'solis', 'freshness'] },
-      { type: 'Connector', label: 'Huawei FusionSolar Adapter', meta: 'Connector Registry · Auth valid · Discovery completed', action: 'integration-detail', keywords: ['huawei', 'fusion solar', 'fusionsolar', 'adapter', 'connector', 'integration'] },
-      { type: 'Connector', label: 'GoodWe SEMS Adapter', meta: 'Connector Registry · Mapping warning', action: 'integration-detail', keywords: ['goodwe', 'sems', 'adapter', 'connector', 'mapping'] },
-      { type: 'Connector', label: 'SolisCloud Connector', meta: 'Connector Registry · Tariff and datalogger sync', action: 'integrations', keywords: ['solis', 'soliscloud', 'connector', 'datalogger', 'tariff'] },
-      { type: 'Connector', label: 'Sungrow iSolarCloud Connector', meta: 'Connector Registry · Communication device sync', action: 'integrations', keywords: ['sungrow', 'isolarcloud', 'connector', 'communication device'] },
-      { type: 'Data Quality', label: 'Production Mapping Rule Failed', meta: 'Data Quality Center · GoodWe adapter · Warning', action: 'data-quality', keywords: ['data quality', 'mapping rule', 'failed', 'production', 'normalization', 'goodwe'] },
-      { type: 'Data Governance', label: 'Raw → Core Trace', meta: 'Data Governance Center · Lineage · Validation · Mapping', action: 'data-governance', keywords: ['raw', 'core', 'trace', 'lineage', 'validation', 'mapping', 'normalization'] },
-      { type: 'Incident', label: 'Inverter Offline Incident', meta: 'Incident Governance · Critical · Work order ready', action: 'incident-center', keywords: ['incident', 'inverter offline', 'alert', 'critical', 'work order', 'fault'] },
-      { type: 'Alert', label: 'Battery Communication Warning', meta: 'Alerts & Events · Battery-1 · Active', action: 'alert-detail', keywords: ['alert', 'battery', 'communication warning', 'active alert', 'fault'] },
-      { type: 'Task', label: 'Remote Reset Work Order', meta: 'Work Order Oversight · Assigned to technical team', action: 'work-orders', keywords: ['task', 'work order', 'remote reset', 'engineer', 'maintenance'] },
-      { type: 'Financial', label: 'Tariff Plans', meta: 'Financial Operations · Tariff builder · Rules · Simulator', action: 'tariff-plans', keywords: ['tariff', 'tariffs', 'pricing', 'subscription', 'sla', 'discounts', 'rating simulator'] },
-      { type: 'Financial', label: 'Billing Management', meta: 'Financial Operations · Metering · Rating · Charges · Taxes', action: 'billing-management', keywords: ['billing', 'metering', 'rating engine', 'usage', 'charges', 'taxes'] },
-      { type: 'Financial', label: 'Invoice Center', meta: 'Financial Operations · Invoice approval · Snapshot · PDF · ERP', action: 'invoice-center', keywords: ['invoice', 'invoices', 'pdf', 'approval', 'snapshot', 'credit note', 'debit note'] },
-      { type: 'Payment', label: 'Payment Settings', meta: 'Financial Operations · Providers · Reconciliation · Refunds · FX', action: 'payment-settings', keywords: ['payment', 'payments', 'billing', 'invoice', 'provider', 'tax', 'gateway', 'reconciliation'] },
-      { type: 'Financial', label: 'Revenue & Settlements', meta: 'Financial Operations · Marketplace · Energy trading · Payouts', action: 'revenue-settlements', keywords: ['revenue', 'settlement', 'settlements', 'payout', 'marketplace', 'energy trading'] },
-      { type: 'Audit', label: 'Permission Policy Changed', meta: 'Audit Center · Platform Governance · 8 min ago', action: 'audit', keywords: ['audit', 'permission', 'policy', 'rbac', 'access'] },
-      { type: 'Settings', label: 'Platform Settings', meta: 'Platform Governance · Global configuration', action: 'settings', keywords: ['settings', 'platform settings', 'configuration'] }
-    ];
+    function valueFrom(record: Record<string, unknown>, keys: string[]): string {
+      for (const key of keys) {
+        const value = record[key];
+        if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
+      }
+      return '';
+    }
+
+    function liveRows(name: string): Record<string, unknown>[] {
+      const value = window[name];
+      return Array.isArray(value) ? value.filter(row => row && typeof row === 'object') as Record<string, unknown>[] : [];
+    }
+
+    function liveEntitySearchIndex(): ZentridSearchItem[] {
+      const entities: Array<{
+        global: string;
+        type: string;
+        action: string;
+        names: string[];
+        ids: string[];
+        meta: string[];
+      }> = [
+        { global: 'ZentridLiveTenants', type: 'Tenant', action: 'tenants', names: ['name', 'tenantName', 'displayName', 'legalName'], ids: ['id', 'tenantId', 'code', 'externalId'], meta: ['status', 'country', 'region'] },
+        { global: 'ZentridLiveClients', type: 'Client', action: 'client-detail', names: ['name', 'clientName', 'displayName', 'fullName', 'legalName'], ids: ['id', 'clientId', 'code', 'externalId'], meta: ['type', 'status', 'email'] },
+        { global: 'ZentridLivePlants', type: 'Plant', action: 'plant-detail', names: ['name', 'plantName', 'displayName'], ids: ['id', 'plantId', 'code', 'externalId'], meta: ['status', 'city', 'country'] },
+        { global: 'ZentridLiveDevices', type: 'Device', action: 'device-detail', names: ['name', 'deviceName', 'displayName', 'serialNumber'], ids: ['id', 'deviceId', 'serialNumber', 'externalId'], meta: ['type', 'deviceType', 'status', 'vendor'] },
+        { global: 'ZentridLiveAlerts', type: 'Alert', action: 'alert-detail', names: ['title', 'name', 'message', 'alertName'], ids: ['id', 'alertId', 'code', 'externalId'], meta: ['severity', 'status', 'source'] },
+        { global: 'ZentridLiveIntegrations', type: 'Connector', action: 'integration-detail', names: ['name', 'displayName', 'providerName', 'connectorName'], ids: ['id', 'integrationId', 'providerId', 'externalId'], meta: ['provider', 'status', 'syncStatus'] }
+      ];
+
+      return entities.flatMap(config => liveRows(config.global).reduce<ZentridSearchItem[]>((items, record) => {
+        const id = valueFrom(record, config.ids);
+        const label = valueFrom(record, config.names) || id;
+        if (!label) return items;
+        const metaValues = config.meta.map(key => valueFrom(record, [key])).filter(Boolean);
+        items.push({
+          type: config.type,
+          label,
+          meta: [config.type, ...metaValues].join(' · '),
+          action: config.action,
+          keywords: [label, id, ...metaValues].filter(Boolean)
+        });
+        return items;
+      }, []));
+    }
+
+    function globalSearchIndex(): ZentridSearchItem[] {
+      return [...navIndex, ...liveEntitySearchIndex()];
+    }
 
     function scoreSearchItem(item: ZentridSearchItem, query: string): number {
       const text = normalizeSearch(`${item.type} ${item.label} ${item.meta} ${(item.keywords || []).join(' ')}`);
@@ -556,7 +580,7 @@ const ZentridLayout = (() => {
     function findSearchResults(value: string, limit = 8): { query: string; exact: ZentridScoredSearchItem[]; partial: ZentridScoredSearchItem[] } {
       const query = normalizeSearch(value);
       if (!query) return { query, exact: [], partial: [] };
-      const ranked = globalSearchIndex
+      const ranked = globalSearchIndex()
         .map(item => ({ ...item, score: scoreSearchItem(item, query) }))
         .filter(item => item.score > 0)
         .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
@@ -779,10 +803,84 @@ const ZentridLayout = (() => {
     window.addEventListener('scroll', () => closeActionMenus(), true);
   }
 
+  interface ZentridOpenOverlaySnapshot {
+    id: string;
+    html: string;
+    scrollTop: number;
+    activeControlKey: string;
+  }
+
+  function syncOverlayControlState(source: HTMLElement, clone: HTMLElement): void {
+    const sourceControls = Array.from(source.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea'));
+    const cloneControls = Array.from(clone.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea'));
+    sourceControls.forEach((control, index) => {
+      const copy = cloneControls[index];
+      if (!copy) return;
+      if (control instanceof HTMLInputElement && copy instanceof HTMLInputElement) {
+        if (control.type !== 'file') copy.setAttribute('value', control.value);
+        if (control.checked) copy.setAttribute('checked', '');
+        else copy.removeAttribute('checked');
+        return;
+      }
+      if (control instanceof HTMLTextAreaElement && copy instanceof HTMLTextAreaElement) {
+        copy.textContent = control.value;
+        return;
+      }
+      if (control instanceof HTMLSelectElement && copy instanceof HTMLSelectElement) {
+        Array.from(copy.options).forEach((option, optionIndex) => {
+          if (control.options[optionIndex]?.selected) option.setAttribute('selected', '');
+          else option.removeAttribute('selected');
+        });
+      }
+    });
+  }
+
+  function overlayControlKey(control: HTMLElement | null, overlay: HTMLElement): string {
+    if (!control || !overlay.contains(control)) return '';
+    if (control.id) return `#${CSS.escape(control.id)}`;
+    const name = control.getAttribute('name');
+    if (name) return `[name="${CSS.escape(name)}"]`;
+    const aria = control.getAttribute('aria-label');
+    if (aria) return `[aria-label="${CSS.escape(aria)}"]`;
+    return '';
+  }
+
+  function captureOpenOverlays(app: HTMLElement): ZentridOpenOverlaySnapshot[] {
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return Array.from(app.querySelectorAll<HTMLElement>('.modal.open[id], .detail-drawer.open[id]')).map(overlay => {
+      const clone = overlay.cloneNode(true) as HTMLElement;
+      syncOverlayControlState(overlay, clone);
+      return {
+        id: overlay.id,
+        html: clone.outerHTML,
+        scrollTop: overlay.scrollTop,
+        activeControlKey: overlayControlKey(active, overlay)
+      };
+    });
+  }
+
+  function restoreOpenOverlays(app: HTMLElement, snapshots: ZentridOpenOverlaySnapshot[]): void {
+    snapshots.forEach(snapshot => {
+      const replacement = app.querySelector<HTMLElement>(`#${CSS.escape(snapshot.id)}`);
+      if (!replacement) return;
+      const template = document.createElement('template');
+      template.innerHTML = snapshot.html.trim();
+      const restored = template.content.firstElementChild as HTMLElement | null;
+      if (!restored) return;
+      replacement.replaceWith(restored);
+      restored.scrollTop = snapshot.scrollTop;
+      if (snapshot.activeControlKey) {
+        window.setTimeout(() => restored.querySelector<HTMLElement>(snapshot.activeControlKey)?.focus(), 0);
+      }
+    });
+  }
+
   function mount(content: string): ZentridContextState {
     const app = document.getElementById('app');
     if (!app) throw new Error('Zentrid app root not found');
+    const openOverlays = captureOpenOverlays(app);
     app.innerHTML = `${sidebar()}<div class="workspace">${header()}<main class="main-content">${content}</main></div>`;
+    restoreOpenOverlays(app, openOverlays);
     wireHeader();
     hydrateAuthProfile();
     wireSidebarScrollMemory();

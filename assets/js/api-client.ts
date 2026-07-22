@@ -60,7 +60,7 @@ type ZentridAuthAPI = {
   me(): Promise<unknown>;
   validate(): Promise<unknown>;
   ensureSession(requiredRole?: string): Promise<boolean>;
-  logout(redirect?: boolean): void;
+  logout(redirect?: boolean): Promise<void>;
   request<T = unknown>(path: string, options?: ZentridRequestOptions): Promise<T>;
   getAccessToken(): string;
   getRefreshToken(): string;
@@ -677,12 +677,42 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     return hasRole(requiredRole);
   }
 
-  function logout(redirect = true): void {
+  async function logout(redirect = true): Promise<void> {
+    const accessToken = getAccessToken();
     clearSession();
+
+    let backendLogout: Promise<void> = Promise.resolve();
+    if (accessToken) {
+      const headers = new Headers({
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      });
+      backendLogout = fetch(`${ZentridConfig.authBaseUrl}/api/Auth/logout`, {
+        method: 'POST',
+        headers,
+        cache: 'no-store',
+        keepalive: true
+      }).then(response => {
+        window.dispatchEvent(new CustomEvent('zentrid:backend-logout', {
+          detail: { ok: response.ok, status: response.status }
+        }));
+      }).catch((error: unknown) => {
+        window.dispatchEvent(new CustomEvent('zentrid:backend-logout', {
+          detail: {
+            ok: false,
+            status: 0,
+            message: error instanceof Error ? error.message : 'Backend logout request failed.'
+          }
+        }));
+      });
+    }
+
     if (redirect) {
       const prefix = window.location.pathname.includes('/pages/') ? '../' : '';
       window.location.href = `${prefix}login.html`;
     }
+
+    await backendLogout;
   }
 
   return {

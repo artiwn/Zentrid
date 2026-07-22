@@ -65,19 +65,11 @@ interface ZentridDevicePrimaryMetric {
 declare const ZentridLocalStore: ZentridLocalStoreApi;
 declare function plants(): Array<Record<string, unknown>>;
 
-const demoDevices: ZentridDeviceRecord[] = [
-  { id:'DEV-INV-00432', externalId:'HUA-INV-00432', name:'INV-00432', type:'Inverter', subtype:'String Inverter', manufacturer:'Huawei', model:'SUN2000-100KTL-M1', serial:'SN-HUA-00432', firmware:'V300R023C10', ip:'10.24.1.42', mac:'A4:C1:38:02:11:42', plantId:'PLT-000421', plant:'Plant A', tenant:'Tenant Alpha Energy', vendor:'Huawei', integration:'Tenant Alpha Energy — Huawei FusionSolar', status:'Online', lifecycle:'Active', capacity:'100 kW', installation:'2023-04-16', warranty:'2028-04-16', lastSeen:'2 min ago', alerts:0, power:'83.4 kW', voltage:'612 V', current:'136 A', temperature:'42 °C', pr:'98.1%', sourceStatus:'Mapped', parent:'Area A / Transformer T1', children:'MPPT 1–12 · 24 strings' },
-  { id:'DEV-INV-00921', externalId:'HUA-INV-00921', name:'INV-00921', type:'Inverter', subtype:'String Inverter', manufacturer:'Huawei', model:'SUN2000-60KTL-M0', serial:'SN-HUA-00921', firmware:'V300R021C00', ip:'10.24.1.77', mac:'A4:C1:38:02:19:21', plantId:'PLT-000422', plant:'Gyumri Solar West', tenant:'Tenant Alpha Energy', vendor:'Huawei', integration:'Tenant Alpha Energy — Huawei FusionSolar', status:'Warning', lifecycle:'Active', capacity:'60 kW', installation:'2024-02-02', warranty:'2029-02-02', lastSeen:'11 min ago', alerts:2, power:'41.2 kW', voltage:'588 V', current:'70 A', temperature:'58 °C', pr:'91.4%', sourceStatus:'Mapped', parent:'Area B / Transformer T1', children:'MPPT 1–8 · 16 strings' },
-  { id:'DEV-BAT-00018', externalId:'SUN-BESS-00018', name:'BESS Rack 18', type:'Battery', subtype:'Battery Rack', manufacturer:'Sungrow', model:'ST2752UX', serial:'SN-SUN-BAT-18', firmware:'BMS-4.8.2', ip:'10.25.8.18', mac:'54:AF:97:11:40:18', plantId:'PLT-000501', plant:'Armavir BESS Solar', tenant:'Tenant North Operations', vendor:'Sungrow', integration:'Tenant North Operations — Sungrow iSolarCloud', status:'Warning', lifecycle:'Active', capacity:'215 kWh', installation:'2022-09-18', warranty:'2032-09-18', lastSeen:'18 min ago', alerts:3, power:'-42 kW', voltage:'742 V', current:'-56 A', temperature:'36 °C', soc:'68%', soh:'94%', sourceStatus:'Mapped', parent:'BESS Container 01', children:'Modules 01–16 · Cells group A' },
-  { id:'DEV-MTR-00088', externalId:'HUA-MTR-00088', name:'Main Export Meter', type:'Meter', subtype:'Bidirectional Meter', manufacturer:'Huawei', model:'DTSU666-H', serial:'SN-MTR-00088', firmware:'1.2.9', ip:'10.24.2.88', mac:'00:1B:44:11:3A:88', plantId:'PLT-000421', plant:'Plant A', tenant:'Tenant Alpha Energy', vendor:'Huawei', integration:'Tenant Alpha Energy — Huawei FusionSolar', status:'Online', lifecycle:'Active', capacity:'Grid Point', installation:'2023-04-16', warranty:'2028-04-16', lastSeen:'1 min ago', alerts:0, power:'31.2 MW', voltage:'20 kV', current:'901 A', frequency:'50.01 Hz', sourceStatus:'Mapped', parent:'Grid Connection Point', children:'Import / Export accounting records' },
-  { id:'DEV-WTH-00012', externalId:'SOL-WTH-00012', name:'Weather Station 12', type:'Weather Station', subtype:'Irradiance + Temperature', manufacturer:'Solis', model:'SWS-200', serial:'SN-WTH-00012', firmware:'2.1.4', ip:'10.31.4.12', mac:'9C:B6:D0:12:01:12', plantId:'PLT-000611', plant:'Madrid East', tenant:'Tenant Gamma Grid', vendor:'Solis', integration:'Tenant Gamma Grid — Solis SolisCloud', status:'Offline', lifecycle:'Active', capacity:'Sensor', installation:'2021-11-08', warranty:'2026-11-08', lastSeen:'54 min ago', alerts:4, irradiance:'0 W/m2', ambient:'—', moduleTemp:'—', sourceStatus:'Mapped', parent:'Plant Sensor Pole A', children:'Irradiance · Ambient temp · Wind speed' },
-  { id:'DEV-TRF-00007', externalId:'HUA-TRF-00007', name:'Transformer T1', type:'Transformer', subtype:'Step-up Transformer', manufacturer:'ABB', model:'TX-2500', serial:'SN-TRF-00007', firmware:'N/A', ip:'—', mac:'—', plantId:'PLT-000720', plant:'Lyon PV Park', tenant:'Tenant Delta Enterprise', vendor:'Huawei', integration:'Tenant Delta Enterprise — Huawei FusionSolar', status:'Online', lifecycle:'Active', capacity:'2.5 MVA', installation:'2023-08-20', warranty:'2033-08-20', lastSeen:'3 min ago', alerts:0, power:'2.1 MVA', voltage:'20 kV', current:'61 A', temperature:'51 °C', sourceStatus:'Linked Existing', parent:'Subplant A', children:'Inverter group A · Meter group A' },
-  { id:'DEV-GTW-00031', externalId:'DEY-GTW-00031', name:'Gateway 31', type:'Gateway', subtype:'Communication Device', manufacturer:'Deye', model:'Solarman Logger', serial:'SN-GTW-00031', firmware:'3.6.1', ip:'10.41.2.31', mac:'C8:5B:76:31:11:02', plantId:'PLT-000817', plant:'Plant B', tenant:'Tenant Alpha Energy', vendor:'Deye', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', status:'Online', lifecycle:'Active', capacity:'Logger', installation:'2025-01-29', warranty:'2027-01-29', lastSeen:'4 min ago', alerts:0, signal:'Good', dataLag:'4 min', sourceStatus:'Mapped', parent:'Masis Communication Cabinet', children:'8 inverters · 2 meters' }
-];
-function saveDevices(list: ZentridDeviceRecord[]): void { if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.devices, list); else localStorage.setItem('zentrid_demo_devices', JSON.stringify(list)); }
+const demoDevices: ZentridDeviceRecord[] = [];
+function saveDevices(_list: ZentridDeviceRecord[]): void { /* API-only: use a confirmed backend mutation. */ }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
 function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${d.status || 'Unknown'}</span>`; }
-function selectedDevice(): ZentridDeviceRecord { const list=devices(); const id=localStorage.getItem('zentrid_selected_device'); const selected=list.find(d=>d.id===id) ?? list[0]; if(!selected) throw new Error('Device registry requires a default device.'); return selected; }
+function selectedDevice(): ZentridDeviceRecord { const list=devices(); const id=new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device'); const snapshot=window.ZentridLiveSelection?.readDevice?.(id) as ZentridDeviceRecord | null | undefined; return list.find(d=>d.id===id || d.externalId===id || d.serial===id) ?? snapshot ?? (!id ? list[0] : undefined) ?? ({} as ZentridDeviceRecord); }
 function wireDevices(): void {
   const table = document.getElementById('deviceTable') as HTMLElement;
   const search = document.getElementById('deviceSearch') as HTMLInputElement;
@@ -97,7 +89,7 @@ function wireDevices(): void {
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('devices') || '';
     bindRows();
   }
-  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, device:d.name, metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ localStorage.setItem('zentrid_alert_context', JSON.stringify({deviceId:d.id, plantId:d.plantId, tenant:d.tenant})); location.href='alerts.html'; } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.ZentridRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
+  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ if (d && window.ZentridLiveSelection?.selectDevice) window.ZentridLiveSelection.selectDevice(d); else { localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, device:d.name, metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ localStorage.setItem('zentrid_alert_context', JSON.stringify({deviceId:d.id, plantId:d.plantId, tenant:d.tenant})); location.href='alerts.html'; } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.ZentridRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
   search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:devices:search', () => apply(true), 220));
   [type,status].forEach(el=> el && el.addEventListener('change', ()=>apply(true)));
   bindRows();
@@ -267,23 +259,12 @@ function deviceAuditPanelV92(d: ZentridDeviceRecord): string {
 }
 
 /* v59 Device Detail v2: type-driven workspace, topology and architecture */
-const zentridExtraDeviceTypesV59: ZentridDeviceRecord[] = [
-  { id:'DEV-LOG-00387', externalId:'DEY-LOGGER-3877560314', name:'Logger 3877560314', type:'Logger', subtype:'Data Logger / Collector', manufacturer:'Deye', model:'Solarman Logger', serial:'3877560314', firmware:'3.8.0', ip:'10.41.2.87', mac:'C8:5B:76:87:11:14', plantId:'PLT-000817', plant:'Plant B', tenant:'Tenant Alpha Energy', vendor:'Deye', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', status:'Online', lifecycle:'Active', capacity:'Collector', installation:'2025-01-29', warranty:'2027-01-29', lastSeen:'3 min ago', alerts:0, signal:'Excellent', wlan:'82%', dataLag:'3 min', lanIp:'192.168.1.45', cybersecurity:'CS1.0.0', sourceStatus:'Mapped', parent:'Communication Cabinet', children:'4 inverters · 1 battery · 1 meter' },
-  { id:'DEV-MIC-250113', externalId:'DEY-MICRO-250113031C', name:'Microinverter 250113031C', type:'Microinverter', subtype:'Module-level Inverter', manufacturer:'Deye', model:'SUN-M80G4-EU-Q0', serial:'250113031C', firmware:'V1.2.6', ip:'10.41.3.18', mac:'C8:5B:76:25:01:13', plantId:'PLT-000817', plant:'Plant B', tenant:'Tenant Alpha Energy', vendor:'Deye', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', status:'Online', lifecycle:'Active', capacity:'800 W', installation:'2025-02-04', warranty:'2035-02-04', lastSeen:'2 min ago', alerts:0, power:'719 W', voltage:'230 V', current:'3.1 A', frequency:'50.00 Hz', temperature:'39 °C', sourceStatus:'Mapped', parent:'Roof Array A / Logger 3877560314', children:'PV module strings A1–A4' },
-  { id:'DEV-PVM-230322', externalId:'DEY-MODULE-2303227667-2', name:'PV Module 2303227667-2', type:'PV Module', subtype:'Smart PV Module', manufacturer:'Deye', model:'PV-550M', serial:'2303227667-2', firmware:'N/A', ip:'—', mac:'—', plantId:'PLT-000817', plant:'Plant B', tenant:'Tenant Alpha Energy', vendor:'Deye', integration:'Tenant Alpha Energy — Deye DeyeCloud / Solarman', status:'Online', lifecycle:'Active', capacity:'550 Wp', installation:'2025-02-04', warranty:'2040-02-04', lastSeen:'1 min ago', alerts:0, voltage:'42.6 V', current:'12.9 A', power:'549 W', temperature:'44 °C', sourceStatus:'Mapped', parent:'Microinverter 250113031C / Input 2', children:'Panel position R2-C4' },
-  { id:'DEV-COM-SGW-0001', externalId:'SGW-WINET-B2290652984', name:'Communication Module1', type:'Communication Module', subtype:'WiNet-S', manufacturer:'Sungrow', model:'WiNet-S', serial:'B2290652984', firmware:'COMM-2.4.5', ip:'10.25.1.91', mac:'18:93:D7:29:84:00', plantId:'PLT-000501', plant:'Armavir BESS Solar', tenant:'Tenant North Operations', vendor:'Sungrow', integration:'Tenant North Operations — Sungrow iSolarCloud', status:'Online', lifecycle:'Active', capacity:'Network Gateway', installation:'2025-10-09', warranty:'2027-10-09', lastSeen:'1 min ago', alerts:0, signal:'Good', wlan:'64%', dataLag:'1 min', sourceStatus:'Mapped', parent:'Plant network cabinet', children:'2 inverters · 1 BESS · 1 meter' }
-];
+const zentridExtraDeviceTypesV59: ZentridDeviceRecord[] = [];
 const zentridDefaultDevicesV59: ZentridDeviceRecord[] = [...demoDevices, ...zentridExtraDeviceTypesV59];
 function devices(): ZentridDeviceRecord[] {
-  if (Array.isArray(window.ZentridLiveDevices) && window.ZentridLiveDevices.length) return window.ZentridLiveDevices;
-  let stored: ZentridDeviceRecord[] = [];
-  try{ stored=JSON.parse(localStorage.getItem('zentrid_demo_devices') || '[]') || []; }catch(e){ stored=[]; }
-  const merged: ZentridDeviceRecord[] = [...stored];
-  zentridDefaultDevicesV59.forEach(d=>{ if(!merged.some(x=>x.id===d.id)) merged.push(d); });
-  if(!merged.length) merged.push(...zentridDefaultDevicesV59);
-  localStorage.setItem('zentrid_demo_devices', JSON.stringify(merged));
-  return merged;
+  return Array.isArray(window.ZentridLiveDevices) ? window.ZentridLiveDevices : [];
 }
+
 function isType(d: ZentridDeviceRecord, name: string): boolean { return String(d.type || '').toLowerCase().includes(name); }
 function deviceTypeKey(d: ZentridDeviceRecord): string {
   const t=String(d.type||'').toLowerCase();
@@ -335,11 +316,13 @@ function renderDevices(): string {
   const attention=list.filter(d=>d.status!=='Online').length;
   const mapped=list.filter(d=>d.sourceStatus).length;
   const types=[...new Set(all.map(d=>d.type).filter(Boolean))].sort();
+  const statuses=Array.from(new Set(['Online','Warning','Fault','Offline','Draft',...all.map(d=>String(d.status||'').trim()).filter(Boolean)]));
+  const optionText=(value: unknown): string=>String(value??'').replace(/[&<>"']/g, character=>({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]||character));
   const filterBanner=activePlantFilter ? `<div class="filter-banner"><div><strong>Filtered by plant</strong><small>${activePlant ? activePlant.plant : activePlantFilter} · ${list.length} device records</small></div><button id="clearPlantDeviceFilter">Clear filter</button></div>` : '';
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>Device List</h1><p class="muted">All devices connected to Plants, grouped by plant, tenant, vendor source and operational status.</p></div><div class="hero-actions"><button class="create-action" id="openDeviceCreate" type="button"><span class="pulse"></span><div><strong>+ Add Device</strong><small>Save to localStorage</small></div></button><button class="freshness-card" id="openDeviceSource"><span class="pulse"></span><div><strong>Source Traceability</strong><small>Vendor ID → Zentrid Device</small></div></button></div></section>
   ${filterBanner}
   <section class="context-bar glass-card"><button class="ctx-item"><span>Total Devices</span><strong>${(serverPagination?.totalCount || list.length).toLocaleString()}</strong></button><button class="ctx-item"><span>Online</span><strong>${online}</strong></button><button class="ctx-item"><span>Attention</span><strong>${attention}</strong></button><button class="ctx-item"><span>Mapped Devices</span><strong>${mapped}</strong></button></section>
-  <section class="panel glass-card"><div class="panel-head"><div><h2>Device List</h2><p>Search by device, plant, tenant, vendor, type, serial or status.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${t}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option><option ${initialStatus === 'Online' ? 'selected' : ''}>Online</option><option ${initialStatus === 'Warning' ? 'selected' : ''}>Warning</option><option ${initialStatus === 'Offline' ? 'selected' : ''}>Offline</option></select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
+  <section class="panel glass-card"><div class="panel-head"><div><h2>Device List</h2><p>Search by device, plant, tenant, vendor, type, serial or status.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${optionText(t)}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${statuses.map(value=>`<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
   <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head"><div><h2>Add Device</h2><p>Creates a local device record and shows it in Device List and Device Detail after refresh.</p></div><span class="badge info">localStorage</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-zentrid-form-readiness="local" data-zentrid-form-contract="DeviceCreateDraft" data-zentrid-form-method="POST" data-zentrid-form-validation="native" data-zentrid-form-api-note="A Device create endpoint is not confirmed; Save Device continues to store a local record only."><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect"></select></label><label>Status<select name="status"><option>Online</option><option>Warning</option><option>Offline</option><option>Draft</option></select></label><label>Vendor<input name="vendor" placeholder="Huawei / GoodWe / Manual"></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Capacity / Role<input name="capacity" placeholder="100 kW / Bidirectional / Logger"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<input name="location" placeholder="Area A / Control room"></label><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Save Device</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
 }
 function devicePrimaryMetric(d: ZentridDeviceRecord): ZentridDevicePrimaryMetric {
@@ -390,7 +373,95 @@ function universalDeviceSidebar(d: ZentridDeviceRecord, activeTab: ZentridDevice
     ${button('source','Source & Sync')}
   </aside>`;
 }
+
+type ZentridDeviceTelemetryRecord = Record<string, unknown>;
+
+function deviceTelemetryRecords(d: ZentridDeviceRecord): ZentridDeviceTelemetryRecord[] {
+  const store = window.ZentridLiveTelemetryByDevice as Record<string, ZentridDeviceTelemetryRecord[]> | undefined;
+  if (!store) return [];
+  const keys = [d.id, d.externalId, d.serial].map(value => String(value || '').trim()).filter(Boolean);
+  for (const key of keys) {
+    const records = store[key];
+    if (Array.isArray(records)) return records;
+  }
+  return [];
+}
+
+function deviceTelemetryLoaded(d: ZentridDeviceRecord): boolean {
+  const loaded = window.ZentridLiveTelemetryLoadedDevices as Record<string, boolean> | undefined;
+  if (!loaded) return false;
+  return [d.id, d.externalId, d.serial].some(value => Boolean(value && loaded[String(value)]));
+}
+
+function deviceTelemetryMetricToken(value: unknown): string {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function deviceTelemetryEscape(value: unknown): string {
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function deviceTelemetryTimestamp(record: ZentridDeviceTelemetryRecord): number {
+  const value = record.timestampRaw || record.timestamp;
+  const timestamp = Date.parse(String(value || ''));
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function deviceTelemetryAliases(key: string): string[] {
+  const aliases: Record<string, string[]> = {
+    activePower: ['active power', 'active power kw', 'current power', 'current power kw', 'ac power', 'ac power kw', 'output power', 'power'],
+    reactivePower: ['reactive power', 'reactive power kvar'],
+    powerFactor: ['power factor', 'pf'],
+    frequency: ['grid frequency', 'grid frequency hz', 'frequency', 'frequency hz', 'ac frequency'],
+    dailyEnergy: ['daily energy', 'daily energy kwh', 'today energy', 'today energy kwh', 'energy today', 'daily yield', 'today yield'],
+    totalYield: ['total yield', 'total yield kwh', 'lifetime yield', 'total energy', 'total energy kwh', 'cumulative energy'],
+    temperature: ['internal temperature', 'device temperature', 'temperature', 'temperature c', 'inverter temperature'],
+    phaseCurrent: ['phase current', 'ac current', 'output current'],
+    lineVoltage: ['line voltage', 'ac voltage', 'output voltage'],
+    voltage: ['battery voltage', 'battery voltage v', 'dc voltage', 'dc voltage v', 'voltage', 'voltage v'],
+    current: ['battery current', 'battery current a', 'dc current', 'dc current a', 'current', 'current a'],
+    soc: ['soc', 'soc pct', 'state of charge', 'battery soc'],
+    soh: ['soh', 'soh pct', 'state of health', 'battery soh'],
+    charged: ['charged today', 'charge energy today', 'daily charge energy'],
+    discharged: ['discharged today', 'discharge energy today', 'daily discharge energy'],
+    signal: ['signal strength', 'signal quality', 'rssi'],
+    wlan: ['wlan', 'wifi signal', 'wireless signal'],
+    dataLag: ['data lag', 'telemetry lag', 'communication delay'],
+    todayImport: ['import today', 'today import', 'daily import energy'],
+    todayExport: ['export today', 'today export', 'daily export energy'],
+    import: ['total import', 'import energy'],
+    export: ['total export', 'export energy'],
+    irradiance: ['irradiance', 'solar irradiance', 'poa irradiance'],
+    ambient: ['ambient temperature', 'air temperature'],
+    moduleTemp: ['module temperature', 'panel temperature']
+  };
+  return aliases[key] || [key];
+}
+
+function deviceTelemetryMetricValue(d: ZentridDeviceRecord, key: string): string {
+  const expected = deviceTelemetryAliases(key).map(deviceTelemetryMetricToken);
+  const matches = deviceTelemetryRecords(d)
+    .filter(record => expected.includes(deviceTelemetryMetricToken(record.metric)))
+    .sort((a, b) => deviceTelemetryTimestamp(b) - deviceTelemetryTimestamp(a));
+  const record = matches[0];
+  if (!record) return '';
+  const display = String(record.displayValue || '').trim();
+  if (display && display !== '—') return display;
+  const value = record.valueText ?? record.value;
+  if (value === undefined || value === null || value === '') return '';
+  const unit = String(record.unit || '').trim();
+  return `${String(value)}${unit ? ` ${unit}` : ''}`;
+}
+
+function deviceTelemetryLatestTimestamp(d: ZentridDeviceRecord): string {
+  const record = deviceTelemetryRecords(d).slice().sort((a, b) => deviceTelemetryTimestamp(b) - deviceTelemetryTimestamp(a))[0];
+  return String(record?.timestamp || '').trim();
+}
+
 function deviceMetricValue(d: ZentridDeviceRecord, key: string): string {
+  const telemetryValue = deviceTelemetryMetricValue(d, key);
+  if (telemetryValue) return telemetryValue;
+  if (deviceTelemetryLoaded(d)) return '—';
   const k=deviceTypeKey(d);
   const base: Record<string, string | number | boolean | null | undefined> = {activePower:d.power||'83.4 kW', reactivePower:'0.002 kvar', powerFactor:'1.000', frequency:d.frequency||'50.00 Hz', dailyEnergy:d.dailyEnergy||'156.91 kWh', totalYield:d.totalYield||'149,933.20 kWh', temperature:d.temperature||'42 °C', insulation:'4.359 MOhm', phaseCurrent:'22.552 / 22.468 / 22.438 A', lineVoltage:d.voltage||'379.2 / 378.6 / 382.4 V', startup:'2026-06-11 05:49:24', shutdown:'N/A'};
   const pick = (source: Record<string, string | number | boolean | null | undefined>): string => String(source[key] || base[key] || '—');
@@ -406,7 +477,7 @@ function cardGrid(items: ZentridDeviceCardItem[], cls: string = 'device-param-gr
 }
 function operatingDataGrid(d: ZentridDeviceRecord): string {
   const key=deviceTypeKey(d);
-  if(key==='logger') return cardGrid([['Signal Strength',deviceMetricValue(d,'signal')],['WLAN',deviceMetricValue(d,'wlan')],['Data Lag',deviceMetricValue(d,'dataLag')],['Linked Devices',deviceMetricValue(d,'linked')],['LAN IP',deviceMetricValue(d,'lanIp')],['Cyber Security Version',deviceMetricValue(d,'cybersecurity')],['Status',d.status],['Last Update',d.lastSeen]]);
+  if(key==='logger') return cardGrid([['Signal Strength',deviceMetricValue(d,'signal')],['WLAN',deviceMetricValue(d,'wlan')],['Data Lag',deviceMetricValue(d,'dataLag')],['Linked Devices',deviceMetricValue(d,'linked')],['LAN IP',deviceMetricValue(d,'lanIp')],['Cyber Security Version',deviceMetricValue(d,'cybersecurity')],['Status',d.status],['Last Update',deviceTelemetryLatestTimestamp(d) || d.lastSeen]]);
   if(key==='battery') return cardGrid([['SOC',deviceMetricValue(d,'soc')],['SOH',deviceMetricValue(d,'soh')],['Voltage',deviceMetricValue(d,'voltage')],['Current',deviceMetricValue(d,'current')],['Temperature',deviceMetricValue(d,'temperature')],['Rated Capacity',deviceMetricValue(d,'rated')],['Charged Today',deviceMetricValue(d,'charged')],['Discharged Today',deviceMetricValue(d,'discharged')]]);
   if(key==='weather') return cardGrid([['Irradiance',deviceMetricValue(d,'irradiance')],['Ambient Temp',deviceMetricValue(d,'ambient')],['Module Temp',deviceMetricValue(d,'moduleTemp')],['Wind Speed',deviceMetricValue(d,'wind')],['Humidity',deviceMetricValue(d,'humidity')],['Rainfall',deviceMetricValue(d,'rainfall')]]);
   if(key==='meter') return cardGrid([['Active Power',deviceMetricValue(d,'activePower')],['Import Today',deviceMetricValue(d,'todayImport')],['Export Today',deviceMetricValue(d,'todayExport')],['Voltage',deviceMetricValue(d,'voltage')],['Current',deviceMetricValue(d,'current')],['Frequency',deviceMetricValue(d,'frequency')]]);
@@ -415,6 +486,32 @@ function operatingDataGrid(d: ZentridDeviceRecord): string {
 }
 function deviceMiniChart(label: string): string {
   return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${label}</strong><small>Mock trend · Last 24h</small></div><div class="mini-bar-chart-v20"><span style="height:25%"></span><span style="height:42%"></span><span style="height:66%"></span><span style="height:78%"></span><span style="height:92%"></span><span style="height:74%"></span><span style="height:54%"></span><span style="height:35%"></span></div></div>`;
+}
+
+function deviceTelemetryCharts(d: ZentridDeviceRecord): string {
+  const groups = new Map<string, ZentridDeviceTelemetryRecord[]>();
+  deviceTelemetryRecords(d).forEach(record => {
+    const metric = String(record.metric || '').trim();
+    const numeric = Number(record.numericValue ?? record.value);
+    if (!metric || !Number.isFinite(numeric)) return;
+    const rows = groups.get(metric) || [];
+    rows.push(record);
+    groups.set(metric, rows);
+  });
+  const selected = [...groups.entries()]
+    .sort((left, right) => right[1].length - left[1].length)
+    .slice(0, 2);
+  if (!selected.length) {
+    return `<div class="device-monitoring-grid-v58"><div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>Telemetry Samples</strong><small>/api/telemetry</small></div><div class="empty-state"><strong>No numeric telemetry samples</strong><small>The endpoint returned no chart-ready values for this device on the loaded page.</small></div></div></div>`;
+  }
+  return `<div class="device-monitoring-grid-v58">${selected.map(([metric, records]) => {
+    const ordered = records.slice().sort((a, b) => deviceTelemetryTimestamp(a) - deviceTelemetryTimestamp(b)).slice(-12);
+    const values = ordered.map(record => Number(record.numericValue ?? record.value)).filter(Number.isFinite);
+    const max = Math.max(...values.map(value => Math.abs(value)), 1);
+    const bars = values.map(value => `<span style="height:${Math.max(12, Math.round(Math.abs(value) / max * 100))}%" title="${deviceTelemetryEscape(value)}"></span>`).join('');
+    const latest = String(ordered[ordered.length - 1]?.timestamp || '').trim() || 'Latest API sample';
+    return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${deviceTelemetryEscape(metric)}</strong><small>${ordered.length} API sample(s) · ${deviceTelemetryEscape(latest)}</small></div><div class="mini-bar-chart-v20">${bars}</div></div>`;
+  }).join('')}</div>`;
 }
 function architectureFlow(d: ZentridDeviceRecord): string {
   const key=deviceTypeKey(d);
@@ -453,7 +550,7 @@ function deviceLazyPanel(tab: ZentridDeviceTab, content: string): string {
 }
 function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): string {
   if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${operatingDataGrid(d)}`;
-  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Chart-ready operational view for ${deviceTypeLabel(d)}.</p></div></div><div class="device-monitoring-grid-v58">${deviceMiniChart(deviceTypeKey(d)==='logger'?'Communication Quality':'Operation Monitoring')}${deviceMiniChart(deviceTypeKey(d)==='battery'?'Charge / Discharge':'Energy Monitoring')}</div><div class="section-title-v17 mini"><div><h3>Live Metrics</h3><p class="muted">Fast numeric inspection while charts are loaded.</p></div></div>${operatingDataGrid(d)}`);
+  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Chart-ready operational view for ${deviceTypeLabel(d)}.</p></div></div>${deviceTelemetryCharts(d)}<div class="section-title-v17 mini"><div><h3>Live Metrics</h3><p class="muted">Fast numeric inspection from the loaded telemetry records.</p></div></div>${operatingDataGrid(d)}`);
   if(tab==='architecture') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Architecture</h2><p class="muted">Visual relationship between plant, device and connected objects.</p></div></div>${architectureFlow(d)}${architectureRelations(d)}`);
   if(tab==='strings') return `<div class="section-title-v17"><div><h2>PV Strings / Inputs</h2><p class="muted">MPPT and PV input values for inverter and microinverter devices.</p></div></div>${stringRows(d)}`;
   if(tab==='battery') return `<div class="section-title-v17"><div><h2>Battery State</h2><p class="muted">Storage-specific information: SOC, health, voltage/current, packages and limits.</p></div></div>${batteryDetail(d)}`;
@@ -476,6 +573,7 @@ function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): strin
 }
 function renderDeviceDetail(): string {
   const d=selectedDevice();
+  if (!d.id) return window.ZentridApiOnly?.emptyState('Device Detail', 'The device endpoint has not returned a selected record.', '/api/devices') || '';
   return `<section class="page-hero device-hero-v58 device-hero-v59"><div><p class="eyebrow">Global Admin · Device Detail ${ZentridDataSource.badge(d, 'device', true)}</p><h1>${d.name}</h1><p class="muted">${deviceTypeLabel(d)} · ${d.manufacturer || d.vendor} ${d.model} · ${d.serial}</p></div><div class="hero-actions">${deviceHeroActions(d)}</div></section>
   <section class="context-bar glass-card device-context-v58"><div><span>Plant</span><strong>${d.plant}</strong></div><div><span>Tenant</span><strong>${d.tenant}</strong></div><div><span>Device Type</span><strong>${deviceTypeLabel(d)}</strong></div><div><span>Last Communication</span><strong>${d.lastSeen}</strong></div></section>
   ${deviceKpis(d)}
@@ -483,6 +581,7 @@ function renderDeviceDetail(): string {
 }
 function wireDeviceDetail(): void {
   const d=selectedDevice();
+  if (!d.id) return;
   document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>ZentridLayout.toast(`Device data refresh requested for ${d.name}`));
   window.ZentridDetailLazyTabs?.observe('device', 'device-detail-content', () => {
     const content=document.getElementById('deviceDetailContent');

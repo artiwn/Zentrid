@@ -140,80 +140,7 @@ function requireIntegrationElement<T extends HTMLElement = HTMLElement>(id: stri
   return element;
 }
 
-var vendorTemplates: Record<string, IntegrationVendorTemplate> = {
-  Huawei: {
-    software: 'FusionSolar', method: 'API', protocol: 'REST / HTTPS', auth: 'OAuth 2.0 + Account', base: 'https://eu5.fusionsolar.huawei.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Europe', 'Asia Pacific', 'Middle East', 'Global'],
-    toggles: ['Northbound API Access', 'Historical Import', 'Data Scope'],
-    connection: ['Region', 'Northbound API Access'],
-    credentials: ['API Account Username', 'API Account Password', 'OAuth Tenant ID', 'OAuth Tenant Secret'],
-    discovery: { plants: 14, devices: 126, metrics: 215, alerts: 58 },
-    scope: 'Standard telemetry + critical/standard alert profile'
-  },
-  Solis: {
-    software: 'SolisCloud', method: 'API', protocol: 'REST / HTTPS', auth: 'API Key Authentication', base: 'https://www.soliscloud.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Global', 'Europe', 'Asia', 'US'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Region'],
-    credentials: ['API Key', 'API Secret'],
-    discovery: { plants: 5, devices: 35, metrics: 112, alerts: 24 },
-    scope: 'Solar plant telemetry + inverter alerts'
-  },
-  GoodWe: {
-    software: 'SEMS Portal', method: 'API', protocol: 'REST / HTTPS', auth: 'SEMS Account / OpenAPI', base: 'https://eu.semsportal.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Europe', 'Global', 'China', 'Australia'],
-    toggles: ['OpenAPI Access', 'API Credentials', 'Historical Import', 'Data Scope'],
-    connection: ['Region', 'OpenAPI Access'],
-    credentials: ['SEMS Account', 'SEMS Password', 'API Key', 'API Secret'],
-    discovery: { plants: 9, devices: 84, metrics: 176, alerts: 39 },
-    scope: 'SEMS account plants + OpenAPI metrics'
-  },
-  Deye: {
-    software: 'DeyeCloud / Solarman', method: 'API', protocol: 'REST / HTTPS', auth: 'App ID / App Secret', base: 'https://global.solarmanpv.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Global', 'Europe', 'Asia'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Region', 'Device Serial Number optional'],
-    credentials: ['BaseURL', 'AppId', 'AppSecret', 'Email', 'Password', 'CompanyId'],
-    discovery: { plants: 7, devices: 61, metrics: 142, alerts: 22 },
-    scope: 'Cloud account + optional serial-filtered devices'
-  },
-  SolaX: {
-    software: 'SolaX Cloud', method: 'API', protocol: 'REST / HTTPS', auth: 'Token Authentication', base: 'https://www.solaxcloud.com/proxyApp', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Global', 'Europe', 'US'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Region', 'Registration Number / Device Serial Number'],
-    credentials: ['BaseURL', 'Login', 'Password', 'ClientId', 'ClientSecret', 'TokenEndpoint'],
-    discovery: { plants: 4, devices: 29, metrics: 96, alerts: 18 },
-    scope: 'Token-linked plant and device telemetry'
-  },
-  Sungrow: {
-    software: 'iSolarCloud', method: 'API', protocol: 'REST / HTTPS', auth: 'App Key Authentication', base: 'https://gateway.isolarcloud.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Europe', 'Global', 'China', 'Australia'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Region', 'Plant ID optional'],
-    credentials: ['App Key', 'Access Key'],
-    discovery: { plants: 11, devices: 98, metrics: 174, alerts: 31 },
-    scope: 'iSolarCloud plant list + optional plant filter'
-  },
-  Peimar: {
-    software: 'Peimar X Portal', method: 'API', protocol: 'REST / HTTPS', auth: 'Portal Account / API Token', base: 'https://portal.peimar.com', port: '443', format: 'JSON', sync: 'Scheduled', direction: 'Inbound',
-    regionOptions: ['Europe', 'Global'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Portal URL', 'Device Serial Number optional'],
-    credentials: ['Portal Account', 'Portal Password', 'API Token'],
-    discovery: { plants: 3, devices: 18, metrics: 82, alerts: 12 },
-    scope: 'Portal account plants + optional API token access'
-  },
-  Other: {
-    software: 'Custom Platform', method: 'Custom', protocol: 'Custom', auth: 'Dynamic Authentication', base: 'Defined manually', port: 'Custom', format: 'JSON / XML / CSV', sync: 'Manual', direction: 'Inbound',
-    regionOptions: ['Custom / Global'],
-    toggles: ['Historical Import', 'Data Scope'],
-    connection: ['Platform Name', 'Integration Method', 'Connection Parameters'],
-    credentials: ['Credential Name', 'Credential Value', 'Additional Parameters'],
-    discovery: { plants: 0, devices: 0, metrics: 0, alerts: 0 },
-    scope: 'Custom mapping based on provided parameters'
-  }
-};
+var vendorTemplates: Record<string, IntegrationVendorTemplate> = {};
 
 const liveProviderTemplateState: LiveProviderTemplateState = {
   loaded: false,
@@ -222,6 +149,7 @@ const liveProviderTemplateState: LiveProviderTemplateState = {
   details: {},
   errors: {}
 };
+let liveProviderTemplateRequestVersion = 0;
 
 function templateVendorKey(name: unknown): string{
   const text = String(name || '').trim();
@@ -230,10 +158,10 @@ function templateVendorKey(name: unknown): string{
   if (/solarx|solax/i.test(text)) return 'Solarx';
   return text;
 }
-const fallbackIntegrationVendorTemplate: IntegrationVendorTemplate = vendorTemplates.Other ?? {
-  software:'Custom Platform', method:'Custom', protocol:'Custom', auth:'Dynamic Authentication', base:'Defined manually', port:'Custom', format:'JSON / XML / CSV', sync:'Manual', direction:'Inbound',
-  regionOptions:['Custom / Global'], toggles:['Historical Import', 'Data Scope'], connection:['Platform Name', 'Integration Method', 'Connection Parameters'], credentials:['Credential Name', 'Credential Value'],
-  discovery:{ plants:0, devices:0, metrics:0, alerts:0 }, scope:'Custom mapping based on provided parameters'
+const fallbackIntegrationVendorTemplate: IntegrationVendorTemplate = {
+  software:'—', method:'—', protocol:'—', auth:'—', base:'—', port:'—', format:'—', sync:'—', direction:'—',
+  regionOptions:[], toggles:[], connection:[], credentials:[],
+  discovery:{ plants:0, devices:0, metrics:0, alerts:0 }, scope:'Backend provider template unavailable'
 };
 function resolveIntegrationVendorTemplate(name: unknown): IntegrationVendorTemplate {
   const key = String(name || 'Other');
@@ -258,12 +186,44 @@ function objectValueAt(obj: unknown, paths: string[], fallback = ''): string{
   }
   return fallback;
 }
+function normalizedTemplateFieldKey(value: unknown): string{
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+function liveTemplateFieldRecords(detail: Record<string, unknown>): Record<string, unknown>[] {
+  const arrays: unknown[] = [detail.fields, detail.parameters, detail.configurationFields, detail.templateFields];
+  for (const section of ['general', 'connectionAuthentication', 'apiRequest', 'synchronization', 'partnerAccount']) {
+    const row = toRecord(detail[section]);
+    arrays.push(row.fields, row.parameters);
+  }
+  return arrays.flatMap(value => Array.isArray(value) ? value.map(toRecord).filter(row => Object.keys(row).length) : []);
+}
+function liveTemplateFieldValue(detail: Record<string, unknown>, aliases: string[], fallback = ''): string {
+  const wanted = new Set(aliases.map(normalizedTemplateFieldKey));
+  for (const field of liveTemplateFieldRecords(detail)) {
+    const key = normalizedTemplateFieldKey(field.name || field.key || field.fieldName || field.code || field.id);
+    if (!key || !wanted.has(key)) continue;
+    for (const valueKey of ['defaultValue', 'value', 'default', 'example']) {
+      const value = field[valueKey];
+      if (value !== undefined && value !== null && value !== '') return String(value);
+    }
+  }
+  return fallback;
+}
+function liveTemplateValue(detail: Record<string, unknown>, paths: string[], aliases: string[], fallback = ''): string {
+  const nested = objectValueAt(detail, paths, '');
+  return nested || liveTemplateFieldValue(detail, aliases, fallback);
+}
 function liveTemplateCredentials(detail: Record<string, unknown>): string[] | null{
   const source = toRecord(detail.connectionAuthentication || detail.authentication || detail.credentials);
-  const blacklist = new Set(['connectionStatus','sampleDataStatus','authenticationStatus','notes']);
+  const blacklist = new Set(['connectionStatus','sampleDataStatus','authenticationStatus','notes','fields','parameters']);
   const keys = Object.keys(source || {}).filter(k => !blacklist.has(k));
-  if (!keys.length) return null;
-  return keys.map(titleFromCamel);
+  const fieldLabels = liveTemplateFieldRecords(detail).filter(field => {
+    const section = String(field.section || field.group || field.category || '').toLowerCase();
+    const type = String(field.type || field.inputType || field.dataType || '').toLowerCase();
+    return /auth|credential|connection/.test(section) || /password|secret|token|api.?key/.test(type) || field.secret === true || field.isSecret === true;
+  }).map(field => String(field.label || field.displayName || field.name || field.key || field.fieldName || '')).filter(Boolean);
+  const labels = [...keys.map(titleFromCamel), ...fieldLabels];
+  return labels.length ? Array.from(new Set(labels)) : null;
 }
 function mergeLiveVendorTemplate(name: string, detail: Record<string, unknown> = {}): IntegrationVendorTemplate{
   const key = templateVendorKey(name);
@@ -278,28 +238,28 @@ function mergeLiveVendorTemplate(name: string, detail: Record<string, unknown> =
 
   const mergedTemplate: IntegrationVendorTemplate = {
     ...base,
-    software: objectValueAt(detail, ['software','displayName','general.integrationName','general.producerVendorTemplate'], base.software || key),
-    method: objectValueAt(detail, ['method','general.integrationMethod'], base.method || 'API'),
-    protocol: objectValueAt(detail, ['protocol','apiRequest.protocol'], base.protocol || 'REST / HTTPS'),
-    auth: objectValueAt(detail, ['auth','authType','connectionAuthentication.authenticationStatus'], base.auth || 'Backend template auth'),
-    base: objectValueAt(detail, ['baseUrl','host','endpoint','connectionAuthentication.baseUrl','general.baseUrl'], base.base || 'Managed by backend template'),
-    port: objectValueAt(detail, ['port','apiRequest.port'], base.port || '443'),
-    format: objectValueAt(detail, ['format','dataFormat','apiRequest.format'], base.format || 'JSON'),
-    sync: objectValueAt(sync, ['syncFrequency'], String(sync.syncFrequency || base.sync || 'Scheduled')),
-    direction: objectValueAt(detail, ['direction','apiRequest.direction'], base.direction || 'Inbound'),
-    credentials: credentials || base.credentials || ['API Account Username', 'API Account Password'],
+    software: liveTemplateValue(detail, ['software','displayName','general.integrationName','general.producerVendorTemplate'], ['software','displayName','integrationName','producerVendorTemplate'], base.software || '—'),
+    method: liveTemplateValue(detail, ['method','general.integrationMethod'], ['method','integrationMethod'], base.method || '—'),
+    protocol: liveTemplateValue(detail, ['protocol','apiRequest.protocol'], ['protocol'], base.protocol || '—'),
+    auth: liveTemplateValue(detail, ['auth','authType','connectionAuthentication.authenticationStatus'], ['auth','authType','authenticationType'], base.auth || '—'),
+    base: liveTemplateValue(detail, ['baseUrl','host','endpoint','connectionAuthentication.baseUrl','general.baseUrl'], ['baseUrl','host','endpoint','url'], base.base || '—'),
+    port: liveTemplateValue(detail, ['port','apiRequest.port'], ['port','portNumber'], base.port || '—'),
+    format: liveTemplateValue(detail, ['format','dataFormat','apiRequest.format'], ['format','dataFormat'], base.format || '—'),
+    sync: liveTemplateValue(detail, ['synchronization.syncFrequency','syncFrequency'], ['syncFrequency','syncMode'], String(sync.syncFrequency || base.sync || '—')),
+    direction: liveTemplateValue(detail, ['direction','apiRequest.direction'], ['direction'], base.direction || '—'),
+    credentials: credentials || base.credentials || [],
     discovery: base.discovery || { plants: 0, devices: 0, metrics: 0, alerts: 0 },
     scope: 'Backend provider template loaded from Swagger API',
     liveProviderTemplate: true,
     templateName: name,
     templateDetail: detail,
-    rateLimit: String(apiRequest.rateLimit || ''),
-    rateLimitPeriod: String(apiRequest.rateLimitPeriod || ''),
-    syncFrequency: String(sync.syncFrequency || ''),
-    syncStartTime: String(sync.syncStartTime || ''),
-    lastSyncTimestampField: String(sync.lastSyncTimestampField || ''),
-    vendorName: String(general.vendorName || ''),
-    integrationStatus: String(general.integrationStatus || ''),
+    rateLimit: liveTemplateValue(detail, ['apiRequest.rateLimit','rateLimit'], ['rateLimit'], String(apiRequest.rateLimit || '')),
+    rateLimitPeriod: liveTemplateValue(detail, ['apiRequest.rateLimitPeriod','rateLimitPeriod'], ['rateLimitPeriod'], String(apiRequest.rateLimitPeriod || '')),
+    syncFrequency: liveTemplateValue(detail, ['synchronization.syncFrequency','syncFrequency'], ['syncFrequency'], String(sync.syncFrequency || '')),
+    syncStartTime: liveTemplateValue(detail, ['synchronization.syncStartTime','syncStartTime'], ['syncStartTime'], String(sync.syncStartTime || '')),
+    lastSyncTimestampField: liveTemplateValue(detail, ['synchronization.lastSyncTimestampField','lastSyncTimestampField'], ['lastSyncTimestampField','timestampField'], String(sync.lastSyncTimestampField || '')),
+    vendorName: liveTemplateValue(detail, ['general.vendorName','vendorName'], ['vendorName'], String(general.vendorName || '')),
+    integrationStatus: liveTemplateValue(detail, ['general.integrationStatus','integrationStatus'], ['integrationStatus','status'], String(general.integrationStatus || '')),
     connectionStatus: String(connection.connectionStatus || ''),
     sampleDataStatus: String(connection.sampleDataStatus || ''),
     authenticationStatus: String(connection.authenticationStatus || '')
@@ -309,8 +269,7 @@ function mergeLiveVendorTemplate(name: string, detail: Record<string, unknown> =
 }
 function allVendorTemplateKeys(): string[]{
   const live = liveProviderTemplateState.names.map(templateVendorKey);
-  const mock = Object.keys(vendorTemplates);
-  return Array.from(new Set([...live, ...mock]));
+  return Array.from(new Set(live));
 }
 
 function refreshVendorFilterOptions(): void{
@@ -323,12 +282,8 @@ function refreshVendorFilterOptions(): void{
 
 function vendorOptionsHtml(selected?: string): string{
   const live = liveProviderTemplateState.names.map(templateVendorKey);
-  const liveSet = new Set(live);
-  const mock = Object.keys(vendorTemplates).filter(k => !liveSet.has(k));
-  const option = (key: string) => `<option value="${key}" ${key === selected ? 'selected' : ''}>${key}${liveSet.has(key) ? ' · live template' : ''}</option>`;
-  const livePart = live.length ? `<optgroup label="Backend provider templates">${live.map(option).join('')}</optgroup>` : '';
-  const mockPart = mock.length ? `<optgroup label="Mock fallback templates">${mock.map(option).join('')}</optgroup>` : '';
-  return livePart + mockPart;
+  const option = (key: string) => `<option value="${key}" ${key === selected ? 'selected' : ''}>${key} · live template</option>`;
+  return live.length ? `<optgroup label="Backend provider templates">${live.map(option).join('')}</optgroup>` : '';
 }
 function renderLiveTemplateStatus(vendor: string, state: 'idle' | 'loading' | 'success' | 'error' = 'idle', detail: Record<string, unknown> | null = null, message = ''): void{
   const box = document.getElementById('liveTemplateStatus');
@@ -336,8 +291,8 @@ function renderLiveTemplateStatus(vendor: string, state: 'idle' | 'loading' | 's
   const tpl = vendorTemplates[vendor] || vendorTemplates[templateVendorKey(vendor)] || null;
   const isLive = Boolean(tpl?.liveProviderTemplate || detail);
   const cls = state === 'error' ? 'danger' : isLive ? 'success' : state === 'loading' ? 'warning' : 'neutral';
-  const label = state === 'loading' ? 'Loading provider template…' : state === 'error' ? 'Template unavailable' : isLive ? 'Live template applied' : 'Mock fallback template';
-  const meta = message || (isLive ? `Loaded from /api/admin/provider-integrations/templates/${tpl?.templateName || vendor}` : 'Backend template is not available yet. Existing mock template remains active.');
+  const label = state === 'loading' ? 'Loading provider template…' : state === 'error' ? 'Template unavailable' : isLive ? 'Live template applied' : 'No backend template';
+  const meta = message || (isLive ? `Loaded from /api/admin/provider-integrations/templates/${tpl?.templateName || vendor}` : 'Backend template is not available. No fallback template is used.');
   box.innerHTML = `<span class="badge ${cls}">${label}</span><small>${meta}</small>`;
 }
 function applyTemplateDetailToForm(vendor: string): void{
@@ -363,25 +318,72 @@ function applyTemplateDetailToForm(vendor: string): void{
   if (tpl.sampleDataStatus && discoveryStatus) discoveryStatus.textContent = tpl.sampleDataStatus;
   if (tpl.authenticationStatus && readyAuth) readyAuth.textContent = tpl.authenticationStatus;
 }
+function unwrapProviderTemplateDetail(value: unknown): Record<string, unknown>{
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let row = value as Record<string, unknown>;
+  for (const key of ['data', 'template', 'providerTemplate', 'integrationTemplate', 'result', 'item']) {
+    const nested = row[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) row = nested as Record<string, unknown>;
+  }
+  return row;
+}
+
 async function fetchProviderTemplateDetail(vendor: string): Promise<Record<string, unknown> | null>{
   const key = templateVendorKey(vendor);
   const apiName = liveProviderTemplateState.names.find(n => templateVendorKey(n) === key) || key;
   const cached = liveProviderTemplateState.details[key];
-  if (cached) return cached;
+  if (cached) {
+    mergeLiveVendorTemplate(apiName, cached);
+    applyTemplateDetailToForm(key);
+    renderLiveTemplateStatus(key, 'success', cached);
+    return cached;
+  }
+  if (!window.ZentridPlatformAPI?.providerIntegrations?.template) {
+    renderLiveTemplateStatus(key, 'error', null, 'Provider template detail API is unavailable. Existing wizard fields remain unchanged.');
+    return null;
+  }
 
-  // The active backend currently exposes only GET /templates (the provider-name list).
-  // GET /templates/{providerType} is catalogued as manual/unsupported and returns 404,
-  // so the UI must not call it automatically. Keep the vendor-specific local field
-  // template as a transparent fallback until the backend publishes a detail contract.
-  mergeLiveVendorTemplate(apiName, {});
-  renderLiveTemplateStatus(
-    key,
-    'idle',
-    null,
-    `Provider “${apiName}” is available in the backend template list. Detailed fields use the local UX template because the template-detail endpoint is not available.`
-  );
-  applyTemplateDetailToForm(key);
-  return null;
+  const requestVersion = ++liveProviderTemplateRequestVersion;
+  renderLiveTemplateStatus(key, 'loading', null, `Loading ${apiName} provider template…`);
+  try {
+    const response = await ZentridPlatformAPI.providerIntegrations.template(apiName);
+    const detail = unwrapProviderTemplateDetail(response);
+    liveProviderTemplateState.details[key] = detail;
+    delete liveProviderTemplateState.errors[key];
+    mergeLiveVendorTemplate(apiName, detail);
+    if (requestVersion !== liveProviderTemplateRequestVersion || templateVendorKey(integrationElement<HTMLSelectElement>('vendorSelect')?.value) !== key) return detail;
+    applyTemplateDetailToForm(key);
+    const fieldCount = Object.keys(detail).length;
+    renderLiveTemplateStatus(
+      key,
+      'success',
+      detail,
+      fieldCount
+        ? `Live ${apiName} template loaded from backend and applied to existing wizard fields.`
+        : `Backend returned an empty ${apiName} template. Existing wizard fields remain available.`
+    );
+    return detail;
+  } catch (error) {
+    const message = integrationErrorMessage(error);
+    liveProviderTemplateState.errors[key] = message;
+    if (requestVersion === liveProviderTemplateRequestVersion && templateVendorKey(integrationElement<HTMLSelectElement>('vendorSelect')?.value) === key) {
+      renderLiveTemplateStatus(key, 'error', null, `Unable to load ${apiName} template detail. Existing wizard fields remain unchanged. ${message}`);
+    }
+    return null;
+  }
+}
+function normalizeProviderTemplateNames(value: unknown): string[]{
+  let rows: unknown = value;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    rows = record.items || record.data || record.templates || record.providerTemplates || [];
+  }
+  if (!Array.isArray(rows)) return [];
+  return Array.from(new Set(rows.map(item => {
+    if (typeof item === 'string' || typeof item === 'number') return String(item).trim();
+    const row = toRecord(item);
+    return String(row.providerType || row.templateName || row.name || row.vendor || row.code || '').trim();
+  }).filter(Boolean)));
 }
 async function loadLiveProviderTemplates(): Promise<void>{
   if (liveProviderTemplateState.loading || liveProviderTemplateState.loaded) return;
@@ -391,7 +393,7 @@ async function loadLiveProviderTemplates(): Promise<void>{
   renderLiveTemplateStatus(select?.value || 'Other', 'loading', null, 'Loading available provider templates…');
   try {
     const names = await ZentridPlatformAPI.providerIntegrations.templates();
-    liveProviderTemplateState.names = Array.isArray(names) ? names : [];
+    liveProviderTemplateState.names = normalizeProviderTemplateNames(names);
     liveProviderTemplateState.loaded = true;
     liveProviderTemplateState.names.forEach(name => mergeLiveVendorTemplate(name, {}));
     refreshVendorFilterOptions();
@@ -403,32 +405,222 @@ async function loadLiveProviderTemplates(): Promise<void>{
       await fetchProviderTemplateDetail(select.value || 'Other');
     }
     const count = liveProviderTemplateState.names.length;
-    renderLiveTemplateStatus(select?.value || 'Other', count ? 'success' : 'idle', null, count ? `${count} backend provider template(s) available. Mock templates are preserved as fallback.` : 'No backend templates returned. Mock templates remain active.');
+    if (!count) renderLiveTemplateStatus(select?.value || 'Other', 'idle', null, 'No backend templates returned. No provider options are displayed.');
+    else if (!select?.value) renderLiveTemplateStatus('Other', 'success', null, `${count} backend provider template(s) available.`);
   } catch (error) {
-    renderLiveTemplateStatus(select?.value || 'Other', 'error', null, 'Unable to load provider template list. Mock templates remain active.');
+    renderLiveTemplateStatus(select?.value || 'Other', 'error', null, 'Unable to load provider template list. No fallback templates are displayed.');
   } finally {
     liveProviderTemplateState.loading = false;
   }
 }
 
 
-var integrations: IntegrationRecord[] = JSON.parse(localStorage.getItem('zentrid_demo_integrations') || 'null') || [
-  {id:'INT-00091',code:'INT-HUAWEI-001',name:'Tenant Alpha Energy — Huawei FusionSolar',tenant:'Tenant Alpha Energy',vendor:'Huawei',software:'FusionSolar',status:'Active',health:'Healthy',auth:'Valid',discovery:'Completed',plants:142,devices:1840,metrics:215,alerts:58,lastSync:'2 min ago',assignedTenants:'Global',activeIntegrations:18,version:'v2.4.1',apiVersion:'2024-11',mappingVersion:'Solar Core v1.8',authType:'OAuth 2.0 + Account',discoveryEnabled:'Yes',baseUrl:'https://eu5.fusionsolar.huawei.com',createdBy:'Global Admin',createdAt:'2026-05-12',updatedBy:'Integration Admin',updatedAt:'2026-06-04',lastActivity:'2 min ago',lastSuccessfulSync:'2 min ago',vendorName:'Huawei FusionSolar',allowedIpWhitelist:'203.0.113.10, 203.0.113.24',domainWhitelist:'eu5.fusionsolar.huawei.com, api.fusionsolar.huawei.com',rateLimit:'1000',rateLimitPeriod:'Hour',syncFrequency:'5 min',syncStartTime:'00:00',lastSyncTimestampField:'updated_at',partnerVendorId:'HUA-EU-2048',accountId:'FS-OPS-7712',contactPhoneNumber:'+49 30 5557 1400',contactName:'Martin Keller',contactRole:'Mr.',technicalContactEmail:'fusion.support@vendorcloud.example',technicalContactPhone:'+49 30 5557 1401',supportEmail:'support@vendorcloud.example'},
-  {id:'INT-00092',code:'INT-SUNGROW-002',name:'Tenant North Operations — Sungrow iSolarCloud',tenant:'Tenant North Operations',vendor:'Sungrow',software:'iSolarCloud',status:'Inactive',health:'Warning',auth:'Valid',discovery:'Completed With Warnings',plants:58,devices:790,metrics:174,alerts:31,lastSync:'18 min ago',assignedTenants:'12 Tenants',activeIntegrations:12,version:'v1.9.0',apiVersion:'2024-08',mappingVersion:'Solar Core v1.7',authType:'App Key Authentication',discoveryEnabled:'Yes',baseUrl:'https://gateway.isolarcloud.com',createdBy:'Global Admin',createdAt:'2026-05-18',updatedBy:'Integration Admin',updatedAt:'2026-06-03',lastActivity:'18 min ago',lastSuccessfulSync:'18 min ago',vendorName:'Sungrow iSolarCloud',allowedIpWhitelist:'198.51.100.12, 198.51.100.44',domainWhitelist:'gateway.isolarcloud.com',rateLimit:'800',rateLimitPeriod:'Hour',syncFrequency:'15 min',syncStartTime:'00:10',lastSyncTimestampField:'timestamp',partnerVendorId:'SUN-GLB-1180',accountId:'ISC-442918',contactPhoneNumber:'+44 20 5550 9182',contactName:'Emily Carter',contactRole:'Ms.',technicalContactEmail:'isolar.support@vendorcloud.example',technicalContactPhone:'+44 20 5550 9183',supportEmail:'support@vendorcloud.example'},
-  {id:'INT-00093',code:'INT-SOLIS-003',name:'Tenant Gamma Grid — Solis SolisCloud',tenant:'Tenant Gamma Grid',vendor:'Solis',software:'SolisCloud',status:'Inactive',health:'Failed',auth:'Expired',discovery:'Failed',plants:0,devices:0,metrics:0,alerts:0,lastSync:'54 min ago',assignedTenants:'4 Tenants',activeIntegrations:4,version:'v1.3.6',apiVersion:'2024-03',mappingVersion:'Solar Core v1.5',authType:'API Key Authentication',discoveryEnabled:'No',baseUrl:'https://www.soliscloud.com',createdBy:'Global Admin',createdAt:'2026-04-28',updatedBy:'Integration Admin',updatedAt:'2026-05-29',lastActivity:'54 min ago',lastSuccessfulSync:'Previous period',vendorName:'SolisCloud',allowedIpWhitelist:'192.0.2.15, 192.0.2.29',domainWhitelist:'www.soliscloud.com',rateLimit:'500',rateLimitPeriod:'Hour',syncFrequency:'30 min',syncStartTime:'00:20',lastSyncTimestampField:'lastUpdateTime',partnerVendorId:'SOLIS-OPS-5031',accountId:'SC-907144',contactPhoneNumber:'+1 555 672 4400',contactName:'Laura Smith',contactRole:'Ms.',technicalContactEmail:'solis.support@vendorcloud.example',technicalContactPhone:'+1 555 672 4401',supportEmail:'support@vendorcloud.example'}
-];
-function saveInts(): void{ if (window.ZentridLiveIntegrations === integrations) { window.ZentridLiveIntegrations = integrations; return; } if (window.ZentridLocalStore) ZentridLocalStore.write(ZentridLocalStore.KEYS.integrations, integrations); else localStorage.setItem('zentrid_demo_integrations', JSON.stringify(integrations)); }
+var integrations: IntegrationRecord[] = [];;
+function saveInts(): void { if (Array.isArray(window.ZentridLiveIntegrations)) window.ZentridLiveIntegrations = integrations; }
 
-function integrationTenants(): IntegrationTenantOption[]{
-  const stored = JSON.parse(localStorage.getItem('zentrid_demo_tenants') || 'null');
-  if (stored && stored.length) return stored;
-  return [
-    {id:'CLT-000125', name:'Tenant Alpha Energy'},
-    {id:'CLT-000126', name:'Tenant North Operations'},
-    {id:'CLT-000127', name:'Tenant Gamma Grid'},
-    {id:'CLT-000128', name:'Tenant Delta Enterprise'}
-  ];
+const INTEGRATION_CREATE_FALLBACK_KEY = 'zentrid_integration_create_fallback';
+
+function integrationCreateResponseRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let row = value as Record<string, unknown>;
+  for (const key of ['data', 'integration', 'providerIntegration', 'result', 'item']) {
+    const nested = row[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) row = nested as Record<string, unknown>;
+  }
+  return row;
 }
+
+function integrationCreateBackendId(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  const row = integrationCreateResponseRecord(value);
+  for (const key of ['id', 'integrationId', 'providerIntegrationId', 'canonicalId', 'sourceEntityId']) {
+    const id = String(row[key] || '').trim();
+    if (id) return id;
+  }
+  return '';
+}
+
+function integrationFormText(formData: FormData, key: string, fallback = ''): string {
+  const value = formData.get(key);
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function integrationCredentialValues(formData: FormData): Record<string, string> {
+  const credentials: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith('credential_') || typeof value !== 'string' || !value.trim()) continue;
+    credentials[key.slice('credential_'.length)] = value.trim();
+  }
+  return credentials;
+}
+
+function integrationConfiguredCredentials(formData: FormData): Record<string, string> {
+  const credentials = integrationCredentialValues(formData);
+  return Object.fromEntries(Object.keys(credentials).map(key => [titleFromCamel(key), 'Configured']));
+}
+
+function integrationCreateApiPayload(
+  formData: FormData,
+  status: string,
+  connectionPassed: boolean,
+  sampleDataPassed: boolean
+): Record<string, unknown> {
+  const vendor = integrationFormText(formData, 'vendor', 'Other');
+  const template = resolveIntegrationVendorTemplate(vendor);
+  const integrationName = integrationFormText(formData, 'name', autoIntegrationName());
+  const scopedTenant = String(localStorage.getItem('zentrid_integration_tenant') || '').trim();
+  const tenantName = scopedTenant && scopedTenant !== 'All Tenants' ? scopedTenant : '';
+  const credentials = integrationCredentialValues(formData);
+  const splitList = (value: string): string[] => value.split(/[\n,]+/).map(item => item.trim()).filter(Boolean);
+  const payload: Record<string, unknown> = {
+    integrationName,
+    providerType: vendor,
+    producerVendorTemplate: vendor,
+    vendorName: integrationFormText(formData, 'vendorName', vendor),
+    integrationStatus: status,
+    status,
+    baseUrl: integrationFormText(formData, 'baseUrl'),
+    authType: template.auth,
+    credentials
+  };
+  const optional = (key: string, value: unknown): void => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'string' && !value.trim()) return;
+    if (Array.isArray(value) && !value.length) return;
+    if (typeof value === 'object' && !Array.isArray(value) && !Object.keys(value as Record<string, unknown>).length) return;
+    payload[key] = value;
+  };
+  optional('tenantName', tenantName);
+  optional('tenant', tenantName);
+  optional('software', template.software);
+  optional('protocol', template.protocol);
+  optional('method', template.method);
+  optional('direction', template.direction);
+  optional('dataFormat', template.format);
+  optional('allowedIpWhitelist', splitList(integrationFormText(formData, 'allowedIpWhitelist')));
+  optional('domainWhitelist', splitList(integrationFormText(formData, 'domainWhitelist')));
+  const rateLimit = Number(integrationFormText(formData, 'rateLimit'));
+  if (Number.isFinite(rateLimit) && rateLimit > 0) optional('rateLimit', rateLimit);
+  optional('rateLimitPeriod', integrationFormText(formData, 'rateLimitPeriod'));
+  optional('syncFrequency', integrationFormText(formData, 'syncFrequency'));
+  optional('syncStartTime', integrationFormText(formData, 'syncStartTime'));
+  optional('lastSyncTimestampField', integrationFormText(formData, 'lastSyncTimestampField'));
+  optional('partnerVendorId', integrationFormText(formData, 'partnerVendorId'));
+  optional('accountId', integrationFormText(formData, 'accountId'));
+  optional('contactPhoneNumber', integrationFormText(formData, 'contactPhoneNumber'));
+  optional('contactName', integrationFormText(formData, 'contactName'));
+  optional('contactRole', integrationFormText(formData, 'contactRole'));
+  optional('technicalContactEmail', integrationFormText(formData, 'technicalContactEmail'));
+  optional('technicalContactPhone', integrationFormText(formData, 'technicalContactPhone'));
+  optional('supportEmail', integrationFormText(formData, 'supportEmail'));
+  optional('connectionStatus', connectionPassed ? 'Passed' : 'Not Tested');
+  optional('sampleDataStatus', sampleDataPassed ? 'Passed' : 'Not Tested');
+  optional('authenticationStatus', sampleDataPassed ? 'Valid' : connectionPassed ? 'Connection Passed' : 'Not Tested');
+  optional('general', {
+    integrationName,
+    producerVendorTemplate: vendor,
+    vendorName: integrationFormText(formData, 'vendorName', vendor),
+    integrationStatus: status,
+    tenantName,
+    notes: integrationFormText(formData, 'general_notes')
+  });
+  optional('connectionAuthentication', {
+    baseUrl: integrationFormText(formData, 'baseUrl'),
+    allowedIpWhitelist: splitList(integrationFormText(formData, 'allowedIpWhitelist')),
+    domainWhitelist: splitList(integrationFormText(formData, 'domainWhitelist')),
+    credentials,
+    connectionStatus: connectionPassed ? 'Passed' : 'Not Tested',
+    sampleDataStatus: sampleDataPassed ? 'Passed' : 'Not Tested',
+    authenticationStatus: sampleDataPassed ? 'Valid' : connectionPassed ? 'Connection Passed' : 'Not Tested',
+    notes: integrationFormText(formData, 'connection_authentication_notes')
+  });
+  optional('apiRequest', {
+    rateLimit: Number.isFinite(rateLimit) && rateLimit > 0 ? rateLimit : undefined,
+    rateLimitPeriod: integrationFormText(formData, 'rateLimitPeriod'),
+    protocol: template.protocol,
+    method: template.method,
+    direction: template.direction,
+    dataFormat: template.format,
+    notes: integrationFormText(formData, 'api_request_notes')
+  });
+  optional('synchronization', {
+    syncFrequency: integrationFormText(formData, 'syncFrequency'),
+    syncStartTime: integrationFormText(formData, 'syncStartTime'),
+    lastSyncTimestampField: integrationFormText(formData, 'lastSyncTimestampField'),
+    notes: integrationFormText(formData, 'synchronization_notes')
+  });
+  optional('partnerAccount', {
+    partnerVendorId: integrationFormText(formData, 'partnerVendorId'),
+    accountId: integrationFormText(formData, 'accountId'),
+    contactPhoneNumber: integrationFormText(formData, 'contactPhoneNumber'),
+    contactName: integrationFormText(formData, 'contactName'),
+    contactRole: integrationFormText(formData, 'contactRole'),
+    technicalContactEmail: integrationFormText(formData, 'technicalContactEmail'),
+    technicalContactPhone: integrationFormText(formData, 'technicalContactPhone'),
+    supportEmail: integrationFormText(formData, 'supportEmail'),
+    notes: integrationFormText(formData, 'partner_account_notes')
+  });
+  return payload;
+}
+
+function integrationCreateFallbackRecord(
+  formData: FormData,
+  status: string,
+  connectionPassed: boolean,
+  sampleDataPassed: boolean
+): IntegrationRecord {
+  const vendor = integrationFormText(formData, 'vendor', 'Other');
+  const template = resolveIntegrationVendorTemplate(vendor);
+  const id = 'INT-LOCAL-' + Math.floor(10000 + Math.random() * 89999);
+  const today = new Date().toISOString().slice(0,10);
+  const scopedTenant = String(localStorage.getItem('zentrid_integration_tenant') || '').trim();
+  const tenant = scopedTenant && scopedTenant !== 'All Tenants' ? scopedTenant : 'Platform scope';
+  const record: IntegrationRecord = {
+    dataOrigin: 'local', id,
+    code: 'INT-' + vendor.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0,12) + '-' + Math.floor(100 + Math.random() * 899),
+    name: integrationFormText(formData, 'name', autoIntegrationName()), tenant, vendor, software: template.software, status,
+    health: status === 'Active' ? 'Healthy' : status === 'Archived' ? 'Archived' : 'Inactive',
+    auth: sampleDataPassed ? 'Valid' : connectionPassed ? 'Connection Passed' : 'Not Tested',
+    discovery: sampleDataPassed ? 'Sample Data Passed' : 'Not Tested', plants: 0, devices: 0, metrics: 0, alerts: 0,
+    lastSync: 'Not synced', assignedTenants: tenant === 'Platform scope' ? 'Global' : '1 Tenant', activeIntegrations: status === 'Active' ? 1 : 0,
+    version: 'v1.0.0', apiVersion: 'Vendor API', mappingVersion: 'Solar Core v1.0', authType: template.auth,
+    discoveryEnabled: 'No', createdBy: 'Global Admin', createdAt: today, updatedBy: 'Global Admin', updatedAt: today,
+    lastActivity: 'Created as temporary fallback', lastSuccessfulSync: 'Not synced',
+    vendorName: integrationFormText(formData, 'vendorName'), baseUrl: integrationFormText(formData, 'baseUrl'),
+    allowedIpWhitelist: integrationFormText(formData, 'allowedIpWhitelist'), domainWhitelist: integrationFormText(formData, 'domainWhitelist'),
+    rateLimit: integrationFormText(formData, 'rateLimit'), rateLimitPeriod: integrationFormText(formData, 'rateLimitPeriod'),
+    syncFrequency: integrationFormText(formData, 'syncFrequency'), syncStartTime: integrationFormText(formData, 'syncStartTime'),
+    lastSyncTimestampField: integrationFormText(formData, 'lastSyncTimestampField'), partnerVendorId: integrationFormText(formData, 'partnerVendorId'),
+    accountId: integrationFormText(formData, 'accountId'), contactPhoneNumber: integrationFormText(formData, 'contactPhoneNumber'),
+    contactName: integrationFormText(formData, 'contactName'), contactRole: integrationFormText(formData, 'contactRole'),
+    technicalContactEmail: integrationFormText(formData, 'technicalContactEmail'), technicalContactPhone: integrationFormText(formData, 'technicalContactPhone'),
+    supportEmail: integrationFormText(formData, 'supportEmail'), connectionResult: connectionPassed ? 'Passed locally' : 'Not Tested',
+    sampleDataStatus: sampleDataPassed ? 'Passed locally' : 'Not Tested', credentials: integrationConfiguredCredentials(formData)
+  };
+  ['general_notes','connection_authentication_notes','api_request_notes','synchronization_notes','partner_account_notes'].forEach(key => { record[key] = integrationFormText(formData, key); });
+  if (status === 'Archived') {
+    record.archived = true;
+    record.archivedAt = today;
+    record.archivedBy = 'Global Admin';
+    record.archiveReason = 'Created in archived state';
+  }
+  return record;
+}
+
+function saveIntegrationCreateFallback(record: IntegrationRecord): void {
+  sessionStorage.setItem(INTEGRATION_CREATE_FALLBACK_KEY, JSON.stringify(record));
+  localStorage.setItem('zentrid_selected_integration', String(record.id || ''));
+}
+
+function clearIntegrationCreateFallback(): void {
+  sessionStorage.removeItem(INTEGRATION_CREATE_FALLBACK_KEY);
+}
+
+function integrationTenants(): IntegrationTenantOption[] {
+  const live = window.ZentridLiveTenants as IntegrationTenantOption[] | undefined;
+  return Array.isArray(live) ? live : [];
+}
+
 function selectedIntegrationTenantName(): string{
   const scoped = localStorage.getItem('zentrid_integration_tenant') || '';
   const tenants = integrationTenants();
@@ -502,10 +694,10 @@ function integrationWizard(_tenant?: string): string{
   const steps = ['General','Connection & Authentication','API Request','Synchronization','Partner Account'];
   const stepDescriptions: Record<string, string> = {
     'General': 'Define the connector identity, vendor name and intended lifecycle status. New connectors start Inactive until validation is complete.',
-    'Connection & Authentication': 'Configure the vendor host, whitelist rules and credentials. Local prototype checks never send credentials to a backend.',
+    'Connection & Authentication': 'Configure the vendor host, whitelist rules and credentials. Wizard checks remain local previews; credentials are submitted only when Create Connector is confirmed.',
     'API Request': 'Define request limits and throttling parameters used by the connector adapter.',
     'Synchronization': 'Define the schedule and timestamp field used by the sync pipeline. Failed-sync handling belongs to Connector Operations.',
-    'Partner Account': 'Capture optional vendor-side account and support contacts, then review the connector before local creation.'
+    'Partner Account': 'Capture optional vendor-side account and support contacts, then review the connector before backend creation.'
   };
   const stepIntro = (name: string) => `<div class="wizard-description full"><strong>${name}</strong><p>${stepDescriptions[name] || ''}</p><textarea name="${name.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_notes" placeholder="Notes for ${name}..."></textarea></div>`;
   return `<aside class="modal" id="intModal" role="dialog" aria-modal="true" aria-labelledby="integrationWizardTitle">
@@ -514,16 +706,16 @@ function integrationWizard(_tenant?: string): string{
     <p class="eyebrow">Integration Parameters</p>
     <h2 id="integrationWizardTitle">Connect Vendor Platform</h2>
     <p class="muted">Admin-facing setup only: identity, connection address, vendor credentials, API limits, synchronization and partner/account contact context.</p>
-    <div class="integration-prototype-note"><span class="badge warning">Local prototype</span><small>Configuration and checks remain in this browser until backend write contracts are available. Credential values are not stored.</small></div>
+    <div class="integration-prototype-note"><span class="badge info">Backend API</span><small>The connector is created through the confirmed backend mutation. Credential values are submitted only with the final create request and are never stored in the browser fallback.</small></div>
     <div id="integrationValidationSummary" class="form-validation-summary" role="alert" tabindex="-1" hidden></div>
     <div class="setup-layout">
       <div class="setup-rail" aria-label="Connector setup steps">${steps.map((name,index)=>`<button type="button" class="${index===0?'active':''}" data-step="${index}" ${index===0?'aria-current="step"':''}><b>${index+1}</b><span>${name}</span></button>`).join('')}</div>
-      <form id="intForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="ProviderIntegrationCreateDraft" data-zentrid-form-endpoint="/api/admin/provider-integrations" data-zentrid-form-method="POST" data-zentrid-form-api-note="Credentials are redacted in preview; the current wizard continues to create a local connector draft.">
+      <form id="intForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="ProviderIntegrationCreateDraft" data-zentrid-form-endpoint="/api/admin/provider-integrations" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Connector uses the confirmed backend mutation. Credentials are redacted in DTO preview and excluded from the session-only technical fallback.">
         <div class="wizard-step active" data-integration-step="general">
           <label class="full">Integration Name *<input name="name" id="integrationName" required minlength="3" maxlength="120" placeholder="Auto-generated from Vendor"></label>
           <label>Integration Code <input id="integrationCode" disabled value="Auto-generated"></label>
           <label>Producer / Vendor Template *<select name="vendor" id="vendorSelect" required>${vendorOptionsHtml('Huawei')}</select></label>
-          <div class="wizard-live-template full" id="liveTemplateStatus"><span class="badge neutral">Template source</span><small>Mock fallback template is active until backend templates load.</small></div>
+          <div class="wizard-live-template full" id="liveTemplateStatus"><span class="badge neutral">Template source</span><small>Provider template list and detail load from the backend when the wizard opens.</small></div>
           <label>Vendor Name *<input name="vendorName" id="vendorName" required minlength="2" maxlength="100" placeholder="Vendor company name"></label>
           <label>Integration Status <input id="integrationStatus" disabled value="Inactive"></label>
           <div class="integration-page-actions full" aria-label="Desired connector lifecycle status"><button type="button" class="primary-action" id="activateIntegration">Activate Integration</button><button type="button" id="suspendIntegration">Keep Inactive</button><button type="button" id="archiveIntegration">Archive</button></div>
@@ -623,13 +815,7 @@ function setWizardIntegrationStatus(status: string): void{
 function isArchivedIntegration(x: Partial<IntegrationRecord>): boolean{
   return String(x?.status || '').toLowerCase() === 'archived';
 }
-const archivedIntegrationMocks = [
-  {id:'ARCH-INT-00012', code:'INT-HUAWEI-OLD-001', name:'Arpi Solar Group — Huawei FusionSolar Legacy', tenant:'Arpi Solar Group', vendor:'Huawei', software:'FusionSolar', status:'Archived', health:'Archived', auth:'Expired', discovery:'Completed', plants:42, devices:612, inverters:94, meters:38, weatherPlants:7, bess:2, metrics:184, alerts:37, archivedAt:'2026-04-12', archivedBy:'Integration Admin', archiveReason:'Replaced by FusionSolar v2 connector', lastSuccessfulSync:'2026-04-11 23:45', retention:'Preserve raw + normalized history', restore:'Available', endpoint:'https://eu5.fusionsolar.huawei.com', authType:'OAuth 2.0 + Account', connectorVersion:'v1.8.3', apiVersion:'2024-05', mappingVersion:'Solar Core v1.6', discoveryMode:'Full discovery', syncInterval:'5 min', firstConnected:'2025-08-14', totalSyncJobs:'18,420', successfulJobs:'18,102', failedJobs:'318', avgDuration:'12.4s'},
-  {id:'ARCH-INT-00018', code:'INT-SUNGROW-DEMO-004', name:'SolarPark East — Sungrow iSolarCloud', tenant:'SolarPark East', vendor:'Sungrow', software:'iSolarCloud', status:'Archived', health:'Archived', auth:'Revoked', discovery:'Completed', plants:18, devices:244, inverters:51, meters:21, weatherPlants:4, bess:0, metrics:156, alerts:21, archivedAt:'2026-03-28', archivedBy:'Global Admin', archiveReason:'Plant portfolio decommissioned', lastSuccessfulSync:'2026-03-27 18:10', retention:'Audit + reporting snapshots', restore:'Restricted', endpoint:'https://gateway.isolarcloud.com', authType:'App Key Authentication', connectorVersion:'v1.5.0', apiVersion:'2024-02', mappingVersion:'Solar Core v1.5', discoveryMode:'Portfolio discovery', syncInterval:'15 min', firstConnected:'2025-10-02', totalSyncJobs:'9,870', successfulJobs:'9,640', failedJobs:'230', avgDuration:'9.1s'},
-  {id:'ARCH-INT-00027', code:'INT-SOLAREDGE-ARM-002', name:'GreenVolt Armenia — SolarEdge Monitoring', tenant:'GreenVolt Armenia', vendor:'SolarEdge', software:'Monitoring Platform', status:'Archived', health:'Archived', auth:'Valid at archive', discovery:'Completed', plants:9, devices:138, inverters:36, meters:9, weatherPlants:3, bess:1, metrics:129, alerts:14, archivedAt:'2026-02-15', archivedBy:'Tenant Operations', archiveReason:'Archived by tenant request', lastSuccessfulSync:'2026-02-15 12:30', retention:'Full metadata retained', restore:'Available', endpoint:'https://monitoringapi.solaredge.com', authType:'API Key Authentication', connectorVersion:'v1.4.2', apiVersion:'2023-12', mappingVersion:'Solar Core v1.4', discoveryMode:'Tenant-scoped discovery', syncInterval:'10 min', firstConnected:'2025-06-21', totalSyncJobs:'11,208', successfulJobs:'11,044', failedJobs:'164', avgDuration:'7.8s'},
-  {id:'ARCH-INT-00031', code:'INT-HUAWEI-BESS-009', name:'MegaSolar BESS — Huawei NetEco', tenant:'MegaSolar BESS', vendor:'Huawei', software:'NetEco', status:'Archived', health:'Archived', auth:'Disabled', discovery:'Partial', plants:3, devices:71, inverters:12, meters:6, weatherPlants:2, bess:8, metrics:208, alerts:46, archivedAt:'2026-01-04', archivedBy:'Data Governance', archiveReason:'Duplicate connection merged into canonical connector', lastSuccessfulSync:'2026-01-03 09:20', retention:'Merged lineage retained', restore:'Not recommended', endpoint:'https://netecomock.huawei.example', authType:'Service Account', connectorVersion:'v0.9.8', apiVersion:'2023-09', mappingVersion:'Storage Core v0.9', discoveryMode:'BESS device discovery', syncInterval:'5 min', firstConnected:'2025-04-18', totalSyncJobs:'7,442', successfulJobs:'7,008', failedJobs:'434', avgDuration:'16.6s'},
-  {id:'ARCH-INT-00034', code:'INT-TESLA-BESS-001', name:'EcoStorage One — Tesla PowerHub', tenant:'EcoStorage One', vendor:'Tesla', software:'PowerHub', status:'Archived', health:'Archived', auth:'Expired', discovery:'Completed', plants:1, devices:24, inverters:4, meters:3, weatherPlants:1, bess:4, metrics:96, alerts:12, archivedAt:'2025-12-22', archivedBy:'Platform Support', archiveReason:'Migration completed to BESS normalization adapter', lastSuccessfulSync:'2025-12-21 17:05', retention:'Cold storage after 12 months', restore:'Available', endpoint:'https://powerhub.tesla.example', authType:'Token Authentication', connectorVersion:'v1.0.1', apiVersion:'2023-10', mappingVersion:'Storage Core v1.0', discoveryMode:'Storage-plant discovery', syncInterval:'15 min', firstConnected:'2025-02-12', totalSyncJobs:'5,018', successfulJobs:'4,966', failedJobs:'52', avgDuration:'6.3s'}
-];
+const archivedIntegrationMocks: IntegrationArchiveRecord[] = [];
 
 function archivedIntegrationRecords(): IntegrationArchiveRecord[]{
   const existing = integrations.filter(isArchivedIntegration);
@@ -1219,7 +1405,7 @@ function wireIntegrations(): void{
     openIntegrationDetail(id);
   });
 
-  saveButton.onclick = () => {
+  saveButton.onclick = async () => {
     if (!ZentridActionPermissions.guard({ action:'create', resource:'integration' })) return;
     const validation = validateAll();
     if (!validation.valid || wizardBusy) return;
@@ -1233,88 +1419,58 @@ function wireIntegrations(): void{
     }
     wizardBusy = true;
     ZentridFormUX.setBusy(saveButton, true, 'Creating Connector…');
+    const formData = new FormData(intForm);
+    const payload = integrationCreateApiPayload(formData, status, connectionPassed, sampleDataPassed);
+    const fallbackRecord = integrationCreateFallbackRecord(formData, status, connectionPassed, sampleDataPassed);
     try {
-      const formData = new FormData(intForm);
-      const formText = (key: string): string => {
-        const value = formData.get(key);
-        return typeof value === 'string' ? value.trim() : '';
-      };
-      const vendor = formText('vendor') || 'Other';
-      const template = resolveIntegrationVendorTemplate(vendor);
-      const id = 'INT-LOCAL-' + Math.floor(10000 + Math.random() * 89999);
-      const credentialNames = Array.from(formData.entries())
-        .filter(([key, value]) => key.startsWith('credential_') && typeof value === 'string' && value.trim())
-        .map(([key]) => key.replace('credential_','').replaceAll('_',' '));
-      const today = new Date().toISOString().slice(0,10);
-      const record: IntegrationRecord = {
-        dataOrigin: 'local',
-        id,
-        code: 'INT-' + vendor.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0,12) + '-' + Math.floor(100 + Math.random() * 899),
-        name: formText('name') || autoIntegrationName(),
-        tenant: 'Platform scope',
-        vendor,
-        software: template.software,
-        status,
-        health: status === 'Active' ? 'Healthy' : status === 'Archived' ? 'Archived' : 'Inactive',
-        auth: sampleDataPassed ? 'Valid' : connectionPassed ? 'Connection Passed' : 'Not Tested',
-        discovery: sampleDataPassed ? 'Sample Data Passed' : 'Not Tested',
-        plants: 0,
-        devices: 0,
-        metrics: 0,
-        alerts: 0,
-        lastSync: 'Not synced',
-        assignedTenants: 'Global',
-        activeIntegrations: status === 'Active' ? 1 : 0,
-        version: 'v1.0.0',
-        apiVersion: 'Vendor API',
-        mappingVersion: 'Solar Core v1.0',
-        authType: template.auth,
-        discoveryEnabled: 'No',
-        createdBy: 'Global Admin',
-        createdAt: today,
-        updatedBy: 'Global Admin',
-        updatedAt: today,
-        lastActivity: 'Created now',
-        lastSuccessfulSync: 'Not synced',
-        vendorName: formText('vendorName'),
-        baseUrl: formText('baseUrl'),
-        allowedIpWhitelist: formText('allowedIpWhitelist'),
-        domainWhitelist: formText('domainWhitelist'),
-        rateLimit: formText('rateLimit'),
-        rateLimitPeriod: formText('rateLimitPeriod'),
-        syncFrequency: formText('syncFrequency'),
-        syncStartTime: formText('syncStartTime'),
-        lastSyncTimestampField: formText('lastSyncTimestampField'),
-        partnerVendorId: formText('partnerVendorId'),
-        accountId: formText('accountId'),
-        contactPhoneNumber: formText('contactPhoneNumber'),
-        contactName: formText('contactName'),
-        contactRole: formText('contactRole'),
-        technicalContactEmail: formText('technicalContactEmail'),
-        technicalContactPhone: formText('technicalContactPhone'),
-        supportEmail: formText('supportEmail'),
-        connectionResult: connectionPassed ? 'Passed locally' : 'Not Tested',
-        sampleDataStatus: sampleDataPassed ? 'Passed locally' : 'Not Tested',
-        credentials: Object.fromEntries(credentialNames.map(name => [titleFromCamel(name), 'Configured']))
-      };
-      ['general_notes','connection_authentication_notes','api_request_notes','synchronization_notes','partner_account_notes'].forEach(key => { record[key] = formText(key); });
-      if (status === 'Archived') {
-        record.archived = true;
-        record.archivedAt = today;
-        record.archivedBy = 'Global Admin';
-        record.archiveReason = 'Created in archived state';
+      if (!window.ZentridAPIMutations) throw new Error('Provider integration mutation runtime is unavailable.');
+      const result = await ZentridAPIMutations.integrations.create(payload);
+      if (result.ok) {
+        const backendId = integrationCreateBackendId(result.data);
+        clearIntegrationCreateFallback();
+        initialSnapshot = ZentridFormUX.snapshot(intForm);
+        window.ZentridFormReadiness?.markCommitted(intForm);
+        modal.classList.remove('open');
+        if (backendId) {
+          localStorage.setItem('zentrid_selected_integration', backendId);
+          ZentridLayout.toast('Connector created in the backend. Opening Integration Detail.');
+          window.setTimeout(() => { location.href = 'integration-detail.html'; }, 450);
+        } else {
+          console.info('Provider integration create succeeded without a returned identifier.', integrationCreateResponseRecord(result.data));
+          ZentridLayout.toast('Connector created in the backend. Refreshing Connector Registry.');
+          window.setTimeout(() => { location.href = 'integrations.html'; }, 450);
+        }
+        return;
       }
-      integrations.unshift(record);
-      saveInts();
-      initialSnapshot = ZentridFormUX.snapshot(intForm);
-      window.ZentridFormReadiness?.markCommitted(intForm);
-      localStorage.setItem('zentrid_selected_integration', id);
-      modal.classList.remove('open');
-      ZentridLayout.toast('Connector created locally');
-      location.href = 'integration-detail.html';
-    } finally {
+      if (result.error.retriable) {
+        saveIntegrationCreateFallback(fallbackRecord);
+        initialSnapshot = ZentridFormUX.snapshot(intForm);
+        window.ZentridFormReadiness?.markCommitted(intForm);
+        modal.classList.remove('open');
+        ZentridLayout.toast('Backend unavailable. Connector saved as a temporary session fallback.');
+        window.setTimeout(() => { location.href = 'integration-detail.html'; }, 450);
+        return;
+      }
       wizardBusy = false;
       ZentridFormUX.setBusy(saveButton, false);
+      const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
+      ZentridFormUX.renderSummary(summary, [{ message: detail }], 'Connector was not created');
+      summary.focus();
+    } catch (error) {
+      try {
+        saveIntegrationCreateFallback(fallbackRecord);
+        initialSnapshot = ZentridFormUX.snapshot(intForm);
+        window.ZentridFormReadiness?.markCommitted(intForm);
+        modal.classList.remove('open');
+        ZentridLayout.toast('Connector mutation runtime was unavailable. Connector saved as a temporary session fallback.');
+        window.setTimeout(() => { location.href = 'integration-detail.html'; }, 450);
+      } catch (fallbackError) {
+        wizardBusy = false;
+        ZentridFormUX.setBusy(saveButton, false);
+        ZentridFormUX.renderSummary(summary, [{ message: 'Unable to create the connector through the backend or save the temporary fallback.' }], 'Connector was not created');
+        summary.focus();
+        console.error('Provider integration create and fallback both failed.', error, fallbackError);
+      }
     }
   };
 
@@ -1459,6 +1615,7 @@ function renderIntegrationDetailControls(record: IntegrationRecord): string {
 
 function renderIntegrationDetail(): string{
   const x = selectedIntegration();
+  if (!x.id) return window.ZentridApiOnly?.emptyState('Integration Detail', 'The integration endpoint has not returned a selected record.', '/api/admin/provider-integrations') || '';
   const cfg = connectorConfig(x);
   const status = integrationDetailStatus(x);
   const canEdit = integrationDetailCanEdit(x);

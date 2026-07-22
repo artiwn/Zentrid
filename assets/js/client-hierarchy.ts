@@ -170,20 +170,7 @@ const formValue = (value: FormDataEntryValue | null | undefined): string => (val
 const eventElement = (event: Event): HTMLElement => event.target as HTMLElement;
 
 const ZentridClientModel = (() => {
-  const clients: ZentridClientRecord[] = [
-    {
-      id: 'CL-00041', code: 'CLI-ARPI', name: 'Arpi Solar Group', type: 'Legal Entity', legalForm: 'LLC', registrationNo: 'AM-REG-204419', taxId: 'TIN-00421190', country: 'Armenia', city: 'Yerevan', address: 'Baghramyan Ave 12, Yerevan', status: 'Active', verification: 'Verified', account: 'Mariam Sargsyan', primaryContact: 'Aram Petrosyan', contactEmail: 'aram.petrosyan@arpi.example', contactPhone: '+374 10 555 201', tenant: 'Tenant Alpha Energy', plants: ['PL-ARM-001', 'PL-ARM-002', 'PL-ARM-003'], users: 42, documents: 18, billing: 'Enterprise · Net 30', supportTier: 'Premium SLA', accessScope: 'All assigned plants · Read-only owner portal', exportPolicy: 'Reports export allowed after tenant approval', assignmentRole: 'Owner', onboarding: 'Completed'
-    },
-    {
-      id: 'CL-00042', code: 'CLI-VALLEY', name: 'Valley Solar Holdings', type: 'Legal Entity', legalForm: 'Corporation', registrationNo: 'US-CA-778401', taxId: 'EIN-88-2041941', country: 'United States', city: 'San Diego', address: '750 Harbor Drive, San Diego, CA', status: 'Active', verification: 'Verified', account: 'Daniel Weber', primaryContact: 'Olivia Chen', contactEmail: 'ops@valleysolar.example', contactPhone: '+1 619 555 0148', tenant: 'Tenant North Operations', plants: ['PL-US-011', 'PL-US-012'], users: 38, documents: 11, billing: 'Professional · Net 15', supportTier: 'Standard SLA', accessScope: 'California portfolio · Finance + Reports', exportPolicy: 'Self-service monthly reports', assignmentRole: 'Owner / Investor', onboarding: 'Completed'
-    },
-    {
-      id: 'CL-00043', code: 'CLI-GAMMA', name: 'Gamma Grid Holdings', type: 'Legal Entity', legalForm: 'Holding Company', registrationNo: 'US-TX-120984', taxId: 'EIN-74-9102231', country: 'United States', city: 'Austin', address: '210 Battery Road, Austin, TX', status: 'Review', verification: 'KYC Review', account: 'Laura Garcia', primaryContact: 'Michael Stone', contactEmail: 'm.stone@gammagrid.example', contactPhone: '+1 512 555 0192', tenant: 'GridOps Partner', plants: ['PL-US-021'], users: 29, documents: 9, billing: 'Custom · Manual Review', supportTier: 'Custom SLA', accessScope: 'Storage hub only · Viewer mode', exportPolicy: 'Manual approval required', assignmentRole: 'Investor Client', onboarding: 'Commercial review'
-    },
-    {
-      id: 'CL-00044', code: 'CLI-ANNA', name: 'Anna Hakobyan', type: 'Individual', legalForm: 'Private Person', registrationNo: 'PSP-AM-448219', taxId: 'Personal ID 0109840123', country: 'Armenia', city: 'Gyumri', address: 'Shirak Region, Gyumri', status: 'Pending', verification: 'Identity Pending', account: 'Mariam Sargsyan', primaryContact: 'Anna Hakobyan', contactEmail: 'anna.hakobyan@example.com', contactPhone: '+374 91 555 771', tenant: 'Tenant Alpha Energy', plants: [], users: 1, documents: 4, billing: 'Owner Portal · Prepaid', supportTier: 'Basic SLA', accessScope: 'No active plant assigned yet', exportPolicy: 'Disabled until verification', assignmentRole: 'Future Owner', onboarding: 'Identity verification'
-    }
-  ];
+  const clients: ZentridClientRecord[] = [];
 
   try {
     const savedClients = (window.ZentridLocalStore ? ZentridLocalStore.read(ZentridLocalStore.KEYS.clients, []) : JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]')) as ZentridClientRecord[];
@@ -197,72 +184,9 @@ const ZentridClientModel = (() => {
     console.warn('Unable to restore custom clients', e);
   }
 
-  const plants: ZentridPlantRecord[] = [
-    {
-      id: 'PL-ARM-001', code: 'ARM-SOL-001', externalId: 'HUA-PLANT-991', name: 'Arpi Plant 01', clientId: 'CL-00041', portfolio: 'Armenia Utility Portfolio', status: 'Active', type: 'Utility Scale', country: 'Armenia', region: 'Kotayk', city: 'Abovyan', address: 'North field, Sector A', timezone: 'Asia/Yerevan', capacityDc: '5.40 MWp', capacityAc: '4.80 MW', gridCapacity: '5.0 MW', commissioning: '2024-09-18', owner: 'Arpi Solar Group', operator: 'Tenant Alpha Energy', om: 'Unisys Energy O&M', powerNow: '3.82 MW', energyToday: '24.6 MWh', alerts: 2, health: 'Warning', panels: 9820, inverters: 18, strings: 216, transformers: 2, meters: 4, battery: 'No', devices: ['INV-ARM-001','INV-ARM-002','INV-ARM-003','LOG-ARM-001','MTR-ARM-001','WX-ARM-001','TR-ARM-001','SW-ARM-001']
-    },
-    {
-      id: 'PL-ARM-002', code: 'ARM-SOL-002', externalId: 'HUA-PLANT-992', name: 'Arpi Plant 02', clientId: 'CL-00041', portfolio: 'Armenia Utility Portfolio', status: 'Active', type: 'Commercial', country: 'Armenia', region: 'Armavir', city: 'Vagharshapat', address: 'Industrial park, Block 7', timezone: 'Asia/Yerevan', capacityDc: '2.10 MWp', capacityAc: '1.95 MW', gridCapacity: '2.0 MW', commissioning: '2025-03-02', owner: 'Arpi Solar Group', operator: 'Tenant Alpha Energy', om: 'Unisys Energy O&M', powerNow: '1.36 MW', energyToday: '9.1 MWh', alerts: 0, health: 'Normal', panels: 3860, inverters: 8, strings: 92, transformers: 1, meters: 2, battery: 'Yes', devices: ['INV-ARM-021','LOG-ARM-021','BESS-ARM-001','MTR-ARM-021','WX-ARM-021','TR-ARM-021','SW-ARM-021']
-    },
-    {
-      id: 'PL-ARM-003', code: 'ARM-BESS-003', externalId: 'SUN-PLANT-410', name: 'Arpi Hybrid Storage Plant', clientId: 'CL-00041', portfolio: 'Hybrid Storage Portfolio', status: 'Maintenance', type: 'Industrial', country: 'Armenia', region: 'Yerevan', city: 'Yerevan', address: 'Energy storage yard 3', timezone: 'Asia/Yerevan', capacityDc: '1.60 MWp', capacityAc: '1.40 MW', gridCapacity: '1.5 MW', commissioning: '2025-11-22', owner: 'Arpi Solar Group', operator: 'Tenant Alpha Energy', om: 'BESS Service Team', powerNow: '0.72 MW', energyToday: '4.8 MWh', alerts: 4, health: 'Fault', panels: 2880, inverters: 5, strings: 54, transformers: 1, meters: 3, battery: 'Yes', devices: ['INV-ARM-031','LOG-ARM-031','BESS-ARM-031','PCS-ARM-031','MTR-ARM-031','TR-ARM-031','SW-ARM-031']
-    },
-    {
-      id: 'PL-US-011', code: 'CA-SOL-011', externalId: 'SE-FAC-011', name: 'North Valley Solar 11', clientId: 'CL-00042', portfolio: 'California O&M Portfolio', status: 'Active', type: 'Utility Scale', country: 'United States', region: 'California', city: 'Fresno', address: 'Valley road 114', timezone: 'America/Los_Angeles', capacityDc: '8.20 MWp', capacityAc: '7.60 MW', gridCapacity: '8.0 MW', commissioning: '2023-06-17', owner: 'Valley Solar Holdings', operator: 'Tenant North Operations', om: 'Tenant North Operations', powerNow: '6.41 MW', energyToday: '41.2 MWh', alerts: 1, health: 'Normal', panels: 14800, inverters: 22, strings: 310, transformers: 3, meters: 5, battery: 'No', devices: ['INV-US-011','INV-US-012','LOG-US-011','MTR-US-011','WX-US-011','TR-US-011','SW-US-011']
-    },
-    {
-      id: 'PL-US-012', code: 'CA-SOL-012', externalId: 'SE-FAC-012', name: 'North Valley Solar 12', clientId: 'CL-00042', portfolio: 'California O&M Portfolio', status: 'Active', type: 'Commercial', country: 'United States', region: 'California', city: 'Bakersfield', address: 'Grid extension zone B', timezone: 'America/Los_Angeles', capacityDc: '3.70 MWp', capacityAc: '3.20 MW', gridCapacity: '3.5 MW', commissioning: '2024-01-30', owner: 'Valley Solar Holdings', operator: 'Tenant North Operations', om: 'Tenant North Operations', powerNow: '2.45 MW', energyToday: '16.7 MWh', alerts: 0, health: 'Normal', panels: 6840, inverters: 12, strings: 136, transformers: 1, meters: 2, battery: 'No', devices: ['INV-US-021','LOG-US-021','MTR-US-021','WX-US-021','TR-US-021','SW-US-021']
-    },
-    {
-      id: 'PL-US-021', code: 'TX-BESS-021', externalId: 'TES-BESS-021', name: 'Gamma Storage & Solar Hub', clientId: 'CL-00043', portfolio: 'Texas Investor Portfolio', status: 'Review', type: 'Industrial', country: 'United States', region: 'Texas', city: 'Austin', address: 'Battery road 210', timezone: 'America/Chicago', capacityDc: '4.30 MWp', capacityAc: '4.00 MW', gridCapacity: '4.2 MW', commissioning: '2025-08-11', owner: 'Gamma Grid Holdings', operator: 'GridOps Partner', om: 'External O&M', powerNow: '2.20 MW', energyToday: '12.4 MWh', alerts: 5, health: 'Warning', panels: 7900, inverters: 14, strings: 168, transformers: 2, meters: 4, battery: 'Yes', devices: ['INV-US-101','LOG-US-101','BESS-US-101','PCS-US-101','MTR-US-101','WX-US-101','TR-US-101','SW-US-101']
-    }
-  ];
+  const plants: ZentridPlantRecord[] = [];
 
-  const devices: ZentridDeviceRecord[] = [
-    { id:'INV-ARM-001', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 01', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0001', capacity:'215 kW', firmware:'V500R023', status:'Active', location:'Area A', lastSeen:'2 min ago', children:'MPPT 1–12 · Strings 1–12' },
-    { id:'INV-ARM-002', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 02', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0002', capacity:'215 kW', firmware:'V500R023', status:'Active', location:'Area A', lastSeen:'2 min ago', children:'MPPT 1–12 · Strings 13–24' },
-    { id:'INV-ARM-003', plantId:'PL-ARM-001', type:'Inverter', name:'Inverter 03', vendor:'Huawei', model:'SUN2000-215KTL', serial:'HUA-INV-0003', capacity:'215 kW', firmware:'V500R021', status:'Warning', location:'Area B', lastSeen:'18 min ago', children:'MPPT 1–12 · Strings 25–36' },
-    { id:'MTR-ARM-001', plantId:'PL-ARM-001', type:'Meter', name:'Main Export Meter', vendor:'Janitza', model:'UMG 604', serial:'MTR-9120', capacity:'Bidirectional', firmware:'2.4.1', status:'Active', location:'Grid connection', lastSeen:'1 min ago', children:'Import / Export point' },
-    { id:'WX-ARM-001', plantId:'PL-ARM-001', type:'Weather Station', name:'Weather Station A', vendor:'Kipp & Zonen', model:'RT1', serial:'WX-1103', capacity:'Irradiance / Temp', firmware:'1.9', status:'Active', location:'North roof', lastSeen:'3 min ago', children:'Irradiance · Ambient temp · Module temp' },
-    { id:'LOG-ARM-001', plantId:'PL-ARM-001', type:'Logger', name:'Gateway Logger A', vendor:'Huawei', model:'SmartLogger3000A', serial:'LOG-ARM-001', capacity:'64 linked devices', firmware:'V300R023', status:'Active', location:'Control room', lastSeen:'1 min ago', children:'Inverters 01–18 · Meter · Weather plant' },
-    { id:'TR-ARM-001', plantId:'PL-ARM-001', type:'Grid Device', name:'Transformer 01', vendor:'ABB', model:'2.5 MVA', serial:'TR-2109', capacity:'2.5 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-ARM-001', plantId:'PL-ARM-001', type:'Switchgear', name:'MV Switchgear 01', vendor:'Schneider', model:'SM6-24', serial:'SW-ARM-001', capacity:'24 kV · 1250 A', firmware:'Relay 7.2', status:'Active', location:'Subplant', lastSeen:'2 min ago', children:'Breaker · Feeders · Protection relay' },
-    { id:'INV-ARM-021', plantId:'PL-ARM-002', type:'Inverter', name:'Inverter 21', vendor:'Huawei', model:'SUN2000-125KTL', serial:'HUA-INV-0021', capacity:'125 kW', firmware:'V500R023', status:'Active', location:'Area A', lastSeen:'2 min ago', children:'MPPT 1–10 · Strings 1–10' },
-    { id:'BESS-ARM-001', plantId:'PL-ARM-002', type:'Battery', name:'Battery Container 01', vendor:'CATL', model:'LFP Rack 500', serial:'BESS-ARM-001', capacity:'500 kWh', firmware:'BMS 3.2', status:'Active', location:'Battery yard', lastSeen:'1 min ago', children:'Rack 1–4 · BMS · HVAC' },
-    { id:'MTR-ARM-021', plantId:'PL-ARM-002', type:'Meter', name:'Bidirectional Meter 21', vendor:'Schneider', model:'PM8000', serial:'MTR-ARM-021', capacity:'Bidirectional', firmware:'4.1', status:'Active', location:'Grid cabinet', lastSeen:'1 min ago', children:'Import / Export point' },
-    { id:'WX-ARM-021', plantId:'PL-ARM-002', type:'Weather Station', name:'Weather Station 21', vendor:'SMA', model:'Sunny SensorBox', serial:'WX-ARM-021', capacity:'Irradiance / Temp / Wind', firmware:'1.2', status:'Active', location:'Plant mast', lastSeen:'4 min ago', children:'Weather sensors' },
-    { id:'LOG-ARM-021', plantId:'PL-ARM-002', type:'Logger', name:'Hybrid Gateway 21', vendor:'SMA', model:'Data Manager M', serial:'LOG-ARM-021', capacity:'32 linked devices', firmware:'2.13', status:'Active', location:'Grid cabinet', lastSeen:'2 min ago', children:'Inverter 21 · BESS · Meter · Weather' },
-    { id:'TR-ARM-021', plantId:'PL-ARM-002', type:'Grid Device', name:'Transformer 21', vendor:'Siemens', model:'1.6 MVA', serial:'TR-ARM-021', capacity:'1.6 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-ARM-021', plantId:'PL-ARM-002', type:'Switchgear', name:'LV Switchgear 21', vendor:'Siemens', model:'SIVACON S8', serial:'SW-ARM-021', capacity:'400 V · 1600 A', firmware:'Relay 6.8', status:'Active', location:'Grid cabinet', lastSeen:'2 min ago', children:'Breakers · Feeders · Meter link' },
-    { id:'INV-ARM-031', plantId:'PL-ARM-003', type:'Inverter', name:'Hybrid Inverter 31', vendor:'Sungrow', model:'SG125CX', serial:'SG-INV-031', capacity:'125 kW', firmware:'2.18', status:'Warning', location:'Hybrid field', lastSeen:'22 min ago', children:'MPPT · Strings · PCS link' },
-    { id:'BESS-ARM-031', plantId:'PL-ARM-003', type:'Battery', name:'BESS Container 31', vendor:'BYD', model:'LFP 1MWh', serial:'BESS-031', capacity:'1 MWh', firmware:'BMS 4.5', status:'Fault', location:'Storage yard', lastSeen:'35 min ago', children:'Rack 1–6 · Modules · Cells' },
-    { id:'PCS-ARM-031', plantId:'PL-ARM-003', type:'PCS', name:'Power Conversion System 31', vendor:'Sungrow', model:'PCS500', serial:'PCS-031', capacity:'500 kW', firmware:'1.8', status:'Warning', location:'Storage yard', lastSeen:'20 min ago', children:'DC bus · AC output' },
-    { id:'LOG-ARM-031', plantId:'PL-ARM-003', type:'Logger', name:'Storage Gateway 31', vendor:'Sungrow', model:'COM100E', serial:'LOG-ARM-031', capacity:'48 linked devices', firmware:'3.4', status:'Warning', location:'Storage control panel', lastSeen:'16 min ago', children:'Hybrid inverter · BESS · PCS · Meter' },
-    { id:'INV-US-011', plantId:'PL-US-011', type:'Inverter', name:'Inverter CA-11', vendor:'SolarEdge', model:'SE100K', serial:'SE-INV-011', capacity:'100 kW', firmware:'4.17', status:'Active', location:'Block A', lastSeen:'1 min ago', children:'Strings 1–12' },
-    { id:'MTR-US-011', plantId:'PL-US-011', type:'Meter', name:'Main Meter CA-11', vendor:'Itron', model:'ION8650', serial:'MTR-US-011', capacity:'Export', firmware:'3.9', status:'Active', location:'POI', lastSeen:'1 min ago', children:'Export point' },
-    { id:'WX-US-011', plantId:'PL-US-011', type:'Weather Station', name:'Weather CA-11', vendor:'Campbell', model:'CR1000X', serial:'WX-US-011', capacity:'Weather package', firmware:'2.1', status:'Active', location:'Mast A', lastSeen:'2 min ago', children:'Irradiance · Wind · Humidity' },
-    { id:'LOG-US-011', plantId:'PL-US-011', type:'Logger', name:'Gateway CA-11', vendor:'SolarEdge', model:'Gateway Pro', serial:'LOG-US-011', capacity:'96 linked devices', firmware:'4.22', status:'Active', location:'Network cabinet', lastSeen:'1 min ago', children:'Inverter fleet · Meters · Weather plant' },
-    { id:'LOG-US-021', plantId:'PL-US-012', type:'Logger', name:'Gateway CA-12', vendor:'SolarEdge', model:'Gateway Pro', serial:'LOG-US-021', capacity:'48 linked devices', firmware:'4.22', status:'Active', location:'Control cabinet', lastSeen:'2 min ago', children:'Inverter 21 · Meter · Weather plant' },
-    { id:'INV-US-101', plantId:'PL-US-021', type:'Inverter', name:'Inverter TX-101', vendor:'Tesla', model:'Solar Inverter', serial:'TES-INV-101', capacity:'150 kW', firmware:'5.0', status:'Active', location:'Solar block', lastSeen:'3 min ago', children:'MPPT · Strings' },
-    { id:'BESS-US-101', plantId:'PL-US-021', type:'Battery', name:'Battery System TX-101', vendor:'Tesla', model:'Megapack', serial:'TES-BESS-101', capacity:'2 MWh', firmware:'BMS 7.1', status:'Warning', location:'Battery pad', lastSeen:'14 min ago', children:'Racks · BMS · Thermal system' },
-    { id:'MTR-US-101', plantId:'PL-US-021', type:'Meter', name:'Settlement Meter TX-101', vendor:'Itron', model:'ION8650', serial:'MTR-US-101', capacity:'Bidirectional', firmware:'3.9', status:'Active', location:'POI', lastSeen:'1 min ago', children:'Settlement point' },
-    { id:'LOG-US-101', plantId:'PL-US-021', type:'Logger', name:'Megapack Plant Gateway', vendor:'Tesla', model:'PowerHub Gateway', serial:'LOG-US-101', capacity:'120 linked devices', firmware:'5.7', status:'Warning', location:'Plant network room', lastSeen:'12 min ago', children:'Inverters · BESS · PCS · Settlement meter' },
-    { id:'MTR-ARM-031', plantId:'PL-ARM-003', type:'Meter', name:'Storage Settlement Meter 31', vendor:'Schneider', model:'PM8000', serial:'MTR-ARM-031', capacity:'Bidirectional', firmware:'4.1', status:'Warning', location:'Storage POI', lastSeen:'18 min ago', children:'Import / Export point' },
-    { id:'TR-ARM-031', plantId:'PL-ARM-003', type:'Grid Device', name:'Transformer 31', vendor:'Siemens', model:'1.6 MVA', serial:'TR-ARM-031', capacity:'1.6 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-ARM-031', plantId:'PL-ARM-003', type:'Switchgear', name:'Hybrid Switchgear 31', vendor:'ABB', model:'UniGear ZS1', serial:'SW-ARM-031', capacity:'12 kV · 1250 A', firmware:'Relay 8.1', status:'Warning', location:'Subplant', lastSeen:'18 min ago', children:'BESS feeder · PV feeder · Grid breaker' },
-    { id:'INV-US-012', plantId:'PL-US-011', type:'Inverter', name:'Inverter CA-12', vendor:'SolarEdge', model:'SE100K', serial:'SE-INV-012', capacity:'100 kW', firmware:'4.17', status:'Active', location:'Block B', lastSeen:'2 min ago', children:'Strings 13–24' },
-    { id:'TR-US-011', plantId:'PL-US-011', type:'Grid Device', name:'Transformer CA-11', vendor:'ABB', model:'4 MVA', serial:'TR-US-011', capacity:'4 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-US-011', plantId:'PL-US-011', type:'Switchgear', name:'MV Switchgear CA-11', vendor:'Eaton', model:'XGIS', serial:'SW-US-011', capacity:'15 kV · 1200 A', firmware:'Relay 5.9', status:'Active', location:'Subplant', lastSeen:'3 min ago', children:'Breakers · Feeders · Protection relay' },
-    { id:'INV-US-021', plantId:'PL-US-012', type:'Inverter', name:'Inverter CA-21', vendor:'SolarEdge', model:'SE82.8K', serial:'SE-INV-021', capacity:'82.8 kW', firmware:'4.17', status:'Active', location:'Block A', lastSeen:'2 min ago', children:'Strings 1–12' },
-    { id:'MTR-US-021', plantId:'PL-US-012', type:'Meter', name:'Main Meter CA-12', vendor:'Itron', model:'ION8650', serial:'MTR-US-021', capacity:'Export', firmware:'3.9', status:'Active', location:'POI', lastSeen:'1 min ago', children:'Export point' },
-    { id:'WX-US-021', plantId:'PL-US-012', type:'Weather Station', name:'Weather CA-12', vendor:'Campbell', model:'CR1000X', serial:'WX-US-021', capacity:'Weather package', firmware:'2.1', status:'Active', location:'Mast A', lastSeen:'2 min ago', children:'Irradiance · Wind · Humidity' },
-    { id:'TR-US-021', plantId:'PL-US-012', type:'Grid Device', name:'Transformer CA-12', vendor:'ABB', model:'2 MVA', serial:'TR-US-021', capacity:'2 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-US-021', plantId:'PL-US-012', type:'Switchgear', name:'Switchgear CA-12', vendor:'Schneider', model:'Premset', serial:'SW-US-021', capacity:'12 kV · 1000 A', firmware:'Relay 6.1', status:'Active', location:'Subplant', lastSeen:'3 min ago', children:'Breakers · Grid feeder' },
-    { id:'PCS-US-101', plantId:'PL-US-021', type:'PCS', name:'Power Conversion System TX-101', vendor:'Tesla', model:'Megapack PCS', serial:'PCS-US-101', capacity:'1 MW', firmware:'5.7', status:'Warning', location:'Battery pad', lastSeen:'12 min ago', children:'DC bus · AC output' },
-    { id:'WX-US-101', plantId:'PL-US-021', type:'Weather Station', name:'Weather TX-101', vendor:'Campbell', model:'CR1000X', serial:'WX-US-101', capacity:'Weather package', firmware:'2.1', status:'Active', location:'Mast B', lastSeen:'2 min ago', children:'Irradiance · Wind · Humidity' },
-    { id:'TR-US-101', plantId:'PL-US-021', type:'Grid Device', name:'Transformer TX-101', vendor:'ABB', model:'3 MVA', serial:'TR-US-101', capacity:'3 MVA', firmware:'—', status:'Active', location:'Subplant', lastSeen:'5 min ago', children:'Switchgear · Breaker' },
-    { id:'SW-US-101', plantId:'PL-US-021', type:'Switchgear', name:'Storage Switchgear TX-101', vendor:'Eaton', model:'Power Xpert UX', serial:'SW-US-101', capacity:'15 kV · 2000 A', firmware:'Relay 7.7', status:'Warning', location:'Subplant', lastSeen:'14 min ago', children:'PCS feeder · PV feeder · Main breaker' }
-  ];
+  const devices: ZentridDeviceRecord[] = [];
 
   function badge(value: unknown): string {
     const v = String(value || '').toLowerCase();
@@ -270,8 +194,8 @@ const ZentridClientModel = (() => {
     if (v.includes('offline') || v.includes('blocked')) return 'danger';
     return 'success';
   }
-  function getClient(id: string | null | undefined): ZentridClientRecord { return clients.find(x => x.id === id) || clients[0]!; }
-  function getPlant(id: string | null | undefined): ZentridPlantRecord { return plants.find(x => x.id === id) || plants[0]!; }
+  function getClient(id: string | null | undefined): ZentridClientRecord { return clients.find(x => x.id === id) || clients[0] || ({} as ZentridClientRecord); }
+  function getPlant(id: string | null | undefined): ZentridPlantRecord { return plants.find(x => x.id === id) || plants[0] || ({} as ZentridPlantRecord); }
   function plantsForClient(clientId: string): ZentridPlantRecord[] { return plants.filter(x => x.clientId === clientId); }
   function devicesForPlant(plantId: string): ZentridDeviceRecord[] { return devices.filter(x => x.plantId === plantId); }
   function countsForClient(clientId: string) {
@@ -290,8 +214,8 @@ const ZentridClientModel = (() => {
   }
   function selectClient(id: string) { localStorage.setItem('zentrid_selected_client', id); }
   function selectPlant(id: string) { localStorage.setItem('zentrid_selected_plant', id); }
-  function selectedClient(): ZentridClientRecord { return getClient(localStorage.getItem('zentrid_selected_client') || clients[0]!.id); }
-  function selectedPlant(): ZentridPlantRecord { return getPlant(localStorage.getItem('zentrid_selected_plant') || plantsForClient(selectedClient().id)[0]?.id || plants[0]!.id); }
+  function selectedClient(): ZentridClientRecord { return getClient(localStorage.getItem('zentrid_selected_client') || clients[0]?.id); }
+  function selectedPlant(): ZentridPlantRecord { const clientId = selectedClient().id; return getPlant(localStorage.getItem('zentrid_selected_plant') || (clientId ? plantsForClient(clientId)[0]?.id : undefined) || plants[0]?.id); }
 
   return { clients, plants, devices, badge, getClient, getPlant, plantsForClient, devicesForPlant, countsForClient, selectClient, selectPlant, selectedClient, selectedPlant };
 })();
@@ -367,6 +291,8 @@ function renderClientsPage() {
   const initialSearch = queryState?.search || '';
   const initialType = queryState?.params.clientType || 'all';
   const initialStatus = queryState?.params.clientStatus || 'all';
+  const clientTypes = Array.from(new Set(['Legal Entity', 'Individual', ...rows.map(row => String(row.type || '').trim()).filter(Boolean)]));
+  const clientStatuses = Array.from(new Set(['Active', 'Review', 'Pending', ...rows.map(row => String(row.status || '').trim()).filter(Boolean)]));
   const pager = window.ZentridRegistryQuery?.pagerHtml('clients', rows.length) || '';
   ZentridLayout.mount(`
     <section class="page-hero">
@@ -383,8 +309,8 @@ function renderClientsPage() {
       <div class="panel-head"><div><h2>Client Registry</h2><p class="muted">Global Admin can create the canonical client record and link it to the managing tenant. Operational plant access is still controlled through assignment scope.</p></div></div>
       <div class="toolbar">
         <input id="clientSearchV28" value="${clientDetailAttr(initialSearch)}" placeholder="Search current page by client, code, contact, country..." />
-        <select id="clientTypeV28"><option value="all" ${initialType === 'all' ? 'selected' : ''}>All types</option><option value="Legal Entity" ${initialType === 'Legal Entity' ? 'selected' : ''}>Legal Entity</option><option value="Individual" ${initialType === 'Individual' ? 'selected' : ''}>Individual</option></select>
-        <select id="clientStatusV28"><option value="all" ${initialStatus === 'all' ? 'selected' : ''}>All statuses</option><option ${initialStatus === 'Active' ? 'selected' : ''}>Active</option><option ${initialStatus === 'Review' ? 'selected' : ''}>Review</option><option ${initialStatus === 'Pending' ? 'selected' : ''}>Pending</option></select>
+        <select id="clientTypeV28"><option value="all" ${initialType === 'all' ? 'selected' : ''}>All types</option>${clientTypes.map(value => `<option value="${clientDetailAttr(value)}" ${initialType === value ? 'selected' : ''}>${clientDetailEscape(value)}</option>`).join('')}</select>
+        <select id="clientStatusV28"><option value="all" ${initialStatus === 'all' ? 'selected' : ''}>All statuses</option>${clientStatuses.map(value => `<option value="${clientDetailAttr(value)}" ${initialStatus === value ? 'selected' : ''}>${clientDetailEscape(value)}</option>`).join('')}</select>
       </div>
       <div id="clientFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('clients') || ''}</div>
       ${pager}
@@ -509,7 +435,7 @@ function clientCreateModal() {
         <div><p class="eyebrow">Client Registry · Create Client</p><h2 id="clientCreateTitle">Add New Client</h2><p class="muted">Create a canonical client profile and link it to the tenant that manages or supervises this client.</p></div>
         <span class="badge warning">Draft</span>
       </div>
-      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-zentrid-form-readiness="local" data-zentrid-form-contract="ClientCreateDraft" data-zentrid-form-endpoint="/api/admin/clients" data-zentrid-form-method="POST" data-zentrid-form-api-note="The current prototype save remains local; this DTO is prepared for the confirmed Client create contract.">
+      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="ClientCreateDraft" data-zentrid-form-endpoint="/api/admin/clients" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Client is connected to the confirmed backend mutation. Document files remain local metadata until a document upload API is available.">
         <aside class="setup-rail client-create-rail" aria-label="Create client steps">
           <button class="active" type="button" data-client-create-step="tenant"><b>1</b><span>Tenant Link</span></button>
           <button type="button" data-client-create-step="identity"><b>2</b><span>Identity</span></button>
@@ -524,7 +450,7 @@ function clientCreateModal() {
           <section class="form-section-card client-create-step-panel active" data-client-create-panel="tenant">
             <div class="section-title"><div><h3>Tenant Link</h3><p class="muted">Choose which tenant manages or supervises this client record.</p></div></div>
             <div class="client-form-grid two-col">
-              <label>Managing Tenant *<select name="tenant" required>${tenants.map(t => `<option>${t}</option>`).join('')}</select></label>
+              <label>Managing Tenant *<select name="tenant" id="clientCreateTenant" required>${tenants.map(t => `<option value="${t}">${t}</option>`).join('')}</select></label>
               <label>Client Type *<select name="type" id="clientCreateType" required><option>Individual</option><option>Legal Entity</option></select></label>
               <label>Account Activation<input name="activation" readonly value="Auto-generated on save" /></label>
               <label>Status *<select name="status" required><option>Pending</option><option>Review</option><option>Active</option></select></label>
@@ -605,7 +531,7 @@ function clientCreateModal() {
             </div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="review">
-            <div class="section-title"><div><h3>Review</h3><p class="muted">Check tenant link, identity, portal access, documents and banking data before saving the local client profile.</p></div></div>
+            <div class="section-title"><div><h3>Review</h3><p class="muted">Check tenant link, identity, portal access, documents and banking data before creating the backend client profile.</p></div></div>
             <div class="info-grid client-create-review">
               <div><span>Managing Tenant</span><strong data-review-field="tenant">Tenant Alpha Energy</strong><small>Tenant that supervises this client record</small></div>
               <div><span>Client Type</span><strong data-review-field="type">Individual</strong><small>Identity flow selected in step 1</small></div>
@@ -696,6 +622,44 @@ function clientCreateDraftSnapshot(): string {
   return form ? ZentridFormUX.snapshot(form) : '';
 }
 
+
+function clientCreateEscape(value: unknown): string {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function hydrateClientCreateTenantOptions(): Promise<void> {
+  const form = clientCreateFormElement();
+  const select = clientCreateControl<HTMLSelectElement>('tenant');
+  if (!form || !select || !window.ZentridAPIRepositories?.isConfigured()) return;
+  const wasPristine = clientCreateDraftSnapshot() === clientCreateInitialSnapshot;
+  const previousValue = select.value;
+  try {
+    const result = await ZentridAPIRepositories.tenants.list({
+      page: 1,
+      pageSize: 100,
+      requestGroup: 'client-create:tenants',
+      cacheVariant: 'client-create-tenant-options',
+      staleWhileRevalidate: true,
+      timeoutMs: 12000
+    });
+    const options = result.items.map(row => {
+      const id = String(row.id || row.tenantId || '').trim();
+      const code = String(row.code || row.tenantCode || row.externalId || '').trim();
+      const name = String(row.name || row.tenantName || row.displayName || row.legalName || code || id || '').trim();
+      const value = code || id || name;
+      return { id, code, name, value };
+    }).filter(option => Boolean(option.value && option.name));
+    if (!options.length) return;
+    select.innerHTML = options.map(option => `<option value="${clientCreateEscape(option.value)}" data-tenant-id="${clientCreateEscape(option.id)}" data-tenant-code="${clientCreateEscape(option.code)}" data-tenant-name="${clientCreateEscape(option.name)}">${clientCreateEscape(option.name)}${option.code && option.code !== option.name ? ` · ${clientCreateEscape(option.code)}` : ''}</option>`).join('');
+    const retained = options.find(option => option.value === previousValue || option.id === previousValue || option.code === previousValue || option.name === previousValue);
+    if (retained) select.value = retained.value;
+    updateClientCreateReview();
+    if (wasPristine) clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+  } catch (error) {
+    console.info('Create Client continues with the current tenant options because Tenant Registry was unavailable.', error);
+  }
+}
+
 function openClientCreateModal(): void {
   const modal = clientCreateModalElement();
   const form = clientCreateFormElement();
@@ -716,6 +680,7 @@ function openClientCreateModal(): void {
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
   clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+  void hydrateClientCreateTenantOptions();
   window.setTimeout(() => clientCreateControl<HTMLSelectElement>('tenant')?.focus(), 0);
 }
 
@@ -1066,7 +1031,137 @@ function createLocalClientId(): string {
   return id;
 }
 
-function submitClientCreateForm(e: Event): void {
+function clientCreateResponseRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  let row = value as Record<string, unknown>;
+  for (const key of ['data', 'client', 'result', 'item']) {
+    const nested = row[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) row = nested as Record<string, unknown>;
+  }
+  return row;
+}
+
+function clientCreateBackendId(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  const row = clientCreateResponseRecord(value);
+  for (const key of ['id', 'clientId', 'canonicalId', 'sourceEntityId']) {
+    const id = String(row[key] || '').trim();
+    if (id) return id;
+  }
+  return '';
+}
+
+function clientCreateApiPayload(
+  fd: FormData,
+  type: string,
+  fullName: string,
+  contactPerson: string,
+  bankAccounts: ZentridBankAccount[],
+  form: ClientForm
+): Record<string, unknown> {
+  const tenantSelect = form.elements.namedItem('tenant') as HTMLSelectElement | null;
+  const selectedTenant = tenantSelect?.selectedOptions[0];
+  const managingTenant = formValue(fd.get('tenant')).trim();
+  const managingTenantId = String(selectedTenant?.dataset.tenantId || '').trim();
+  const managingTenantCode = String(selectedTenant?.dataset.tenantCode || managingTenant).trim();
+  const managingTenantName = String(selectedTenant?.dataset.tenantName || selectedTenant?.textContent || managingTenant).split(' · ')[0]?.trim() || managingTenant;
+  const clientType = type;
+  const accountActivation = formValue(fd.get('status')).trim() || 'Pending';
+  const country = formValue(fd.get('country')).trim();
+  const region = formValue(fd.get('region')).trim();
+  const city = formValue(fd.get('city')).trim();
+  const address = formValue(fd.get('address')).trim();
+  const primaryContact = type === 'Individual' ? fullName : contactPerson;
+  const email = formValue(fd.get('email')).trim();
+  const phoneNumber1 = formValue(fd.get('phone1')).trim();
+  const username = formValue(fd.get('username')).trim();
+  const password = formValue(fd.get('password'));
+  const role = formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User';
+  const language = formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English';
+  const timezone = formValue(fd.get('timezone')) || 'Asia/Yerevan';
+  const temperatureUnit = formValue(fd.get('temperature')) || '°C';
+  const currency = formValue(fd.get('currency')) || 'AMD';
+  const irradiationUnit = formValue(fd.get('irradiation')) || 'kWh/m2';
+  const payload: Record<string, unknown> = {
+    clientName: fullName,
+    ClientName: fullName,
+    name: fullName,
+    Name: fullName,
+    managingTenant,
+    ManagingTenant: managingTenant,
+    tenant: managingTenant,
+    Tenant: managingTenant,
+    clientType,
+    ClientType: clientType,
+    accountActivation,
+    AccountActivation: accountActivation,
+    country,
+    Country: country,
+    region,
+    Region: region,
+    city,
+    City: city,
+    address,
+    Address: address,
+    primaryContact,
+    PrimaryContact: primaryContact,
+    email,
+    Email: email,
+    phoneNumber1,
+    PhoneNumber1: phoneNumber1,
+    username,
+    Username: username,
+    password,
+    Password: password,
+    role,
+    Role: role,
+    language,
+    Language: language,
+    timezone,
+    Timezone: timezone,
+    temperatureUnit,
+    TemperatureUnit: temperatureUnit,
+    currency,
+    Currency: currency,
+    irradiationUnit,
+    IrradiationUnit: irradiationUnit,
+    hasClientPassportFile: Boolean((form.elements.namedItem('clientPassport') as HTMLInputElement | null)?.files?.length),
+    hasStateRegistrationDocumentFile: Boolean((form.elements.namedItem('stateRegistrationDocument') as HTMLInputElement | null)?.files?.length),
+    hasProjectDocFile: Boolean((form.elements.namedItem('projectDoc') as HTMLInputElement | null)?.files?.length)
+  };
+  if (managingTenantId) payload.managingTenantId = managingTenantId;
+  if (managingTenantCode) payload.managingTenantCode = managingTenantCode;
+  if (managingTenantName) payload.managingTenantName = managingTenantName;
+  const optional = (key: string, value: unknown): void => {
+    if (value === undefined || value === null) return;
+    if (typeof value === 'string' && !value.trim()) return;
+    if (Array.isArray(value) && !value.length) return;
+    payload[key] = value;
+  };
+  optional('legalForm', type === 'Individual' ? 'Private Person' : formValue(fd.get('legalForm')).trim());
+  optional('registrationNo', type === 'Individual' ? formValue(fd.get('passportNumber')).trim() : formValue(fd.get('registrationNo')).trim());
+  optional('stateRegistrationNumber', formValue(fd.get('stateRegistrationNumber')).trim());
+  optional('taxId', type === 'Individual' ? '' : formValue(fd.get('taxId')).trim());
+  optional('phoneNumber2', formValue(fd.get('phone2')).trim());
+  const dob = formValue(fd.get('dob')).trim();
+  const dobMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob);
+  if (dobMatch) optional('dateOfBirth', `${dobMatch[3]}-${dobMatch[2]}-${dobMatch[1]}`);
+  optional('bankAccounts', bankAccounts);
+  return payload;
+}
+
+function saveClientCreateFallback(client: ZentridClientRecord): void {
+  if (!ZentridClientModel.clients.some(existing => existing.id === client.id)) ZentridClientModel.clients.push(client);
+  if (window.ZentridLocalStore) ZentridLocalStore.addClient(client);
+  else {
+    const saved = JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as ZentridClientRecord[];
+    saved.push(client);
+    localStorage.setItem('zentrid_custom_clients', JSON.stringify(saved));
+  }
+  ZentridClientModel.selectClient(client.id);
+}
+
+async function submitClientCreateForm(e: Event): Promise<void> {
   e.preventDefault();
   if (!ZentridActionPermissions.guard({ action:'create', resource:'client' })) return;
   if (clientCreateSaving) return;
@@ -1120,7 +1215,7 @@ function submitClientCreateForm(e: Event): void {
     accessScope: 'No plant assignment yet',
     exportPolicy: 'Disabled until activation',
     assignmentRole: formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User',
-    onboarding: 'Client profile created locally',
+    onboarding: 'Client profile saved locally because the backend was unavailable',
     username: formValue(fd.get('username')).trim(),
     language: formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English',
     timezone: formValue(fd.get('timezone')) || 'Asia/Yerevan',
@@ -1129,29 +1224,63 @@ function submitClientCreateForm(e: Event): void {
     irradiation: formValue(fd.get('irradiation')) || 'kWh/m2',
     activationAt: new Date().toLocaleString()
   };
+  const payload = clientCreateApiPayload(fd, type, fullName, contactPerson, bankAccounts, form);
   const saveButton = document.getElementById('saveClientCreate') as HTMLButtonElement | null;
   const summary = document.getElementById('clientValidationSummary');
   clientCreateSaving = true;
   if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Creating Client…');
+
   try {
-    if (!ZentridClientModel.clients.some(existing => existing.id === client.id)) ZentridClientModel.clients.push(client);
-    if (window.ZentridLocalStore) ZentridLocalStore.addClient(client);
-    else {
-      const saved = JSON.parse(localStorage.getItem('zentrid_custom_clients') || '[]') as ZentridClientRecord[];
-      saved.push(client);
-      localStorage.setItem('zentrid_custom_clients', JSON.stringify(saved));
+    if (!window.ZentridAPIMutations) throw new Error('Client mutation runtime is unavailable.');
+    const result = await ZentridAPIMutations.clients.create(payload);
+    if (result.ok) {
+      const backendId = clientCreateBackendId(result.data);
+      const responseRow = clientCreateResponseRecord(result.data);
+      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+      window.ZentridFormReadiness?.markCommitted(form);
+      closeClientCreateModal(true);
+      if (backendId) {
+        ZentridClientModel.selectClient(backendId);
+        ZentridLayout.toast('Client created in the backend. Opening Client Detail.');
+        window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
+      } else {
+        console.info('Client create succeeded without a returned identifier.', responseRow);
+        ZentridLayout.toast('Client created in the backend. Refreshing Client Registry.');
+        window.setTimeout(() => { location.href = 'clients.html'; }, 450);
+      }
+      return;
     }
-    ZentridClientModel.selectClient(client.id);
-    clientCreateInitialSnapshot = clientCreateDraftSnapshot();
-    window.ZentridFormReadiness?.markCommitted(form);
-    ZentridLayout.toast('Client created locally. Opening Client Detail.');
-    closeClientCreateModal(true);
-    window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
-  } catch (error) {
+
+    if (result.error.retriable) {
+      saveClientCreateFallback(client);
+      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+      window.ZentridFormReadiness?.markCommitted(form);
+      ZentridLayout.toast('Backend unavailable. Client saved locally and opened in Client Detail.');
+      closeClientCreateModal(true);
+      window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
+      return;
+    }
+
     clientCreateSaving = false;
     if (saveButton) ZentridFormUX.setBusy(saveButton, false);
-    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client was not created');
+    const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
+    ZentridFormUX.renderSummary(summary, [{ message: detail }], 'Client was not created');
     summary?.focus();
+  } catch (error) {
+    try {
+      saveClientCreateFallback(client);
+      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+      window.ZentridFormReadiness?.markCommitted(form);
+      ZentridLayout.toast('Client mutation runtime was unavailable. Client saved locally.');
+      closeClientCreateModal(true);
+      window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
+    } catch (fallbackError) {
+      clientCreateSaving = false;
+      if (saveButton) ZentridFormUX.setBusy(saveButton, false);
+      ZentridFormUX.renderSummary(summary, [{ message:'Unable to create the client through the backend or save the local fallback.' }], 'Client was not created');
+      summary?.focus();
+      console.error('Client create and fallback both failed.', error, fallbackError);
+    }
   }
 }
 
@@ -1478,6 +1607,7 @@ function renderClientDetailPage() {
   if (requestedEditTab && ['identity','location','portal','users','commercial'].includes(requestedEditTab)) clientDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_client_detail_edit');
   const client = ZentridClientModel.selectedClient();
+  if (!client.id) { window.ZentridApiOnly?.mountEmpty('Client Detail', 'The client endpoint has not returned a selected record.', '/api/admin/clients'); return; }
   const plants = ZentridClientModel.plantsForClient(client.id);
   ZentridLayout.mount(`
     <section class="page-hero client-hero-v17">
@@ -2370,7 +2500,70 @@ function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDe
     summary?.focus();
   }
 }
+type ZentridPlantTelemetryRecord = Record<string, unknown>;
+
+function plantTelemetryRecords(record: ZentridPlantRecord): ZentridPlantTelemetryRecord[] {
+  const store = window.ZentridLiveTelemetryByPlant as Record<string, ZentridPlantTelemetryRecord[]> | undefined;
+  if (!store) return [];
+  const keys = [record.id, record.externalId, record.code].map(value => String(value || '').trim()).filter(Boolean);
+  for (const key of keys) {
+    const rows = store[key];
+    if (Array.isArray(rows)) return rows;
+  }
+  return [];
+}
+
+function plantTelemetryLoaded(record: ZentridPlantRecord): boolean {
+  const loaded = window.ZentridLiveTelemetryLoadedPlants as Record<string, boolean> | undefined;
+  if (!loaded) return false;
+  return [record.id, record.externalId, record.code].some(value => Boolean(value && loaded[String(value)]));
+}
+
+function plantTelemetryMetricToken(value: unknown): string {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function plantTelemetryTimestamp(record: ZentridPlantTelemetryRecord): number {
+  const value = record.timestampRaw || record.timestamp;
+  const timestamp = Date.parse(String(value || ''));
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function plantTelemetryMetricValue(record: ZentridPlantRecord, aliases: string[]): string {
+  const expected = aliases.map(plantTelemetryMetricToken);
+  const telemetry = plantTelemetryRecords(record)
+    .filter(item => expected.includes(plantTelemetryMetricToken(item.metric)))
+    .sort((a, b) => plantTelemetryTimestamp(b) - plantTelemetryTimestamp(a))[0];
+  if (!telemetry) return '';
+  const display = String(telemetry.displayValue || '').trim();
+  if (display && display !== '—') return display;
+  const value = telemetry.valueText ?? telemetry.value;
+  if (value === undefined || value === null || value === '') return '';
+  const unit = String(telemetry.unit || '').trim();
+  return `${String(value)}${unit ? ` ${unit}` : ''}`;
+}
+
+function plantTelemetrySummary(record: ZentridPlantRecord): { currentPower: string; todayEnergy: string; freshness: string; quality: string; count: number; metrics: number } {
+  const rows = plantTelemetryRecords(record);
+  const latest = rows.slice().sort((a, b) => plantTelemetryTimestamp(b) - plantTelemetryTimestamp(a))[0];
+  const quality = String(latest?.quality || latest?.status || '').trim();
+  return {
+    currentPower: plantTelemetryMetricValue(record, ['current power', 'current power kw', 'active power', 'active power kw', 'plant power', 'plant power kw', 'power']),
+    todayEnergy: plantTelemetryMetricValue(record, ['today energy', 'today energy kwh', 'energy today', 'daily energy', 'daily energy kwh', 'daily yield', 'today yield']),
+    freshness: String(latest?.timestamp || '').trim(),
+    quality,
+    count: rows.length,
+    metrics: new Set(rows.map(item => plantTelemetryMetricToken(item.metric)).filter(Boolean)).size
+  };
+}
+
 function plantTelemetryState(record: ZentridPlantRecord): { kind: 'ready' | 'empty' | 'partial'; title: string; message: string } {
+  if (plantTelemetryLoaded(record)) {
+    const summary = plantTelemetrySummary(record);
+    if (!summary.count) return { kind:'empty', title:'No telemetry available', message:'The loaded telemetry page returned no records matching this plant.' };
+    if (/stale|delay|partial|invalid|error|fault|missing|unavailable/i.test(summary.quality)) return { kind:'partial', title:'Telemetry may be incomplete', message:`${summary.count} matching API record(s) were loaded, but their quality state requires attention.` };
+    return { kind:'ready', title:'Telemetry available', message:`${summary.count} matching API record(s) across ${summary.metrics} metric(s) were loaded for this plant.` };
+  }
   const power = String(record.powerNow || '').trim();
   const energy = String(record.energyToday || '').trim();
   const hasPower = power && !/^0(?:\.0+)?\s*(?:kw|mw)?$/i.test(power) && power !== '—';
@@ -2393,7 +2586,13 @@ function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab
   if (activeTab === 'structure') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Plant Structure</h2><p class="muted">Hierarchical plant tree. This is the bridge between the plant and physical devices.</p></div></div>${devices.length ? `<div class="asset-tree-v17"><div>Plant · ${plantDetailEscape(plant.name)}</div><ul><li>Area A<ul><li>Inverter Group A<ul><li>MPPT 1–12</li><li>Strings 1–24</li></ul></li></ul></li><li>Area B<ul><li>Inverter Group B</li><li>Solar Array B</li></ul></li><li>Subplant<ul><li>Transformer</li><li>Metering point</li></ul></li>${plant.battery === 'Yes' ? '<li>Battery System<ul><li>BESS Container</li><li>BMS / PCS / HVAC</li></ul></li>' : ''}</ul></div>` : `<div class="empty-state plant-empty-state-v119"><strong>Topology not available</strong><small>No devices were returned for this plant.</small></div>`}`);
   if (activeTab === 'energy') {
     const state = plantTelemetryState(plant);
-    return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Energy & Telemetry</h2><p class="muted">Plant-level live production, period energy and data freshness summary.</p></div><span class="badge ${state.kind === 'ready' ? 'success' : state.kind === 'partial' ? 'warning' : 'neutral'}">${plantDetailEscape(state.kind)}</span></div><div class="plant-data-state-v119 ${state.kind}"><strong>${plantDetailEscape(state.title)}</strong><small>${plantDetailEscape(state.message)}</small></div><div class="info-grid"><div><span>Current Power</span><strong>${plantDetailEscape(plant.powerNow || '—')}</strong><small>Instant power</small></div><div><span>Today Energy</span><strong>${plantDetailEscape(plant.energyToday || '—')}</strong><small>Energy accumulated today</small></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(plantDetailFreshness(plant))}</strong></div><div><span>Telemetry Quality</span><strong>${state.kind === 'ready' ? 'Available' : state.kind === 'partial' ? 'Partial / delayed' : 'No data'}</strong></div></div>${state.kind === 'empty' ? '' : '<div class="chart-placeholder">Energy production chart placeholder · Today / Week / Month</div>'}`);
+    const telemetry = plantTelemetrySummary(plant);
+    const currentPower = telemetry.currentPower || plant.powerNow || '—';
+    const todayEnergy = telemetry.todayEnergy || plant.energyToday || '—';
+    const freshness = telemetry.freshness || plantDetailFreshness(plant);
+    const quality = telemetry.quality || (state.kind === 'ready' ? 'Available' : state.kind === 'partial' ? 'Partial / delayed' : 'No data');
+    const telemetryNote = telemetry.count ? `Live telemetry records: ${telemetry.count} · Metrics: ${telemetry.metrics}` : '';
+    return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Energy & Telemetry</h2><p class="muted">Plant-level live production, period energy and data freshness summary.</p></div><span class="badge ${state.kind === 'ready' ? 'success' : state.kind === 'partial' ? 'warning' : 'neutral'}">${plantDetailEscape(state.kind)}</span></div><div class="plant-data-state-v119 ${state.kind}"><strong>${plantDetailEscape(state.title)}</strong><small>${plantDetailEscape(state.message)}</small></div><div class="info-grid"><div><span>Current Power</span><strong>${plantDetailEscape(currentPower)}</strong><small>Instant power</small></div><div><span>Today Energy</span><strong>${plantDetailEscape(todayEnergy)}</strong><small>Energy accumulated today</small></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(freshness)}</strong></div><div><span>Telemetry Quality</span><strong>${plantDetailEscape(quality)}</strong></div></div>${state.kind === 'empty' ? '' : `<div class="chart-placeholder">${plantDetailEscape(telemetryNote || 'Telemetry snapshot from the plant API record')}</div>`}`);
   }
   if (activeTab === 'alerts') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Alerts & Events</h2><p class="muted">Plant-level incident entry point with severity and affected device context.</p></div></div><div class="info-grid"><div><span>Open Alerts</span><strong>${plant.alerts}</strong></div><div><span>Health</span><strong>${plantDetailEscape(plant.health)}</strong></div><div><span>Primary Scope</span><strong>Plant / Device</strong></div><div><span>Workflow</span><strong>Alert → SOP → Task</strong></div></div><div class="data-table compact-table plant-alert-table-v17"><div class="data-head"><span>Alert</span><span>Severity</span><span>Source</span><span>Status</span></div><div class="data-row"><div><strong>${plant.alerts ? 'Related backend alerts loaded' : 'No active issues'}</strong><small>${plantDetailEscape(plant.name)}</small></div><div><span class="badge ${plant.alerts ? 'warning' : 'success'}">${plant.alerts ? 'Attention' : 'Normal'}</span></div><div><span>${plant.alerts ? 'Device / Integration' : 'System'}</span></div><div><span>${plant.alerts ? 'Open' : 'Clear'}</span></div></div></div>`);
   if (activeTab === 'device') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Devices & Device</h2><p class="muted">Full device registry for this plant. Use specific tabs for focused views.</p></div><span class="badge neutral">${devices.length} records</span></div>${deviceRows(devices, plant)}`);
@@ -2413,6 +2612,7 @@ function renderPlantDetailPage() {
   if (requestedEditTab && ['overview','adminsync'].includes(requestedEditTab)) plantDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_plant_detail_edit');
   const plant = ZentridClientModel.selectedPlant();
+  if (!plant.id) { window.ZentridApiOnly?.mountEmpty('Plant Detail', 'The plant endpoint has not returned a selected record.', '/api/plants'); return; }
   const client = ZentridClientModel.getClient(plant.clientId);
   const devices = ZentridClientModel.devicesForPlant(plant.id);
   ZentridLayout.mount(`

@@ -45,8 +45,8 @@ type ZentridEndpointCatalogItem = {
 type ZentridMutationEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
 
 type ZentridPlatformModule = {
-  list(): Promise<unknown>;
-  get(id: string): Promise<unknown>;
+  list(options?: ZentridRequestOptions): Promise<unknown>;
+  get(id: string, options?: ZentridRequestOptions): Promise<unknown>;
   create(payload: unknown): Promise<unknown>;
 };
 
@@ -65,6 +65,7 @@ type ZentridPlatformAPIShape = {
     alerts(options?: ZentridRequestOptions): Promise<unknown>;
     integrations(options?: ZentridRequestOptions): Promise<unknown>;
     providers(options?: ZentridRequestOptions): Promise<unknown>;
+    telemetry(options?: ZentridRequestOptions): Promise<unknown>;
   };
   tenants: ZentridPlatformModule & {
     activate(id: string): Promise<unknown>;
@@ -76,8 +77,8 @@ type ZentridPlatformAPIShape = {
   providerIntegrations: {
     templates(): Promise<unknown>;
     template(providerType: string): Promise<unknown>;
-    list(): Promise<unknown>;
-    get(id: string): Promise<unknown>;
+    list(options?: ZentridRequestOptions): Promise<unknown>;
+    get(id: string, options?: ZentridRequestOptions): Promise<unknown>;
     create(payload: unknown): Promise<unknown>;
     validate(id: string): Promise<unknown>;
     testConnection(id: string): Promise<unknown>;
@@ -110,6 +111,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     /^\/api\/integrations$/,
     /^\/api\/plants$/,
     /^\/api\/Providers$/,
+    /^\/api\/telemetry$/,
     /^\/api\/admin\/provider-integrations$/,
     /^\/api\/admin\/provider-integrations\/templates(?:\/[^/]+)?$/,
     /^\/api\/admin\/provider-integrations\/[^/]+(?:\/(validate|test-connection|test-sample-data|activate|suspend|archive|failed))?$/
@@ -177,13 +179,21 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     return Boolean(value && typeof value === 'object' && !Array.isArray(value));
   }
 
-  function collectionCount(value: unknown): number | null {
+  function collectionCount(value: unknown, depth = 0): number | null {
+    if (depth > 5) return null;
     if (Array.isArray(value)) return value.length;
     if (!isRecord(value)) return null;
-    const items = value.items;
-    const data = value.data;
-    if (Array.isArray(items)) return items.length;
-    if (Array.isArray(data)) return data.length;
+    const collectionKeys = ['items', 'data', 'records', 'rows', 'results', 'content', 'telemetry', 'measurements', 'points', 'samples', 'value', 'values'];
+    for (const key of collectionKeys) {
+      const candidate = value[key];
+      if (Array.isArray(candidate)) return candidate.length;
+    }
+    for (const key of ['data', 'result', 'payload']) {
+      const nested = value[key];
+      if (!isRecord(nested)) continue;
+      const count = collectionCount(nested, depth + 1);
+      if (count !== null) return count;
+    }
     return null;
   }
 
@@ -278,12 +288,13 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     devices: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/devices', options),
     alerts: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/alerts', options),
     integrations: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/integrations', options),
-    providers: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/Providers', options)
+    providers: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/Providers', options),
+    telemetry: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/telemetry', options)
   };
 
   const tenants = {
-    list: () => ZentridAPI.request('/api/admin/tenants'),
-    get: (id: string) => ZentridAPI.request(`/api/admin/tenants/${encodeURIComponent(id)}`),
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/tenants', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/tenants/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/tenants', jsonOptions('POST', payload), ['tenants'], 'tenant.create'),
     activate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['tenants'], 'tenant.activate'),
     deactivate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['tenants'], 'tenant.deactivate'),
@@ -291,22 +302,22 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
   };
 
   const clients = {
-    list: () => ZentridAPI.request('/api/admin/clients'),
-    get: (id: string) => ZentridAPI.request(`/api/admin/clients/${encodeURIComponent(id)}`),
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/clients', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/clients/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/clients', jsonOptions('POST', payload), ['clients'], 'client.create')
   };
 
   const plantRegistry = {
-    list: () => ZentridAPI.request('/api/admin/plants'),
-    get: (id: string) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`),
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/plants', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/plants', jsonOptions('POST', payload), ['plants'], 'plant.create')
   };
 
   const providerIntegrations = {
     templates: () => ZentridAPI.request('/api/admin/provider-integrations/templates'),
     template: (providerType: string) => ZentridAPI.request(`/api/admin/provider-integrations/templates/${encodeURIComponent(providerType)}`),
-    list: () => ZentridAPI.request('/api/admin/provider-integrations'),
-    get: (id: string) => ZentridAPI.request(`/api/admin/provider-integrations/${encodeURIComponent(id)}`),
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/provider-integrations', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/provider-integrations/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/provider-integrations', jsonOptions('POST', payload), ['integrations'], 'integration.create'),
     validate: (id: string) => mutationRequest(`/api/admin/provider-integrations/${encodeURIComponent(id)}/validate`, { method: 'POST' }, ['integrations'], 'integration.validate'),
     testConnection: (id: string) => mutationRequest(`/api/admin/provider-integrations/${encodeURIComponent(id)}/test-connection`, { method: 'POST' }, ['integrations'], 'integration.test-connection'),
@@ -320,45 +331,46 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
   const endpointCatalog: ZentridEndpointCatalogItem[] = [
     { group: 'Auth', label: 'Login', method: 'POST', path: '/api/Auth/login', safe: false, used: true, notes: 'Used by login page.' },
     { group: 'Auth', label: 'Register', method: 'POST', path: '/api/Auth/register', safe: false, used: false, notes: 'Manual only. Creates a user/account.' },
-    { group: 'Auth', label: 'Refresh Token', method: 'POST', path: '/api/Auth/refresh', safe: false, used: true, notes: 'Manual only. Refreshes session.' },
-    { group: 'Auth', label: 'Logout', method: 'POST', path: '/api/Auth/logout', safe: false, used: true, notes: 'Manual only. Ends backend session.' },
+    { group: 'Auth', label: 'Refresh Token', method: 'POST', path: '/api/Auth/refresh', safe: false, used: true, notes: 'Used automatically after eligible 401 responses and available manually in API Console.' },
+    { group: 'Auth', label: 'Logout', method: 'POST', path: '/api/Auth/logout', safe: false, used: true, notes: 'Used by the global profile Logout action; local session is always cleared even when backend logout is unavailable.' },
     { group: 'Auth', label: 'Current User', method: 'GET', path: '/api/Auth/me', safe: true, used: true, notes: 'Returns current authenticated user/profile.' },
     { group: 'Auth', label: 'Validate Token', method: 'POST', path: '/api/Auth/validate', safe: true, used: true, notes: 'Validates current Bearer token.' },
     { group: 'Jwks', label: 'JWKS', method: 'GET', path: '/.well-known/jwks.json', safe: true, used: false, notes: 'Public JSON Web Key Set endpoint.' },
 
     { group: 'Clients', label: 'List Clients', method: 'GET', path: '/api/admin/clients', safe: true, used: true, notes: 'Global Admin client registry list.' },
-    { group: 'Clients', label: 'Create Client', method: 'POST', path: '/api/admin/clients', safe: false, used: false, notes: 'Manual only. Creates a client.' },
-    { group: 'Clients', label: 'Get Client by ID', method: 'GET', path: '/api/admin/clients/{id}', safe: false, used: false, notes: 'Manual only. Requires client id.' },
+    { group: 'Clients', label: 'Create Client', method: 'POST', path: '/api/admin/clients', safe: false, used: true, notes: 'Used by the existing Create Client wizard.' },
+    { group: 'Clients', label: 'Get Client by ID', method: 'GET', path: '/api/admin/clients/{id}', safe: false, used: true, notes: 'Used by Client Detail. Requires the selected client id.' },
 
     { group: 'PlantRegistry', label: 'List Admin Plants', method: 'GET', path: '/api/admin/plants', safe: true, used: true, notes: 'Admin plant registry list.' },
-    { group: 'PlantRegistry', label: 'Create Admin Plant', method: 'POST', path: '/api/admin/plants', safe: false, used: false, notes: 'Manual only. Creates a plant.' },
-    { group: 'PlantRegistry', label: 'Get Admin Plant by ID', method: 'GET', path: '/api/admin/plants/{id}', safe: false, used: false, notes: 'Manual only. Requires plant id.' },
+    { group: 'PlantRegistry', label: 'Create Admin Plant', method: 'POST', path: '/api/admin/plants', safe: false, used: true, notes: 'Used by the existing Create Plant wizard.' },
+    { group: 'PlantRegistry', label: 'Get Admin Plant by ID', method: 'GET', path: '/api/admin/plants/{id}', safe: false, used: true, notes: 'Used by Plant Detail. Requires the selected plant id.' },
 
     { group: 'Platform Live API', label: 'Live Alerts', method: 'GET', path: '/api/alerts', safe: true, used: true, notes: 'Returns normalized alert list.' },
     { group: 'Platform Live API', label: 'Live Devices', method: 'GET', path: '/api/devices', safe: true, used: true, notes: 'Returns normalized device list.' },
     { group: 'Platform Live API', label: 'Live Integrations', method: 'GET', path: '/api/integrations', safe: true, used: true, notes: 'Returns provider integration summary list.' },
     { group: 'Platform Live API', label: 'Live Plants', method: 'GET', path: '/api/plants', safe: true, used: true, notes: 'Returns normalized plant list.' },
     { group: 'Platform Live API', label: 'Providers', method: 'GET', path: '/api/Providers', safe: true, used: true, notes: 'Returns provider registry.' },
+    { group: 'Platform Live API', label: 'Telemetry', method: 'GET', path: '/api/telemetry', safe: true, used: true, notes: 'Used by Telemetry Governance through the typed telemetry repository with server pagination and preserved raw payloads.' },
 
     { group: 'ProviderIntegrations', label: 'List Provider Templates', method: 'GET', path: '/api/admin/provider-integrations/templates', safe: true, used: true, notes: 'Returns available provider template names.' },
-    { group: 'ProviderIntegrations', label: 'Provider Template by Type', method: 'GET', path: '/api/admin/provider-integrations/templates/{providerType}', safe: false, used: false, notes: 'Manual only. Requires provider type.' },
+    { group: 'ProviderIntegrations', label: 'Provider Template by Type', method: 'GET', path: '/api/admin/provider-integrations/templates/{providerType}', safe: false, used: true, notes: 'Used by the existing Connector Wizard after provider selection.' },
     { group: 'ProviderIntegrations', label: 'List Provider Integrations', method: 'GET', path: '/api/admin/provider-integrations', safe: true, used: true, notes: 'Provider integration registry list.' },
-    { group: 'ProviderIntegrations', label: 'Create Provider Integration', method: 'POST', path: '/api/admin/provider-integrations', safe: false, used: false, notes: 'Manual only. Creates provider integration.' },
-    { group: 'ProviderIntegrations', label: 'Get Provider Integration by ID', method: 'GET', path: '/api/admin/provider-integrations/{id}', safe: false, used: false, notes: 'Manual only. Requires provider integration id.' },
-    { group: 'ProviderIntegrations', label: 'Validate Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/validate', safe: false, used: false, notes: 'Manual only. Requires provider integration id.' },
-    { group: 'ProviderIntegrations', label: 'Test Provider Connection', method: 'POST', path: '/api/admin/provider-integrations/{id}/test-connection', safe: false, used: false, notes: 'Manual only. Requires provider integration id.' },
-    { group: 'ProviderIntegrations', label: 'Test Provider Sample Data', method: 'POST', path: '/api/admin/provider-integrations/{id}/test-sample-data', safe: false, used: false, notes: 'Manual only. Requires provider integration id.' },
-    { group: 'ProviderIntegrations', label: 'Activate Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/activate', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' },
-    { group: 'ProviderIntegrations', label: 'Suspend Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/suspend', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' },
-    { group: 'ProviderIntegrations', label: 'Archive Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/archive', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' },
+    { group: 'ProviderIntegrations', label: 'Create Provider Integration', method: 'POST', path: '/api/admin/provider-integrations', safe: false, used: true, notes: 'Used by the existing Create Connector wizard.' },
+    { group: 'ProviderIntegrations', label: 'Get Provider Integration by ID', method: 'GET', path: '/api/admin/provider-integrations/{id}', safe: false, used: true, notes: 'Used by Integration Detail. Requires provider integration id.' },
+    { group: 'ProviderIntegrations', label: 'Validate Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/validate', safe: false, used: true, notes: 'Used by the existing Integration Detail validation action.' },
+    { group: 'ProviderIntegrations', label: 'Test Provider Connection', method: 'POST', path: '/api/admin/provider-integrations/{id}/test-connection', safe: false, used: true, notes: 'Used by the existing Integration Detail connection test action.' },
+    { group: 'ProviderIntegrations', label: 'Test Provider Sample Data', method: 'POST', path: '/api/admin/provider-integrations/{id}/test-sample-data', safe: false, used: true, notes: 'Used by the existing Integration Detail sample-data test action.' },
+    { group: 'ProviderIntegrations', label: 'Activate Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/activate', safe: false, used: true, notes: 'Used by the existing Integration Detail lifecycle action.' },
+    { group: 'ProviderIntegrations', label: 'Suspend Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/suspend', safe: false, used: true, notes: 'Used by the existing Integration Detail lifecycle action.' },
+    { group: 'ProviderIntegrations', label: 'Archive Provider Integration', method: 'POST', path: '/api/admin/provider-integrations/{id}/archive', safe: false, used: true, notes: 'Used by the existing Integration Detail lifecycle action.' },
     { group: 'ProviderIntegrations', label: 'Mark Provider Integration Failed', method: 'POST', path: '/api/admin/provider-integrations/{id}/failed', safe: false, used: false, notes: 'Manual only. Lifecycle/error-state write action.' },
 
     { group: 'Tenants', label: 'List Tenants', method: 'GET', path: '/api/admin/tenants', safe: true, used: true, notes: 'Global Admin tenant registry list.' },
-    { group: 'Tenants', label: 'Create Tenant', method: 'POST', path: '/api/admin/tenants', safe: false, used: false, notes: 'Manual only. Creates tenant.' },
-    { group: 'Tenants', label: 'Get Tenant by ID', method: 'GET', path: '/api/admin/tenants/{id}', safe: false, used: false, notes: 'Manual only. Requires tenant id.' },
-    { group: 'Tenants', label: 'Activate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/activate', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' },
-    { group: 'Tenants', label: 'Deactivate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/deactivate', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' },
-    { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: false, notes: 'Manual only. Lifecycle write action.' }
+    { group: 'Tenants', label: 'Create Tenant', method: 'POST', path: '/api/admin/tenants', safe: false, used: true, notes: 'Used by the existing Tenant Provisioning Wizard.' },
+    { group: 'Tenants', label: 'Get Tenant by ID', method: 'GET', path: '/api/admin/tenants/{id}', safe: false, used: true, notes: 'Used by Tenant Detail. Requires the selected tenant id.' },
+    { group: 'Tenants', label: 'Activate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/activate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
+    { group: 'Tenants', label: 'Deactivate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/deactivate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
+    { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' }
   ];
 
   async function checkCatalog({ includeUnsafe = false }: { includeUnsafe?: boolean } = {}): Promise<Array<ZentridEndpointCatalogItem & ZentridRawRequestResult>> {
