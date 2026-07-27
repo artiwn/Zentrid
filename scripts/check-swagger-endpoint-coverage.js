@@ -13,7 +13,7 @@ const platformSource = read('assets/js/platform-api.ts');
 const diagnosticsSource = read('assets/js/api-diagnostics.ts');
 const packageJson = JSON.parse(read('package.json'));
 
-expect(manifest.operationCount === 37, `Swagger manifest must contain 37 operations, received ${manifest.operationCount}.`);
+expect(manifest.operationCount === 38, `Swagger manifest must contain 38 operations, received ${manifest.operationCount}.`);
 expect(Array.isArray(manifest.operations) && manifest.operations.length === manifest.operationCount, 'Swagger operation manifest count is inconsistent.');
 
 const storage = new Map();
@@ -92,5 +92,5 @@ function finish() {
     process.exitCode = 1;
     return;
   }
-  console.log('Swagger endpoint coverage OK: 37 operations, exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified.');
+  console.log('Swagger endpoint coverage OK: 38 operations, exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified.');
 }

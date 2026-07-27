@@ -14,14 +14,14 @@ const css = read('assets/css/src/50-production-normalization-tenant-tables.css')
 const pkg = JSON.parse(read('package.json') || '{}');
 [
   'renderTenantDetailControls', 'tenantDetailBackendManaged', 'tenantDetailCanEdit',
-  'Live tenant · local override available',
-  'Edit creates a browser-only override for tenant metadata',
+  'Live tenant · backend editing available',
+  'Edit saves tenant metadata through PUT /api/admin/tenants/{id}',
   'tenantDetailConfirmDiscard', 'Discard unsaved changes and open another tenant section?',
   'validateTenantDetailEdits', 'At least one active contact must have the Primary role',
   'Email duplicates another contact', 'A tenant named',
   'addTenantDetailContact', 'removeTenantDetailContact',
   'addTenantDetailDocument', 'removeTenantDetailDocument',
-  'Tenant section saved locally', 'No backend request was sent',
+  'Tenant updated', 'ZentridAPIMutations.tenants.update', 'tenantUpdateApiPayload',
   'tenantDetailFreshness', 'Last backend sync',
   'role="status"', 'aria-live="polite"', 'aria-busy="false"',
   'beforeunload'
@@ -48,4 +48,4 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('Tenant Detail UX checks OK: source-aware editing, lifecycle-safe status, validation, unsaved-change protection, local metadata controls, freshness and accessibility verified.');
+console.log('Tenant Detail UX checks OK: nested API mapping, backend PUT editing, lifecycle-safe status, validation, unsaved-change protection, freshness and accessibility verified.');

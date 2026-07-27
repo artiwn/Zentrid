@@ -599,6 +599,7 @@ interface ZentridAPIMutationsApi {
   unwrap<T>(result: ZentridMutationResult<T>): T;
   clients: ZentridMutationCreateApi;
   tenants: ZentridMutationCreateApi & {
+    update(id: string, payload: unknown): Promise<ZentridMutationResult>;
     activate(id: string): Promise<ZentridMutationResult>;
     deactivate(id: string): Promise<ZentridMutationResult>;
     archive(id: string): Promise<ZentridMutationResult>;
