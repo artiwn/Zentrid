@@ -68,6 +68,7 @@ type ZentridPlatformAPIShape = {
     telemetry(options?: ZentridRequestOptions): Promise<unknown>;
   };
   tenants: ZentridPlatformModule & {
+    update(id: string, payload: unknown): Promise<unknown>;
     activate(id: string): Promise<unknown>;
     deactivate(id: string): Promise<unknown>;
     archive(id: string): Promise<unknown>;
@@ -296,6 +297,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/tenants', options),
     get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/tenants/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/tenants', jsonOptions('POST', payload), ['tenants'], 'tenant.create'),
+    update: (id: string, payload: unknown) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['tenants'], 'tenant.update'),
     activate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['tenants'], 'tenant.activate'),
     deactivate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['tenants'], 'tenant.deactivate'),
     archive: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/archive`, { method: 'POST' }, ['tenants'], 'tenant.archive')
@@ -368,6 +370,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Tenants', label: 'List Tenants', method: 'GET', path: '/api/admin/tenants', safe: true, used: true, notes: 'Global Admin tenant registry list.' },
     { group: 'Tenants', label: 'Create Tenant', method: 'POST', path: '/api/admin/tenants', safe: false, used: true, notes: 'Used by the existing Tenant Provisioning Wizard.' },
     { group: 'Tenants', label: 'Get Tenant by ID', method: 'GET', path: '/api/admin/tenants/{id}', safe: false, used: true, notes: 'Used by Tenant Detail. Requires the selected tenant id.' },
+    { group: 'Tenants', label: 'Update Tenant', method: 'PUT', path: '/api/admin/tenants/{id}', safe: false, used: true, notes: 'Used by Tenant Detail editing with the nested tenant update DTO.' },
     { group: 'Tenants', label: 'Activate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/activate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
     { group: 'Tenants', label: 'Deactivate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/deactivate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
     { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' }

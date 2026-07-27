@@ -187,10 +187,87 @@ function tenantCreateBackendId(value: unknown): string {
   return '';
 }
 
+function tenantApiNullable(value: unknown): string | null {
+  const text = String(value ?? '').trim();
+  if (!text || text === '—' || text.toLowerCase() === 'not set' || text.toLowerCase() === 'none') return null;
+  return text;
+}
+
+function tenantApiCountryCode(value: unknown): string | null {
+  const text = String(value ?? '').trim();
+  if (!text || text === '—') return null;
+  const aliases: Record<string, string> = {
+    armenia: 'AM', am: 'AM',
+    'united states': 'US', 'united states of america': 'US', usa: 'US', us: 'US',
+    georgia: 'GE', ge: 'GE',
+    germany: 'DE', de: 'DE',
+    france: 'FR', fr: 'FR',
+    italy: 'IT', it: 'IT',
+    spain: 'ES', es: 'ES',
+    'united kingdom': 'GB', uk: 'GB', gb: 'GB'
+  };
+  return aliases[text.toLowerCase()] || (text.length === 2 ? text.toUpperCase() : text);
+}
+
+function tenantApiContact(contact: ZentridTenantContact): Record<string, unknown> {
+  return {
+    firstName: tenantApiNullable(contact.first),
+    lastName: tenantApiNullable(contact.last),
+    position: tenantApiNullable(contact.position),
+    department: tenantApiNullable(contact.department),
+    contactRole: tenantApiNullable(contact.role),
+    email: tenantApiNullable(contact.email),
+    mobilePhone: tenantApiNullable(contact.mobile || contact.phone),
+    officePhone: tenantApiNullable(contact.office),
+    preferredLanguage: tenantApiNullable(contact.language),
+    preferredContactMethod: tenantApiNullable(contact.method),
+    active: tenantBoolean(contact.active, true)
+  };
+}
+
+function tenantSectionedApiPayload(source: {
+  general: Record<string, unknown>;
+  legalAddress: Record<string, unknown>;
+  businessAddressSameAsLegal: boolean;
+  businessAddress: Record<string, unknown>;
+  contacts: ZentridTenantContact[];
+  classification: Record<string, unknown>;
+  communication: Record<string, unknown>;
+  legalCompliance: Record<string, unknown>;
+  notes: Record<string, unknown>;
+}): Record<string, unknown> {
+  return {
+    generalInformation: source.general,
+    addressInformation: {
+      legalAddress: source.legalAddress,
+      businessAddressSameAsLegal: source.businessAddressSameAsLegal,
+      businessAddress: source.businessAddressSameAsLegal ? source.legalAddress : source.businessAddress,
+      notes: tenantApiNullable(source.notes.address)
+    },
+    contactPersons: {
+      contacts: source.contacts.map(tenantApiContact),
+      notes: tenantApiNullable(source.notes.contacts)
+    },
+    tenantClassification: {
+      ...source.classification,
+      notes: tenantApiNullable(source.notes.classification)
+    },
+    communicationPreferences: {
+      ...source.communication,
+      notes: tenantApiNullable(source.notes.communication)
+    },
+    legalCompliance: {
+      ...source.legalCompliance,
+      notes: tenantApiNullable(source.notes.legal)
+    }
+  };
+}
+
 function tenantCreateApiPayload(
   formData: FormData,
   contacts: ZentridTenantContact[],
-  documents: ZentridTenantDocument[]
+  documents: ZentridTenantDocument[],
+  _tenantCode?: string
 ): Record<string, unknown> {
   const country = tenantFormText(formData, 'country', 'Armenia').trim();
   const name = tenantFormText(formData, 'name').trim();
@@ -294,6 +371,108 @@ function tenantCreateApiPayload(
   return payload;
 }
 
+function tenantBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') return value;
+  const text = String(value ?? '').trim().toLowerCase();
+  if (['true', 'yes', '1', 'on', 'enabled', 'signed'].includes(text)) return true;
+  if (['false', 'no', '0', 'off', 'disabled', 'not signed'].includes(text)) return false;
+  return fallback;
+}
+
+function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unknown> {
+  const notes = record.notes || {};
+  const businessSame = tenantBoolean(record.businessSame, true);
+  const employees = record.employees !== '' && record.employees !== undefined && record.employees !== null && Number.isFinite(Number(record.employees))
+    ? Number(record.employees)
+    : null;
+  const payload = tenantSectionedApiPayload({
+    general: {
+      tenantId: tenantApiNullable(record.id),
+      tenantCode: tenantApiNullable(record.code),
+      entityType: tenantApiNullable(record.entityType),
+      tenantName: tenantApiNullable(record.name),
+      legalName: tenantApiNullable(record.legal),
+      tradeName: tenantApiNullable(record.trade),
+      displayName: tenantApiNullable(record.displayName),
+      country: tenantApiCountryCode(record.profileCountry || record.country),
+      registrationNumber: tenantApiNullable(record.registration),
+      taxId: tenantApiNullable(record.tax),
+      tenantStatus: tenantApiNullable(tenantStatusValue(record)),
+      tenantType: tenantApiNullable(Array.isArray(record.types) ? record.types[0] : null),
+      accountManager: tenantApiNullable(record.account),
+      industrySector: tenantApiNullable(record.industry),
+      businessCategory: tenantApiNullable(record.businessCategory),
+      parentCompany: tenantApiNullable(record.parentCompany),
+      numberOfEmployees: employees,
+      annualRevenueRange: tenantApiNullable(record.annualRevenue),
+      website: tenantApiNullable(record.webplant),
+      notes: tenantApiNullable(notes.general)
+    },
+    legalAddress: {
+      country: tenantApiCountryCode(record.profileCountry || record.country),
+      region: tenantApiNullable(record.region),
+      city: tenantApiNullable(record.city),
+      address: tenantApiNullable(record.address),
+      buildingNumber: tenantApiNullable(record.building),
+      postalCode: tenantApiNullable(record.postal)
+    },
+    businessAddressSameAsLegal: businessSame,
+    businessAddress: {
+      country: tenantApiCountryCode(record.businessCountry),
+      region: tenantApiNullable(record.businessRegion),
+      city: tenantApiNullable(record.businessCity),
+      address: tenantApiNullable(record.businessAddress),
+      buildingNumber: tenantApiNullable(record.businessBuilding),
+      postalCode: tenantApiNullable(record.businessPostal)
+    },
+    contacts: record.contacts || [],
+    classification: {
+      tenantCategory: tenantApiNullable(record.category),
+      accountTier: tenantApiNullable(record.tier),
+      priority: tenantApiNullable(record.priority),
+      riskCategory: tenantApiNullable(record.risk),
+      acquisitionSource: tenantApiNullable(record.acquisitionSource)
+    },
+    communication: {
+      preferredLanguage: tenantApiNullable(record.language),
+      timezone: tenantApiNullable(record.timezone),
+      communicationChannel: tenantApiNullable(record.channel),
+      businessHours: tenantApiNullable(record.businessHours),
+      platformNotifications: tenantBoolean(record.platformNotifications, true),
+      serviceNotifications: tenantBoolean(record.serviceNotifications, true),
+      invoiceNotifications: tenantBoolean(record.invoiceNotifications, true),
+      securityNotifications: tenantBoolean(record.securityNotifications, true),
+      notificationRecipients: tenantApiNullable(record.notificationRecipients)
+    },
+    legalCompliance: {
+      dataProcessingAgreementStatus: tenantApiNullable(record.dpa),
+      ndaStatus: tenantApiNullable(record.nda),
+      complianceStatus: tenantApiNullable(record.compliance),
+      confidentialityLevel: tenantApiNullable(record.confidentiality),
+      dataControllerType: tenantApiNullable(record.controllerType),
+      consentStatus: tenantApiNullable(record.consent),
+      consentExpiryDate: tenantApiNullable(record.consentExpiry),
+      documents: [],
+      hasUploadedDocuments: false
+    },
+    notes: {
+      address: notes.address,
+      contacts: notes.contacts,
+      classification: notes.classification,
+      communication: notes.communication,
+      legal: notes.legal
+    }
+  });
+  const general = (payload.generalInformation && typeof payload.generalInformation === 'object')
+    ? payload.generalInformation as Record<string, unknown>
+    : null;
+  // Backend PUT currently applies create-style uniqueness validation to tenantName
+  // and rejects the record against itself. Omit an unchanged name from the update body.
+  if (general && String(record.name || '').trim()) delete general.tenantName;
+  return { id: record.id, ...payload };
+}
+
+
 function saveTenantCreateFallback(tenant: ZentridTenantRecord): void {
   sessionStorage.setItem(TENANT_CREATE_FALLBACK_KEY, JSON.stringify(tenant));
   localStorage.setItem('zentrid_selected_tenant', tenant.id);
@@ -301,6 +480,35 @@ function saveTenantCreateFallback(tenant: ZentridTenantRecord): void {
 
 function clearTenantCreateFallback(): void {
   sessionStorage.removeItem(TENANT_CREATE_FALLBACK_KEY);
+}
+
+async function reconcileCreatedTenant(candidate: ZentridTenantRecord): Promise<string> {
+  if (!window.ZentridAPIRepositories?.isConfigured()) return '';
+  try {
+    const result = await ZentridAPIRepositories.tenants.list({
+      page: 1,
+      pageSize: 100,
+      forceRefresh: true,
+      staleWhileRevalidate: false,
+      requestGroup: 'tenant-create:reconcile',
+      cacheVariant: `tenant-create-reconcile:${Date.now()}`,
+      timeoutMs: 15000
+    });
+    const normalize = (value: unknown): string => String(value || '').trim().toLowerCase();
+    const candidateTax = normalize(candidate.tax);
+    const candidateRegistration = normalize(candidate.registration);
+    const candidateName = normalize(candidate.name);
+    const candidateLegal = normalize(candidate.legal);
+    const match = (result.items as ZentridTenantRecord[]).find(row => {
+      if (candidateTax && normalize(row.tax) === candidateTax) return true;
+      if (candidateRegistration && normalize(row.registration) === candidateRegistration) return true;
+      return candidateName && normalize(row.name) === candidateName && (!candidateLegal || normalize(row.legal) === candidateLegal);
+    });
+    return String(match?.id || '').trim();
+  } catch (error) {
+    console.warn('Tenant create reconciliation failed.', error);
+    return '';
+  }
 }
 function selectedTenant(): ZentridTenantRecord {
   const rows = getTenants();
@@ -610,8 +818,8 @@ function tenantDetailFreshness(record: ZentridTenantRecord): string {
 function tenantDetailModeCopy(record: ZentridTenantRecord): { title: string; message: string; tone: TenantDetailFeedbackTone } {
   return ZentridEntityDetailUX.modeCopy(record, 'tenant', {
     status:tenantStatusValue(record),
-    backendTitle:'Live tenant · local override available',
-    backendMessage:'Edit creates a browser-only override for tenant metadata. Lifecycle commands remain separate and no backend update request is sent.',
+    backendTitle:'Live tenant · backend editing available',
+    backendMessage:'Edit saves tenant metadata through PUT /api/admin/tenants/{id}. Lifecycle commands remain separate.',
     archivedTitle:'Archived tenant is read-only',
     archivedMessage:'Archived tenant identity, contacts and compliance data cannot be edited from this workspace.'
   });
@@ -745,7 +953,7 @@ function updateTenantDetailEditButtons(): void {
   if (edit) {
     edit.classList.toggle('hidden', tenantDetailEditMode);
     edit.disabled = tenantDetailBusy || !tenantDetailCanEdit(record);
-    edit.title = tenantDetailCanEdit(record) ? (tenantDetailBackendManaged(record) ? 'Edit as a local browser override' : 'Edit this local tenant section') : tenantDetailIsArchived(record) ? 'Archived tenants are read-only' : 'Managed Plants are edited from the Plant workspace';
+    edit.title = tenantDetailCanEdit(record) ? 'Edit this tenant through the backend update endpoint' : tenantDetailIsArchived(record) ? 'Archived tenants are read-only' : 'Managed Plants are edited from the Plant workspace';
   }
   cancel?.classList.toggle('hidden', !tenantDetailEditMode);
   save?.classList.toggle('hidden', !tenantDetailEditMode);
@@ -756,7 +964,7 @@ function setTenantDetailEditMode(enabled: boolean, force = false): void {
   const record = selectedTenant();
   if (enabled && !tenantDetailCanEdit(record)) {
     setTenantDetailFeedback('warning', 'Tenant section is read-only', tenantDetailBackendManaged(record)
-      ? 'The backend does not expose a Tenant update endpoint. No local override was created for this live tenant.'
+      ? 'This tenant is editable through PUT /api/admin/tenants/{id}.'
       : tenantDetailIsArchived(record)
         ? 'Archived tenant data cannot be changed.'
         : 'Managed Plants are edited from the Plant workspace.');
@@ -872,38 +1080,35 @@ function refreshTenantDetailSummary(): void {
   const control = document.getElementById('tenantDetailControl');
   if (control) control.outerHTML = renderTenantDetailControls(record);
 }
-function saveTenantDetailEdits(): void {
+async function saveTenantDetailEdits(): Promise<void> {
   if (tenantDetailBusy || !tenantDetailDraft) return;
   const record = selectedTenant();
-  if (!ZentridActionPermissions.guard({ action:'edit', resource:'tenant', record, status:tenantStatusValue(record), origin:tenantDetailOrigin(record), updateAvailable:false, localOverride:true })) return;
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'tenant', record, status:tenantStatusValue(record), origin:tenantDetailOrigin(record), updateAvailable:true, localOverride:false })) return;
   if (!tenantDetailCanEdit(record)) {
-    setTenantDetailFeedback('warning', 'Tenant section is read-only', 'No local override was created.');
+    setTenantDetailFeedback('warning', 'Tenant section is read-only', 'Archived tenants and Managed Plants cannot be edited here.');
     return;
   }
-  const result = validateTenantDetailEdits();
-  if (!result.valid) return;
+  const validation = validateTenantDetailEdits();
+  if (!validation.valid) return;
   syncTenantDetailInputs(tenantDetailDraft);
   const saveButton = tenantElement<HTMLButtonElement>('saveTenantEdit');
   tenantDetailBusy = true;
-  if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Saving locally…');
+  if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Saving to API…');
   document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'true');
   try {
     const next = tenantCloneRecord(tenantDetailDraft);
-    updateSelectedTenant(tenant => {
-      const stableId = tenant.id;
-      const stableStatus = tenant.status;
-      Object.assign(tenant, next);
-      tenant.id = stableId;
-      if (stableStatus !== undefined) tenant.status = stableStatus;
-      else delete tenant.status;
-      tenant.updated = new Date().toISOString().slice(0,10);
-    });
+    const payload = tenantUpdateApiPayload(next);
+    const result = await ZentridAPIMutations.tenants.update(record.id, payload);
+    if (!ZentridAPIMutations.isSuccess(result)) {
+      throw new Error(result.error.message || result.message || 'Tenant update failed.');
+    }
     setTenantDetailEditMode(false, true);
-    refreshTenantDetailSummary();
-    setTenantDetailFeedback('success', 'Tenant section saved locally', 'This prototype change was stored only in the current browser. No backend request was sent.');
-    ZentridLayout.toast('Tenant section saved locally');
-  } catch {
-    setTenantDetailFeedback('danger', 'Unable to save tenant section', 'Review browser storage and try again.');
+    setTenantDetailFeedback('success', 'Tenant updated', 'The changes were saved through PUT /api/admin/tenants/{id}. Refreshing the live detail record…');
+    ZentridLayout.toast('Tenant updated successfully');
+    window.setTimeout(() => location.reload(), 350);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Review the tenant values and try again.';
+    setTenantDetailFeedback('danger', 'Unable to update tenant', message);
   } finally {
     tenantDetailBusy = false;
     document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'false');
@@ -949,7 +1154,7 @@ function removeTenantDetailDocument(index: number): void {
   renderTenantDetailCurrentTab();
 }
 
-function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`; }).join('')}</div>`; }
+function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false">Edit</button></div></div>`; }).join('')}</div>`; }
 function renderTenantRegistry(){
   const rows=getTenants();
   const statuses=Array.from(new Set(['Active','Inactive','Suspended','Archived',...rows.map(row=>String(row.status||'').trim()).filter(Boolean)]));
@@ -1516,7 +1721,7 @@ function wireTenantRegistry(): void {
       businessSame:Boolean(formData.get('businessSame')), businessCountry:tenantFormText(formData, 'businessCountry', countryKey), businessRegion:tenantFormText(formData, 'businessRegion', tenantFormText(formData, 'region')), businessCity:tenantFormText(formData, 'businessCity', tenantFormText(formData, 'city')), businessAddress:tenantFormText(formData, 'businessAddress', tenantFormText(formData, 'address')), businessPostal:tenantFormText(formData, 'businessPostal', tenantFormText(formData, 'postal')),
       plants:0, devices:0, users:0, revenue:'—', health:'Attention Required', integrations:0, alerts:0,
       industry:tenantFormText(formData, 'industry', 'Solar Energy'), businessCategory:tenantFormText(formData, 'businessCategory', 'Enterprise'), parentCompany:tenantFormText(formData, 'parentCompany', 'None'), employees:tenantFormText(formData, 'employees', '—'), annualRevenue:tenantFormText(formData, 'annualRevenue', '—'), webplant:tenantFormText(formData, 'webplant', '—'),
-      category:tenantFormText(formData, 'category', 'Standard'), tier:tenantFormText(formData, 'tier', 'Bronze'), priority:tenantFormText(formData, 'priority', 'Medium'), risk:tenantFormText(formData, 'risk', 'Low'), source:tenantFormText(formData, 'source', 'Direct'), account:tenantFormText(formData, 'account', 'Unassigned'),
+      category:tenantFormText(formData, 'category', 'Standard'), tier:tenantFormText(formData, 'tier', 'Bronze'), priority:tenantFormText(formData, 'priority', 'Medium'), risk:tenantFormText(formData, 'risk', 'Low'), acquisitionSource:tenantFormText(formData, 'source', 'Direct'), account:tenantFormText(formData, 'account', 'Unassigned'),
       language:tenantFormText(formData, 'language', 'English'), timezone:tenantFormText(formData, 'timezone', tenantCountryRules[countryKey]?.timezone || defaultTenantCountryRule().timezone), channel:tenantFormText(formData, 'channel', 'Email'), businessHours:tenantFormText(formData, 'businessHours', '09:00–18:00'),
       platformNotifications:tenantFormText(formData, 'platformNotifications', 'Yes'), serviceNotifications:tenantFormText(formData, 'serviceNotifications', 'Yes'), invoiceNotifications:tenantFormText(formData, 'invoiceNotifications', 'Yes'), securityNotifications:tenantFormText(formData, 'securityNotifications', 'Yes'), notificationRecipients:tenantFormText(formData, 'notificationRecipients', 'Primary'),
       dpa:tenantFormText(formData, 'dpa', 'Not Signed'), nda:tenantFormText(formData, 'nda', 'Not Signed'), compliance:tenantFormText(formData, 'compliance', 'Pending'), confidentiality:tenantFormText(formData, 'confidentiality', 'Standard'), controllerType:tenantFormText(formData, 'controllerType', 'Controller'), consent:tenantFormText(formData, 'consent', 'Active'), consentExpiry:tenantFormText(formData, 'consentExpiry'),
@@ -1524,7 +1729,7 @@ function wireTenantRegistry(): void {
       notes:{ general:tenantFormText(formData, 'general_information_notes'), address:tenantFormText(formData, 'address_information_notes'), contacts:tenantFormText(formData, 'contact_persons_notes'), classification:tenantFormText(formData, 'tenant_classification_notes'), communication:tenantFormText(formData, 'communication_preferences_notes'), legal:tenantFormText(formData, 'legal_compliance_notes') },
       created:new Date().toISOString().slice(0,10), updated:new Date().toISOString().slice(0,10)
     };
-    const payload = tenantCreateApiPayload(formData, contacts, documents);
+    const payload = tenantCreateApiPayload(formData, contacts, documents, String(tenant.code || ''));
     isSaving = true;
     ZentridFormUX.setBusy(saveButton, true, 'Creating Tenant…');
     try {
@@ -1548,11 +1753,20 @@ function wireTenantRegistry(): void {
       }
 
       if (result.error.retriable) {
-        saveTenantCreateFallback(tenant);
+        const reconciledId = await reconcileCreatedTenant(tenant);
         initialDraftSnapshot = draftSnapshot();
         window.ZentridFormReadiness?.markCommitted(tenantForm);
-        ZentridLayout.toast('Backend unavailable. Tenant saved as a temporary local fallback.');
-        window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
+        clearTenantCreateFallback();
+        if (reconciledId) {
+          localStorage.setItem('zentrid_selected_tenant', reconciledId);
+          ZentridLayout.toast('Tenant was created. The backend record was recovered after an ambiguous response.');
+          window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
+        } else {
+          ZentridFormUX.renderSummary(validationSummary, [{ message:`${result.message} The request may have been processed, but the backend record could not be confirmed. Refresh Tenant Registry before retrying to avoid duplicates.` }], 'Tenant creation could not be confirmed');
+          validationSummary.focus();
+          isSaving = false;
+          ZentridFormUX.setBusy(saveButton, false);
+        }
         return;
       }
 
@@ -1562,18 +1776,20 @@ function wireTenantRegistry(): void {
       ZentridFormUX.renderSummary(validationSummary, [{ message:detail }], 'Tenant was not created');
       validationSummary.focus();
     } catch (error) {
-      try {
-        saveTenantCreateFallback(tenant);
-        initialDraftSnapshot = draftSnapshot();
-        window.ZentridFormReadiness?.markCommitted(tenantForm);
-        ZentridLayout.toast('Tenant mutation runtime was unavailable. Tenant saved as a temporary local fallback.');
+      const reconciledId = await reconcileCreatedTenant(tenant);
+      clearTenantCreateFallback();
+      initialDraftSnapshot = draftSnapshot();
+      window.ZentridFormReadiness?.markCommitted(tenantForm);
+      if (reconciledId) {
+        localStorage.setItem('zentrid_selected_tenant', reconciledId);
+        ZentridLayout.toast('Tenant was created. The backend record was recovered after an interrupted response.');
         window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
-      } catch (fallbackError) {
+      } else {
         isSaving = false;
         ZentridFormUX.setBusy(saveButton, false);
-        ZentridFormUX.renderSummary(validationSummary, [{ message:'Unable to create the tenant through the backend or save the temporary fallback.' }], 'Tenant was not created');
+        ZentridFormUX.renderSummary(validationSummary, [{ message:'The create response was interrupted and no backend tenant could be confirmed. Refresh Tenant Registry before retrying.' }], 'Tenant creation could not be confirmed');
         validationSummary.focus();
-        console.error('Tenant create and fallback both failed.', error, fallbackError);
+        console.error('Tenant create failed and reconciliation found no backend record.', error);
       }
     }
   };
@@ -1605,7 +1821,7 @@ function renderTenantDetail(){
       <button data-tenant-tab="plants">Managed Plants</button>
     </aside>
     <section class="glass-card client-main-card-v17">
-      <div class="detail-content-head-v32"><div><h2 id="tenantDetailTitle">General Information</h2><p class="muted">Tenant governance data uses source-aware editing and lifecycle-safe status controls.</p></div><div class="detail-tab-actions"><button id="editTenantTab" class="small-btn primary" type="button" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(tenantStatusValue(c))}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true" data-permission-base-disabled="${canEdit ? 'false' : 'true'}" ${canEdit?'':'disabled'}>Edit</button><button id="cancelTenantEdit" class="small-btn ghost hidden" type="button">Cancel</button><button id="saveTenantEdit" class="small-btn success hidden" type="button" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(tenantStatusValue(c))}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Save Changes</button></div></div>
+      <div class="detail-content-head-v32"><div><h2 id="tenantDetailTitle">General Information</h2><p class="muted">Tenant governance data uses source-aware editing and lifecycle-safe status controls.</p></div><div class="detail-tab-actions"><button id="editTenantTab" class="small-btn primary" type="button" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(tenantStatusValue(c))}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false" data-permission-base-disabled="${canEdit ? 'false' : 'true'}" ${canEdit?'':'disabled'}>Edit</button><button id="cancelTenantEdit" class="small-btn ghost hidden" type="button">Cancel</button><button id="saveTenantEdit" class="small-btn success hidden" type="button" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(tenantStatusValue(c))}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false">Save Changes</button></div></div>
       <div class="form-validation-summary tenant-detail-summary-v117" id="tenantDetailEditSummary" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
       <div id="detailContent">${detailTab(c,'general')}</div>
     </section>
@@ -1640,7 +1856,7 @@ function tenantDocumentsTable(c: ZentridTenantRecord, editable = tenantDetailEdi
 }
 function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const origin = tenantDetailOrigin(c);
-  const mode = editable ? 'Local edit draft' : tenantDetailIsArchived(c) ? 'Archived read-only' : tenantDetailBackendManaged(c) ? 'Live data · local override available' : 'View mode';
+  const mode = editable ? 'API update draft' : tenantDetailIsArchived(c) ? 'Archived read-only' : tenantDetailBackendManaged(c) ? 'Live backend data' : 'View mode';
   return `<div class="tenant-section-context-v117"><div><span>${tenantEscapeHtml(tenantTabLabel(tab))}</span>${ZentridDataSource.badge(c, 'tenant', true)}</div><small>${tenantEscapeHtml(tenantDetailFreshness(c))}</small><strong>${tenantEscapeHtml(mode)}</strong></div>`;
 }
 function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
@@ -1652,7 +1868,7 @@ function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = te
     const createUrl = `plants.html?view=solar&create=1&tenant=${encodeURIComponent(String(c.name || ''))}${preferredClient ? `&client=${encodeURIComponent(String(preferredClient.id || ''))}&clientName=${encodeURIComponent(String(preferredClient.name || ''))}&country=${encodeURIComponent(String(preferredClient.country || c.country || ''))}&region=${encodeURIComponent(String(preferredClient.region || c.region || ''))}&city=${encodeURIComponent(String(preferredClient.city || c.city || ''))}&timezone=${encodeURIComponent(String(preferredClient.timezone || c.timezone || 'Asia/Yerevan'))}&contact=${encodeURIComponent(String(preferredClient.primaryContact || preferredClient.contactEmail || ''))}` : ''}`;
     return `${context}<div class="section-title-v17 tenant-assigned-head-v28"><div><h2>Managed Plants</h2><p class="muted">Plant assignments are managed from the global vendor-driven Plant workspace.</p></div><div class="section-actions-v28"><button class="small-btn" type="button" onclick="location.href='plants.html?view=solar'">Open Plants</button><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div></div>${tenantPlantSummaryCards(c)}`;
   }
-  if(t==='classification') return `${context}${tenantInfo([['Tenant Category',c.category,'category'],['Account Tier',c.tier,'tier'],['Tenant Priority',c.priority,'priority'],['Risk Category',c.risk,'risk'],['Acquisition Source',c.source,'source']], editable)}${tenantNotesBlock(c,'classification','Notes for Tenant Classification', editable)}`;
+  if(t==='classification') return `${context}${tenantInfo([['Tenant Category',c.category,'category'],['Account Tier',c.tier,'tier'],['Tenant Priority',c.priority,'priority'],['Risk Category',c.risk,'risk'],['Acquisition Source',c.acquisitionSource,'acquisitionSource']], editable)}${tenantNotesBlock(c,'classification','Notes for Tenant Classification', editable)}`;
   if(t==='communication') return `${context}${tenantInfo([['Preferred Language',c.language,'language'],['Preferred Time Zone',c.timezone,'timezone'],['Preferred Communication Channel',c.channel,'channel'],['Business Hours',c.businessHours,'businessHours'],['Receive Platform Notifications',c.platformNotifications,'platformNotifications'],['Receive Service Notifications',c.serviceNotifications,'serviceNotifications'],['Receive Invoice Notifications',c.invoiceNotifications,'invoiceNotifications'],['Receive Security Notifications',c.securityNotifications,'securityNotifications'],['Notification Recipients',c.notificationRecipients,'notificationRecipients']], editable)}${tenantNotesBlock(c,'communication','Notes for Communication Preferences', editable)}`;
   if(t==='legal') return `${context}${tenantInfo([['Data Processing Agreement',c.dpa,'dpa'],['NDA Status',c.nda,'nda'],['Compliance Status',tenantComplianceValue(c),'compliance'],['Confidentiality Level',c.confidentiality,'confidentiality'],['Data Controller Type',c.controllerType,'controllerType'],['Consent Status',c.consent,'consent'],['Consent Expiry Date',c.consentExpiry,'consentExpiry']], editable)}${tenantNotesBlock(c,'legal','Notes for Legal & Compliance', editable)}${tenantDocumentsTable(c, editable)}`;
   const isIndividual=(c.entityType||'Legal Entity')==='Individual';

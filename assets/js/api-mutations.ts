@@ -66,6 +66,7 @@ type ZentridMutationCreateModule = {
 };
 
 type ZentridMutationTenantModule = ZentridMutationCreateModule & {
+  update(id: string, payload: unknown): Promise<ZentridMutationResult>;
   activate(id: string): Promise<ZentridMutationResult>;
   deactivate(id: string): Promise<ZentridMutationResult>;
   archive(id: string): Promise<ZentridMutationResult>;
@@ -240,9 +241,10 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
     action: string,
     path: string,
     entities: ZentridMutationEntity[],
-    successMessage: string
+    successMessage: string,
+    method = 'POST'
   ): ZentridMutationDescriptor {
-    return { action, path, method: 'POST', entities, successMessage };
+    return { action, path, method, entities, successMessage };
   }
 
   const clients: ZentridMutationCreateModule = {
@@ -256,6 +258,10 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
     create: (payload: unknown) => run(
       descriptor('tenant.create', '/api/admin/tenants', ['tenants'], 'Tenant created successfully.'),
       () => ZentridPlatformAPI.tenants.create(payload)
+    ),
+    update: (id: string, payload: unknown) => run(
+      descriptor('tenant.update', `/api/admin/tenants/${encoded(id)}`, ['tenants'], 'Tenant updated successfully.', 'PUT'),
+      () => ZentridPlatformAPI.tenants.update(id, payload)
     ),
     activate: (id: string) => run(
       descriptor('tenant.activate', `/api/admin/tenants/${encoded(id)}/activate`, ['tenants'], 'Tenant activated successfully.'),
