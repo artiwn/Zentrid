@@ -17,10 +17,17 @@ interface ZentridTenantContact {
 
 interface ZentridTenantDocument {
   [key: string]: unknown;
+  id?: string;
   name?: string;
   type?: string;
   expiry?: string;
+  uploaded?: boolean | string;
   file?: string;
+  fileName?: string;
+  filePath?: string;
+  localFile?: File;
+  localFileSize?: number;
+  localFileType?: string;
 }
 
 interface ZentridTenantRecord {
@@ -161,6 +168,46 @@ function defaultTenantCountryRule(): ZentridTenantCountryRule {
 }
 function cls(v: unknown): string { const text=String(v).toLowerCase(); if(text.includes('risk')||text.includes('critical')||text.includes('suspend')||text.includes('non')||text.includes('expired')) return 'danger'; if(text.includes('attention')||text.includes('review')||text.includes('medium')||text.includes('inactive')||text.includes('pending')) return 'warning'; return 'success'; }
 function getTenants(): ZentridTenantRecord[] { const liveRows = window.ZentridLiveTenants as ZentridTenantRecord[] | undefined; return Array.isArray(liveRows) ? liveRows : []; }
+
+function tenantUniqueValue(value: unknown): string {
+  return String(value ?? '').trim().toLocaleLowerCase();
+}
+
+function tenantCreateControl(form: HTMLFormElement, name: string): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null {
+  const control = form.elements.namedItem(name);
+  return control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement ? control : null;
+}
+
+function tenantCreateLocalUniquenessIssues(form: HTMLFormElement, candidate: ZentridTenantRecord): Array<{ control?: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null; message: string }> {
+  const rows = getTenants();
+  const checks = [
+    { formName:'name', label:'Tenant Name', value:candidate.name, read:(row:ZentridTenantRecord) => row.name },
+    { formName:'legal', label:'Legal Name', value:candidate.legal, read:(row:ZentridTenantRecord) => row.legal },
+    { formName:'registration', label:'Registration Number', value:candidate.registration, read:(row:ZentridTenantRecord) => row.registration },
+    { formName:'tax', label:'Tax ID / VAT Number', value:candidate.tax, read:(row:ZentridTenantRecord) => row.tax },
+    { formName:'code', label:'Tenant Code', value:candidate.code, read:(row:ZentridTenantRecord) => row.code }
+  ];
+  return checks.flatMap(check => {
+    const value = tenantUniqueValue(check.value);
+    if (!value || value === '—' || value === 'pending') return [];
+    const conflict = rows.find(row => tenantUniqueValue(check.read(row)) === value);
+    return conflict ? [{ control:tenantCreateControl(form, check.formName), message:`${check.label} is already used by another tenant.` }] : [];
+  });
+}
+
+function tenantCreateBackendConflictIssues(form: HTMLFormElement, message: string): Array<{ control?: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null; message: string }> {
+  const text = String(message || '').toLowerCase();
+  const mappings = [
+    { names:['tax identifier','tax id','vat'], formName:'tax', label:'Tax ID / VAT Number' },
+    { names:['registration number','registration identifier'], formName:'registration', label:'Registration Number' },
+    { names:['tenant code','code'], formName:'code', label:'Tenant Code' },
+    { names:['legal name'], formName:'legal', label:'Legal Name' },
+    { names:['tenant named','tenant name','name already'], formName:'name', label:'Tenant Name' }
+  ];
+  const match = mappings.find(item => item.names.some(name => text.includes(name)));
+  if (!match) return [];
+  return [{ control:tenantCreateControl(form, match.formName), message:String(message || `${match.label} is already used by another tenant.`) }];
+}
 function saveTenants(_rows: ZentridTenantRecord[]): void { /* API-only: use a confirmed backend mutation. */ }
 function genId(){ return 'TNT-' + String(Math.floor(100000 + Math.random()*899999)); }
 function genCode(){ return 'TN-' + String(Math.floor(100000 + Math.random()*899999)); }
@@ -209,13 +256,24 @@ function tenantApiCountryCode(value: unknown): string | null {
   return aliases[text.toLowerCase()] || (text.length === 2 ? text.toUpperCase() : text);
 }
 
+function tenantApiNotificationRecipients(value: unknown, contacts: ZentridTenantContact[] = []): string | null {
+  const candidates = String(value ?? '').split(/[;,\s]+/).map(item => item.trim()).filter(Boolean);
+  const valid = candidates.filter(item => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item));
+  if (valid.length) return Array.from(new Set(valid)).join(',');
+  const contactEmails = contacts
+    .filter(contact => tenantBoolean(contact.active, true))
+    .map(contact => String(contact.email || '').trim())
+    .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+  return contactEmails.length ? Array.from(new Set(contactEmails)).join(',') : null;
+}
+
 function tenantApiContact(contact: ZentridTenantContact): Record<string, unknown> {
   return {
     firstName: tenantApiNullable(contact.first),
     lastName: tenantApiNullable(contact.last),
     position: tenantApiNullable(contact.position),
     department: tenantApiNullable(contact.department),
-    contactRole: tenantApiNullable(contact.role),
+    role: tenantApiNullable(contact.role),
     email: tenantApiNullable(contact.email),
     mobilePhone: tenantApiNullable(contact.mobile || contact.phone),
     officePhone: tenantApiNullable(contact.office),
@@ -228,7 +286,7 @@ function tenantApiContact(contact: ZentridTenantContact): Record<string, unknown
 function tenantSectionedApiPayload(source: {
   general: Record<string, unknown>;
   legalAddress: Record<string, unknown>;
-  businessAddressSameAsLegal: boolean;
+  businessAddressSameAsLegalAddress: boolean;
   businessAddress: Record<string, unknown>;
   contacts: ZentridTenantContact[];
   classification: Record<string, unknown>;
@@ -240,8 +298,8 @@ function tenantSectionedApiPayload(source: {
     generalInformation: source.general,
     addressInformation: {
       legalAddress: source.legalAddress,
-      businessAddressSameAsLegal: source.businessAddressSameAsLegal,
-      businessAddress: source.businessAddressSameAsLegal ? source.legalAddress : source.businessAddress,
+      businessAddressSameAsLegalAddress: source.businessAddressSameAsLegalAddress,
+      businessAddress: source.businessAddressSameAsLegalAddress ? source.legalAddress : source.businessAddress,
       notes: tenantApiNullable(source.notes.address)
     },
     contactPersons: {
@@ -263,111 +321,118 @@ function tenantSectionedApiPayload(source: {
   };
 }
 
+function tenantApiPersistedDocuments(documents: ZentridTenantDocument[]): ZentridTenantDocument[] {
+  return documents.filter(document => Boolean(String(document.id || document.filePath || '').trim()));
+}
+
+function tenantApiDocument(document: ZentridTenantDocument): Record<string, unknown> {
+  const fileName = String(document.fileName || document.file || document.name || '').trim();
+  const payload: Record<string, unknown> = {
+    name: tenantApiNullable(document.name),
+    type: tenantApiNullable(document.type),
+    expiry: tenantApiNullable(document.expiry),
+    uploaded: tenantBoolean(document.uploaded, Boolean(fileName)),
+    fileName: tenantApiNullable(fileName)
+  };
+  if (document.id) payload.id = document.id;
+  if (document.filePath) payload.filePath = document.filePath;
+  return payload;
+}
+
 function tenantCreateApiPayload(
   formData: FormData,
   contacts: ZentridTenantContact[],
   documents: ZentridTenantDocument[],
-  _tenantCode?: string
+  tenantCode?: string
 ): Record<string, unknown> {
-  const country = tenantFormText(formData, 'country', 'Armenia').trim();
-  const name = tenantFormText(formData, 'name').trim();
-  const legalName = tenantFormText(formData, 'legal').trim();
+  const text = (key: string, fallback = ''): string => tenantFormText(formData, key, fallback).trim();
   const businessSame = Boolean(formData.get('businessSame'));
-  const tenantStatus = tenantFormText(formData, 'status', 'Inactive').trim();
-  const tenantType = tenantFormText(formData, 'type', 'Owner').trim();
-  const entityType = tenantFormText(formData, 'entityType', 'Legal Entity').trim();
-  const payload: Record<string, unknown> = {
-    // The platform create DTO and list DTO currently use different property names.
-    // Keep the canonical camelCase fields and include exact create-contract aliases.
-    name,
-    Name: name,
-    tenantName: name,
-    TenantName: name,
-    legalName,
-    LegalName: legalName,
-    country,
-    Country: country,
-    tenantStatus,
-    TenantStatus: tenantStatus,
-    tenantType,
-    TenantType: tenantType,
-    entityType,
-    EntityType: entityType
+  const employeeText = text('employees');
+  const employees = employeeText && Number.isFinite(Number(employeeText)) ? Number(employeeText) : null;
+  const country = text('country', 'Armenia');
+  const legalCountry = text('legalCountry', country);
+  const legalAddress = {
+    country: tenantApiCountryCode(legalCountry),
+    stateRegion: tenantApiNullable(text('region')),
+    city: tenantApiNullable(text('city')),
+    streetAddress: tenantApiNullable(text('address')),
+    buildingNumber: tenantApiNullable(text('building')),
+    postalCode: tenantApiNullable(text('postal'))
   };
-  const optional = (key: string, value: unknown): void => {
-    if (value === undefined || value === null) return;
-    if (typeof value === 'string' && !value.trim()) return;
-    if (Array.isArray(value) && !value.length) return;
-    payload[key] = value;
+  const businessAddress = {
+    country: tenantApiCountryCode(text('businessCountry', legalCountry)),
+    stateRegion: tenantApiNullable(text('businessRegion')),
+    city: tenantApiNullable(text('businessCity')),
+    streetAddress: tenantApiNullable(text('businessAddress')),
+    buildingNumber: tenantApiNullable(text('businessBuilding')),
+    postalCode: tenantApiNullable(text('businessPostal'))
   };
-  optional('tradeName', tenantFormText(formData, 'trade').trim());
-  optional('displayName', tenantFormText(formData, 'displayName').trim());
-  optional('registrationNumber', tenantFormText(formData, 'registration').trim());
-  optional('taxId', tenantFormText(formData, 'tax').trim());
-  optional('accountManager', tenantFormText(formData, 'account').trim());
-  optional('industrySector', tenantFormText(formData, 'industry').trim());
-  optional('businessCategory', tenantFormText(formData, 'businessCategory').trim());
-  optional('parentCompany', tenantFormText(formData, 'parentCompany').trim());
-  const employees = Number(tenantFormText(formData, 'employees'));
-  if (Number.isFinite(employees) && employees >= 0) optional('numberOfEmployees', employees);
-  optional('annualRevenueRange', tenantFormText(formData, 'annualRevenue').trim());
-  optional('website', tenantFormText(formData, 'webplant').trim());
-  optional('legalCountry', tenantFormText(formData, 'legalCountry', country).trim());
-  optional('region', tenantFormText(formData, 'region').trim());
-  optional('city', tenantFormText(formData, 'city').trim());
-  optional('address', tenantFormText(formData, 'address').trim());
-  optional('buildingNumber', tenantFormText(formData, 'building').trim());
-  optional('postalCode', tenantFormText(formData, 'postal').trim());
-  payload.businessAddressSameAsLegal = businessSame;
-  if (!businessSame) {
-    optional('businessCountry', tenantFormText(formData, 'businessCountry', country).trim());
-    optional('businessRegion', tenantFormText(formData, 'businessRegion').trim());
-    optional('businessCity', tenantFormText(formData, 'businessCity').trim());
-    optional('businessAddress', tenantFormText(formData, 'businessAddress').trim());
-    optional('businessPostalCode', tenantFormText(formData, 'businessPostal').trim());
-  }
-  optional('contacts', contacts.map(contact => ({
-    firstName: String(contact.first || '').trim(),
-    lastName: String(contact.last || '').trim(),
-    fullName: String(contact.full || '').trim(),
-    position: String(contact.position || '').trim(),
-    department: String(contact.department || '').trim(),
-    role: String(contact.role || '').trim(),
-    email: String(contact.email || '').trim(),
-    mobilePhone: String(contact.mobile || contact.phone || '').trim(),
-    officePhone: String(contact.office || '').trim(),
-    preferredLanguage: String(contact.language || '').trim(),
-    preferredContactMethod: String(contact.method || '').trim(),
-    active: String(contact.active || '').toLowerCase() !== 'no'
-  })));
-  optional('tenantCategory', tenantFormText(formData, 'category').trim());
-  optional('accountTier', tenantFormText(formData, 'tier').trim());
-  optional('priority', tenantFormText(formData, 'priority').trim());
-  optional('riskCategory', tenantFormText(formData, 'risk').trim());
-  optional('acquisitionSource', tenantFormText(formData, 'source').trim());
-  optional('preferredLanguage', tenantFormText(formData, 'language').trim());
-  optional('timezone', tenantFormText(formData, 'timezone').trim());
-  optional('communicationChannel', tenantFormText(formData, 'channel').trim());
-  optional('businessHours', tenantFormText(formData, 'businessHours').trim());
-  optional('platformNotifications', tenantFormText(formData, 'platformNotifications').trim());
-  optional('serviceNotifications', tenantFormText(formData, 'serviceNotifications').trim());
-  optional('invoiceNotifications', tenantFormText(formData, 'invoiceNotifications').trim());
-  optional('securityNotifications', tenantFormText(formData, 'securityNotifications').trim());
-  optional('notificationRecipients', tenantFormText(formData, 'notificationRecipients').trim());
-  optional('dataProcessingAgreementStatus', tenantFormText(formData, 'dpa').trim());
-  optional('ndaStatus', tenantFormText(formData, 'nda').trim());
-  optional('complianceStatus', tenantFormText(formData, 'compliance').trim());
-  optional('confidentialityLevel', tenantFormText(formData, 'confidentiality').trim());
-  optional('dataControllerType', tenantFormText(formData, 'controllerType').trim());
-  optional('consentStatus', tenantFormText(formData, 'consent').trim());
-  optional('consentExpiryDate', tenantFormText(formData, 'consentExpiry').trim());
-  optional('documents', documents.map(document => ({
-    name: String(document.name || '').trim(),
-    type: String(document.type || '').trim(),
-    expiry: String(document.expiry || '').trim(),
-    uploaded: Boolean(document.file)
-  })));
-  payload.hasUploadedDocuments = documents.some(document => Boolean(document.file));
+  const general = {
+    tenantCode: tenantApiNullable(tenantCode),
+    entityType: tenantApiNullable(text('entityType', 'Legal Entity')),
+    tenantName: tenantApiNullable(text('name')),
+    legalName: tenantApiNullable(text('legal')),
+    tradeName: tenantApiNullable(text('trade')),
+    displayName: tenantApiNullable(text('displayName')),
+    country: tenantApiCountryCode(country),
+    registrationNumber: tenantApiNullable(text('registration')),
+    taxIdVatNumber: tenantApiNullable(text('tax')),
+    tenantStatus: tenantApiNullable(text('status', 'Inactive')),
+    tenantType: tenantApiNullable(text('type', 'Owner')),
+    accountManager: tenantApiNullable(text('account')),
+    industrySector: tenantApiNullable(text('industry')),
+    businessCategory: tenantApiNullable(text('businessCategory')),
+    parentCompany: tenantApiNullable(text('parentCompany')),
+    numberOfEmployees: employees,
+    annualRevenueRange: tenantApiNullable(text('annualRevenue')),
+    website: tenantApiNullable(text('webplant')),
+    notes: tenantApiNullable(text('general_information_notes'))
+  };
+  const payload = tenantSectionedApiPayload({
+    general,
+    legalAddress,
+    businessAddressSameAsLegalAddress: businessSame,
+    businessAddress,
+    contacts,
+    classification: {
+      tenantCategory: tenantApiNullable(text('category')),
+      accountTier: tenantApiNullable(text('tier')),
+      tenantPriority: tenantApiNullable(text('priority')),
+      riskCategory: tenantApiNullable(text('risk')),
+      acquisitionSource: tenantApiNullable(text('source'))
+    },
+    communication: {
+      preferredLanguage: tenantApiNullable(text('language')),
+      preferredTimeZone: tenantApiNullable(text('timezone')),
+      preferredCommunicationChannel: tenantApiNullable(text('channel')),
+      businessHours: tenantApiNullable(text('businessHours')),
+      receivePlatformNotifications: tenantBoolean(text('platformNotifications'), true),
+      receiveServiceNotifications: tenantBoolean(text('serviceNotifications'), true),
+      receiveInvoiceNotifications: tenantBoolean(text('invoiceNotifications'), true),
+      receiveSecurityNotifications: tenantBoolean(text('securityNotifications'), true),
+      notificationRecipients: tenantApiNotificationRecipients(text('notificationRecipients'), contacts)
+    },
+    legalCompliance: {
+      dataProcessingAgreement: tenantApiNullable(text('dpa')),
+      ndaStatus: tenantApiNullable(text('nda')),
+      complianceStatus: tenantApiNullable(text('compliance')),
+      confidentialityLevel: tenantApiNullable(text('confidentiality')),
+      dataControllerType: tenantApiNullable(text('controllerType')),
+      consentStatus: tenantApiNullable(text('consent')),
+      consentExpiryDate: tenantApiNullable(text('consentExpiry')),
+      documents: tenantApiPersistedDocuments(documents).map(tenantApiDocument)
+    },
+    notes: {
+      address: text('address_information_notes'),
+      contacts: text('contact_persons_notes'),
+      classification: text('tenant_classification_notes'),
+      communication: text('communication_preferences_notes'),
+      legal: text('legal_compliance_notes')
+    }
+  });
+
+  // The backend contract is sectioned. Sending flat aliases together with
+  // the sectioned DTO duplicates values and can break model binding.
   return payload;
 }
 
@@ -379,7 +444,7 @@ function tenantBoolean(value: unknown, fallback = false): boolean {
   return fallback;
 }
 
-function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unknown> {
+function tenantFullUpdateApiPayload(record: ZentridTenantRecord): Record<string, unknown> {
   const notes = record.notes || {};
   const businessSame = tenantBoolean(record.businessSame, true);
   const employees = record.employees !== '' && record.employees !== undefined && record.employees !== null && Number.isFinite(Number(record.employees))
@@ -396,7 +461,7 @@ function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unk
       displayName: tenantApiNullable(record.displayName),
       country: tenantApiCountryCode(record.profileCountry || record.country),
       registrationNumber: tenantApiNullable(record.registration),
-      taxId: tenantApiNullable(record.tax),
+      taxIdVatNumber: tenantApiNullable(record.tax),
       tenantStatus: tenantApiNullable(tenantStatusValue(record)),
       tenantType: tenantApiNullable(Array.isArray(record.types) ? record.types[0] : null),
       accountManager: tenantApiNullable(record.account),
@@ -410,18 +475,18 @@ function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unk
     },
     legalAddress: {
       country: tenantApiCountryCode(record.profileCountry || record.country),
-      region: tenantApiNullable(record.region),
+      stateRegion: tenantApiNullable(record.region),
       city: tenantApiNullable(record.city),
-      address: tenantApiNullable(record.address),
+      streetAddress: tenantApiNullable(record.address),
       buildingNumber: tenantApiNullable(record.building),
       postalCode: tenantApiNullable(record.postal)
     },
-    businessAddressSameAsLegal: businessSame,
+    businessAddressSameAsLegalAddress: businessSame,
     businessAddress: {
       country: tenantApiCountryCode(record.businessCountry),
-      region: tenantApiNullable(record.businessRegion),
+      stateRegion: tenantApiNullable(record.businessRegion),
       city: tenantApiNullable(record.businessCity),
-      address: tenantApiNullable(record.businessAddress),
+      streetAddress: tenantApiNullable(record.businessAddress),
       buildingNumber: tenantApiNullable(record.businessBuilding),
       postalCode: tenantApiNullable(record.businessPostal)
     },
@@ -429,31 +494,30 @@ function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unk
     classification: {
       tenantCategory: tenantApiNullable(record.category),
       accountTier: tenantApiNullable(record.tier),
-      priority: tenantApiNullable(record.priority),
+      tenantPriority: tenantApiNullable(record.priority),
       riskCategory: tenantApiNullable(record.risk),
       acquisitionSource: tenantApiNullable(record.acquisitionSource)
     },
     communication: {
       preferredLanguage: tenantApiNullable(record.language),
-      timezone: tenantApiNullable(record.timezone),
-      communicationChannel: tenantApiNullable(record.channel),
+      preferredTimeZone: tenantApiNullable(record.timezone),
+      preferredCommunicationChannel: tenantApiNullable(record.channel),
       businessHours: tenantApiNullable(record.businessHours),
-      platformNotifications: tenantBoolean(record.platformNotifications, true),
-      serviceNotifications: tenantBoolean(record.serviceNotifications, true),
-      invoiceNotifications: tenantBoolean(record.invoiceNotifications, true),
-      securityNotifications: tenantBoolean(record.securityNotifications, true),
-      notificationRecipients: tenantApiNullable(record.notificationRecipients)
+      receivePlatformNotifications: tenantBoolean(record.platformNotifications, true),
+      receiveServiceNotifications: tenantBoolean(record.serviceNotifications, true),
+      receiveInvoiceNotifications: tenantBoolean(record.invoiceNotifications, true),
+      receiveSecurityNotifications: tenantBoolean(record.securityNotifications, true),
+      notificationRecipients: tenantApiNotificationRecipients(record.notificationRecipients, record.contacts || [])
     },
     legalCompliance: {
-      dataProcessingAgreementStatus: tenantApiNullable(record.dpa),
+      dataProcessingAgreement: tenantApiNullable(record.dpa),
       ndaStatus: tenantApiNullable(record.nda),
       complianceStatus: tenantApiNullable(record.compliance),
       confidentialityLevel: tenantApiNullable(record.confidentiality),
       dataControllerType: tenantApiNullable(record.controllerType),
       consentStatus: tenantApiNullable(record.consent),
       consentExpiryDate: tenantApiNullable(record.consentExpiry),
-      documents: [],
-      hasUploadedDocuments: false
+      documents: tenantApiPersistedDocuments(record.documents || []).map(tenantApiDocument)
     },
     notes: {
       address: notes.address,
@@ -463,14 +527,38 @@ function tenantUpdateApiPayload(record: ZentridTenantRecord): Record<string, unk
       legal: notes.legal
     }
   });
-  const general = (payload.generalInformation && typeof payload.generalInformation === 'object')
-    ? payload.generalInformation as Record<string, unknown>
-    : null;
-  // Backend PUT currently applies create-style uniqueness validation to tenantName
-  // and rejects the record against itself. Omit an unchanged name from the update body.
-  if (general && String(record.name || '').trim()) delete general.tenantName;
-  return { id: record.id, ...payload };
+  return payload;
 }
+
+function tenantDeepEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function tenantObjectDiff(next: Record<string, unknown>, previous: Record<string, unknown>): Record<string, unknown> {
+  const diff: Record<string, unknown> = {};
+  Object.entries(next).forEach(([key, nextValue]) => {
+    const previousValue = previous[key];
+    const nextIsObject = Boolean(nextValue) && typeof nextValue === 'object' && !Array.isArray(nextValue);
+    const previousIsObject = Boolean(previousValue) && typeof previousValue === 'object' && !Array.isArray(previousValue);
+    if (nextIsObject && previousIsObject) {
+      const nested = tenantObjectDiff(nextValue as Record<string, unknown>, previousValue as Record<string, unknown>);
+      if (Object.keys(nested).length) diff[key] = nested;
+      return;
+    }
+    if (!tenantDeepEqual(nextValue, previousValue)) diff[key] = nextValue;
+  });
+  return diff;
+}
+
+function tenantUpdateApiPayload(record: ZentridTenantRecord, previousRecord: ZentridTenantRecord): Record<string, unknown> {
+  const nextPayload = tenantFullUpdateApiPayload(record);
+  const previousPayload = tenantFullUpdateApiPayload(previousRecord);
+  if (tenantDeepEqual(nextPayload, previousPayload)) return {};
+  // Keep generalInformation.tenantId in PUT. The backend uses it to exclude
+  // the current record from tenant-name uniqueness checks.
+  return nextPayload;
+}
+
 
 
 function saveTenantCreateFallback(tenant: ZentridTenantRecord): void {
@@ -824,6 +912,23 @@ function tenantDetailModeCopy(record: ZentridTenantRecord): { title: string; mes
     archivedMessage:'Archived tenant identity, contacts and compliance data cannot be edited from this workspace.'
   });
 }
+function tenantProfileCompleteness(c: ZentridTenantRecord): number {
+  const sections = [
+    [c.name, c.legal, c.country, c.tax],
+    [c.city, c.address, c.postal],
+    [(c.contacts || []).length],
+    [c.category, c.tier, c.priority, c.risk],
+    [c.language, c.timezone, c.channel],
+    [c.dpa, c.nda, c.compliance, c.consent]
+  ];
+  const completed = sections.filter(values => values.some(value => {
+    if (typeof value === 'number') return value > 0;
+    const text = String(value ?? '').trim();
+    return Boolean(text && text !== '—');
+  })).length;
+  return Math.round((completed / sections.length) * 100);
+}
+
 function renderTenantDetailControls(record: ZentridTenantRecord): string {
   const copy = tenantDetailModeCopy(record);
   return `<section class="tenant-detail-control-v117 ${copy.tone}" id="tenantDetailControl" data-tenant-detail-origin="${tenantEscapeAttr(tenantDetailOrigin(record))}" role="status" aria-live="polite" aria-busy="false">
@@ -1048,6 +1153,11 @@ function validateTenantDetailEdits(): ZentridFormValidationResult {
     ['language','timezone','channel'].forEach((key, index) => required(key, ['Preferred Language','Preferred Time Zone','Preferred Communication Channel'][index] || key));
     const hours = tenantDetailControl('businessHours');
     if (hours?.value.trim() && !/^\d{2}:\d{2}\s*[–-]\s*\d{2}:\d{2}$/.test(hours.value.trim())) issues.push({ control:hours, message:'Business Hours must use a format such as 09:00–18:00.' });
+    const recipients = tenantDetailControl('notificationRecipients');
+    if (recipients?.value.trim()) {
+      const invalidRecipient = recipients.value.split(/[;,\s]+/).map(value => value.trim()).filter(Boolean).find(value => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
+      if (invalidRecipient) issues.push({ control:recipients, message:'Notification Recipients must contain valid email addresses separated by commas.' });
+    }
   }
   if (tab === 'legal') {
     (draft.documents || []).forEach((documentRecord, index) => {
@@ -1097,7 +1207,12 @@ async function saveTenantDetailEdits(): Promise<void> {
   document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'true');
   try {
     const next = tenantCloneRecord(tenantDetailDraft);
-    const payload = tenantUpdateApiPayload(next);
+    const payload = tenantUpdateApiPayload(next, record);
+    if (!Object.keys(payload).length) {
+      setTenantDetailEditMode(false, true);
+      setTenantDetailFeedback('info', 'No changes to save', 'The tenant record already matches the current API data.');
+      return;
+    }
     const result = await ZentridAPIMutations.tenants.update(record.id, payload);
     if (!ZentridAPIMutations.isSuccess(result)) {
       throw new Error(result.error.message || result.message || 'Tenant update failed.');
@@ -1144,6 +1259,37 @@ function addTenantDetailDocument(): void {
   tenantDetailDraft.documents.push({ name:'', type:'', expiry:'', file:'' });
   renderTenantDetailCurrentTab();
   tenantDetailControl(`documents::${tenantDetailDraft.documents.length - 1}::name`)?.focus();
+}
+function selectTenantDetailDocumentFile(input: HTMLInputElement): void {
+  if (!tenantDetailEditMode || !tenantDetailDraft) return;
+  const index = Number(input.dataset.tenantDocumentFile);
+  const file = input.files?.[0];
+  if (!Number.isInteger(index) || !file) return;
+  syncTenantDetailInputs(tenantDetailDraft);
+  tenantDetailDraft.documents = tenantDetailDraft.documents || [];
+  const documentRecord = tenantDetailDraft.documents[index] || {};
+  documentRecord.localFile = file;
+  documentRecord.localFileSize = file.size;
+  documentRecord.localFileType = file.type;
+  documentRecord.file = file.name;
+  documentRecord.fileName = file.name;
+  if (!String(documentRecord.name || '').trim()) documentRecord.name = file.name;
+  if (!String(documentRecord.type || '').trim()) {
+    const extension = file.name.includes('.') ? file.name.split('.').pop()?.toUpperCase() : '';
+    documentRecord.type = extension || file.type || 'Uploaded';
+  }
+  tenantDetailDraft.documents[index] = documentRecord;
+  const row = input.closest<HTMLElement>('[data-tenant-document-row]');
+  const nameControl = row?.querySelector<HTMLInputElement>(`[data-tenant-edit-key="documents::${index}::name"]`);
+  const typeControl = row?.querySelector<HTMLInputElement>(`[data-tenant-edit-key="documents::${index}::type"]`);
+  if (nameControl && !nameControl.value.trim()) nameControl.value = String(documentRecord.name || '');
+  if (typeControl && !typeControl.value.trim()) typeControl.value = String(documentRecord.type || '');
+  const fileName = row?.querySelector<HTMLElement>(`[data-tenant-document-file-name="${index}"]`);
+  if (fileName) {
+    fileName.textContent = file.name;
+    fileName.title = `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`;
+  }
+  setTenantDetailFeedback('warning', 'Local file selected', `${file.name} is attached to this browser draft only. A document upload API is still required for permanent storage.`);
 }
 function removeTenantDetailDocument(index: number): void {
   if (!tenantDetailEditMode || !tenantDetailDraft) return;
@@ -1204,6 +1350,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
       <label>Region <input name="businessRegion" id="businessRegion" placeholder="Example: Yerevan, Kotayk, Shirak"></label>
       <label>City <input name="businessCity" placeholder="City"></label>
       <label>Street Address <input name="businessAddress" placeholder="Street Address"></label>
+      <label>Building Number <input name="businessBuilding" placeholder="Building / unit"></label>
       <label>Postal Code <input name="businessPostal" id="businessPostal" placeholder="Example: 0010"></label>
     </div>
   </div>
@@ -1248,7 +1395,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   ${yesNo('serviceNotifications','Receive Service Notifications')}
   ${yesNo('invoiceNotifications','Receive Invoice Notifications')}
   ${yesNo('securityNotifications','Receive Security Notifications')}
-  <label class="full">Notification Recipients <input name="notificationRecipients" placeholder="Primary, Billing, Technical"></label>
+  <label class="full">Notification Recipient Emails <input name="notificationRecipients" type="text" inputmode="email" placeholder="ops@example.com, billing@example.com"></label>
   ${stepIntro('Communication Preferences','Communication and notification preferences for the tenant organization. Portal access is intentionally not configured here.')}
 </div>
 <div class="wizard-step" data-tenant-step="5">
@@ -1444,6 +1591,12 @@ function wireTenantRegistry(): void {
       if (hours) {
         hours.value = hours.value.trim();
         if (hours.value && !/^\d{2}:\d{2}[–-]\d{2}:\d{2}$/.test(hours.value)) issues.push({ control:hours, message:'Use business hours format 09:00–18:00.' });
+      }
+      const recipients = field<HTMLInputElement>('notificationRecipients');
+      if (recipients) {
+        recipients.value = recipients.value.trim();
+        const invalidRecipient = recipients.value.split(/[;,\s]+/).map(value => value.trim()).filter(Boolean).find(value => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
+        if (invalidRecipient) issues.push({ control:recipients, message:'Use valid notification email addresses separated by commas.' });
       }
     }
     return issues;
@@ -1718,7 +1871,7 @@ function wireTenantRegistry(): void {
       trade:tenantFormText(formData, 'trade', name), displayName:tenantFormText(formData, 'displayName', tenantFormText(formData, 'trade', name)),
       registration:tenantFormText(formData, 'registration', 'Pending'), tax, status:tenantFormText(formData, 'status', 'Inactive'), types:[tenantFormText(formData, 'type', 'Owner')],
       country:tenantFormText(formData, 'legalCountry', countryKey), profileCountry:countryKey, region:tenantFormText(formData, 'region', '—'), city:tenantFormText(formData, 'city', '—'), address:tenantFormText(formData, 'address', '—'), building:tenantFormText(formData, 'building'), postal:tenantFormText(formData, 'postal'),
-      businessSame:Boolean(formData.get('businessSame')), businessCountry:tenantFormText(formData, 'businessCountry', countryKey), businessRegion:tenantFormText(formData, 'businessRegion', tenantFormText(formData, 'region')), businessCity:tenantFormText(formData, 'businessCity', tenantFormText(formData, 'city')), businessAddress:tenantFormText(formData, 'businessAddress', tenantFormText(formData, 'address')), businessPostal:tenantFormText(formData, 'businessPostal', tenantFormText(formData, 'postal')),
+      businessSame:Boolean(formData.get('businessSame')), businessCountry:tenantFormText(formData, 'businessCountry', countryKey), businessRegion:tenantFormText(formData, 'businessRegion', tenantFormText(formData, 'region')), businessCity:tenantFormText(formData, 'businessCity', tenantFormText(formData, 'city')), businessAddress:tenantFormText(formData, 'businessAddress', tenantFormText(formData, 'address')), businessBuilding:tenantFormText(formData, 'businessBuilding', tenantFormText(formData, 'building')), businessPostal:tenantFormText(formData, 'businessPostal', tenantFormText(formData, 'postal')),
       plants:0, devices:0, users:0, revenue:'—', health:'Attention Required', integrations:0, alerts:0,
       industry:tenantFormText(formData, 'industry', 'Solar Energy'), businessCategory:tenantFormText(formData, 'businessCategory', 'Enterprise'), parentCompany:tenantFormText(formData, 'parentCompany', 'None'), employees:tenantFormText(formData, 'employees', '—'), annualRevenue:tenantFormText(formData, 'annualRevenue', '—'), webplant:tenantFormText(formData, 'webplant', '—'),
       category:tenantFormText(formData, 'category', 'Standard'), tier:tenantFormText(formData, 'tier', 'Bronze'), priority:tenantFormText(formData, 'priority', 'Medium'), risk:tenantFormText(formData, 'risk', 'Low'), acquisitionSource:tenantFormText(formData, 'source', 'Direct'), account:tenantFormText(formData, 'account', 'Unassigned'),
@@ -1729,6 +1882,12 @@ function wireTenantRegistry(): void {
       notes:{ general:tenantFormText(formData, 'general_information_notes'), address:tenantFormText(formData, 'address_information_notes'), contacts:tenantFormText(formData, 'contact_persons_notes'), classification:tenantFormText(formData, 'tenant_classification_notes'), communication:tenantFormText(formData, 'communication_preferences_notes'), legal:tenantFormText(formData, 'legal_compliance_notes') },
       created:new Date().toISOString().slice(0,10), updated:new Date().toISOString().slice(0,10)
     };
+    const localUniquenessIssues = tenantCreateLocalUniquenessIssues(tenantForm, tenant);
+    if (localUniquenessIssues.length) {
+      const uniquenessResult = ZentridFormUX.validate(tenantForm, localUniquenessIssues, validationSummary, 'Tenant already exists');
+      ZentridFormUX.focusFirst(uniquenessResult, validationSummary);
+      return;
+    }
     const payload = tenantCreateApiPayload(formData, contacts, documents, String(tenant.code || ''));
     isSaving = true;
     ZentridFormUX.setBusy(saveButton, true, 'Creating Tenant…');
@@ -1773,8 +1932,14 @@ function wireTenantRegistry(): void {
       isSaving = false;
       ZentridFormUX.setBusy(saveButton, false);
       const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
-      ZentridFormUX.renderSummary(validationSummary, [{ message:detail }], 'Tenant was not created');
-      validationSummary.focus();
+      const conflictIssues = tenantCreateBackendConflictIssues(tenantForm, result.message);
+      if (conflictIssues.length) {
+        const conflictResult = ZentridFormUX.validate(tenantForm, conflictIssues, validationSummary, 'Tenant already exists');
+        ZentridFormUX.focusFirst(conflictResult, validationSummary);
+      } else {
+        ZentridFormUX.renderSummary(validationSummary, [{ message:detail }], 'Tenant was not created');
+        validationSummary.focus();
+      }
     } catch (error) {
       const reconciledId = await reconcileCreatedTenant(tenant);
       clearTenantCreateFallback();
@@ -1808,7 +1973,7 @@ function renderTenantDetail(){
   const canEdit = tenantDetailCanEdit(c, 'general');
   return `<section class="page-hero"><div><p class="eyebrow">Tenant Detail · ${tenantEscapeHtml(c.entityType || 'Legal Entity')} ${ZentridDataSource.badge(c, 'tenant', true)}</p><h1 id="tenantDetailHeroName">${tenantEscapeHtml(c.name)}</h1><p class="muted" id="tenantDetailHeroMeta">${tenantEscapeHtml(c.legal)} · ${tenantEscapeHtml(c.country)}, ${tenantEscapeHtml(c.city)} · ${tenantEscapeHtml(c.code)}</p></div><div class="tenant-hero-actions-v111"><button class="freshness-card" id="connectFirstIntegration" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>Connect First Integration</strong><small>Vendor → credentials → discovery</small></div></button>${lifecycle}</div></section>
   ${renderTenantDetailControls(c)}
-  <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Status</span><strong id="tenantDetailStatusKpi">${tenantEscapeHtml(tenantStatusValue(c))}</strong><small id="tenantDetailComplianceKpi">${tenantEscapeHtml(tenantComplianceValue(c))}</small></article><article class="kpi-card"><span>Setup Progress</span><strong>${Number(c.setup || 0)}%</strong><small>6 documented areas</small></article><article class="kpi-card"><span>Country</span><strong id="tenantDetailCountryKpi">${tenantEscapeHtml(c.country)}</strong><small id="tenantDetailRegionKpi">${tenantEscapeHtml(c.region || c.city)}</small></article><article class="kpi-card"><span>Entity Type</span><strong id="tenantDetailEntityKpi">${tenantEscapeHtml(c.entityType || 'Legal Entity')}</strong><small id="tenantDetailTypesKpi">${tenantEscapeHtml(Array.isArray(c.types) ? c.types.join(', ') : '')}</small></article><article class="kpi-card"><span>Contacts</span><strong id="tenantDetailContactCountKpi">${(c.contacts||[]).length}</strong><small>tenant records</small></article><article class="kpi-card"><span>Managed Plants</span><strong>${tenantAssignedPlants(c).length}</strong><small>Tenant → Client → Plant hierarchy</small></article><article class="kpi-card"><span>Risk</span><strong id="tenantDetailRiskKpi">${tenantEscapeHtml(c.risk || '—')}</strong><small id="tenantDetailPriorityKpi">${tenantEscapeHtml(c.priority || '—')} priority</small></article></section>
+  <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Status</span><strong id="tenantDetailStatusKpi">${tenantEscapeHtml(tenantStatusValue(c))}</strong><small id="tenantDetailComplianceKpi">${tenantEscapeHtml(tenantComplianceValue(c))}</small></article><article class="kpi-card"><span>Profile Completeness</span><strong>${tenantProfileCompleteness(c)}%</strong><small>Calculated from API-backed tenant sections</small></article><article class="kpi-card"><span>Country</span><strong id="tenantDetailCountryKpi">${tenantEscapeHtml(c.country)}</strong><small id="tenantDetailRegionKpi">${tenantEscapeHtml(c.region || c.city)}</small></article><article class="kpi-card"><span>Entity Type</span><strong id="tenantDetailEntityKpi">${tenantEscapeHtml(c.entityType || 'Legal Entity')}</strong><small id="tenantDetailTypesKpi">${tenantEscapeHtml(Array.isArray(c.types) ? c.types.join(', ') : '')}</small></article><article class="kpi-card"><span>Contacts</span><strong id="tenantDetailContactCountKpi">${(c.contacts||[]).length}</strong><small>tenant records</small></article><article class="kpi-card"><span>Managed Plants</span><strong>${tenantAssignedPlants(c).length}</strong><small>Tenant → Client → Plant hierarchy</small></article><article class="kpi-card"><span>Risk</span><strong id="tenantDetailRiskKpi">${tenantEscapeHtml(c.risk || '—')}</strong><small id="tenantDetailPriorityKpi">${tenantEscapeHtml(c.priority || '—')} priority</small></article></section>
   <section class="client-layout-v17 detail-layout-standard">
     <aside class="glass-card client-side-card-v17" aria-label="Tenant detail sections">
       <h3>Tenant Navigation</h3>
@@ -1851,8 +2016,16 @@ function tenantContactTable(c: ZentridTenantRecord, editable = tenantDetailEditM
   </div>`).join('');
   return `<div class="tenant-detail-table-head-v117"><div><h3>Contact Persons</h3><p class="muted">At least one active Primary contact is required before local save.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-contact>Add Contact</button>' : ''}</div><div class="data-table tenant-contact-table wide-scroll-table ${editable ? 'editing-grid tenant-contact-actions-v117' : ''}">${head}${rows || '<div class="empty-state">No contact persons added.</div>'}</div>${tenantNotesBlock(c,'contacts','Notes for Contact Person', editable)}`;
 }
+function tenantDocumentFilePicker(documentRecord: ZentridTenantDocument, index: number): string {
+  const selectedName = String(documentRecord.fileName || documentRecord.file || documentRecord.name || '').trim();
+  return `<div class="tenant-document-file-picker-v117">
+    <input class="tenant-document-file-input-v117" type="file" id="tenant-document-file-${index}" data-tenant-document-file="${index}" aria-label="Choose document file ${index + 1}">
+    <label class="small-btn tenant-document-file-button-v117" for="tenant-document-file-${index}">Choose File</label>
+    <span class="tenant-document-file-name-v117" data-tenant-document-file-name="${index}" title="${tenantEscapeAttr(selectedName || 'No file selected')}">${tenantEscapeHtml(selectedName || 'No file selected')}</span>
+  </div>`;
+}
 function tenantDocumentsTable(c: ZentridTenantRecord, editable = tenantDetailEditMode): string {
-  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">Document rows are local metadata until a document API is available.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>`<div class="data-row" data-tenant-document-row="${i}"><div>${editable ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::type`, d.type, 'Type') : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::file`, d.file || d.name, 'Document File') : `<span>${tenantEscapeHtml(d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions"><button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button></div>` : ''}</div>`).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
+  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">You can select a local file here. It will not be uploaded permanently until a document API is connected.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>`<div class="data-row" data-tenant-document-row="${i}"><div>${editable ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::type`, d.type, 'Type') : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantDocumentFilePicker(d, i) : `<span>${tenantEscapeHtml(d.fileName || d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions"><button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button></div>` : ''}</div>`).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
 }
 function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const origin = tenantDetailOrigin(c);
@@ -1861,7 +2034,7 @@ function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, 
 }
 function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const context = tenantSectionContext(c, t, editable);
-  if(t==='address') return `${context}${tenantInfo([['Legal Country',c.country,'country'],['Legal State / Region',c.region,'region'],['Legal City',c.city,'city'],['Legal Street Address',c.address,'address'],['Legal Building Number',c.building,'building'],['Legal Postal Code',c.postal,'postal'],['Business Address Same as Legal',c.businessSame?'Yes':'No','businessSame'],['Business Address Country',c.businessSame?c.country:c.businessCountry,'businessCountry'],['Business Address State / Region',c.businessSame?c.region:c.businessRegion,'businessRegion'],['Business Address City',c.businessSame?c.city:c.businessCity,'businessCity'],['Business Address Street Address',c.businessSame?c.address:c.businessAddress,'businessAddress'],['Business Address Postal Code',c.businessSame?c.postal:c.businessPostal,'businessPostal']], editable)}${tenantNotesBlock(c,'address','Notes for Address Information', editable)}`;
+  if(t==='address') return `${context}${tenantInfo([['Legal Country',c.country,'country'],['Legal State / Region',c.region,'region'],['Legal City',c.city,'city'],['Legal Street Address',c.address,'address'],['Legal Building Number',c.building,'building'],['Legal Postal Code',c.postal,'postal'],['Business Address Same as Legal',c.businessSame?'Yes':'No','businessSame'],['Business Address Country',c.businessSame?c.country:c.businessCountry,'businessCountry'],['Business Address State / Region',c.businessSame?c.region:c.businessRegion,'businessRegion'],['Business Address City',c.businessSame?c.city:c.businessCity,'businessCity'],['Business Address Street Address',c.businessSame?c.address:c.businessAddress,'businessAddress'],['Business Address Building Number',c.businessSame?c.building:c.businessBuilding,'businessBuilding'],['Business Address Postal Code',c.businessSame?c.postal:c.businessPostal,'businessPostal']], editable)}${tenantNotesBlock(c,'address','Notes for Address Information', editable)}`;
   if(t==='contacts') return `${context}${tenantContactTable(c, editable)}`;
   if(t==='plants') {
     const preferredClient = tenantClientRecord(c);
@@ -1909,6 +2082,10 @@ function wireTenantDetail(): void {
   document.getElementById('cancelTenantEdit')?.addEventListener('click', () => setTenantDetailEditMode(false));
   document.getElementById('saveTenantEdit')?.addEventListener('click', saveTenantDetailEdits);
   const detail = document.getElementById('detailContent');
+  detail?.addEventListener('change', event => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.hasAttribute('data-tenant-document-file')) selectTenantDetailDocumentFile(target);
+  });
   detail?.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;

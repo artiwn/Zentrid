@@ -306,42 +306,10 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     return textValue(body.message) || textValue(body.error) || textValue(body.title) || response.statusText || 'Request failed';
   }
 
-  function tenantMutationDebugEnabled(path: string, method: string): boolean {
-    return path.startsWith('/api/admin/tenants') && ['POST', 'PUT', 'PATCH'].includes(method);
-  }
-
-  function debugPayload(body: BodyInit | null | undefined): unknown {
-    if (typeof body !== 'string') return body || null;
-    try { return JSON.parse(body); } catch (_error) { return body; }
-  }
-
-  function logTenantMutationRequest(url: string, path: string, method: string, body: BodyInit | null | undefined): void {
-    if (!tenantMutationDebugEnabled(path, method)) return;
-    console.groupCollapsed(`[Tenant API] ${method} ${path}`);
-    console.log('URL:', url);
-    console.log('Method:', method);
-    console.log('Request payload:', debugPayload(body));
-    console.log('Request payload JSON:', typeof body === 'string' ? body : '(non-string body)');
-    console.log('Timestamp:', new Date().toISOString());
-    console.groupEnd();
-  }
-
-  function logTenantMutationResponse(path: string, method: string, response: Response, body: unknown): void {
-    if (!tenantMutationDebugEnabled(path, method)) return;
-    const logger = response.ok ? console.log : console.error;
-    console.groupCollapsed(`[Tenant API] ${method} ${path} → ${response.status} ${response.statusText}`);
-    logger('Status:', response.status, response.statusText);
-    logger('Response body:', body);
-    logger('Response headers:', Object.fromEntries(response.headers.entries()));
-    logger('Timestamp:', new Date().toISOString());
-    console.groupEnd();
-  }
-
   async function parseResponse<T = unknown>(response: Response, path: string, method = 'GET'): Promise<T> {
     const text = await response.text();
     let body: unknown = null;
     try { body = text ? JSON.parse(text) : null; } catch (error) { body = text; }
-    logTenantMutationResponse(path, method, response, body);
     if (!response.ok) {
       throw new ZentridRequestError(`${responseMessage(body, response)} (${response.status})`, response.status, `HTTP_${response.status}`, path);
     }
@@ -554,7 +522,6 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     while (true) {
       try {
         const requestUrl = `${baseUrl}${path}`;
-        logTenantMutationRequest(requestUrl, path, method, fetchOptions.body);
         const response = await fetchWithTimeout(requestUrl, { ...fetchOptions, headers }, timeoutMs, path);
         if (response.status === 401 && auth) {
           if (retryAuth && getRefreshToken() && path !== '/api/Auth/refresh') {
