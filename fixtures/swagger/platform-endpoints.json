@@ -1,6 +1,6 @@
 {
-  "snapshot": "provided-swagger-2026-07-22",
-  "operationCount": 37,
+  "snapshot": "tenant-update-swagger-2026-07-27",
+  "operationCount": 38,
   "operations": [
     {
       "method": "POST",
@@ -169,6 +169,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/tenants/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
       "path": "/api/admin/tenants/{id}",
       "expectedUsed": true
     },
