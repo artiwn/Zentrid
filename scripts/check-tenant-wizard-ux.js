@@ -32,7 +32,7 @@ const packageJson = JSON.parse(read('package.json') || '{}');
   "tenantForm.onsubmit", "window.tenantWizardDocuments = []",
   'tenantCreateApiPayload', 'ZentridAPIMutations.tenants.create', 'result.error.retriable',
   'TENANT_CREATE_FALLBACK_KEY', 'Tenant was not created',
-  'Name: name', 'TenantName: name', 'LegalName: legalName', 'small-btn primary document-add-btn'
+  'generalInformation: source.general', 'taxIdVatNumber', 'businessAddressSameAsLegalAddress', 'small-btn primary document-add-btn'
 ].forEach(token => expect(tenants.includes(token), `Tenant wizard UX token is missing: ${token}.`));
 
 [

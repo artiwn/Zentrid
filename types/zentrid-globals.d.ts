@@ -5,7 +5,7 @@ interface ZentridExpressApp {
 }
 interface ZentridExpressFactory {
   (): ZentridExpressApp;
-  json(options?: { limit?: string }): unknown;
+  json(options?: { limit?: string; strict?: boolean }): unknown;
   static(root: string): unknown;
 }
 interface ZentridCorsFactory {
