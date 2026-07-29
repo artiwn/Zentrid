@@ -1037,3 +1037,43 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Tenant detail local document picker. Permanent upload requires a backend document API. */
+.tenant-document-file-picker-v117 {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tenant-document-file-input-v117 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tenant-document-file-button-v117 {
+  flex: 0 0 auto;
+  cursor: pointer;
+  margin: 0;
+}
+
+.tenant-document-file-input-v117:focus-visible + .tenant-document-file-button-v117 {
+  outline: 2px solid var(--accent, #38bdf8);
+  outline-offset: 2px;
+}
+
+.tenant-document-file-name-v117 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted, #94a3b8);
+  font-size: 12px;
+}
