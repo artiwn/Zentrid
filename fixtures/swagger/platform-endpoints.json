@@ -1,6 +1,6 @@
 {
-  "snapshot": "tenant-update-swagger-2026-07-27",
-  "operationCount": 38,
+  "snapshot": "clients-documents-swagger-2026-07-30",
+  "operationCount": 49,
   "operations": [
     {
       "method": "POST",
@@ -191,6 +191,61 @@
       "method": "POST",
       "path": "/api/admin/tenants/{id}/archive",
       "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/clients/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/activate",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/deactivate",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/suspend",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/archive",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/documents",
+      "expectedUsed": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/clients/{id}/documents/{documentId}",
+      "expectedUsed": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/clients/{id}/documents/{documentId}",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tenants/{id}/documents",
+      "expectedUsed": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tenants/{id}/documents/{documentId}",
+      "expectedUsed": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/tenants/{id}/documents/{documentId}",
+      "expectedUsed": false
     }
   ]
 }
