@@ -306,10 +306,147 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     return textValue(body.message) || textValue(body.error) || textValue(body.title) || response.statusText || 'Request failed';
   }
 
+
+  function clientMutationDebugEnabled(path: string, method: string): boolean {
+    return path.startsWith('/api/admin/clients') && ['POST', 'PUT', 'PATCH'].includes(method);
+  }
+
+  type ClientMutationDiagnosticContext = {
+    requestId: string;
+    url: string;
+    path: string;
+    method: string;
+    startedAt: number;
+    startedAtIso: string;
+    payload: unknown;
+    payloadJson: string | null;
+  };
+
+  let activeClientMutationDiagnostic: ClientMutationDiagnosticContext | null = null;
+
+  function clientDebugPayload(body: BodyInit | null | undefined): unknown {
+    if (typeof body !== 'string') return body || null;
+    try { return JSON.parse(body); } catch (_error) { return body; }
+  }
+
+  function clientDiagnosticRequestId(): string {
+    try { return crypto.randomUUID(); }
+    catch (_error) { return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+  }
+
+  function clientPayloadSummary(payload: unknown): ZentridUnknownRecord {
+    if (!isRecord(payload)) return { payloadType: typeof payload };
+    const tenantLink = isRecord(payload.tenantLink) ? payload.tenantLink : {};
+    const identity = isRecord(payload.identity) ? payload.identity : {};
+    const address = isRecord(payload.address) ? payload.address : {};
+    const primaryContact = isRecord(payload.primaryContact) ? payload.primaryContact : {};
+    const portalAccount = isRecord(payload.portalAccount) ? payload.portalAccount : {};
+    return {
+      topLevelKeys: Object.keys(payload),
+      clientName: payload.clientName || null,
+      managingTenantId: tenantLink.managingTenantId || null,
+      clientType: tenantLink.clientType || null,
+      status: tenantLink.status || null,
+      identityKeys: Object.keys(identity),
+      addressKeys: Object.keys(address),
+      primaryContactKeys: Object.keys(primaryContact),
+      portalAccountKeys: Object.keys(portalAccount),
+      bankAccountCount: Array.isArray(payload.bankAccounts) ? payload.bankAccounts.length : null
+    };
+  }
+
+  function beginClientMutationDiagnostic(url: string, path: string, method: string, body: BodyInit | null | undefined): ClientMutationDiagnosticContext | null {
+    if (!clientMutationDebugEnabled(path, method)) return null;
+    const payload = clientDebugPayload(body);
+    const context: ClientMutationDiagnosticContext = {
+      requestId: clientDiagnosticRequestId(),
+      url,
+      path,
+      method,
+      startedAt: performance.now(),
+      startedAtIso: new Date().toISOString(),
+      payload,
+      payloadJson: typeof body === 'string' ? body : null
+    };
+    activeClientMutationDiagnostic = context;
+    console.groupCollapsed(`[Client API Diagnostic] ${method} ${path} · ${context.requestId}`);
+    console.log('Request ID:', context.requestId);
+    console.log('URL:', url);
+    console.log('Method:', method);
+    console.log('Started at:', context.startedAtIso);
+    console.log('Payload summary:', clientPayloadSummary(payload));
+    console.log('Request payload:', payload);
+    console.log('Request payload JSON:', context.payloadJson || '(non-string body)');
+    console.log('Browser:', navigator.userAgent);
+    console.log('Online:', navigator.onLine);
+    console.groupEnd();
+    return context;
+  }
+
+  function clientBackendReportHints(status: number, body: unknown, context: ClientMutationDiagnosticContext): string[] {
+    const message = isRecord(body) ? textValue(body.message) || textValue(body.error) || textValue(body.title) : textValue(body);
+    const hints: string[] = [];
+    if (status === 400) {
+      hints.push('Backend returned 400. Compare the request payload below with the Client create/update DTO expected by Swagger/backend.');
+      if (message) hints.push(`Backend message: ${message}`);
+    }
+    if (status >= 500) hints.push('Backend returned a server error. Search backend logs using the request ID and timestamp below.');
+    if (context.method === 'PUT') hints.push(`Route client ID: ${context.path.split('/').pop() || '(missing)'}`);
+    return hints;
+  }
+
+  function finishClientMutationDiagnostic(path: string, method: string, response: Response, body: unknown): void {
+    if (!clientMutationDebugEnabled(path, method)) return;
+    const context = activeClientMutationDiagnostic || {
+      requestId: '(unavailable)', url: '', path, method, startedAt: performance.now(), startedAtIso: new Date().toISOString(), payload: null, payloadJson: null
+    };
+    const completedAtIso = new Date().toISOString();
+    const durationMs = Math.max(0, Math.round(performance.now() - context.startedAt));
+    const headers = Object.fromEntries(response.headers.entries());
+    const report = {
+      title: 'FleetOS Client API Diagnostic Report',
+      requestId: context.requestId,
+      request: {
+        method: context.method,
+        url: context.url,
+        path: context.path,
+        startedAt: context.startedAtIso,
+        payloadSummary: clientPayloadSummary(context.payload),
+        payload: context.payload
+      },
+      response: {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        completedAt: completedAtIso,
+        durationMs,
+        headers,
+        body
+      },
+      analysisHints: clientBackendReportHints(response.status, body, context)
+    };
+    (window as unknown as { __FLEETOS_LAST_CLIENT_API_REPORT__?: unknown }).__FLEETOS_LAST_CLIENT_API_REPORT__ = report;
+    try { sessionStorage.setItem('__FLEETOS_LAST_CLIENT_API_REPORT__', JSON.stringify(report)); } catch (_error) { /* diagnostic backup is best-effort */ }
+    const logger = response.ok ? console.log : console.error;
+    console.group(`[Client API FULL REPORT] ${method} ${path} → ${response.status} · ${context.requestId}`);
+    logger('COPY THIS OBJECT FOR FRONTEND/BACKEND TEAM:', report);
+    logger('COPYABLE JSON:', JSON.stringify(report, null, 2));
+    logger('Request ID / correlation key:', context.requestId);
+    logger('Duration:', `${durationMs} ms`);
+    logger('Response body:', body);
+    logger('Response headers:', headers);
+    const hints = clientBackendReportHints(response.status, body, context);
+    if (hints.length) console.warn('Diagnostic hints:', hints);
+    console.info('Retrieve this report later with: window.__FLEETOS_LAST_CLIENT_API_REPORT__');
+    console.groupEnd();
+    activeClientMutationDiagnostic = null;
+  }
+
   async function parseResponse<T = unknown>(response: Response, path: string, method = 'GET'): Promise<T> {
     const text = await response.text();
     let body: unknown = null;
     try { body = text ? JSON.parse(text) : null; } catch (error) { body = text; }
+    finishClientMutationDiagnostic(path, method, response, body);
     if (!response.ok) {
       throw new ZentridRequestError(`${responseMessage(body, response)} (${response.status})`, response.status, `HTTP_${response.status}`, path);
     }
@@ -507,7 +644,8 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     } = options;
 
     const headers = new Headers(fetchOptions.headers || {});
-    if (!headers.has('Content-Type') && fetchOptions.body) headers.set('Content-Type', 'application/json');
+    const multipartBody = typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
+    if (!headers.has('Content-Type') && fetchOptions.body && !multipartBody) headers.set('Content-Type', 'application/json');
     if (!headers.has('Accept')) headers.set('Accept', 'application/json');
 
     const token = getAccessToken();
@@ -522,6 +660,8 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     while (true) {
       try {
         const requestUrl = `${baseUrl}${path}`;
+        const clientDiagnostic = beginClientMutationDiagnostic(requestUrl, path, method, fetchOptions.body);
+        if (clientDiagnostic) headers.set('X-Client-Request-Id', clientDiagnostic.requestId);
         const response = await fetchWithTimeout(requestUrl, { ...fetchOptions, headers }, timeoutMs, path);
         if (response.status === 401 && auth) {
           if (retryAuth && getRefreshToken() && path !== '/api/Auth/refresh') {

@@ -1165,6 +1165,7 @@ function validateTenantDetailEdits(): ZentridFormValidationResult {
       if (!hasAny) return;
       if (!tenantDetailMeaningful(documentRecord.name)) issues.push({ control:tenantDetailControl(`documents::${index}::name`), message:`Document ${index + 1}: Document Name is required.` });
       if (!tenantDetailMeaningful(documentRecord.type)) issues.push({ control:tenantDetailControl(`documents::${index}::type`), message:`Document ${index + 1}: Type is required.` });
+      if (!String(documentRecord.id || documentRecord.filePath || '').trim() && !(documentRecord.localFile instanceof File)) issues.push({ message:`Document ${index + 1}: Document File is required.` });
     });
   }
   const result = ZentridFormUX.validate(root, issues, summary, `Review ${tenantTabLabel(tab)} before saving`);
@@ -1190,6 +1191,42 @@ function refreshTenantDetailSummary(): void {
   const control = document.getElementById('tenantDetailControl');
   if (control) control.outerHTML = renderTenantDetailControls(record);
 }
+const TENANT_DOCUMENT_TYPES = ['Identity','Legal','Commercial','Finance','Compliance','Access','Assignment'] as const;
+function normalizeTenantDocumentType(value: unknown): string {
+  const raw = String(value || '').trim();
+  const key = raw.toLowerCase();
+  const aliases: Record<string,string> = { passport:'Identity', identity:'Identity', registration:'Legal', legal:'Legal', project:'Commercial', commercial:'Commercial', finance:'Finance', compliance:'Compliance', access:'Access', assignment:'Assignment' };
+  return aliases[key] || (TENANT_DOCUMENT_TYPES.includes(raw as typeof TENANT_DOCUMENT_TYPES[number]) ? raw : 'Legal');
+}
+function tenantDocumentMultipart(documentRecord: ZentridTenantDocument): FormData {
+  const file = documentRecord.localFile;
+  if (!(file instanceof File)) throw new Error(`${documentRecord.name || 'Tenant document'}: file is required.`);
+  const payload = new FormData();
+  const type = normalizeTenantDocumentType(documentRecord.type);
+  console.info('[Tenant Document Upload] Multipart metadata', { name:documentRecord.name || file.name, typeBeforeNormalization:documentRecord.type, type, fileName:file.name, fileType:file.type || '(browser did not report MIME type)', fileSize:file.size, expiry:documentRecord.expiry || null });
+  payload.append('file', file, file.name);
+  payload.append('name', String(documentRecord.name || file.name).trim());
+  payload.append('type', type);
+  if (documentRecord.expiry) {
+    const parsed = new Date(`${documentRecord.expiry}T00:00:00`);
+    payload.append('expiry', Number.isNaN(parsed.getTime()) ? documentRecord.expiry : parsed.toISOString());
+  }
+  return payload;
+}
+async function uploadTenantDetailDocuments(tenantId: string, documents: ZentridTenantDocument[]): Promise<{uploaded:number; failures:string[]}> {
+  const candidates = documents.filter(documentRecord => documentRecord.localFile instanceof File && !String(documentRecord.id || documentRecord.filePath || '').trim());
+  if (!candidates.length) return { uploaded:0, failures:[] };
+  if (!ZentridAPIMutations.tenants.uploadDocument) return { uploaded:0, failures:candidates.map(documentRecord => `${documentRecord.name || 'Document'}: upload API unavailable`) };
+  let uploaded = 0;
+  const failures: string[] = [];
+  for (const documentRecord of candidates) {
+    const result = await ZentridAPIMutations.tenants.uploadDocument(tenantId, tenantDocumentMultipart(documentRecord));
+    if (ZentridAPIMutations.isSuccess(result)) uploaded += 1;
+    else failures.push(`${documentRecord.name || documentRecord.localFile?.name || 'Document'}: ${result.error.message || result.message || 'upload failed'}`);
+  }
+  return { uploaded, failures };
+}
+
 async function saveTenantDetailEdits(): Promise<void> {
   if (tenantDetailBusy || !tenantDetailDraft) return;
   const record = selectedTenant();
@@ -1206,20 +1243,27 @@ async function saveTenantDetailEdits(): Promise<void> {
   if (saveButton) ZentridFormUX.setBusy(saveButton, true, 'Saving to API…');
   document.getElementById('tenantDetailControl')?.setAttribute('aria-busy', 'true');
   try {
+    const pendingDocuments = (tenantDetailDraft.documents || []).filter(documentRecord => documentRecord.localFile instanceof File && !String(documentRecord.id || documentRecord.filePath || '').trim());
     const next = tenantCloneRecord(tenantDetailDraft);
     const payload = tenantUpdateApiPayload(next, record);
-    if (!Object.keys(payload).length) {
+    if (Object.keys(payload).length) {
+      const result = await ZentridAPIMutations.tenants.update(record.id, payload);
+      if (!ZentridAPIMutations.isSuccess(result)) {
+        throw new Error(result.error.message || result.message || 'Tenant update failed.');
+      }
+    }
+    const documentUpload = await uploadTenantDetailDocuments(record.id, pendingDocuments);
+    if (documentUpload.failures.length) {
+      throw new Error(`Tenant profile was saved, but ${documentUpload.failures.length} document upload(s) failed: ${documentUpload.failures.join(' | ')}`);
+    }
+    if (!Object.keys(payload).length && !documentUpload.uploaded) {
       setTenantDetailEditMode(false, true);
       setTenantDetailFeedback('info', 'No changes to save', 'The tenant record already matches the current API data.');
       return;
     }
-    const result = await ZentridAPIMutations.tenants.update(record.id, payload);
-    if (!ZentridAPIMutations.isSuccess(result)) {
-      throw new Error(result.error.message || result.message || 'Tenant update failed.');
-    }
     setTenantDetailEditMode(false, true);
-    setTenantDetailFeedback('success', 'Tenant updated', 'The changes were saved through PUT /api/admin/tenants/{id}. Refreshing the live detail record…');
-    ZentridLayout.toast('Tenant updated successfully');
+    setTenantDetailFeedback('success', 'Tenant updated', `${Object.keys(payload).length ? 'Profile changes saved. ' : ''}${documentUpload.uploaded ? `${documentUpload.uploaded} document(s) uploaded through POST /api/admin/tenants/{id}/documents.` : ''} Refreshing the live detail record…`);
+    ZentridLayout.toast(documentUpload.uploaded ? 'Tenant updated and documents uploaded' : 'Tenant updated successfully');
     window.setTimeout(() => location.reload(), 350);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Review the tenant values and try again.';
@@ -1256,7 +1300,7 @@ function addTenantDetailDocument(): void {
   if (!tenantDetailEditMode || !tenantDetailDraft) return;
   syncTenantDetailInputs(tenantDetailDraft);
   tenantDetailDraft.documents = tenantDetailDraft.documents || [];
-  tenantDetailDraft.documents.push({ name:'', type:'', expiry:'', file:'' });
+  tenantDetailDraft.documents.push({ name:'', type:'Legal', expiry:'', file:'' });
   renderTenantDetailCurrentTab();
   tenantDetailControl(`documents::${tenantDetailDraft.documents.length - 1}::name`)?.focus();
 }
@@ -1265,6 +1309,11 @@ function selectTenantDetailDocumentFile(input: HTMLInputElement): void {
   const index = Number(input.dataset.tenantDocumentFile);
   const file = input.files?.[0];
   if (!Number.isInteger(index) || !file) return;
+  if (!/\.(pdf|doc|docx|jpg|jpeg|png)$/i.test(file.name)) {
+    input.value = '';
+    setTenantDetailFeedback('danger', 'Unsupported document type', 'Allowed document formats: PDF, DOC, DOCX, JPG, JPEG, PNG.');
+    return;
+  }
   syncTenantDetailInputs(tenantDetailDraft);
   tenantDetailDraft.documents = tenantDetailDraft.documents || [];
   const documentRecord = tenantDetailDraft.documents[index] || {};
@@ -1274,10 +1323,7 @@ function selectTenantDetailDocumentFile(input: HTMLInputElement): void {
   documentRecord.file = file.name;
   documentRecord.fileName = file.name;
   if (!String(documentRecord.name || '').trim()) documentRecord.name = file.name;
-  if (!String(documentRecord.type || '').trim()) {
-    const extension = file.name.includes('.') ? file.name.split('.').pop()?.toUpperCase() : '';
-    documentRecord.type = extension || file.type || 'Uploaded';
-  }
+  if (!String(documentRecord.type || '').trim()) documentRecord.type = 'Legal';
   tenantDetailDraft.documents[index] = documentRecord;
   const row = input.closest<HTMLElement>('[data-tenant-document-row]');
   const nameControl = row?.querySelector<HTMLInputElement>(`[data-tenant-edit-key="documents::${index}::name"]`);
@@ -1289,7 +1335,7 @@ function selectTenantDetailDocumentFile(input: HTMLInputElement): void {
     fileName.textContent = file.name;
     fileName.title = `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`;
   }
-  setTenantDetailFeedback('warning', 'Local file selected', `${file.name} is attached to this browser draft only. A document upload API is still required for permanent storage.`);
+  setTenantDetailFeedback('info', 'Document ready to upload', `${file.name} will be uploaded through the Tenant Documents API when you save changes.`);
 }
 function removeTenantDetailDocument(index: number): void {
   if (!tenantDetailEditMode || !tenantDetailDraft) return;
@@ -1406,7 +1452,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <label>Data Controller Type <select name="controllerType"><option>Controller</option><option>Processor</option></select></label>
   <label>Consent Status <select name="consent"><option>Active</option><option>Expired</option></select></label>
   <label>Consent Expiry Date <input type="date" name="consentExpiry"></label>
-  <input type="file" id="tenantDocUpload" accept=".pdf,.doc,.docx" multiple hidden>
+  <input type="file" id="tenantDocUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple hidden>
   <div class="document-table-toolbar full"><button type="button" class="small-btn primary document-add-btn" id="tenantDocUploadAction" data-trigger-tenant-doc-upload title="Add documents">+ Add Documents</button></div>
   <div class="data-table full compact-table tenant-document-table wizard-document-table" id="wizardDocumentsTable"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry</span><span>File</span><span>Actions</span></div></div>
   ${stepIntro('Legal & Compliance','Compliance and document information for the tenant. Audit data is kept in Audit Center, not in this form.')}
@@ -1808,9 +1854,13 @@ function wireTenantRegistry(): void {
   const docUpload = tenantElement<HTMLInputElement>('tenantDocUpload');
   if (docUpload) docUpload.onchange = () => {
     const files = Array.from(docUpload.files || []);
-    files.forEach(file => (window.tenantWizardDocuments as ZentridTenantDocument[]).push({ name:file.name, type:file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'Uploaded', expiry:'Not set', file:file.name }));
+    const allowed = /\.(pdf|doc|docx|jpg|jpeg|png)$/i;
+    const rejected = files.filter(file => !allowed.test(file.name));
+    files.filter(file => allowed.test(file.name)).forEach(file => (window.tenantWizardDocuments as ZentridTenantDocument[]).push({ name:file.name.replace(/\.[^.]+$/, ''), type:'Legal', expiry:'', file:file.name, fileName:file.name, localFile:file, localFileSize:file.size, localFileType:file.type }));
+    docUpload.value = '';
     renderWizardDocuments();
-    ZentridLayout.toast('Tenant documents selected');
+    if (rejected.length) ZentridLayout.toast(`Skipped unsupported file(s): ${rejected.map(file => file.name).join(', ')}`);
+    else ZentridLayout.toast('Tenant documents selected');
   };
 
   rails.forEach(rail => rail.onclick = () => {
@@ -1901,7 +1951,15 @@ function wireTenantRegistry(): void {
         window.ZentridFormReadiness?.markCommitted(tenantForm);
         if (backendId) {
           localStorage.setItem('zentrid_selected_tenant', backendId);
-          ZentridLayout.toast('Tenant created in the backend. Opening Tenant Detail.');
+          const documentUpload = await uploadTenantDetailDocuments(backendId, documents);
+          if (documentUpload.failures.length) {
+            isSaving = false;
+            ZentridFormUX.setBusy(saveButton, false);
+            ZentridFormUX.renderSummary(validationSummary, [{ message:`Tenant was created successfully, but ${documentUpload.failures.length} document upload(s) failed: ${documentUpload.failures.join(' | ')}. Do not create the tenant again.` }], 'Tenant created · document upload incomplete');
+            validationSummary.focus();
+            return;
+          }
+          ZentridLayout.toast(documentUpload.uploaded ? `Tenant created · ${documentUpload.uploaded} document(s) uploaded` : 'Tenant created in the backend. Opening Tenant Detail.');
           window.setTimeout(() => { location.href = 'tenant-detail.html'; }, 450);
         } else {
           console.info('Tenant create succeeded without a returned identifier.', tenantCreateResponseRecord(result.data));
@@ -2017,15 +2075,23 @@ function tenantContactTable(c: ZentridTenantRecord, editable = tenantDetailEditM
   return `<div class="tenant-detail-table-head-v117"><div><h3>Contact Persons</h3><p class="muted">At least one active Primary contact is required before local save.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-contact>Add Contact</button>' : ''}</div><div class="data-table tenant-contact-table wide-scroll-table ${editable ? 'editing-grid tenant-contact-actions-v117' : ''}">${head}${rows || '<div class="empty-state">No contact persons added.</div>'}</div>${tenantNotesBlock(c,'contacts','Notes for Contact Person', editable)}`;
 }
 function tenantDocumentFilePicker(documentRecord: ZentridTenantDocument, index: number): string {
-  const selectedName = String(documentRecord.fileName || documentRecord.file || documentRecord.name || '').trim();
+  const selectedName = String(documentRecord.localFile?.name || documentRecord.fileName || documentRecord.file || '').trim();
+  const persisted = Boolean(String(documentRecord.id || documentRecord.filePath || '').trim());
+  if (persisted) return `<span class="tenant-document-file-name-v117">${tenantEscapeHtml(selectedName || documentRecord.name || 'Uploaded')}</span>`;
   return `<div class="tenant-document-file-picker-v117">
-    <input class="tenant-document-file-input-v117" type="file" id="tenant-document-file-${index}" data-tenant-document-file="${index}" aria-label="Choose document file ${index + 1}">
+    <input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" id="tenant-document-file-${index}" data-tenant-document-file="${index}" aria-label="Choose document file ${index + 1}">
     <label class="small-btn tenant-document-file-button-v117" for="tenant-document-file-${index}">Choose File</label>
     <span class="tenant-document-file-name-v117" data-tenant-document-file-name="${index}" title="${tenantEscapeAttr(selectedName || 'No file selected')}">${tenantEscapeHtml(selectedName || 'No file selected')}</span>
   </div>`;
 }
+function tenantDocumentTypeControl(documentRecord: ZentridTenantDocument, index: number): string {
+  const persisted = Boolean(String(documentRecord.id || documentRecord.filePath || '').trim());
+  if (persisted) return `<span>${tenantEscapeHtml(documentRecord.type || '—')}</span>`;
+  const current = normalizeTenantDocumentType(documentRecord.type);
+  return `<select data-tenant-edit-key="documents::${index}::type" aria-label="Document Type">${TENANT_DOCUMENT_TYPES.map(type => `<option value="${type}" ${current === type ? 'selected' : ''}>${type}</option>`).join('')}</select>`;
+}
 function tenantDocumentsTable(c: ZentridTenantRecord, editable = tenantDetailEditMode): string {
-  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">You can select a local file here. It will not be uploaded permanently until a document API is connected.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>`<div class="data-row" data-tenant-document-row="${i}"><div>${editable ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::type`, d.type, 'Type') : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantDocumentFilePicker(d, i) : `<span>${tenantEscapeHtml(d.fileName || d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions"><button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button></div>` : ''}</div>`).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
+  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">Tenant files are stored through POST /api/admin/tenants/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>{ const persisted = Boolean(String(d.id || d.filePath || '').trim()); return `<div class="data-row" data-tenant-document-row="${i}"><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantDocumentTypeControl(d, i) : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantDocumentFilePicker(d, i) : `<span>${tenantEscapeHtml(d.fileName || d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions">${persisted ? '<span class="badge success">Uploaded</span>' : `<button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button>`}</div>` : ''}</div>`; }).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
 }
 function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const origin = tenantDetailOrigin(c);

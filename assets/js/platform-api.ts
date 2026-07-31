@@ -72,8 +72,12 @@ type ZentridPlatformAPIShape = {
     activate(id: string): Promise<unknown>;
     deactivate(id: string): Promise<unknown>;
     archive(id: string): Promise<unknown>;
+    uploadDocument(id: string, payload: FormData): Promise<unknown>;
   };
-  clients: ZentridPlatformModule;
+  clients: ZentridPlatformModule & {
+    update(id: string, payload: unknown): Promise<unknown>;
+    uploadDocument(id: string, payload: FormData): Promise<unknown>;
+  };
   plantRegistry: ZentridPlatformModule;
   providerIntegrations: {
     templates(): Promise<unknown>;
@@ -104,9 +108,11 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
   const allowedEndpointPatterns: RegExp[] = [
     /^\/api\/Auth\/(login|register|refresh|logout|me|validate)$/,
     /^\/\.well-known\/jwks\.json$/,
-    /^\/api\/admin\/clients(?:\/[^/]+)?$/,
+    /^\/api\/admin\/clients(?:\/[^/]+)?(?:\/(activate|deactivate|suspend|archive))?$/,
+    /^\/api\/admin\/clients\/[^/]+\/documents(?:\/[^/]+)?$/,
     /^\/api\/admin\/plants(?:\/[^/]+)?$/,
     /^\/api\/admin\/tenants(?:\/[^/]+)?(?:\/(activate|deactivate|archive))?$/,
+    /^\/api\/admin\/tenants\/[^/]+\/documents(?:\/[^/]+)?$/,
     /^\/api\/alerts$/,
     /^\/api\/devices$/,
     /^\/api\/integrations$/,
@@ -300,13 +306,16 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     update: (id: string, payload: unknown) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['tenants'], 'tenant.update'),
     activate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['tenants'], 'tenant.activate'),
     deactivate: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['tenants'], 'tenant.deactivate'),
-    archive: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/archive`, { method: 'POST' }, ['tenants'], 'tenant.archive')
+    archive: (id: string) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/archive`, { method: 'POST' }, ['tenants'], 'tenant.archive'),
+    uploadDocument: (id: string, payload: FormData) => mutationRequest(`/api/admin/tenants/${encodeURIComponent(id)}/documents`, { method: 'POST', body: payload }, ['tenants'], 'tenant.document.upload')
   };
 
   const clients = {
     list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/clients', options),
     get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/clients/${encodeURIComponent(id)}`, options),
-    create: (payload: unknown) => mutationRequest('/api/admin/clients', jsonOptions('POST', payload), ['clients'], 'client.create')
+    create: (payload: unknown) => mutationRequest('/api/admin/clients', jsonOptions('POST', payload), ['clients'], 'client.create'),
+    update: (id: string, payload: unknown) => mutationRequest(`/api/admin/clients/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['clients'], 'client.update'),
+    uploadDocument: (id: string, payload: FormData) => mutationRequest(`/api/admin/clients/${encodeURIComponent(id)}/documents`, { method: 'POST', body: payload }, ['clients'], 'client.document.upload')
   };
 
   const plantRegistry = {
@@ -342,6 +351,14 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Clients', label: 'List Clients', method: 'GET', path: '/api/admin/clients', safe: true, used: true, notes: 'Global Admin client registry list.' },
     { group: 'Clients', label: 'Create Client', method: 'POST', path: '/api/admin/clients', safe: false, used: true, notes: 'Used by the existing Create Client wizard.' },
     { group: 'Clients', label: 'Get Client by ID', method: 'GET', path: '/api/admin/clients/{id}', safe: false, used: true, notes: 'Used by Client Detail. Requires the selected client id.' },
+    { group: 'Clients', label: 'Update Client', method: 'PUT', path: '/api/admin/clients/{id}', safe: false, used: true, notes: 'Used by Client Detail Save Changes for backend-managed clients.' },
+    { group: 'Clients', label: 'Activate Client', method: 'POST', path: '/api/admin/clients/{id}/activate', safe: false, used: false, notes: 'Available in backend Swagger; lifecycle UI wiring is the next integration step.' },
+    { group: 'Clients', label: 'Deactivate Client', method: 'POST', path: '/api/admin/clients/{id}/deactivate', safe: false, used: false, notes: 'Available in backend Swagger; lifecycle UI wiring is the next integration step.' },
+    { group: 'Clients', label: 'Suspend Client', method: 'POST', path: '/api/admin/clients/{id}/suspend', safe: false, used: false, notes: 'Available in backend Swagger; lifecycle UI wiring is the next integration step.' },
+    { group: 'Clients', label: 'Archive Client', method: 'POST', path: '/api/admin/clients/{id}/archive', safe: false, used: false, notes: 'Available in backend Swagger; lifecycle UI wiring is the next integration step.' },
+    { group: 'Clients', label: 'Upload Client Document', method: 'POST', path: '/api/admin/clients/{id}/documents', safe: false, used: true, notes: 'Used by Create Client after the client UUID is returned. Sends multipart/form-data fields file, name, type and optional expiry.' },
+    { group: 'Clients', label: 'Get Client Document', method: 'GET', path: '/api/admin/clients/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document download/view integration is not wired yet.' },
+    { group: 'Clients', label: 'Delete Client Document', method: 'DELETE', path: '/api/admin/clients/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document delete integration is not wired yet.' },
 
     { group: 'PlantRegistry', label: 'List Admin Plants', method: 'GET', path: '/api/admin/plants', safe: true, used: true, notes: 'Admin plant registry list.' },
     { group: 'PlantRegistry', label: 'Create Admin Plant', method: 'POST', path: '/api/admin/plants', safe: false, used: true, notes: 'Used by the existing Create Plant wizard.' },
@@ -373,7 +390,10 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Tenants', label: 'Update Tenant', method: 'PUT', path: '/api/admin/tenants/{id}', safe: false, used: true, notes: 'Used by Tenant Detail editing with the nested tenant update DTO.' },
     { group: 'Tenants', label: 'Activate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/activate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
     { group: 'Tenants', label: 'Deactivate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/deactivate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
-    { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' }
+    { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
+    { group: 'Tenants', label: 'Upload Tenant Document', method: 'POST', path: '/api/admin/tenants/{id}/documents', safe: false, used: false, notes: 'Available in backend Swagger; multipart document integration is not wired yet.' },
+    { group: 'Tenants', label: 'Get Tenant Document', method: 'GET', path: '/api/admin/tenants/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document download/view integration is not wired yet.' },
+    { group: 'Tenants', label: 'Delete Tenant Document', method: 'DELETE', path: '/api/admin/tenants/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document delete integration is not wired yet.' }
   ];
 
   async function checkCatalog({ includeUnsafe = false }: { includeUnsafe?: boolean } = {}): Promise<Array<ZentridEndpointCatalogItem & ZentridRawRequestResult>> {

@@ -70,6 +70,7 @@ type ZentridMutationTenantModule = ZentridMutationCreateModule & {
   activate(id: string): Promise<ZentridMutationResult>;
   deactivate(id: string): Promise<ZentridMutationResult>;
   archive(id: string): Promise<ZentridMutationResult>;
+  uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
 };
 
 type ZentridMutationIntegrationModule = ZentridMutationCreateModule & {
@@ -82,12 +83,17 @@ type ZentridMutationIntegrationModule = ZentridMutationCreateModule & {
   failed(id: string): Promise<ZentridMutationResult>;
 };
 
+type ZentridMutationClientModule = ZentridMutationCreateModule & {
+  update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+  uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+};
+
 type ZentridAPIMutationsShape = {
   run: ZentridMutationRunner;
   isSuccess<T>(result: ZentridMutationResult<T>): result is ZentridMutationSuccess<T>;
   isFailure<T>(result: ZentridMutationResult<T>): result is ZentridMutationFailure;
   unwrap<T>(result: ZentridMutationResult<T>): T;
-  clients: ZentridMutationCreateModule;
+  clients: ZentridMutationClientModule;
   tenants: ZentridMutationTenantModule;
   plants: ZentridMutationCreateModule;
   integrations: ZentridMutationIntegrationModule;
@@ -247,10 +253,18 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
     return { action, path, method, entities, successMessage };
   }
 
-  const clients: ZentridMutationCreateModule = {
+  const clients: ZentridMutationClientModule = {
     create: (payload: unknown) => run(
       descriptor('client.create', '/api/admin/clients', ['clients'], 'Client created successfully.'),
       () => ZentridPlatformAPI.clients.create(payload)
+    ),
+    update: (id: string, payload: unknown) => run(
+      descriptor('client.update', `/api/admin/clients/${encoded(id)}`, ['clients'], 'Client updated successfully.', 'PUT'),
+      () => ZentridPlatformAPI.clients.update(id, payload)
+    ),
+    uploadDocument: (id: string, payload: FormData) => run(
+      descriptor('client.document.upload', `/api/admin/clients/${encoded(id)}/documents`, ['clients'], 'Client document uploaded successfully.'),
+      () => ZentridPlatformAPI.clients.uploadDocument(id, payload)
     )
   };
 
@@ -274,6 +288,10 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
     archive: (id: string) => run(
       descriptor('tenant.archive', `/api/admin/tenants/${encoded(id)}/archive`, ['tenants'], 'Tenant archived successfully.'),
       () => ZentridPlatformAPI.tenants.archive(id)
+    ),
+    uploadDocument: (id: string, payload: FormData) => run(
+      descriptor('tenant.document.upload', `/api/admin/tenants/${encoded(id)}/documents`, ['tenants'], 'Tenant document uploaded successfully.'),
+      () => ZentridPlatformAPI.tenants.uploadDocument(id, payload)
     )
   };
 

@@ -512,6 +512,7 @@
   }
 
   function setLiveDataState(state: LiveDataState, message: string, options: LiveDataStateOptions = {}): void {
+    window.ZentridDetailLoading?.sync(state);
     const main = document.querySelector('.main-content');
     if (!main) return;
 

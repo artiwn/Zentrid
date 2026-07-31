@@ -134,10 +134,15 @@ interface ZentridDeviceCatalogItem {
 }
 
 interface ZentridClientDocumentRecord {
+  id?: string;
   name: string;
   type: string;
   status: string;
   expiry?: string;
+  fileName?: string;
+  filePath?: string;
+  uploaded?: boolean;
+  localFile?: File;
 }
 
 interface ZentridBankAccount {
@@ -435,7 +440,7 @@ function clientCreateModal() {
         <div><p class="eyebrow">Client Registry · Create Client</p><h2 id="clientCreateTitle">Add New Client</h2><p class="muted">Create a canonical client profile and link it to the tenant that manages or supervises this client.</p></div>
         <span class="badge warning">Draft</span>
       </div>
-      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="ClientCreateDraft" data-zentrid-form-endpoint="/api/admin/clients" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Client is connected to the confirmed backend mutation. Document files remain local metadata until a document upload API is available.">
+      <form id="clientCreateForm" class="client-create-form setup-layout" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="ClientCreateDraft" data-zentrid-form-endpoint="/api/admin/clients" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Client uses POST /api/admin/clients, then uploads selected files through POST /api/admin/clients/{id}/documents.">
         <aside class="setup-rail client-create-rail" aria-label="Create client steps">
           <button class="active" type="button" data-client-create-step="tenant"><b>1</b><span>Tenant Link</span></button>
           <button type="button" data-client-create-step="identity"><b>2</b><span>Identity</span></button>
@@ -463,7 +468,8 @@ function clientCreateModal() {
                 <label>Name *<input name="name" required maxlength="80" autocomplete="given-name" placeholder="First name" /></label>
                 <label>Surname *<input name="surname" required maxlength="80" autocomplete="family-name" placeholder="Surname" /></label>
                 <label>Last name<input name="lastName" maxlength="80" placeholder="Optional middle / additional name" /></label>
-                <label>Date of birth<input name="dob" placeholder="dd/mm/yyyy" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" title="Use date format dd/mm/yyyy." /></label>
+                <label>Date of birth<input name="dob" placeholder="MM/DD/YYYY" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" title="Use date format MM/DD/YYYY." /></label>
+                <label>Tax / Personal ID<input name="personalTaxId" maxlength="80" placeholder="Tax or personal identifier" /></label>
                 <label>User Role *<select name="userRole" required><option>End User</option><option>Owner Viewer</option><option>Investor Viewer</option><option>Technical Viewer</option></select></label>
                 <label>Language *<select name="language" required><option>English</option><option>Armenian</option><option>Russian</option><option>German</option><option>Spanish</option></select></label>
               </div>
@@ -471,7 +477,7 @@ function clientCreateModal() {
             <div class="client-create-type-group" data-create-type-fields="Legal Entity" hidden>
               <div class="client-form-grid three-col">
                 <label>Company Name *<input name="companyName" required maxlength="140" autocomplete="organization" placeholder="Registered company name" /></label>
-                <label>Legal Form *<select name="legalForm" required><option>LLC</option><option>Corporation</option><option>Holding Company</option><option>Partnership</option><option>Non-profit</option><option>Other</option></select></label>
+                <label>Legal Form *<select name="legalForm" required><option value="" disabled>Select legal form</option>${CLIENT_LEGAL_FORM_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select><small class="field-help">Choose a supported legal form; custom text values are not accepted by the Client API.</small></label>
                 <label>Registration Number *<input name="registrationNo" required maxlength="80" placeholder="Company registration number" /></label>
                 <label>Tax ID / VAT Number *<input name="taxId" required maxlength="80" placeholder="Tax or VAT identifier" /></label>
                 <label>Primary Contact Person *<input name="contactPerson" required maxlength="120" autocomplete="name" placeholder="Full name" /></label>
@@ -499,20 +505,24 @@ function clientCreateModal() {
               <label>Phone Number 1 *<input name="phone1" type="tel" required maxlength="40" autocomplete="tel" placeholder="+374..." /></label>
               <label>Phone Number 2<input name="phone2" type="tel" maxlength="40" placeholder="Optional" /></label>
               <label>E-mail *<input name="email" type="email" required maxlength="160" autocomplete="email" placeholder="client@example.com" /></label>
-              <label>Username *<input name="username" required minlength="4" maxlength="60" autocomplete="username" pattern="[A-Za-z0-9._-]+" title="Use letters, numbers, dots, dashes or underscores." placeholder="username" /></label>
+              <label>Username *<input name="username" required minlength="4" maxlength="60" autocomplete="username" pattern="[A-Za-z0-9._\\-]+" title="Use letters, numbers, dots, dashes or underscores." placeholder="username" /></label>
               <label>Temporary Password *<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters" /></label>
-              <label>Portal Role<input name="portalRole" maxlength="80" placeholder="Owner Viewer" /></label>
+              <label>Portal Role *<select name="portalRole" required><option value="">Select portal role</option>${CLIENT_PORTAL_ROLE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select><small class="field-help">Choose the client-facing portal role used by the Client API.</small></label>
             </div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="documentation">
-            <div class="section-title"><div><h3>Documentation</h3><p class="muted">Add the identity or registration reference required for the selected client type. Files remain local prototype metadata until a document API exists.</p></div></div>
+            <div class="section-title"><div><h3>Documentation</h3><p class="muted">Add identity numbers and documents. Selected files are uploaded after the backend client record is created.</p></div></div>
             <div class="client-form-grid two-col">
-              <label>Client Passport Number<input name="passportNumber" maxlength="80" placeholder="Passport / personal document number" /></label>
+              <label>Personal / Passport ID<input name="passportNumber" maxlength="80" placeholder="Passport / personal document number" /></label>
               <label>State Registration Document Number<input name="stateRegistrationNumber" maxlength="80" placeholder="State registration document number" /></label>
-              <label>Client Passport<input name="clientPassport" type="file" accept=".pdf,.jpg,.jpeg,.png" data-doc-label="Client Passport" /></label>
-              <label>State Registration Document<input name="stateRegistrationDocument" type="file" accept=".pdf,.jpg,.jpeg,.png" data-doc-label="State Registration Document" /></label>
-              <label class="wide-field">Project Doc<input name="projectDoc" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-doc-label="Project Doc" /></label>
+              <label>Client Passport<input name="clientPassport" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-doc-label="Client Passport" data-doc-type="Identity" data-doc-expiry="clientPassportExpiry" /></label>
+              <label>Passport Expiry<input name="clientPassportExpiry" type="date" /></label>
+              <label>State Registration Document<input name="stateRegistrationDocument" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-doc-label="State Registration Document" data-doc-type="Legal" data-doc-expiry="stateRegistrationDocumentExpiry" /></label>
+              <label>Registration Document Expiry<input name="stateRegistrationDocumentExpiry" type="date" /></label>
+              <label>Project Doc<input name="projectDoc" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-doc-label="Project Doc" data-doc-type="Commercial" data-doc-expiry="projectDocExpiry" /></label>
+              <label>Project Doc Expiry<input name="projectDocExpiry" type="date" /></label>
             </div>
+            <p class="field-help">Allowed document formats: PDF, DOC, DOCX, JPG, JPEG, PNG.</p>
             <div class="client-uploaded-docs" id="clientUploadedDocs"><div class="empty-state mini">No documents added yet.</div></div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="banking">
@@ -693,6 +703,35 @@ function closeClientCreateModal(force = false): void {
   modal.setAttribute('aria-hidden', 'true');
 }
 
+function formatClientDateInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function initClientCreateInputFormatting(form: ClientForm): void {
+  const dob = form.elements.namedItem('dob') as HTMLInputElement | null;
+  if (dob && !dob.dataset.clientDateMaskReady) {
+    dob.dataset.clientDateMaskReady = 'true';
+    dob.addEventListener('input', () => {
+      const formatted = formatClientDateInput(dob.value);
+      if (dob.value !== formatted) dob.value = formatted;
+    });
+    dob.addEventListener('blur', () => { dob.value = formatClientDateInput(dob.value); });
+  }
+  ['phone1', 'phone2'].forEach(name => {
+    const input = form.elements.namedItem(name) as HTMLInputElement | null;
+    if (!input || input.dataset.clientPhoneNormalizeReady) return;
+    input.dataset.clientPhoneNormalizeReady = 'true';
+    input.addEventListener('input', () => {
+      const leadingPlus = input.value.trimStart().startsWith('+');
+      const digits = input.value.replace(/\D/g, '').slice(0, 18);
+      input.value = `${leadingPlus ? '+' : ''}${digits}`;
+    });
+  });
+}
+
 function initClientCreateWizard(): void {
   const modal = clientCreateModalElement();
   const form = clientCreateFormElement();
@@ -700,6 +739,7 @@ function initClientCreateWizard(): void {
   modal.dataset.clientWizardReady = 'true';
   initClientDocumentList(modal);
   initClientBankList(modal);
+  initClientCreateInputFormatting(form);
   modal.querySelectorAll<HTMLElement>('[data-client-create-step]').forEach(button => {
     button.addEventListener('click', () => {
       const target = clientCreateSteps.indexOf(button.dataset.clientCreateStep as ClientCreateStep);
@@ -816,18 +856,18 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Zen
   const issues: ZentridFormIssue[] = [];
   const type = clientCreateControl<HTMLSelectElement>('type')?.value || 'Individual';
   if (index === 1) {
-    ['name', 'surname', 'lastName', 'companyName', 'registrationNo', 'taxId', 'contactPerson'].forEach(name => {
+    ['name', 'surname', 'lastName', 'companyName', 'registrationNo', 'taxId', 'personalTaxId', 'contactPerson'].forEach(name => {
       const control = clientCreateControl<HTMLInputElement>(name);
       if (control && !control.disabled) control.value = control.value.trim();
     });
     const dob = clientCreateControl<HTMLInputElement>('dob');
     if (dob && !dob.disabled && dob.value) {
       const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob.value.trim());
-      const day = Number(match?.[1] || 0);
-      const month = Number(match?.[2] || 0);
+      const month = Number(match?.[1] || 0);
+      const day = Number(match?.[2] || 0);
       const year = Number(match?.[3] || 0);
       const currentYear = new Date().getFullYear();
-      if (!match || day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > currentYear) issues.push({ control:dob, message:'Enter a valid date of birth in dd/mm/yyyy format.' });
+      if (!match || day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > currentYear) issues.push({ control:dob, message:'Enter a valid date of birth in MM/DD/YYYY format.' });
     }
     if (includeDuplicates) {
       const name = clientDraftName(form);
@@ -867,6 +907,10 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Zen
     const registrationDocumentNumber = clientCreateControl<HTMLInputElement>('stateRegistrationNumber');
     const passportFile = clientCreateControl<HTMLInputElement>('clientPassport');
     const registrationFile = clientCreateControl<HTMLInputElement>('stateRegistrationDocument');
+    form.querySelectorAll<HTMLInputElement>('input[type="file"][data-doc-label]').forEach(input => {
+      const file = input.files?.[0];
+      if (file && !clientDocumentFileAllowed(file)) issues.push({ control:input, message:`${file.name} is not supported. ${clientDocumentAllowedMessage()}` });
+    });
     if (type === 'Individual' && !passportNumber?.value.trim() && !passportFile?.files?.length) issues.push({ control:passportNumber, message:'Enter a passport / personal document number or upload the client passport.' });
     if (type === 'Legal Entity' && !registrationDocumentNumber?.value.trim() && !registrationFile?.files?.length) issues.push({ control:registrationDocumentNumber, message:'Enter a state registration document number or upload the registration document.' });
   }
@@ -956,10 +1000,23 @@ function updateClientCreateReview(): void {
 function initClientDocumentList(modal: HTMLElement): void {
   if (modal.dataset.clientDocumentsReady) return;
   modal.dataset.clientDocumentsReady = 'true';
-  modal.querySelectorAll<HTMLInputElement>('[data-doc-label]').forEach(input => input.addEventListener('change', () => {
-    renderClientDocumentList();
-    updateClientCreateReview();
-  }));
+  modal.querySelectorAll<HTMLInputElement>('[data-doc-label]').forEach(input => {
+    input.accept = CLIENT_DOCUMENT_ACCEPT;
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (file && !clientDocumentFileAllowed(file)) {
+        const fileName = file.name;
+        input.value = '';
+        input.setCustomValidity(`${fileName} is not supported. ${clientDocumentAllowedMessage()}`);
+        input.reportValidity();
+        window.setTimeout(() => input.setCustomValidity(''), 0);
+      } else {
+        input.setCustomValidity('');
+      }
+      renderClientDocumentList();
+      updateClientCreateReview();
+    });
+  });
   modal.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -1051,6 +1108,21 @@ function clientCreateBackendId(value: unknown): string {
   return '';
 }
 
+function clientBackendUuid(value: unknown): string {
+  const id = clientCreateBackendId(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? id : '';
+}
+
+function clientCreateResponseCode(value: unknown): string {
+  const row = clientCreateResponseRecord(value);
+  for (const key of ['clientCode', 'code', 'externalId']) {
+    const code = String(row[key] || '').trim();
+    if (code) return code;
+  }
+  const candidate = clientCreateBackendId(value);
+  return candidate && !clientBackendUuid(candidate) ? candidate : '';
+}
+
 function clientCreateApiPayload(
   fd: FormData,
   type: string,
@@ -1061,93 +1133,167 @@ function clientCreateApiPayload(
 ): Record<string, unknown> {
   const tenantSelect = form.elements.namedItem('tenant') as HTMLSelectElement | null;
   const selectedTenant = tenantSelect?.selectedOptions[0];
-  const managingTenant = formValue(fd.get('tenant')).trim();
   const managingTenantId = String(selectedTenant?.dataset.tenantId || '').trim();
-  const managingTenantCode = String(selectedTenant?.dataset.tenantCode || managingTenant).trim();
-  const managingTenantName = String(selectedTenant?.dataset.tenantName || selectedTenant?.textContent || managingTenant).split(' · ')[0]?.trim() || managingTenant;
-  const clientType = type;
-  const accountActivation = formValue(fd.get('status')).trim() || 'Pending';
-  const country = formValue(fd.get('country')).trim();
-  const region = formValue(fd.get('region')).trim();
-  const city = formValue(fd.get('city')).trim();
-  const address = formValue(fd.get('address')).trim();
-  const primaryContact = type === 'Individual' ? fullName : contactPerson;
-  const email = formValue(fd.get('email')).trim();
-  const phoneNumber1 = formValue(fd.get('phone1')).trim();
-  const username = formValue(fd.get('username')).trim();
-  const password = formValue(fd.get('password'));
-  const role = formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User';
-  const language = formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English';
-  const timezone = formValue(fd.get('timezone')) || 'Asia/Yerevan';
-  const temperatureUnit = formValue(fd.get('temperature')) || '°C';
-  const currency = formValue(fd.get('currency')) || 'AMD';
-  const irradiationUnit = formValue(fd.get('irradiation')) || 'kWh/m2';
-  const payload: Record<string, unknown> = {
-    clientName: fullName,
-    ClientName: fullName,
-    name: fullName,
-    Name: fullName,
-    managingTenant,
-    ManagingTenant: managingTenant,
-    tenant: managingTenant,
-    Tenant: managingTenant,
-    clientType,
-    ClientType: clientType,
-    accountActivation,
-    AccountActivation: accountActivation,
-    country,
-    Country: country,
-    region,
-    Region: region,
-    city,
-    City: city,
-    address,
-    Address: address,
-    primaryContact,
-    PrimaryContact: primaryContact,
-    email,
-    Email: email,
-    phoneNumber1,
-    PhoneNumber1: phoneNumber1,
-    username,
-    Username: username,
-    password,
-    Password: password,
-    role,
-    Role: role,
-    language,
-    Language: language,
-    timezone,
-    Timezone: timezone,
-    temperatureUnit,
-    TemperatureUnit: temperatureUnit,
-    currency,
-    Currency: currency,
-    irradiationUnit,
-    IrradiationUnit: irradiationUnit,
-    hasClientPassportFile: Boolean((form.elements.namedItem('clientPassport') as HTMLInputElement | null)?.files?.length),
-    hasStateRegistrationDocumentFile: Boolean((form.elements.namedItem('stateRegistrationDocument') as HTMLInputElement | null)?.files?.length),
-    hasProjectDocFile: Boolean((form.elements.namedItem('projectDoc') as HTMLInputElement | null)?.files?.length)
-  };
-  if (managingTenantId) payload.managingTenantId = managingTenantId;
-  if (managingTenantCode) payload.managingTenantCode = managingTenantCode;
-  if (managingTenantName) payload.managingTenantName = managingTenantName;
-  const optional = (key: string, value: unknown): void => {
-    if (value === undefined || value === null) return;
-    if (typeof value === 'string' && !value.trim()) return;
-    if (Array.isArray(value) && !value.length) return;
-    payload[key] = value;
-  };
-  optional('legalForm', type === 'Individual' ? 'Private Person' : formValue(fd.get('legalForm')).trim());
-  optional('registrationNo', type === 'Individual' ? formValue(fd.get('passportNumber')).trim() : formValue(fd.get('registrationNo')).trim());
-  optional('stateRegistrationNumber', formValue(fd.get('stateRegistrationNumber')).trim());
-  optional('taxId', type === 'Individual' ? '' : formValue(fd.get('taxId')).trim());
-  optional('phoneNumber2', formValue(fd.get('phone2')).trim());
+  const status = formValue(fd.get('status')).trim() || 'Pending';
+  const firstName = type === 'Individual' ? formValue(fd.get('name')).trim() : null;
+  const lastName = type === 'Individual' ? formValue(fd.get('surname')).trim() : null;
+  const middleName = type === 'Individual' ? formValue(fd.get('lastName')).trim() || null : null;
+  const companyName = type === 'Legal Entity' ? formValue(fd.get('companyName')).trim() : null;
   const dob = formValue(fd.get('dob')).trim();
   const dobMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob);
-  if (dobMatch) optional('dateOfBirth', `${dobMatch[3]}-${dobMatch[2]}-${dobMatch[1]}`);
-  optional('bankAccounts', bankAccounts);
+  const dateOfBirth = dobMatch ? `${dobMatch[3]}-${dobMatch[1]}-${dobMatch[2]}` : null;
+  const language = formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English';
+  const role = formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User';
+  const username = formValue(fd.get('username')).trim();
+  const password = formValue(fd.get('password'));
+  const primaryFullName = type === 'Individual' ? fullName : contactPerson;
+  // Read the Individual identifiers directly from their form controls. These fields live
+  // on different wizard steps, so they must not depend on FormData serialization of the
+  // currently visible/active step.
+  const passportNumber = String(form.querySelector<HTMLInputElement>('[name="passportNumber"]')?.value || '').trim();
+  const personalTaxId = String(form.querySelector<HTMLInputElement>('[name="personalTaxId"]')?.value || '').trim();
+  const legalRegistrationNumber = String(form.querySelector<HTMLInputElement>('[name="registrationNo"]')?.value || '').trim();
+  const legalTaxId = String(form.querySelector<HTMLInputElement>('[name="taxId"]')?.value || '').trim();
+  return {
+    clientName: fullName,
+    tenantLink: {
+      managingTenantId: managingTenantId || null,
+      clientType: type,
+      status
+    },
+    identity: {
+      firstName,
+      lastName,
+      middleName,
+      dateOfBirth,
+      companyName,
+      legalForm: type === 'Legal Entity' ? formValue(fd.get('legalForm')).trim() || null : null,
+      registrationNumber: type === 'Legal Entity' ? legalRegistrationNumber || null : passportNumber || null,
+      taxIdVatNumber: type === 'Legal Entity' ? legalTaxId || null : personalTaxId || null,
+      role,
+      preferredLanguage: language
+    },
+    address: {
+      country: formValue(fd.get('country')).trim(),
+      stateRegion: formValue(fd.get('region')).trim(),
+      city: formValue(fd.get('city')).trim(),
+      streetAddress: formValue(fd.get('address')).trim()
+    },
+    preferences: {
+      timeZone: formValue(fd.get('timezone')) || 'Asia/Yerevan',
+      temperatureUnit: formValue(fd.get('temperature')) || '°C',
+      currency: formValue(fd.get('currency')) || 'AMD',
+      irradiationUnit: formValue(fd.get('irradiation')) || 'kWh/m2',
+      language
+    },
+    primaryContact: {
+      phoneNumber1: formValue(fd.get('phone1')).trim(),
+      phoneNumber2: formValue(fd.get('phone2')).trim() || null,
+      email: formValue(fd.get('email')).trim().toLocaleLowerCase(),
+      fullName: primaryFullName || null
+    },
+    portalAccount: {
+      username,
+      role,
+      temporaryPassword: password
+    },
+    documentation: {
+      // File binaries are uploaded separately after the client UUID is returned.
+      // These DTO references remain null in the create payload and are populated by backend document handling.
+      identityDocument: null,
+      registrationDocument: null
+    },
+    bankAccounts: bankAccounts.map(account => ({
+      bankName: String(account.bankName || account.bank || '').trim(),
+      bankCode: String(account.bankCode || '').trim(),
+      accountNumber: String(account.accountNumber || account.account || '').trim(),
+      accountCurrency: String(account.accountCurrency || account.currency || '').trim(),
+      primary: Boolean(account.primary)
+    }))
+  };
+}
+
+type ClientCreateUploadCandidate = {
+  input: HTMLInputElement;
+  file: File;
+  name: string;
+  type: string;
+  expiry: string;
+};
+
+function clientCreateUploadCandidates(form: ClientForm): ClientCreateUploadCandidate[] {
+  return Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"][data-doc-label]'))
+    .map(input => {
+      const file = input.files?.[0];
+      if (!file || !clientDocumentFileAllowed(file)) return null;
+      const expiryName = String(input.dataset.docExpiry || '').trim();
+      const expiryControl = expiryName ? form.elements.namedItem(expiryName) as HTMLInputElement | null : null;
+      return {
+        input,
+        file,
+        name: String(input.dataset.docLabel || file.name || 'Client Document').trim(),
+        type: String(input.dataset.docType || 'Other').trim(),
+        expiry: String(expiryControl?.value || '').trim()
+      };
+    })
+    .filter((item): item is ClientCreateUploadCandidate => Boolean(item));
+}
+
+function normalizeClientDocumentType(value: string): string {
+  const raw = String(value || '').trim();
+  const key = raw.toLocaleLowerCase();
+  const aliases: Record<string, string> = {
+    identity: 'Identity',
+    passport: 'Identity',
+    registration: 'Legal',
+    legal: 'Legal',
+    project: 'Commercial',
+    commercial: 'Commercial',
+    finance: 'Finance',
+    compliance: 'Compliance',
+    access: 'Access',
+    assignment: 'Assignment'
+  };
+  return aliases[key] || raw;
+}
+
+function clientDocumentMultipart(candidate: Pick<ClientCreateUploadCandidate, 'file' | 'name' | 'type' | 'expiry'>): FormData {
+  const payload = new FormData();
+  const normalizedType = normalizeClientDocumentType(candidate.type);
+  const diagnostic = {
+    name: candidate.name,
+    typeBeforeNormalization: candidate.type,
+    type: normalizedType,
+    fileName: candidate.file.name,
+    fileType: candidate.file.type || '(browser did not report MIME type)',
+    fileSize: candidate.file.size,
+    expiry: candidate.expiry || null
+  };
+  console.info('[Client Document Upload] Multipart metadata', diagnostic);
+  payload.append('file', candidate.file, candidate.file.name);
+  payload.append('name', candidate.name);
+  payload.append('type', normalizedType);
+  if (candidate.expiry) {
+    const parsed = new Date(`${candidate.expiry}T00:00:00`);
+    payload.append('expiry', Number.isNaN(parsed.getTime()) ? candidate.expiry : parsed.toISOString());
+  }
   return payload;
+}
+
+async function uploadClientCreateDocuments(clientId: string, form: ClientForm): Promise<{ uploaded: number; failures: string[] }> {
+  const candidates = clientCreateUploadCandidates(form);
+  if (!candidates.length) return { uploaded: 0, failures: [] };
+  if (!window.ZentridAPIMutations?.clients?.uploadDocument) {
+    return { uploaded: 0, failures: candidates.map(candidate => `${candidate.name}: document upload runtime is unavailable.`) };
+  }
+  let uploaded = 0;
+  const failures: string[] = [];
+  for (const candidate of candidates) {
+    const result = await window.ZentridAPIMutations.clients.uploadDocument(clientId, clientDocumentMultipart(candidate));
+    if (result.ok) uploaded += 1;
+    else failures.push(`${candidate.name}: ${result.error?.message || result.message || 'upload failed'}`);
+  }
+  return { uploaded, failures };
 }
 
 function saveClientCreateFallback(client: ZentridClientRecord): void {
@@ -1193,7 +1339,7 @@ async function submitClientCreateForm(e: Event): Promise<void> {
     type,
     legalForm: type === 'Individual' ? 'Private Person' : formValue(fd.get('legalForm')),
     registrationNo: type === 'Individual' ? passportNumber : formValue(fd.get('registrationNo')).trim(),
-    taxId: type === 'Individual' ? 'Not provided' : formValue(fd.get('taxId')).trim(),
+    taxId: type === 'Individual' ? formValue(fd.get('personalTaxId')).trim() || 'Not provided' : formValue(fd.get('taxId')).trim(),
     country: formValue(fd.get('country')),
     city: formValue(fd.get('city')),
     region: formValue(fd.get('region')),
@@ -1234,53 +1380,62 @@ async function submitClientCreateForm(e: Event): Promise<void> {
     if (!window.ZentridAPIMutations) throw new Error('Client mutation runtime is unavailable.');
     const result = await ZentridAPIMutations.clients.create(payload);
     if (result.ok) {
-      const backendId = clientCreateBackendId(result.data);
+      const backendId = clientBackendUuid(result.data);
+      const responseCode = clientCreateResponseCode(result.data);
       const responseRow = clientCreateResponseRecord(result.data);
-      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
-      window.ZentridFormReadiness?.markCommitted(form);
-      closeClientCreateModal(true);
       if (backendId) {
+        const uploadCandidates = clientCreateUploadCandidates(form);
+        if (uploadCandidates.length && saveButton) ZentridFormUX.setBusy(saveButton, true, `Uploading ${uploadCandidates.length} document${uploadCandidates.length === 1 ? '' : 's'}…`);
+        const uploadResult = await uploadClientCreateDocuments(backendId, form);
+        if (uploadResult.failures.length) {
+          clientCreateSaving = false;
+          if (saveButton) ZentridFormUX.setBusy(saveButton, false);
+          const issues = uploadResult.failures.map(message => ({ message }));
+          issues.unshift({ message: `Client was created successfully, but ${uploadResult.failures.length} document upload${uploadResult.failures.length === 1 ? '' : 's'} failed. Do not submit Create Client again.` });
+          ZentridFormUX.renderSummary(summary, issues, 'Client created · document upload incomplete');
+          summary?.focus();
+          ZentridClientModel.selectClient(backendId);
+          ZentridLayout.toast(`Client created. ${uploadResult.uploaded} document${uploadResult.uploaded === 1 ? '' : 's'} uploaded; ${uploadResult.failures.length} failed.`);
+          return;
+        }
+        clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+        window.ZentridFormReadiness?.markCommitted(form);
+        closeClientCreateModal(true);
         ZentridClientModel.selectClient(backendId);
-        ZentridLayout.toast('Client created in the backend. Opening Client Detail.');
+        ZentridLayout.toast(uploadResult.uploaded
+          ? `Client created and ${uploadResult.uploaded} document${uploadResult.uploaded === 1 ? '' : 's'} uploaded. Opening Client Detail.`
+          : 'Client created in the backend. Opening Client Detail.');
         window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
       } else {
-        console.info('Client create succeeded without a returned identifier.', responseRow);
-        ZentridLayout.toast('Client created in the backend. Refreshing Client Registry.');
-        window.setTimeout(() => { location.href = 'clients.html'; }, 450);
+        // Never use clientCode (for example CL-XXXX) as /api/admin/clients/{id}.
+        // The detail endpoint requires the canonical backend UUID, and documents cannot be uploaded without it.
+        clientCreateInitialSnapshot = clientCreateDraftSnapshot();
+        window.ZentridFormReadiness?.markCommitted(form);
+        closeClientCreateModal(true);
+        localStorage.removeItem('zentrid_selected_client');
+        console.info('Client create succeeded, but the response did not contain a canonical UUID. Returning to Client Registry instead of opening detail with a client code.', { responseCode, responseRow });
+        ZentridLayout.toast(responseCode
+          ? `Client ${responseCode} created. Document upload was skipped because the response did not contain a client UUID.`
+          : 'Client created. Document upload was skipped because the response did not contain a client UUID.');
+        window.setTimeout(() => { location.href = 'clients.html'; }, 650);
       }
       return;
     }
 
-    if (result.error.retriable) {
-      saveClientCreateFallback(client);
-      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
-      window.ZentridFormReadiness?.markCommitted(form);
-      ZentridLayout.toast('Backend unavailable. Client saved locally and opened in Client Detail.');
-      closeClientCreateModal(true);
-      window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
-      return;
-    }
-
+    // Any backend failure must keep the wizard open. Never auto-save locally and never navigate
+    // away after a failed POST; otherwise the user loses the validation report and draft context.
     clientCreateSaving = false;
     if (saveButton) ZentridFormUX.setBusy(saveButton, false);
-    const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;
+    const detail = result.error?.status ? `${result.message} (HTTP ${result.error.status})` : (result.message || result.error?.message || 'Backend rejected the client create request.');
     ZentridFormUX.renderSummary(summary, [{ message: detail }], 'Client was not created');
     summary?.focus();
   } catch (error) {
-    try {
-      saveClientCreateFallback(client);
-      clientCreateInitialSnapshot = clientCreateDraftSnapshot();
-      window.ZentridFormReadiness?.markCommitted(form);
-      ZentridLayout.toast('Client mutation runtime was unavailable. Client saved locally.');
-      closeClientCreateModal(true);
-      window.setTimeout(() => { location.href = 'client-detail.html'; }, 450);
-    } catch (fallbackError) {
-      clientCreateSaving = false;
-      if (saveButton) ZentridFormUX.setBusy(saveButton, false);
-      ZentridFormUX.renderSummary(summary, [{ message:'Unable to create the client through the backend or save the local fallback.' }], 'Client was not created');
-      summary?.focus();
-      console.error('Client create and fallback both failed.', error, fallbackError);
-    }
+    clientCreateSaving = false;
+    if (saveButton) ZentridFormUX.setBusy(saveButton, false);
+    const message = error instanceof Error ? error.message : 'Unable to create the client through the backend.';
+    ZentridFormUX.renderSummary(summary, [{ message }], 'Client was not created');
+    summary?.focus();
+    console.error('Client create failed. The wizard remains open so the payload and diagnostic report can be inspected.', error);
   }
 }
 
@@ -1289,10 +1444,30 @@ function clientRowsMarkup(rows: ZentridClientRecord[]): string {
   if (!rows.length) return `<div class="empty-state-v28"><strong>No clients found</strong><small>Try changing search, type or status filters.</small></div>`;
   return `<div class="data-head"><span>Client</span><span>Legal / Identity</span><span>Assignment Scope</span><span>Access / Contract</span><span>Actions</span></div>${rows.map(c => {
     const k = ZentridClientModel.countsForClient(c.id);
-    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${ZentridDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${ZentridClientModel.badge(c.status)}">${c.status}</span><small>${c.users} portal accounts · ${c.billing}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="false" data-permission-local-override="true">Edit</button></div></div>`;
+    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${ZentridDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${ZentridClientModel.badge(c.status)}">${c.status}</span><small>${c.users} portal accounts · ${c.billing}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="true">Edit</button></div></div>`;
   }).join('')}`;
 }
 
+
+const CLIENT_LEGAL_FORM_OPTIONS = ['LLC','Corporation','Holding Company','Partnership','Non-profit','Other'] as const;
+const CLIENT_DOCUMENT_ALLOWED_EXTENSIONS = ['.pdf','.doc','.docx','.jpg','.jpeg','.png'] as const;
+const CLIENT_DOCUMENT_ACCEPT = CLIENT_DOCUMENT_ALLOWED_EXTENSIONS.join(',');
+
+function clientDocumentFileExtension(fileName: string): string {
+  const normalized = String(fileName || '').trim().toLocaleLowerCase();
+  const dot = normalized.lastIndexOf('.');
+  return dot >= 0 ? normalized.slice(dot) : '';
+}
+
+function clientDocumentFileAllowed(file: File | undefined | null): boolean {
+  return Boolean(file && CLIENT_DOCUMENT_ALLOWED_EXTENSIONS.includes(clientDocumentFileExtension(file.name) as typeof CLIENT_DOCUMENT_ALLOWED_EXTENSIONS[number]));
+}
+
+function clientDocumentAllowedMessage(): string {
+  return 'Allowed document formats: PDF, DOC, DOCX, JPG, JPEG, PNG.';
+}
+
+const CLIENT_PORTAL_ROLE_OPTIONS = ['Owner','End User','Owner Viewer','Investor Viewer','Technical Viewer','Finance Viewer','Operations Viewer'] as const;
 
 type ClientDetailTabKey = 'overview' | 'identity' | 'location' | 'portal' | 'users' | 'plants' | 'commercial' | 'alerts' | 'activity';
 type ClientDetailFeedbackTone = 'info' | 'warning' | 'danger' | 'success';
@@ -1324,8 +1499,8 @@ function clientDetailFreshness(record: ZentridClientRecord): string {
 function clientDetailModeCopy(record: ZentridClientRecord): { title: string; message: string; tone: ClientDetailFeedbackTone } {
   return ZentridEntityDetailUX.modeCopy(record, 'client', {
     status:record.status,
-    backendTitle:'Live client · local override available',
-    backendMessage:'Edit creates a browser-only override for this live record. No backend update request is sent.',
+    backendTitle:'Live client · backend update available',
+    backendMessage:'Editable client fields are saved through PUT /api/admin/clients/{id}.',
     archivedTitle:'Archived client is read-only',
     archivedMessage:'Archived identity, portal and commercial data cannot be changed from this workspace.'
   });
@@ -1345,23 +1520,10 @@ function clearClientDetailFeedback(): void {
   ZentridEntityDetailUX.clearFeedback('clientDetailFeedback', 'client-detail-feedback-v118');
 }
 function clientDetailDocumentsData(client: ZentridClientRecord): ZentridClientDocumentRecord[] {
-  if (Array.isArray(client.documentRecords) && client.documentRecords.length) return client.documentRecords.map(item => ({ ...item }));
-  const base: ZentridClientDocumentRecord[] = client.type === 'Individual'
-    ? [
-      { name:'Identity Verification.pdf', type:'Identity', status:'Pending' },
-      { name:'Owner Portal Consent.pdf', type:'Access', status:'Draft' },
-      { name:'Plant Assignment Request.pdf', type:'Assignment', status:'Waiting' }
-    ]
-    : [
-      { name:'Client Agreement.pdf', type:'Commercial', status:'Active' },
-      { name:'Registration Extract.pdf', type:'Legal', status:'Verified' },
-      { name:'Tax Certificate.pdf', type:'Finance', status:'Verified' }
-    ];
-  return base.concat([
-    { name:'Plant Management Matrix', type:'Access', status:'Updated' },
-    { name:'Data Processing Agreement.pdf', type:'Compliance', status:'Signed' },
-    { name:'Billing Contacts.pdf', type:'Finance', status:'Active' }
-  ]);
+  // Backend-managed clients must never fall back to prototype/mock documents. If the API
+  // returns no documentRecords, show a real empty state instead of invented files.
+  if (Array.isArray(client.documentRecords)) return client.documentRecords.map(item => ({ ...item }));
+  return [];
 }
 function clientDetailPortalUsersData(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
   if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(user => ({ ...user }));
@@ -1387,23 +1549,35 @@ function clientDetailSectionTitle(tab: ClientDetailTabKey): string {
 }
 function clientDetailSectionContext(record: ZentridClientRecord, tab: ClientDetailTabKey, editable = clientDetailEditMode): string {
   const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:clientDetailBackendManaged(record), archived:clientDetailIsArchived(record), sectionEditable:clientDetailEditableTab(tab) });
-  const help = editable ? 'Review the highlighted fields before saving locally.' : clientDetailEditableTab(tab) ? 'Editing is available only for supported backend or session records.' : 'This section is derived from linked operational data.';
+  const help = editable ? (clientDetailBackendManaged(record) ? 'Review the highlighted fields before saving them to the backend.' : 'Review the highlighted fields before saving locally.') : clientDetailEditableTab(tab) ? 'Editing is available for supported backend or session records.' : 'This section is derived from linked operational data.';
   return `<div class="client-section-context-v118"><div><span>${clientDetailEscape(mode)}</span><strong>${clientDetailEscape(clientDetailSectionTitle(tab))}</strong><small>${clientDetailEscape(help)}</small></div></div>`;
+}
+function clientDetailEditableValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const text = String(value).trim();
+  if (!text || text === '—' || text.toLowerCase() === 'not provided' || text.toLowerCase() === 'not configured') return '';
+  return text;
 }
 function clientDetailInput(key: keyof ZentridClientRecord, label: string, value: unknown, options?: string[], type = 'text', required = false): string {
   const req = required ? ' required' : '';
-  const safeValue = clientDetailAttr(value ?? '');
-  if (options) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<select data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${options.map(option => `<option value="${clientDetailAttr(option)}" ${String(value ?? '') === option ? 'selected' : ''}>${clientDetailEscape(option)}</option>`).join('')}</select></label>`;
+  const editableValue = clientDetailEditableValue(value);
+  const safeValue = clientDetailAttr(editableValue);
+  if (options) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<select data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${options.map(option => `<option value="${clientDetailAttr(option)}" ${editableValue === option ? 'selected' : ''}>${clientDetailEscape(option || 'Select an option')}</option>`).join('')}</select></label>`;
   const textarea = ['address','accessScope','exportPolicy','billing','onboarding'].includes(String(key));
-  if (textarea) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<textarea data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${clientDetailEscape(value ?? '')}</textarea></label>`;
+  if (textarea) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<textarea data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${clientDetailEscape(editableValue)}</textarea></label>`;
   return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<input type="${type}" data-client-edit-key="${String(key)}" name="client-edit-${String(key)}" value="${safeValue}"${req}></label>`;
+}
+function clientDetailPortalUsernameInput(value: unknown): string {
+  const editableValue = clientDetailEditableValue(value);
+  return `<label>Portal Username<input type="text" data-client-edit-key="username" name="client-edit-username" value="${clientDetailAttr(editableValue)}" autocomplete="username"><small class="field-help">The username is sent to the Client API only when you change it.</small></label>`;
 }
 function clientDetailDocumentsEditor(client: ZentridClientRecord): string {
   const rows = client.documentRecords || [];
-  return `<div class="section-title-v17 mini"><div><h3>Client Documents</h3><p class="muted">Local metadata only. Files are not uploaded because a document API is not available.</p></div><button class="small-btn" type="button" data-add-client-document>+ Add Document</button></div>
+  const allowedTypes = ['Identity','Legal','Commercial','Finance','Compliance','Access','Assignment'];
+  return `<div class="tenant-detail-table-head-v117"><div><h3>Client Documents</h3><p class="muted">Upload a new client document through POST /api/admin/clients/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div><button class="small-btn primary" type="button" data-add-client-document>Add Document</button></div>
     <div class="data-table compact-table client-document-editor-v118">
-      <div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Actions</span></div>
-      ${rows.length ? rows.map((doc,index) => `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type"><option ${doc.type==='Identity'?'selected':''}>Identity</option><option ${doc.type==='Legal'?'selected':''}>Legal</option><option ${doc.type==='Commercial'?'selected':''}>Commercial</option><option ${doc.type==='Finance'?'selected':''}>Finance</option><option ${doc.type==='Compliance'?'selected':''}>Compliance</option><option ${doc.type==='Access'?'selected':''}>Access</option><option ${doc.type==='Assignment'?'selected':''}>Assignment</option></select></label><label><span class="sr-only">Document status</span><select data-client-document-field="status"><option ${doc.status==='Draft'?'selected':''}>Draft</option><option ${doc.status==='Pending'?'selected':''}>Pending</option><option ${doc.status==='Verified'?'selected':''}>Verified</option><option ${doc.status==='Active'?'selected':''}>Active</option><option ${doc.status==='Signed'?'selected':''}>Signed</option><option ${doc.status==='Expired'?'selected':''}>Expired</option><option ${doc.status==='Waiting'?'selected':''}>Waiting</option><option ${doc.status==='Updated'?'selected':''}>Updated</option></select></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry"></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No document metadata</strong><small>Add a document record when client-level documentation is required.</small></div>`}
+      <div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Document File</span><span>Actions</span></div>
+      ${rows.length ? rows.map((doc,index) => { const isNew = !doc.id && !doc.filePath; return `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" ${isNew ? '' : 'readonly'} required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type" ${isNew ? '' : 'disabled'}>${allowedTypes.map(type => `<option ${doc.type===type?'selected':''}>${type}</option>`).join('')}</select></label><label><span class="sr-only">Document status</span><input value="${clientDetailAttr(doc.status || (isNew ? 'Pending' : ''))}" readonly></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry" ${isNew ? '' : 'readonly'}></label><div class="tenant-document-file-field">${isNew ? `<label class="tenant-document-file-picker"><span class="small-btn">Choose File</span><input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-client-document-file="${index}"></label>` : `<strong>${clientDetailEscape(doc.fileName || doc.name || 'Uploaded')}</strong>`}</div><div class="row-actions single-action">${isNew ? `<button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button>` : '<span class="badge success">Uploaded</span>'}</div></div>`; }).join('') : `<div class="empty-state"><strong>No client documents</strong><small>Click Add Document to attach the first backend document.</small></div>`}
     </div>`;
 }
 function clientDetailUsersEditor(client: ZentridClientRecord): string {
@@ -1419,11 +1593,11 @@ function clientDetailBankEditor(client: ZentridClientRecord): string {
     ${accounts.length ? accounts.map((account,index) => `<div class="data-row" data-client-bank-row="${index}"><input aria-label="Bank name" value="${clientDetailAttr(account.bankName)}" data-client-bank-field="bankName" required><input aria-label="Bank code" value="${clientDetailAttr(account.bankCode)}" data-client-bank-field="bankCode"><input aria-label="Account number" value="${clientDetailAttr(account.accountNumber)}" data-client-bank-field="accountNumber" required><select aria-label="Account currency" data-client-bank-field="accountCurrency"><option ${account.accountCurrency==='AMD'?'selected':''}>AMD</option><option ${account.accountCurrency==='USD'?'selected':''}>USD</option><option ${account.accountCurrency==='EUR'?'selected':''}>EUR</option></select><label class="inline-check-v118"><input type="radio" name="client-primary-bank" ${account.primary?'checked':''} data-client-bank-primary="${index}"><span>Primary</span></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-bank="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No bank accounts</strong><small>Banking is optional until a commercial settlement is configured.</small></div>`}</div>`;
 }
 function clientDetailEditTab(client: ZentridClientRecord, plants: ZentridPlantRecord[], tab: ClientDetailTabKey): string {
-  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields in the local prototype record.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,undefined,'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('verification','Verification',client.verification,['Draft · Pending verification','Identity Pending','KYC Review','Verified','Rejected'],'text',true)}${clientDetailInput('status','Client Status',client.status,['Active','Pending','Review','Suspended','Archived'],'text',true)}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,undefined,'text',true)}${clientDetailInput('account','Account Manager',client.account,undefined,'text',true)}</div>${clientDetailDocumentsEditor(client)}`;
-  if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,['Armenia','United States','Germany','Spain'],'text',true)}${clientDetailInput('region','Region',client.region || '',undefined,'text',true)}${clientDetailInput('city','City',client.city,undefined,'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || 'Asia/Yerevan',undefined,'text',true)}${clientDetailInput('language','Language',client.language || 'English',['English','Armenian','German','Spanish'],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '°C',['°C','°F'])}${clientDetailInput('currency','Currency',client.currency || 'AMD',['AMD','USD','EUR'])}${clientDetailInput('irradiation','Irradiation',client.irradiation || 'kWh/m2',['kWh/m2','W/m2'])}</div>`;
-  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact and client-facing portal defaults.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailInput('username','Portal Username',client.username || '',undefined,'text')}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,undefined,'text',true)}${clientDetailInput('accessScope','Plant / Data Scope',client.accessScope,undefined,'text',true)}${clientDetailInput('exportPolicy','Export Policy',client.exportPolicy,undefined,'text',true)}${clientDetailInput('onboarding','Onboarding State',client.onboarding,undefined,'text',true)}</div>`;
+  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields. Fields marked * are required by the Client API for this client type.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,['', ...CLIENT_LEGAL_FORM_OPTIONS],'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('verification','Verification',client.verification,['Draft · Pending verification','Identity Pending','KYC Review','Verified','Rejected'],'text',true)}${clientDetailInput('status','Client Status',client.status,['Active','Pending','Review','Suspended','Archived'],'text',true)}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}${clientDetailInput('account','Account Manager',client.account,undefined,'text',true)}</div>${clientDetailDocumentsEditor(client)}`;
+  if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences. Street Address is required for backend updates.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,['Armenia','United States','Germany','Spain'],'text',true)}${clientDetailInput('region','Region',client.region || '',undefined,'text',true)}${clientDetailInput('city','City',client.city,undefined,'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || 'Asia/Yerevan',undefined,'text',true)}${clientDetailInput('language','Language',client.language || 'English',['English','Armenian','German','Spanish'],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '°C',['°C','°F'])}${clientDetailInput('currency','Currency',client.currency || 'AMD',['AMD','USD','EUR'])}${clientDetailInput('irradiation','Irradiation',client.irradiation || 'kWh/m2',['kWh/m2','W/m2'])}</div>`;
+  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact and client-facing portal defaults. Email, Phone Number 1 and Portal Role are required; Legal Entity clients also require Primary Contact Full Name.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailPortalUsernameInput(client.username)}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}${clientDetailInput('accessScope','Plant / Data Scope',client.accessScope,undefined,'text',true)}${clientDetailInput('exportPolicy','Export Policy',client.exportPolicy,undefined,'text',true)}${clientDetailInput('onboarding','Onboarding State',client.onboarding,undefined,'text',true)}</div>`;
   if (tab === 'users') return `${clientDetailSectionContext(client, tab, true)}${clientDetailUsersEditor(client)}`;
-  if (tab === 'commercial') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Edit local billing summary, service tier and payment destination metadata.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('billing','Billing Profile',client.billing,undefined,'text',true)}${clientDetailInput('supportTier','Support Tier',client.supportTier,undefined,'text',true)}</div>${clientDetailBankEditor(client)}`;
+  if (tab === 'commercial') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Edit billing summary, service tier and payment destination metadata.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('billing','Billing Profile',client.billing,undefined,'text',true)}${clientDetailInput('supportTier','Support Tier',client.supportTier,undefined,'text',true)}</div>${clientDetailBankEditor(client)}`;
   return `${clientDetailSectionContext(client, tab, false)}${clientTab(client, plants, tab, false, true)}`;
 }
 function clientDetailSyncControlToDraft(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void {
@@ -1447,6 +1621,7 @@ function clientDetailValidationIssues(record: ZentridClientRecord, tab: ClientDe
       const row = root.querySelector<HTMLElement>(`[data-client-document-row="${index}"]`);
       if (!doc.name.trim()) issues.push({ control:row?.querySelector<HTMLInputElement>('[data-client-document-field="name"]') || null, message:`Document ${index + 1} requires a name.` });
       if (!doc.type.trim() || !doc.status.trim()) issues.push({ message:`Document ${index + 1} requires a type and status.` });
+      if (!doc.id && !doc.filePath && !(doc.localFile instanceof File)) issues.push({ control:row?.querySelector<HTMLInputElement>('[data-client-document-file]') || null, message:`Document ${index + 1} requires a file.` });
     });
   }
   if (tab === 'portal') {
@@ -1480,6 +1655,47 @@ function clientDetailValidationIssues(record: ZentridClientRecord, tab: ClientDe
   }
   return issues;
 }
+
+type ClientDetailRequiredProfileIssue = { tab: ClientDetailTabKey; key: keyof ZentridClientRecord; label: string; message: string };
+
+function clientDetailRequiredProfileIssues(record: ZentridClientRecord): ClientDetailRequiredProfileIssue[] {
+  const issues: ClientDetailRequiredProfileIssue[] = [];
+  const missing = (value: unknown): boolean => !clientApiNullableScalar(value);
+  const legalEntity = String(record.type || '').trim().toLowerCase() === 'legal entity';
+  if (legalEntity) {
+    if (missing(record.legalForm)) issues.push({ tab:'identity', key:'legalForm', label:'Legal Form', message:'Legal form is required for a legal entity.' });
+    else if (!CLIENT_LEGAL_FORM_OPTIONS.includes(String(record.legalForm).trim() as (typeof CLIENT_LEGAL_FORM_OPTIONS)[number])) issues.push({ tab:'identity', key:'legalForm', label:'Legal Form', message:'Select a supported legal form from the list.' });
+    if (missing(record.registrationNo)) issues.push({ tab:'identity', key:'registrationNo', label:'Registration Number', message:'Registration number is required for a legal entity.' });
+    if (missing(record.taxId)) issues.push({ tab:'identity', key:'taxId', label:'Tax ID / VAT Number', message:'Tax ID / VAT number is required for a legal entity.' });
+    if (missing(record.primaryContact)) issues.push({ tab:'portal', key:'primaryContact', label:'Primary Contact Full Name', message:'Primary contact full name is required for a legal entity.' });
+  }
+  if (missing(record.address)) issues.push({ tab:'location', key:'address', label:'Street Address', message:'Street address is required.' });
+  if (missing(record.contactEmail)) issues.push({ tab:'portal', key:'contactEmail', label:'Primary Contact Email', message:'Primary contact email is required.' });
+  if (missing(record.contactPhone)) issues.push({ tab:'portal', key:'contactPhone', label:'Phone Number 1', message:'Primary contact phone number 1 is required.' });
+  if (missing(record.assignmentRole)) issues.push({ tab:'portal', key:'assignmentRole', label:'Portal Role', message:'Portal role is required.' });
+  return issues;
+}
+
+function clientDetailShowRequiredProfileIssues(issues: ClientDetailRequiredProfileIssue[], summary: HTMLElement | null): void {
+  if (!summary || !issues.length) return;
+  const grouped = issues.map(issue => `<li><button type="button" class="client-required-link-v140" data-client-required-tab="${clientDetailAttr(issue.tab)}" data-client-required-key="${clientDetailAttr(String(issue.key))}"><strong>${clientDetailEscape(issue.label)}</strong><span>${clientDetailEscape(clientDetailSectionTitle(issue.tab))}</span></button><small>${clientDetailEscape(issue.message)}</small></li>`).join('');
+  summary.hidden = false;
+  summary.innerHTML = `<strong>Client profile is incomplete</strong><p>Complete ${issues.length} required ${issues.length === 1 ? 'field' : 'fields'} before saving this backend client.</p><ul class="client-required-list-v140">${grouped}</ul>`;
+  summary.focus();
+  summary.querySelectorAll<HTMLButtonElement>('[data-client-required-tab]').forEach(button => button.addEventListener('click', () => {
+    const tab = button.dataset.clientRequiredTab as ClientDetailTabKey | undefined;
+    const key = button.dataset.clientRequiredKey || '';
+    if (!tab) return;
+    const tabButton = document.querySelector<HTMLButtonElement>(`[data-client-tab="${tab}"]`);
+    tabButton?.click();
+    window.setTimeout(() => {
+      const control = document.querySelector<HTMLElement>(`[data-client-edit-key="${key}"]`);
+      control?.focus();
+      control?.scrollIntoView({ block:'center', behavior:'smooth' });
+    }, 0);
+  }));
+}
+
 function updateClientDetailActions(record: ZentridClientRecord): void {
   const edit = document.getElementById('editClientTab') as HTMLButtonElement | null;
   const cancel = document.getElementById('cancelClientEdit') as HTMLButtonElement | null;
@@ -1526,9 +1742,107 @@ function setClientDetailEditMode(enabled: boolean, baseRecord: ZentridClientReco
   clearClientDetailFeedback();
   renderClientDetailCurrentTab(baseRecord, plants);
 }
-function saveClientDetailEdits(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
+function clientApiNullableScalar(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') return null;
+  const text = String(value).trim();
+  if (!text || text === '—' || text.toLowerCase() === 'not provided' || text.toLowerCase() === 'not configured') return null;
+  return text;
+}
+
+function clientApiDateOnly(value: unknown): string | null {
+  const text = clientApiNullableScalar(value);
+  if (!text) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const display = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
+  return display ? `${display[3]}-${display[1]}-${display[2]}` : null;
+}
+
+function clientApiDocumentReference(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unknown> {
+  const raw = record.raw && typeof record.raw === 'object' ? record.raw as Record<string, unknown> : {};
+  const rawTenantLink = raw.tenantLink && typeof raw.tenantLink === 'object' && !Array.isArray(raw.tenantLink) ? raw.tenantLink as Record<string, unknown> : {};
+  const rawIdentity = raw.identity && typeof raw.identity === 'object' && !Array.isArray(raw.identity) ? raw.identity as Record<string, unknown> : {};
+  const rawPortal = raw.portalAccount && typeof raw.portalAccount === 'object' && !Array.isArray(raw.portalAccount) ? raw.portalAccount as Record<string, unknown> : {};
+  const rawPrimary = raw.primaryContact && typeof raw.primaryContact === 'object' && !Array.isArray(raw.primaryContact) ? raw.primaryContact as Record<string, unknown> : {};
+  const rawPortalUsers = Array.isArray(raw.portalUsers) ? raw.portalUsers.filter(item => item && typeof item === 'object' && !Array.isArray(item)) as Record<string, unknown>[] : [];
+  const firstRawPortalUser = rawPortalUsers[0] || {};
+  const rawDocumentation = raw.documentation && typeof raw.documentation === 'object' && !Array.isArray(raw.documentation) ? raw.documentation as Record<string, unknown> : {};
+  const managingTenantId = String(rawTenantLink.managingTenantId || raw.managingTenantId || raw.tenantId || '').trim();
+  const nameParts = String(record.name || '').trim().split(/\s+/).filter(Boolean);
+  const isIndividual = String(record.type || rawTenantLink.clientType || '').toLowerCase().includes('individual');
+  const currentPortalUsername = String(record.username || record.portalUsername || '').trim();
+  const originalPortalUsername = String(rawPortal.username || '').trim();
+  // PUT currently triggers a backend uniqueness conflict when the unchanged username of the
+  // same client is echoed back. Treat username as an update-only field: send it only when
+  // the user actually changed it. This still allows a deliberate username change to be
+  // validated by the backend, while avoiding self-conflicts for unrelated section edits.
+  const portalAccountPayload: Record<string, unknown> = {
+    role: clientApiNullableScalar(record.assignmentRole) || clientApiNullableScalar(rawPortal.role)
+  };
+  if (currentPortalUsername && currentPortalUsername !== originalPortalUsername) {
+    portalAccountPayload.username = currentPortalUsername;
+  }
+  return {
+    clientName: String(record.name || '').trim(),
+    tenantLink: {
+      managingTenantId: managingTenantId || null,
+      clientType: String(record.type || rawTenantLink.clientType || '').trim(),
+      status: String(record.status || rawTenantLink.status || '').trim()
+    },
+    identity: {
+      firstName: isIndividual ? String(rawIdentity.firstName || nameParts[0] || '').trim() || null : null,
+      lastName: isIndividual ? String(rawIdentity.lastName || nameParts[1] || '').trim() || null : null,
+      middleName: isIndividual ? String(rawIdentity.middleName || nameParts.slice(2).join(' ') || '').trim() || null : null,
+      dateOfBirth: clientApiDateOnly(record.dob) || clientApiDateOnly(rawIdentity.dateOfBirth),
+      companyName: isIndividual ? null : String(record.name || rawIdentity.companyName || '').trim() || null,
+      legalForm: clientApiNullableScalar(record.legalForm) || clientApiNullableScalar(rawIdentity.legalForm),
+      registrationNumber: clientApiNullableScalar(record.registrationNo) || clientApiNullableScalar(rawIdentity.registrationNumber),
+      taxIdVatNumber: clientApiNullableScalar(record.taxId) || clientApiNullableScalar(rawIdentity.taxIdVatNumber),
+      role: clientApiNullableScalar(record.assignmentRole) || clientApiNullableScalar(rawIdentity.role) || clientApiNullableScalar(rawPortal.role),
+      preferredLanguage: String(record.language || rawIdentity.preferredLanguage || 'English').trim()
+    },
+    address: {
+      country: String(record.country || '').trim(),
+      stateRegion: String(record.region || '').trim(),
+      city: String(record.city || '').trim(),
+      streetAddress: clientApiNullableScalar(record.address) || clientApiNullableScalar(raw.address) || ''
+    },
+    preferences: {
+      timeZone: String(record.timezone || 'Asia/Yerevan').trim(),
+      temperatureUnit: String(record.temperature || '°C').trim(),
+      currency: String(record.currency || 'AMD').trim(),
+      irradiationUnit: String(record.irradiation || 'kWh/m2').trim(),
+      language: String(record.language || 'English').trim()
+    },
+    primaryContact: {
+      phoneNumber1: clientApiNullableScalar(record.contactPhone) || clientApiNullableScalar(rawPrimary.phoneNumber1) || clientApiNullableScalar(firstRawPortalUser.phoneNumber1) || clientApiNullableScalar(firstRawPortalUser.phone),
+      phoneNumber2: clientApiNullableScalar(record.phone2) || clientApiNullableScalar(rawPrimary.phoneNumber2) || clientApiNullableScalar(firstRawPortalUser.phoneNumber2),
+      email: (clientApiNullableScalar(record.contactEmail) || clientApiNullableScalar(rawPrimary.email) || clientApiNullableScalar(firstRawPortalUser.email))?.toLocaleLowerCase() || null,
+      fullName: clientApiNullableScalar(record.primaryContact) || clientApiNullableScalar(rawPrimary.fullName) || clientApiNullableScalar(firstRawPortalUser.fullName) || clientApiNullableScalar(firstRawPortalUser.name)
+    },
+    portalAccount: portalAccountPayload,
+    documentation: {
+      identityDocument: clientApiDocumentReference(rawDocumentation.identityDocument),
+      registrationDocument: clientApiDocumentReference(rawDocumentation.registrationDocument)
+    },
+    bankAccounts: Array.isArray(record.bankAccounts) ? record.bankAccounts.map(account => ({
+      bankName: String(account.bankName || account.bank || '').trim(),
+      bankCode: String(account.bankCode || '').trim(),
+      accountNumber: String(account.accountNumber || account.account || '').trim(),
+      accountCurrency: String(account.accountCurrency || account.currency || '').trim(),
+      primary: Boolean(account.primary)
+    })) : []
+  };
+}
+
+async function saveClientDetailEdits(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): Promise<void> {
   if (!clientDetailEditMode || !clientDetailDraft || clientDetailBusy) return;
-  if (!ZentridActionPermissions.guard({ action:'edit', resource:'client', record:baseRecord, status:baseRecord.status, origin:clientDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
+  const backendManaged = clientDetailBackendManaged(baseRecord);
+  if (!ZentridActionPermissions.guard({ action:'edit', resource:'client', record:baseRecord, status:baseRecord.status, origin:clientDetailOrigin(baseRecord), updateAvailable:backendManaged, localOverride:!backendManaged })) return;
   if (!clientDetailCanEdit(baseRecord)) {
     const copy = clientDetailModeCopy(baseRecord);
     setClientDetailFeedback(copy.tone, copy.title, copy.message);
@@ -1537,13 +1851,50 @@ function saveClientDetailEdits(baseRecord: ZentridClientRecord, plants: ZentridP
   const content = document.getElementById('clientTabContent');
   const summary = document.getElementById('clientDetailEditSummary');
   if (!content) return;
-  const result = ZentridFormUX.validate(content, clientDetailValidationIssues(clientDetailDraft, clientDetailActiveTab, content), summary, 'Client changes were not saved');
-  if (!result.valid) { ZentridFormUX.focusFirst(result, summary); return; }
+  if (backendManaged) {
+    const requiredProfileIssues = clientDetailRequiredProfileIssues(clientDetailDraft);
+    if (requiredProfileIssues.length) {
+      clientDetailShowRequiredProfileIssues(requiredProfileIssues, summary);
+      return;
+    }
+  }
+  const validation = ZentridFormUX.validate(content, clientDetailValidationIssues(clientDetailDraft, clientDetailActiveTab, content), summary, 'Client changes were not saved');
+  if (!validation.valid) { ZentridFormUX.focusFirst(validation, summary); return; }
   const button = document.getElementById('saveClientEdit') as HTMLButtonElement | null;
   clientDetailBusy = true;
   document.getElementById('clientDetailControl')?.setAttribute('aria-busy','true');
-  if (button) ZentridFormUX.setBusy(button, true, 'Saving…');
+  if (button) ZentridFormUX.setBusy(button, true, backendManaged ? 'Saving to API…' : 'Saving…');
   try {
+    if (backendManaged) {
+      if (!window.ZentridAPIMutations?.clients?.update) throw new Error('Client update API runtime is unavailable.');
+      const payload = clientDetailApiPayload(clientDetailDraft);
+      const result = await window.ZentridAPIMutations.clients.update(baseRecord.id, payload);
+      if (!result.ok) {
+        const backendData = (result.error as unknown as { data?: Record<string, unknown> } | undefined)?.data;
+        const backendErrors = backendData && typeof backendData.errors === 'object' && backendData.errors && !Array.isArray(backendData.errors)
+          ? backendData.errors as Record<string, unknown>
+          : undefined;
+        const usernameErrors = backendErrors?.['portalAccount.username'];
+        const usernameMessage = Array.isArray(usernameErrors) ? String(usernameErrors[0] || '').trim() : '';
+        const message = usernameMessage || result.error?.message || result.message || 'Backend rejected the client update.';
+        throw new Error(message);
+      }
+      const documentUpload = await uploadClientDetailDocuments(baseRecord.id, clientDetailDraft.documentRecords || []);
+      if (documentUpload.failures.length) {
+        throw new Error(`Client profile was saved, but ${documentUpload.failures.length} document upload(s) failed: ${documentUpload.failures.join(' | ')}`);
+      }
+      const refreshed = await window.ZentridAPIRepositories?.clients?.get(baseRecord.id, { forceRefresh:true }).catch(() => null);
+      const apiRecord = refreshed?.item as ZentridClientRecord | null | undefined;
+      if (apiRecord?.id) Object.assign(baseRecord, apiRecord);
+      else Object.assign(baseRecord, { ...clientDetailDraft, dataOrigin:'live', updated:new Date().toLocaleString() });
+      clientDetailEditMode = false;
+      clientDetailDraft = null;
+      clientDetailEditSnapshot = '';
+      renderClientDetailPage();
+      setClientDetailFeedback('success','Client updated','Changes were saved through PUT /api/admin/clients/{id}.');
+      return;
+    }
+
     const changed = ZentridDataSource.markChanged({ ...clientDetailDraft, updated:new Date().toLocaleString() }, 'client') as ZentridClientRecord;
     changed.documents = changed.documentRecords?.length || 0;
     changed.users = changed.portalUsers?.length || 0;
@@ -1553,21 +1904,60 @@ function saveClientDetailEdits(baseRecord: ZentridClientRecord, plants: ZentridP
     clientDetailDraft = null;
     clientDetailEditSnapshot = '';
     renderClientDetailPage();
-    setClientDetailFeedback('success','Client section saved locally','No backend request was sent. The client now shows Local changes as its source.');
+    setClientDetailFeedback('success','Client section saved locally','This local/session record was updated in browser storage.');
   } catch (error) {
     clientDetailBusy = false;
     document.getElementById('clientDetailControl')?.setAttribute('aria-busy','false');
     if (button) ZentridFormUX.setBusy(button, false);
-    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the client locally. Review browser storage and try again.' }], 'Client changes were not saved');
+    const message = error instanceof Error ? error.message : 'Unable to save the client.';
+    ZentridFormUX.renderSummary(summary, [{ message }], 'Client changes were not saved');
     summary?.focus();
   }
 }
 function addClientDetailDocument(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft) return;
   clientDetailDraft.documentRecords = clientDetailDraft.documentRecords || [];
-  clientDetailDraft.documentRecords.push({ name:'', type:'Legal', status:'Draft' });
+  clientDetailDraft.documentRecords.push({ name:'', type:'Legal', status:'Pending' });
   renderClientDetailCurrentTab(baseRecord, plants);
 }
+function selectClientDetailDocumentFile(input: HTMLInputElement): void {
+  if (!clientDetailDraft) return;
+  const index = Number(input.dataset.clientDocumentFile);
+  const file = input.files?.[0];
+  if (!Number.isInteger(index) || !file || !clientDetailDraft.documentRecords?.[index]) return;
+  const allowed = /\.(pdf|doc|docx|jpg|jpeg|png)$/i;
+  if (!allowed.test(file.name)) {
+    input.value = '';
+    setClientDetailFeedback('danger','Unsupported document type','Allowed document formats: PDF, DOC, DOCX, JPG, JPEG, PNG.');
+    return;
+  }
+  const doc = clientDetailDraft.documentRecords[index]!;
+  doc.localFile = file;
+  doc.fileName = file.name;
+  if (!doc.name.trim()) doc.name = file.name.replace(/\.[^.]+$/, '');
+  const row = input.closest<HTMLElement>('[data-client-document-row]');
+  const nameInput = row?.querySelector<HTMLInputElement>('[data-client-document-field="name"]');
+  if (nameInput && !nameInput.value.trim()) nameInput.value = doc.name;
+  const fileName = row?.querySelector<HTMLElement>(`[data-client-document-file-name="${index}"]`);
+  if (fileName) fileName.textContent = file.name;
+  setClientDetailFeedback('info','Document ready to upload',`${file.name} will be uploaded when you save Client changes.`);
+}
+
+async function uploadClientDetailDocuments(clientId: string, docs: ZentridClientDocumentRecord[]): Promise<{ uploaded:number; failures:string[] }> {
+  const candidates = docs.filter(doc => doc.localFile instanceof File && !doc.id && !doc.filePath);
+  if (!candidates.length) return { uploaded:0, failures:[] };
+  if (!window.ZentridAPIMutations?.clients?.uploadDocument) return { uploaded:0, failures:candidates.map(doc => `${doc.name || doc.localFile?.name || 'Document'}: upload API unavailable`) };
+  let uploaded = 0;
+  const failures: string[] = [];
+  for (const doc of candidates) {
+    const candidate = { file:doc.localFile!, name:doc.name || doc.localFile!.name, type:doc.type || 'Legal', expiry:doc.expiry || '' };
+    const result = await window.ZentridAPIMutations.clients.uploadDocument(clientId, clientDocumentMultipart(candidate));
+    if (result.ok) uploaded += 1;
+    else failures.push(`${candidate.name}: ${result.error?.message || result.message || 'upload failed'}`);
+  }
+  return { uploaded, failures };
+}
+
 function removeClientDetailDocument(index: number, baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   if (!clientDetailDraft?.documentRecords?.[index]) return;
   if (!window.confirm(`Remove ${clientDetailDraft.documentRecords[index]!.name || 'this document'} from the local client draft?`)) return;
@@ -1610,13 +2000,13 @@ function renderClientDetailPage() {
   if (!client.id) { window.ZentridApiOnly?.mountEmpty('Client Detail', 'The client endpoint has not returned a selected record.', '/api/admin/clients'); return; }
   const plants = ZentridClientModel.plantsForClient(client.id);
   ZentridLayout.mount(`
-    <section class="page-hero client-hero-v17">
+    <section class="page-hero client-hero-v17 client-detail-stable-hero">
       <div><p class="eyebrow">Client Detail · ${clientDetailEscape(client.type)} ${ZentridDataSource.badge(client, 'client', true)}</p><h1 id="clientDetailHeroName">${clientDetailEscape(client.name)}</h1><p class="muted" id="clientDetailHeroMeta">${clientDetailEscape(client.code)} · ${clientDetailEscape(client.country)}, ${clientDetailEscape(client.city)} · Account Manager: ${clientDetailEscape(client.account)}</p></div>
       <button class="freshness-card" id="backToClients" type="button"><span class="pulse"></span><div><strong>Client workspace</strong><small>Plants are client-level, managed through tenant workspace</small></div></button>
     </section>
     ${renderClientDetailControl(client)}
-    <div id="clientDetailKpis">${clientKpis(client)}</div>
-    <section class="client-layout-v17">
+    <div id="clientDetailKpis" class="client-detail-stable-kpis">${clientKpis(client)}</div>
+    <section class="client-layout-v17 client-detail-stable-layout">
       <aside class="glass-card client-side-card-v17">
         <h3>Client Navigation</h3>
         <button class="${clientDetailActiveTab === 'overview' ? 'active' : ''}" data-client-tab="overview" ${clientDetailActiveTab === 'overview' ? 'aria-current="page"' : ''}><span>Overview</span></button>
@@ -1629,8 +2019,8 @@ function renderClientDetailPage() {
         <button class="${clientDetailActiveTab === 'alerts' ? 'active' : ''}" data-client-tab="alerts" ${clientDetailActiveTab === 'alerts' ? 'aria-current="page"' : ''}><span>Alerts</span></button>
         <button class="${clientDetailActiveTab === 'activity' ? 'active' : ''}" data-client-tab="activity" ${clientDetailActiveTab === 'activity' ? 'aria-current="page"' : ''}><span>Activity</span></button>
       </aside>
-      <section class="glass-card client-main-card-v17">
-        <div class="client-detail-content-head-v118"><div><span>Active section</span><h2 id="clientDetailActiveTitle">${clientDetailEscape(clientDetailSectionTitle(clientDetailActiveTab))}</h2></div><div class="client-detail-actions-v118"><button id="editClientTab" class="small-btn primary" type="button" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(client.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(client))}" data-permission-update-available="false" data-permission-local-override="true" data-permission-base-disabled="${clientDetailCanEdit(client, clientDetailActiveTab) ? 'false' : 'true'}">Edit</button><button id="cancelClientEdit" class="small-btn ghost" type="button" hidden>Cancel</button><button id="saveClientEdit" class="small-btn success" type="button" hidden data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(client.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(client))}" data-permission-update-available="false" data-permission-local-override="true">Save Changes</button></div></div>
+      <section class="glass-card client-main-card-v17 client-detail-stable-main">
+        <div class="client-detail-content-head-v118"><div><span>Active section</span><h2 id="clientDetailActiveTitle">${clientDetailEscape(clientDetailSectionTitle(clientDetailActiveTab))}</h2></div><div class="client-detail-actions-v118"><button id="editClientTab" class="small-btn primary" type="button" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(client.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(client))}" data-permission-update-available="true" data-permission-local-override="true" data-permission-base-disabled="${clientDetailCanEdit(client, clientDetailActiveTab) ? 'false' : 'true'}">Edit</button><button id="cancelClientEdit" class="small-btn ghost" type="button" hidden>Cancel</button><button id="saveClientEdit" class="small-btn success" type="button" hidden data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(client.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(client))}" data-permission-update-available="true" data-permission-local-override="true">Save Changes</button></div></div>
         <div class="form-validation-summary client-detail-summary-v118" id="clientDetailEditSummary" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
         <div class="client-tab-content" id="clientTabContent">${clientTab(client, plants, clientDetailActiveTab, false)}</div>
       </section>
@@ -1647,10 +2037,9 @@ function renderClientDetailPage() {
   document.getElementById('saveClientEdit')?.addEventListener('click', () => saveClientDetailEdits(client, plants));
   document.querySelectorAll<HTMLElement>('[data-client-tab]').forEach(btn => btn.addEventListener('click', () => {
     const nextTab = (btn.dataset.clientTab || 'overview') as ClientDetailTabKey;
-    if (clientDetailEditMode && !clientDetailConfirmDiscard('Discard unsaved changes and open another client section?')) return;
-    clientDetailEditMode = false;
-    clientDetailDraft = null;
-    clientDetailEditSnapshot = '';
+    // Editing is profile-wide for Client Detail. Moving between sections must preserve the
+    // same draft so a user can complete Identity, Location and Contacts before one PUT.
+    // The discard guard is reserved for actually leaving the client or cancelling edit mode.
     clientDetailActiveTab = nextTab;
     document.querySelectorAll<HTMLElement>('[data-client-tab]').forEach(item => {
       const active = item.dataset.clientTab === nextTab;
@@ -1699,7 +2088,7 @@ function renderClientDetailPage() {
     clientDetailSyncControlToDraft(target);
     const documentRow = target.closest<HTMLElement>('[data-client-document-row]');
     const documentIndex = Number(documentRow?.dataset.clientDocumentRow);
-    const documentField = target.dataset.clientDocumentField as keyof ZentridClientDocumentRecord | undefined;
+    const documentField = target.dataset.clientDocumentField as 'name' | 'type' | 'status' | 'expiry' | undefined;
     if (documentField && clientDetailDraft.documentRecords?.[documentIndex]) clientDetailDraft.documentRecords[documentIndex]![documentField] = target.value;
     const userRow = target.closest<HTMLElement>('[data-client-user-row]');
     const userIndex = Number(userRow?.dataset.clientUserRow);
@@ -1725,6 +2114,10 @@ function renderClientDetailPage() {
   });
   clientTabContent?.addEventListener('change', event => {
     const target = event.target;
+    if (target instanceof HTMLInputElement && target.hasAttribute('data-client-document-file')) {
+      selectClientDetailDocumentFile(target);
+      return;
+    }
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) syncDynamicField(target);
   });
   if (requestedEditTab && clientDetailCanEdit(client, requestedEditTab)) setClientDetailEditMode(true, client, plants);
@@ -1854,7 +2247,7 @@ function clientProfileCard(client: ZentridClientRecord): string {
     ];
   return `<div class="info-grid">
     ${legalRows.map(([k,v]) => `<div><span>${k}</span><strong>${v}</strong></div>`).join('')}
-    <div><span>Primary Contact</span><strong>${client.primaryContact}</strong></div>
+    <div><span>Primary Contact</span><strong>${clientPortalScalar(client.primaryContact, 'Not provided')}</strong></div>
     <div><span>Email</span><strong>${client.contactEmail}</strong></div>
     <div><span>Phone</span><strong>${client.contactPhone}</strong></div>
     <div><span>Account Manager</span><strong>${client.account}</strong></div>
@@ -1881,7 +2274,7 @@ function accessScopeMatrix(client: ZentridClientRecord, plants: ZentridPlantReco
 
 function clientDocuments(client: ZentridClientRecord): string {
   const rows = clientDetailDocumentsData(client);
-  return `<div class="section-title-v17 mini"><div><h3>Documents</h3><p class="muted">Client-level legal, commercial and access metadata. Technical device manuals stay inside Plant Detail.</p></div><span class="badge ${rows.length ? 'success' : 'warning'}">${rows.length ? `${rows.length} records` : 'No records'}</span></div>${rows.length ? `<div class="data-table compact-table client-document-view-v118"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span></div>${rows.map(row => `<div class="data-row"><div><strong>${clientDetailEscape(row.name)}</strong><small>Client document metadata</small></div><div><strong>${clientDetailEscape(row.type)}</strong></div><div><span class="badge ${['Verified','Active','Signed','Updated'].includes(row.status) ? 'success' : row.status === 'Expired' ? 'danger' : 'warning'}">${clientDetailEscape(row.status)}</span></div><div><strong>${clientDetailEscape(row.expiry || 'Not set')}</strong></div></div>`).join('')}</div>` : `<div class="empty-state"><strong>No client documents</strong><small>Use Edit on this local record to add document metadata.</small></div>`}`;
+  return `<div class="section-title-v17 mini"><div><h3>Documents</h3><p class="muted">Client-level legal, commercial and access metadata. Technical device manuals stay inside Plant Detail.</p></div><span class="badge ${rows.length ? 'success' : 'warning'}">${rows.length ? `${rows.length} records` : 'No records'}</span></div>${rows.length ? `<div class="data-table compact-table client-document-view-v118"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span></div>${rows.map(row => `<div class="data-row"><div><strong>${clientDetailEscape(row.name)}</strong><small>Client document metadata</small></div><div><strong>${clientDetailEscape(row.type)}</strong></div><div><span class="badge ${['Verified','Active','Signed','Updated'].includes(row.status) ? 'success' : row.status === 'Expired' ? 'danger' : 'warning'}">${clientDetailEscape(row.status)}</span></div><div><strong>${clientDetailEscape(row.expiry || 'Not set')}</strong></div></div>`).join('')}</div>` : `<div class="empty-state"><strong>No client documents</strong><small>The backend has not returned any document records for this client.</small></div>`}`;
 }
 
 
@@ -1910,20 +2303,23 @@ function clientOverviewTab(client: ZentridClientRecord, plants: ZentridPlantReco
 }
 
 function clientIdentityTab(client: ZentridClientRecord): string {
+  const rawIdentity = ((client.raw as Record<string, any> | undefined)?.identity || {}) as Record<string, unknown>;
+  const registrationValue = clientDetailEditableValue(client.registrationNo) || clientDetailEditableValue(rawIdentity.registrationNumber) || '—';
+  const taxValue = clientDetailEditableValue(client.taxId) || clientDetailEditableValue(rawIdentity.taxIdVatNumber) || '—';
   const rows = client.type === 'Individual'
     ? [
       ['Name / Full Name', client.name, 'Created from Name, Surname and Last name'],
-      ['Date of Birth', client.dob || 'Not provided', 'Format: dd/mm/yyyy'],
-      ['Personal / Passport ID', client.registrationNo, 'Identity document reference'],
-      ['Tax / Personal ID', client.taxId, 'Tax or personal number'],
+      ['Date of Birth', client.dob || 'Not provided', 'Format: MM/DD/YYYY'],
+      ['Personal / Passport ID', registrationValue, 'Identity / passport number from Client API'],
+      ['Tax / Personal ID', taxValue, 'Tax or personal number from Client API'],
       ['Verification', client.verification, 'Identity verification state'],
       ['User Role', client.assignmentRole, 'Initial role from create form']
     ]
     : [
       ['Legal Name', client.name, 'Company / legal entity name'],
       ['Legal Form', client.legalForm, 'Entity profile type'],
-      ['Registration Number', client.registrationNo, 'Company registration reference'],
-      ['Tax ID', client.taxId, 'VAT / tax identification'],
+      ['Registration Number', registrationValue, 'Company registration reference'],
+      ['Tax ID', taxValue, 'VAT / tax identification'],
       ['Verification', client.verification, 'KYC / legal verification state'],
       ['User Role', client.assignmentRole, 'Initial role from create form']
     ];
@@ -1960,13 +2356,39 @@ function clientPlantAssignments(client: ZentridClientRecord, plants: ZentridPlan
   }));
 }
 
+function clientPortalScalar(value: unknown, fallback = ''): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return value.map(item => clientPortalScalar(item)).filter(Boolean).join(', ') || fallback;
+  if (typeof value === 'object') {
+    const row = value as Record<string, unknown>;
+    for (const key of ['name','fullName','displayName','email','value','label','role','status','scope']) {
+      const text = clientPortalScalar(row[key]);
+      if (text) return text;
+    }
+  }
+  return fallback;
+}
+
 function clientPortalUsers(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
-  if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(user => ({ ...user }));
+  if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(rawUser => {
+    const user = rawUser as unknown as Record<string, unknown>;
+    return {
+      name: clientPortalScalar(user.name ?? user.fullName ?? user.user, 'Portal User'),
+      email: clientPortalScalar(user.email ?? user.emailAddress, 'Not provided'),
+      role: clientPortalScalar(user.role ?? user.portalRole, 'End User'),
+      scope: clientPortalScalar(user.scope ?? user.accessScope ?? user.plantScope, 'No plant scope yet'),
+      modules: clientPortalScalar(user.modules ?? user.allowedModules, 'Overview, Energy, Reports, Documents'),
+      status: clientPortalScalar(user.status ?? user.accountStatus, 'Pending'),
+      lastLogin: clientPortalScalar(user.lastLogin ?? user.lastLoginAt, 'No login yet'),
+      mfa: clientPortalScalar(user.mfa ?? user.mfaStatus, 'Recommended')
+    };
+  });
   const firstPlant = plants[0]?.name || 'No plant assigned';
   const secondPlant = plants[1]?.name || firstPlant;
   const base = [
     {
-      name: client.primaryContact || client.name,
+      name: clientPortalScalar(client.primaryContact, client.name),
       email: client.contactEmail || 'not-configured@example.com',
       role: client.type === 'Individual' ? 'Owner User' : 'Client Admin',
       scope: plants.length ? 'All assigned plants' : 'No plant scope yet',
@@ -2015,7 +2437,7 @@ function clientUsersAccessTab(client: ZentridClientRecord, plants: ZentridPlantR
 function clientContactsPortalTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   return `<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact data. Detailed portal users and permissions are separated into Users & Access.</p></div><span class="badge ${client.username ? 'success' : 'warning'}">${client.username ? 'Portal configured' : 'Portal pending'}</span></div>
   <div class="info-grid">
-    <div><span>Primary Contact</span><strong>${client.primaryContact || 'Not provided'}</strong><small>Contact person / client owner</small></div>
+    <div><span>Primary Contact</span><strong>${clientPortalScalar(client.primaryContact, 'Not provided')}</strong><small>Contact person / client owner</small></div>
     <div><span>E-mail</span><strong>${client.contactEmail || 'Not provided'}</strong><small>Primary portal and notification address</small></div>
     <div><span>Phone Number 1</span><strong>${client.contactPhone || 'Not provided'}</strong><small>Main contact phone</small></div>
     <div><span>Phone Number 2</span><strong>${client.phone2 || 'Not provided'}</strong><small>Optional contact phone</small></div>

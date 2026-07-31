@@ -19,6 +19,79 @@
   let longTaskDurationMs = 0;
   let performanceObserver: PerformanceObserver | null = null;
 
+
+
+  type DetailInitialLoadingApi = {
+    active(): boolean;
+    start(): void;
+    finish(): void;
+    sync(state: string): void;
+  };
+
+  const DETAIL_INITIAL_LOADING_PAGES: Record<string, { title: string; message: string }> = {
+    'client-detail.html': { title: 'Loading client details', message: 'Retrieving the selected client record…' },
+    'tenant-detail.html': { title: 'Loading tenant details', message: 'Retrieving the selected tenant record…' },
+    'plant-detail.html': { title: 'Loading plant details', message: 'Retrieving the selected plant record…' },
+    'device-detail.html': { title: 'Loading device details', message: 'Retrieving the selected device record…' },
+    'alert-detail.html': { title: 'Loading alert details', message: 'Retrieving the selected alert record…' },
+    'integration-detail.html': { title: 'Loading integration details', message: 'Retrieving the selected integration record…' }
+  };
+
+  function detailInitialLoadingConfig(): { title: string; message: string } | null {
+    const page = location.pathname.split('/').pop() || '';
+    return DETAIL_INITIAL_LOADING_PAGES[page] || null;
+  }
+
+  function createDetailInitialLoading(): DetailInitialLoadingApi {
+    const config = detailInitialLoadingConfig();
+    let overlay: HTMLElement | null = null;
+    let isActive = false;
+
+    const ensure = (): HTMLElement | null => {
+      if (!config) return null;
+      if (overlay?.isConnected) return overlay;
+      const node = document.createElement('div');
+      node.className = 'zentrid-detail-initial-loader';
+      node.setAttribute('role', 'status');
+      node.setAttribute('aria-live', 'polite');
+      node.setAttribute('aria-busy', 'true');
+      node.innerHTML = `<div class="zentrid-detail-initial-loader-card"><span class="zentrid-detail-initial-loader-spinner" aria-hidden="true"></span><div><strong>${config.title}</strong><small>${config.message}</small></div></div>`;
+      document.body.appendChild(node);
+      overlay = node;
+      return node;
+    };
+
+    const start = (): void => {
+      if (!config || isActive) return;
+      isActive = true;
+      document.documentElement.classList.add('zentrid-detail-loading');
+      const node = ensure();
+      if (node) node.classList.add('visible');
+    };
+
+    const finish = (): void => {
+      if (!isActive) return;
+      isActive = false;
+      document.documentElement.classList.remove('zentrid-detail-loading');
+      const node = overlay;
+      if (!node) return;
+      node.classList.remove('visible');
+      node.setAttribute('aria-busy', 'false');
+      window.setTimeout(() => {
+        if (node.isConnected && !isActive) node.remove();
+        if (overlay === node && !isActive) overlay = null;
+      }, 180);
+    };
+
+    const sync = (state: string): void => {
+      if (!config) return;
+      if (state === 'loading') start();
+      else finish();
+    };
+
+    return { active: () => isActive, start, finish, sync };
+  }
+
   function cancelTimer(key: string): void {
     const handle = timers.get(key);
     if (handle !== undefined) window.clearTimeout(handle);
@@ -186,6 +259,10 @@
       longTaskDurationMs: Math.round(longTaskDurationMs)
     };
   }
+
+  const detailInitialLoading = createDetailInitialLoading();
+  window.ZentridDetailLoading = detailInitialLoading;
+  detailInitialLoading.start();
 
   guardRapidActions();
   observeLongTasks();
