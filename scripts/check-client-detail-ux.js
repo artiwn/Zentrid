@@ -14,16 +14,18 @@ const css = read('assets/css/src/20-governance-and-client-flows.css');
 const pkg = JSON.parse(read('package.json') || '{}');
 [
   'renderClientDetailControl', 'clientDetailBackendManaged', 'clientDetailCanEdit',
-  'Live client · local override available',
-  'Edit creates a browser-only override for this live record',
-  'clientDetailConfirmDiscard', 'Discard unsaved changes and open another client section?',
+  'Live client · backend update available',
+  'Editable client fields are saved through PUT /api/admin/clients/{id}.',
+  'clientDetailConfirmDiscard', 'Discard unsaved client changes and return to Client Registry?',
+  'Editing is profile-wide for Client Detail',
   'clientDetailValidationIssues', 'Another client already uses this name',
   'Another client already uses this contact email', 'Portal user emails must be unique',
   'Bank account numbers must be unique', 'Select one primary bank account',
   'addClientDetailDocument', 'removeClientDetailDocument',
   'addClientDetailUser', 'removeClientDetailUser',
   'addClientDetailBank', 'removeClientDetailBank',
-  'Client section saved locally', 'No backend request was sent',
+  'Client updated', 'PUT /api/admin/clients/{id}',
+  'Client section saved locally', 'This local/session record was updated in browser storage.',
   'clientDetailFreshness', 'Last backend sync',
   'role="status"', 'aria-live="polite"', 'aria-busy="false"',
   'beforeunload', 'documentRecords', 'portalUsers'
@@ -33,6 +35,8 @@ expect(liveBridge.includes("ZentridAPIRepositories.clients.get(selectedId"), 'Cl
 expect(liveBridge.includes("The selected client record was loaded by ID."), 'Client Detail direct-load state is missing.');
 expect(liveBridge.includes("selectedLocalClient") && liveBridge.includes("No backend detail request was sent for the local fallback identifier."), 'Client Detail must avoid backend GET-by-ID for local fallback records.');
 expect(repositories.includes("ZentridPlatformAPI.clients.get(id, requestOptions)"), 'Client repository does not use the backend detail endpoint.');
+expect(clients.includes('ZentridAPIMutations.clients.update(baseRecord.id, payload)'), 'Client Detail must save backend-managed edits through the Client PUT mutation.');
+expect(clients.includes('clientDetailApiPayload'), 'Client Detail backend payload builder is missing.');
 expect(repositories.includes("The direct detail request failed") === false, 'Repository layer must not own UI fallback copy.');
 expect(!clients.includes("onclick=\"ZentridLayout.toast('Add portal user mock')\""), 'Client Detail must not use a fake Add User success action.');
 expect(!clients.includes("onclick=\"ZentridLayout.toast('Commercial model edit mock')\""), 'Client Detail must not use a fake commercial edit success action.');
@@ -53,4 +57,6 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('Client Detail UX checks OK: direct backend detail, local-fallback routing, source-aware editing, persistence, validation, freshness and accessibility verified.');
+console.log('Client Detail UX checks OK: direct backend detail, PUT updates, local-fallback routing, source-aware editing, validation, freshness and accessibility verified.');
+
+expect(!clients.includes('Discard unsaved changes and open another client section?'), 'Client section navigation must preserve the active edit draft without a discard confirmation.');

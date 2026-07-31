@@ -6,6 +6,7 @@ interface ZentridExpressApp {
 interface ZentridExpressFactory {
   (): ZentridExpressApp;
   json(options?: { limit?: string; strict?: boolean }): unknown;
+  raw(options?: { limit?: string; type?: string | ((req: ZentridLegacyCompat) => boolean) }): unknown;
   static(root: string): unknown;
 }
 interface ZentridCorsFactory {
@@ -16,6 +17,7 @@ declare function require(id: 'cors'): ZentridCorsFactory;
 declare function require(id: string): unknown;
 declare const process: { env: Record<string, string | undefined> };
 declare const __dirname: string;
+declare const Buffer: { isBuffer(value: unknown): value is { length: number } };
 
 type ZentridLegacyCompat = any;
 
@@ -597,12 +599,16 @@ interface ZentridAPIMutationsApi {
   isSuccess<T>(result: ZentridMutationResult<T>): result is ZentridMutationSuccess<T>;
   isFailure<T>(result: ZentridMutationResult<T>): result is ZentridMutationFailure;
   unwrap<T>(result: ZentridMutationResult<T>): T;
-  clients: ZentridMutationCreateApi;
+  clients: ZentridMutationCreateApi & {
+    update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+    uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+  };
   tenants: ZentridMutationCreateApi & {
     update(id: string, payload: unknown): Promise<ZentridMutationResult>;
     activate(id: string): Promise<ZentridMutationResult>;
     deactivate(id: string): Promise<ZentridMutationResult>;
     archive(id: string): Promise<ZentridMutationResult>;
+    uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
   };
   plants: ZentridMutationCreateApi;
   integrations: ZentridMutationCreateApi & {
@@ -855,3 +861,11 @@ interface ZentridBrowserSecurityApi {
 }
 declare const ZentridBrowserSecurity: ZentridBrowserSecurityApi;
 interface Window { ZentridBrowserSecurity: ZentridBrowserSecurityApi; }
+
+interface ZentridDetailLoadingApi {
+  active(): boolean;
+  start(): void;
+  finish(): void;
+  sync(state: string): void;
+}
+interface Window { ZentridDetailLoading?: ZentridDetailLoadingApi; }

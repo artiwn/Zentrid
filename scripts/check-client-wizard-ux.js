@@ -23,7 +23,7 @@ const packageJson = JSON.parse(read('package.json') || '{}');
   'A client named', 'E-mail is already used', 'Registration number is already used',
   'Temporary password must contain at least one letter and one number',
   'ZentridAPIMutations.clients.create(payload)', 'clientCreateApiPayload', 'clientCreateBackendId',
-  'hydrateClientCreateTenantOptions', 'ZentridAPIRepositories.tenants.list', 'ManagingTenant: managingTenant',
+  'hydrateClientCreateTenantOptions', 'ZentridAPIRepositories.tenants.list', 'tenantLink: {', 'managingTenantId:',
   'result.error.retriable', 'Backend unavailable. Client saved locally',
   'Enter a passport / personal document number or upload the client passport',
   'Enter a state registration document number or upload the registration document',
