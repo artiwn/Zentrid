@@ -4,6 +4,9 @@ const cors = require("cors");
 type ZentridProxyHeaders = {
   accept?: string;
   authorization?: string;
+  ['content-type']?: string;
+  ['content-length']?: string;
+  ['x-client-request-id']?: string;
 };
 
 type ZentridProxyRequest = {
@@ -59,6 +62,14 @@ app.use((_req: ZentridProxyRequest, res: ZentridProxyResponse, next: ZentridProx
 });
 
 app.use(cors());
+
+// Preserve multipart uploads byte-for-byte before any structured body parser runs.
+// The backend requires the actual file part, so forwarding the Express request
+// stream after middleware has consumed it can result in an empty multipart body.
+app.use(express.raw({
+  type: (req: ZentridProxyRequest) => /^multipart\/form-data(?:;|$)/i.test(String(req.headers['content-type'] || '')),
+  limit: '50mb'
+}));
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req: ZentridProxyRequest, res: ZentridProxyResponse) => {
@@ -67,16 +78,51 @@ app.get("/health", (_req: ZentridProxyRequest, res: ZentridProxyResponse) => {
 
 async function proxyRequest(targetBaseUrl: string, req: ZentridProxyRequest, res: ZentridProxyResponse): Promise<void> {
   try {
-    const requestBody = ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body || {});
-    const response = await fetch(`${targetBaseUrl}${req.originalUrl}`, {
-      method: req.method,
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": req.headers.accept || "application/json",
-        ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}),
-      },
-      ...(requestBody !== undefined ? { body: requestBody } : {})
-    });
+    const method = String(req.method || 'GET').toUpperCase();
+    const contentType = String(req.headers['content-type'] || '');
+    const isMultipart = /^multipart\/form-data(?:;|$)/i.test(contentType);
+    const hasBody = !["GET", "HEAD"].includes(method);
+
+    // JSON requests are parsed by express.json(), so re-serialize the parsed body.
+    // Multipart requests are captured by express.raw() above and forwarded as the
+    // exact Buffer received from the browser. This preserves boundaries and file bytes.
+    const multipartBuffer = isMultipart && Buffer.isBuffer(req.body) ? req.body : undefined;
+    const requestBody: unknown = !hasBody
+      ? undefined
+      : isMultipart
+        ? multipartBuffer
+        : JSON.stringify(req.body || {});
+
+    if (isMultipart && !multipartBuffer) {
+      res.status(400).json({
+        message: 'Proxy multipart body missing',
+        error: 'The local proxy did not receive a raw multipart payload.'
+      });
+      return;
+    }
+
+    const headers: Record<string, string> = {
+      "Accept": req.headers.accept || "application/json",
+      ...(req.headers.authorization ? { Authorization: req.headers.authorization } : {}),
+      ...(req.headers['x-client-request-id'] ? { 'X-Client-Request-Id': req.headers['x-client-request-id'] } : {})
+    };
+
+    if (isMultipart) {
+      // Preserve the complete incoming value, including boundary=... .
+      headers['Content-Type'] = contentType;
+      // Use the captured byte length rather than trusting a possibly stale inbound header.
+      headers['Content-Length'] = String(multipartBuffer!.length);
+    } else if (hasBody) {
+      headers['Content-Type'] = contentType || 'application/json';
+    }
+
+    const init: RequestInit & { duplex?: 'half' } = {
+      method,
+      headers,
+      ...(requestBody !== undefined ? { body: requestBody as BodyInit } : {})
+    };
+
+    const response = await fetch(`${targetBaseUrl}${req.originalUrl}`, init);
 
     const text = await response.text();
     res.status(response.status);

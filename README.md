@@ -222,3 +222,12 @@ Run `npm run visual:browser` to capture eight critical Zentrid surfaces at 1440,
 ## Form Readiness for Future APIs v136
 
 Declared Zentrid forms now expose dirty-state protection, validation summaries, typed DTO serialization, safe credential-redacted previews, nullable/enum/file handling and explicit API availability modes. Existing create wizards remain local until their final mutation integration is approved. Run `npm run check:form-readiness-future-apis`. See `docs/FORM_READINESS_FUTURE_APIS_V136.md`.
+
+## Client identity + document upload patch (2026-07-30)
+
+- Individual `Passport / Personal ID` now maps to `identity.registrationNumber`.
+- Individual `Tax / Personal ID` now maps to `identity.taxIdVatNumber`.
+- Create Client uploads selected files after the client UUID is returned by `POST /api/admin/clients`.
+- Client document upload uses `POST /api/admin/clients/{id}/documents` with `multipart/form-data`: `file`, `name`, `type`, and optional `expiry`.
+- Multipart requests no longer receive an incorrect JSON `Content-Type` header; the browser supplies the boundary.
+- Partial document-upload failure never resubmits the client create mutation. The wizard remains open and reports failed documents.
