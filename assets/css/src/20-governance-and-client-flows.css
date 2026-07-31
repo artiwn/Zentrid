@@ -1147,8 +1147,8 @@
 .client-bank-editor-v118 { margin-top: 14px; overflow-x: auto; }
 .client-document-editor-v118 .data-head,
 .client-document-editor-v118 .data-row {
-  grid-template-columns: minmax(210px,1.3fr) minmax(130px,.75fr) minmax(120px,.7fr) minmax(130px,.7fr) 90px;
-  min-width: 780px;
+  grid-template-columns: minmax(190px,1.15fr) minmax(130px,.72fr) minmax(110px,.62fr) minmax(130px,.7fr) minmax(210px,1fr) 90px;
+  min-width: 980px;
 }
 .client-document-view-v118 .data-head,
 .client-document-view-v118 .data-row {
@@ -1312,3 +1312,95 @@
   .plant-detail-actions-v119 { width: 100%; }
   .plant-detail-actions-v119 button { flex: 1 1 auto; }
 }
+
+/* Client Detail layout stability — reserve the final workspace geometry while live API data hydrates. */
+.client-detail-stable-hero {
+  min-height: 124px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.client-detail-stable-kpis {
+  min-height: 150px;
+  width: 100%;
+}
+.client-detail-stable-kpis > .client-kpi-grid {
+  width: 100%;
+  min-height: 132px;
+}
+.client-detail-stable-layout {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 260px minmax(0, 1fr);
+  align-items: start;
+}
+.client-detail-stable-layout > .client-side-card-v17 {
+  width: 260px;
+  box-sizing: border-box;
+}
+.client-detail-stable-main {
+  width: 100%;
+  min-width: 0;
+  min-height: 620px;
+  box-sizing: border-box;
+}
+.client-detail-stable-main .client-tab-content {
+  width: 100%;
+  min-width: 0;
+  min-height: 500px;
+}
+.client-detail-stable-main .info-grid,
+.client-detail-stable-main .client-ops-grid-v40,
+.client-detail-stable-main .data-table,
+.client-detail-stable-main .panel-lite {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+@media (max-width: 1180px) {
+  .client-detail-stable-layout { grid-template-columns: minmax(0, 1fr); }
+  .client-detail-stable-layout > .client-side-card-v17 { width: 100%; }
+}
+@media (max-width: 720px) {
+  .client-detail-stable-hero { min-height: 150px; }
+  .client-detail-stable-kpis { min-height: 0; }
+  .client-detail-stable-main { min-height: 520px; }
+  .client-detail-stable-main .client-tab-content { min-height: 400px; }
+}
+
+/* v140 Client API completeness guidance */
+.client-required-list-v140 {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.client-required-list-v140 li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, rgba(255,255,255,.12));
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+.client-required-list-v140 li small { opacity: .8; }
+.client-required-link-v140 {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.client-required-link-v140 span {
+  font-size: 12px;
+  opacity: .72;
+  white-space: nowrap;
+}
+.client-required-link-v140:hover strong,
+.client-required-link-v140:focus-visible strong { text-decoration: underline; }

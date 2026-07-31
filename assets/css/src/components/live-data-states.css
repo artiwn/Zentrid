@@ -255,3 +255,82 @@
     border-radius: 9px;
   }
 }
+
+
+/* Initial detail-page loading gate. Prevents empty/detail fallback markup from flashing
+   before the first backend record has resolved. */
+html.zentrid-detail-loading,
+html.zentrid-detail-loading body {
+  overflow: hidden;
+}
+
+.zentrid-detail-initial-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(6, 182, 212, 0.10), transparent 34%),
+    radial-gradient(circle at 78% 12%, rgba(99, 102, 241, 0.10), transparent 32%),
+    rgba(5, 13, 29, 0.985);
+  transition: opacity 140ms ease, visibility 140ms ease;
+}
+
+.zentrid-detail-initial-loader.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.zentrid-detail-initial-loader-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  width: min(430px, calc(100vw - 48px));
+  padding: 20px 22px;
+  border: 1px solid rgba(148, 163, 184, 0.20);
+  border-radius: 20px;
+  background: rgba(15, 30, 51, 0.94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.zentrid-detail-initial-loader-card > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.zentrid-detail-initial-loader-card strong {
+  color: var(--text, #f8fafc);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.zentrid-detail-initial-loader-card small {
+  color: var(--muted, #94a3b8);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.zentrid-detail-initial-loader-spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(148, 163, 184, 0.20);
+  border-top-color: #22d3ee;
+  border-radius: 50%;
+  animation: zentrid-detail-initial-spin 720ms linear infinite;
+}
+
+@keyframes zentrid-detail-initial-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zentrid-detail-initial-loader,
+  .zentrid-detail-initial-loader-spinner { transition: none; animation: none; }
+}
