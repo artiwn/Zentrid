@@ -1302,6 +1302,24 @@
 .plant-main-card-v17 .info-grid > div { min-width: 0; }
 .plant-main-card-v17 .info-grid strong,
 .plant-main-card-v17 .info-grid small { overflow-wrap: anywhere; }
+/* Plant Detail values may contain UUIDs, integration identifiers and long registry names.
+   Wrap them inside their cells instead of clipping or overflowing the card. */
+.plant-main-card-v17 .info-grid > div > strong,
+.plant-main-card-v17 .info-grid > div > small {
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.plant-main-card-v17 .info-grid > div > .plant-assignment-id-v140 {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 @media (max-width: 980px) {
   .plant-detail-control-v119 { grid-template-columns: 1fr; }
   .plant-edit-grid-v119,
@@ -1404,3 +1422,28 @@
 }
 .client-required-link-v140:hover strong,
 .client-required-link-v140:focus-visible strong { text-decoration: underline; }
+
+/* Plant documents: keep the upload fields and document records horizontally aligned on desktop. */
+.plant-document-upload-grid-v141 {
+  grid-template-columns: minmax(190px, 1.15fr) minmax(140px, .75fr) minmax(150px, .8fr) minmax(220px, 1.2fr);
+  align-items: end;
+}
+.plant-document-upload-actions-v141 { margin-top: 12px; }
+.plant-document-table-v141 { margin-top: 18px; }
+.plant-document-table-v141 > .data-head,
+.plant-document-table-v141 > .data-row {
+  grid-template-columns: minmax(240px, 1.55fr) minmax(120px, .65fr) minmax(130px, .7fr) minmax(150px, .75fr);
+  align-items: center;
+}
+.plant-document-table-v141 > .data-row > *,
+.plant-document-table-v141 > .data-head > * { min-width: 0; }
+.plant-document-table-v141 .row-actions { justify-content: flex-end; }
+@media (max-width: 1100px) {
+  .plant-document-upload-grid-v141 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .plant-document-upload-grid-v141 { grid-template-columns: 1fr; }
+  .plant-document-table-v141 > .data-head { display: none !important; }
+  .plant-document-table-v141 > .data-row { grid-template-columns: 1fr !important; align-items: start !important; }
+  .plant-document-table-v141 .row-actions { justify-content: flex-start; }
+}
