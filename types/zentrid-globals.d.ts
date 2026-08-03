@@ -487,6 +487,8 @@ interface ZentridRepositoryReadOptions {
   timeoutMs?: number;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
   signal?: AbortSignal;
 }
 interface ZentridRepositoryCacheSnapshotEntry {
