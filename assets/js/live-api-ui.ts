@@ -52,9 +52,14 @@
 
   function registryReadOptions(entity: RegistryEntity, forceRefresh = false): ZentridRepositoryReadOptions {
     const state = window.ZentridRegistryQuery?.read(entity);
+    const newestFirst = entity === 'clients' || entity === 'plants';
     return {
       page: state?.page || 1,
       pageSize: state?.pageSize || 50,
+      ...(newestFirst ? {
+        sortBy: state?.sortBy || 'createdAtUtc',
+        sortDirection: state?.sortDirection || 'desc'
+      } : {}),
       staleWhileRevalidate: true,
       persist: true,
       requestGroup: `registry:${entity}`,
@@ -1035,7 +1040,7 @@
     setLiveDataState('loading', 'Loading the fast integration registry first. Operational summaries will be added in the background.', { source: '/api/admin/provider-integrations' });
     try {
       const [registryResult, providersResult, templatesResult] = await Promise.allSettled([
-        ZentridAPIRepositories.integrations.list(detailReadOptions('integration-registry', 50, forceRefresh)),
+        ZentridAPIRepositories.integrations.list({ ...detailReadOptions('integration-registry', 50, forceRefresh), sortBy: 'createdAtUtc', sortDirection: 'desc', cacheVariant: 'newest-first' }),
         ZentridPlatformAPI.live.providers(),
         ZentridPlatformAPI.providerIntegrations.templates()
       ]);
@@ -2228,7 +2233,7 @@
     setLiveDataState('loading', registry ? 'Loading Global Admin tenant records.' : selectedId ? 'Loading the selected Global Admin tenant record.' : 'Loading Global Admin tenant records.', { source: registry ? '/api/admin/tenants' : detailSource });
     try {
       const result = registry
-        ? await ZentridAPIRepositories.tenants.list(detailReadOptions('tenants', 100, forceRefresh))
+        ? await ZentridAPIRepositories.tenants.list({ ...detailReadOptions('tenants', 100, forceRefresh), sortBy: 'createdAtUtc', sortDirection: 'desc', cacheVariant: 'newest-first' })
         : selectedId
           ? await ZentridAPIRepositories.tenants.get(selectedId, detailReadOptions('tenant-detail', 20, forceRefresh))
           : await ZentridAPIRepositories.tenants.list(detailReadOptions('tenant-detail:fallback', 20, forceRefresh));

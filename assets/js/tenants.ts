@@ -101,6 +101,9 @@ interface ZentridTenantCountryRule {
   regionPlaceholder: string;
   phonePlaceholder: string;
   timezone: string;
+  currency: string;
+  phonePrefix: string;
+  regions: Record<string, string[]>;
 }
 
 interface TenantPlantBuilderDeviceV28 {
@@ -139,28 +142,22 @@ function tenantFormText(formData: FormData, key: string, fallback = ''): string 
 const tenantSeed: ZentridTenantRecord[] = [];
 
 const tenantCountryRules: Record<string, ZentridTenantCountryRule> = {
-  Armenia: {
-    registrationPlaceholder: 'Example: 286.110.123456',
-    registrationHelp: 'State registration number issued in Armenia.',
-    taxPlaceholder: 'Example: 01234567',
-    taxHelp: 'Armenian Taxpayer Identification Number (TIN).',
-    postalPlaceholder: 'Example: 0010',
-    regionPlaceholder: 'Example: Yerevan, Kotayk, Shirak',
-    phonePlaceholder: '+374 XX XXX XXX',
-    timezone: 'Asia/Yerevan'
-  },
-  'United States': {
-    registrationPlaceholder: 'Example: 2024-000123456',
-    registrationHelp: 'State business registration number.',
-    taxPlaceholder: 'Example: 12-3456789',
-    taxHelp: 'Employer Identification Number (EIN).',
-    postalPlaceholder: 'Example: 10001 or 10001-1234',
-    regionPlaceholder: 'Example: California, Texas, New York',
-    phonePlaceholder: '+1 (XXX) XXX-XXXX',
-    timezone: 'America/New_York'
-  }
+  Armenia: { registrationPlaceholder:'Example: 286.110.123456', registrationHelp:'State registration number issued in Armenia.', taxPlaceholder:'Example: 01234567', taxHelp:'Armenian Taxpayer Identification Number (TIN).', postalPlaceholder:'Example: 0010', regionPlaceholder:'Select region', phonePlaceholder:'+374 00 000 000', timezone:'Asia/Yerevan', currency:'AMD', phonePrefix:'+374', regions:{ Yerevan:['Yerevan'], Kotayk:['Abovyan','Hrazdan'], Shirak:['Gyumri'], Lori:['Vanadzor'], Armavir:['Vagharshapat','Armavir'], Syunik:['Kapan'] } },
+  Germany: { registrationPlaceholder:'Example: HRB 123456', registrationHelp:'Commercial register number.', taxPlaceholder:'Example: DE123456789', taxHelp:'German VAT identifier.', postalPlaceholder:'Example: 10115', regionPlaceholder:'Select state', phonePlaceholder:'+49 000 000000', timezone:'Europe/Berlin', currency:'EUR', phonePrefix:'+49', regions:{ Berlin:['Berlin'], Bavaria:['Munich','Nuremberg'], Hamburg:['Hamburg'], Hesse:['Frankfurt'], 'North Rhine-Westphalia':['Cologne','Düsseldorf'] } },
+  Spain: { registrationPlaceholder:'Example: M-123456', registrationHelp:'Commercial registry reference.', taxPlaceholder:'Example: B12345678', taxHelp:'Spanish tax identifier.', postalPlaceholder:'Example: 28001', regionPlaceholder:'Select region', phonePlaceholder:'+34 000 000 000', timezone:'Europe/Madrid', currency:'EUR', phonePrefix:'+34', regions:{ Madrid:['Madrid'], Catalonia:['Barcelona'], Andalusia:['Seville','Málaga'], Valencia:['Valencia'] } },
+  France: { registrationPlaceholder:'Example: 123 456 789 RCS Paris', registrationHelp:'French company registration reference.', taxPlaceholder:'Example: FR12345678901', taxHelp:'French VAT identifier.', postalPlaceholder:'Example: 75001', regionPlaceholder:'Select region', phonePlaceholder:'+33 0 00 00 00 00', timezone:'Europe/Paris', currency:'EUR', phonePrefix:'+33', regions:{ 'Île-de-France':['Paris'], Provence:['Marseille','Nice'], 'Auvergne-Rhône-Alpes':['Lyon'], Occitanie:['Toulouse'] } },
+  'United Kingdom': { registrationPlaceholder:'Example: 12345678', registrationHelp:'Companies House number.', taxPlaceholder:'Example: GB123456789', taxHelp:'UK VAT identifier.', postalPlaceholder:'Example: SW1A 1AA', regionPlaceholder:'Select country/region', phonePlaceholder:'+44 0000 000000', timezone:'Europe/London', currency:'GBP', phonePrefix:'+44', regions:{ England:['London','Birmingham','Manchester'], Scotland:['Glasgow','Edinburgh'], Wales:['Cardiff'], 'Northern Ireland':['Belfast'] } },
+  Italy: { registrationPlaceholder:'Example: REA RM-123456', registrationHelp:'Italian registration reference.', taxPlaceholder:'Example: IT12345678901', taxHelp:'Italian VAT identifier.', postalPlaceholder:'Example: 00100', regionPlaceholder:'Select region', phonePlaceholder:'+39 000 000 0000', timezone:'Europe/Rome', currency:'EUR', phonePrefix:'+39', regions:{ Lazio:['Rome'], Lombardy:['Milan'], Campania:['Naples'], Piedmont:['Turin'] } },
+  Portugal: { registrationPlaceholder:'Example: 123456789', registrationHelp:'Portuguese company registration number.', taxPlaceholder:'Example: PT123456789', taxHelp:'Portuguese VAT identifier.', postalPlaceholder:'Example: 1000-001', regionPlaceholder:'Select district', phonePlaceholder:'+351 000 000 000', timezone:'Europe/Lisbon', currency:'EUR', phonePrefix:'+351', regions:{ Lisbon:['Lisbon'], Porto:['Porto'], Braga:['Braga'], Madeira:['Funchal'] } },
+  Netherlands: { registrationPlaceholder:'Example: 12345678', registrationHelp:'Dutch Chamber of Commerce number.', taxPlaceholder:'Example: NL123456789B01', taxHelp:'Dutch VAT identifier.', postalPlaceholder:'Example: 1012 AB', regionPlaceholder:'Select province', phonePlaceholder:'+31 00 000 0000', timezone:'Europe/Amsterdam', currency:'EUR', phonePrefix:'+31', regions:{ 'North Holland':['Amsterdam'], 'South Holland':['Rotterdam','The Hague'], Utrecht:['Utrecht'] } },
+  'United States': { registrationPlaceholder:'Example: 2024-000123456', registrationHelp:'State business registration number.', taxPlaceholder:'Example: 12-3456789', taxHelp:'Employer Identification Number (EIN).', postalPlaceholder:'Example: 10001', regionPlaceholder:'Select state', phonePlaceholder:'+1 000 000 0000', timezone:'America/New_York', currency:'USD', phonePrefix:'+1', regions:{ 'New York':['New York'], California:['Los Angeles','San Francisco'], Texas:['Austin','Houston','Dallas'], Illinois:['Chicago'], Washington:['Seattle'] } },
+  Canada: { registrationPlaceholder:'Example: Corporation number', registrationHelp:'Federal or provincial corporation number.', taxPlaceholder:'Example: 123456789RT0001', taxHelp:'Canadian business number.', postalPlaceholder:'Example: M5V 3A8', regionPlaceholder:'Select province', phonePlaceholder:'+1 000 000 0000', timezone:'America/Toronto', currency:'CAD', phonePrefix:'+1', regions:{ Ontario:['Toronto'], Quebec:['Montreal'], 'British Columbia':['Vancouver'], Alberta:['Calgary','Edmonton'] } },
+  Australia: { registrationPlaceholder:'Example: ACN 123 456 789', registrationHelp:'Australian Company Number.', taxPlaceholder:'Example: 12 345 678 901', taxHelp:'Australian Business Number.', postalPlaceholder:'Example: 2000', regionPlaceholder:'Select state', phonePlaceholder:'+61 0 0000 0000', timezone:'Australia/Sydney', currency:'AUD', phonePrefix:'+61', regions:{ 'New South Wales':['Sydney'], Victoria:['Melbourne'], Queensland:['Brisbane'], 'Western Australia':['Perth'] } },
+  'United Arab Emirates': { registrationPlaceholder:'Example: Trade license number', registrationHelp:'UAE trade license reference.', taxPlaceholder:'Example: 100123456700003', taxHelp:'UAE tax registration number.', postalPlaceholder:'Optional / PO Box', regionPlaceholder:'Select emirate', phonePlaceholder:'+971 00 000 0000', timezone:'Asia/Dubai', currency:'AED', phonePrefix:'+971', regions:{ Dubai:['Dubai'], 'Abu Dhabi':['Abu Dhabi'], Sharjah:['Sharjah'], Ajman:['Ajman'] } },
+  India: { registrationPlaceholder:'Example: U12345DL2020PTC123456', registrationHelp:'Corporate Identity Number.', taxPlaceholder:'Example: 22AAAAA0000A1Z5', taxHelp:'GST identification number.', postalPlaceholder:'Example: 110001', regionPlaceholder:'Select state', phonePlaceholder:'+91 00000 00000', timezone:'Asia/Kolkata', currency:'INR', phonePrefix:'+91', regions:{ Delhi:['New Delhi'], Maharashtra:['Mumbai'], Karnataka:['Bengaluru'], Telangana:['Hyderabad'] } },
+  Japan: { registrationPlaceholder:'Example: Corporate number', registrationHelp:'Japanese corporate number.', taxPlaceholder:'Example: 1234567890123', taxHelp:'Japanese tax identifier.', postalPlaceholder:'Example: 100-0001', regionPlaceholder:'Select prefecture', phonePlaceholder:'+81 00 0000 0000', timezone:'Asia/Tokyo', currency:'JPY', phonePrefix:'+81', regions:{ Tokyo:['Tokyo'], Osaka:['Osaka'], Kyoto:['Kyoto'], Aichi:['Nagoya'] } },
+  Other: { registrationPlaceholder:'Registration number', registrationHelp:'Enter the official registration identifier.', taxPlaceholder:'Tax identifier', taxHelp:'Enter the applicable tax identifier.', postalPlaceholder:'Postal / ZIP code', regionPlaceholder:'Region / state', phonePlaceholder:'+ country code and number', timezone:'UTC', currency:'USD', phonePrefix:'+', regions:{ Other:['Other'] } }
 };
-
 function defaultTenantCountryRule(): ZentridTenantCountryRule {
   const rule = tenantCountryRules.Armenia;
   if (!rule) throw new Error('Default tenant country rule is missing.');
@@ -1386,7 +1383,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <label><span id="legalNameLabel">Legal Name *</span><input name="legal" required minlength="2" maxlength="180" autocomplete="organization" placeholder="ABC Solar Energy LLC"></label>
   <label><span id="tradeNameLabel">Trade Name</span><input name="trade" placeholder="Public / commercial name"></label>
   <label>Display Name <input name="displayName" placeholder="Name shown across Zentrid UI"></label>
-  <label>Country * <select name="country" id="tenantCountry"><option>Armenia</option><option>United States</option></select></label>
+  <label>Country * <select name="country" id="tenantCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
   <label><span id="registrationLabel">Registration Number</span><input name="registration" id="registrationNumber" maxlength="64" autocomplete="off" placeholder="Example: 286.110.123456"><small class="field-help" id="registrationHelp">State registration number issued in Armenia.</small></label>
   <label><span id="taxLabel">Tax ID / VAT Number *</span><input name="tax" id="taxNumber" required maxlength="32" autocomplete="off" placeholder="Example: 01234567"><small class="field-help" id="taxHelp">Armenian Taxpayer Identification Number (TIN).</small></label>
   <label>Tenant Status * <select name="status"><option>Inactive</option><option>Active</option><option>Suspended</option><option>Archived</option></select></label>
@@ -1395,7 +1392,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <label class="org-only">Industry Sector <select name="industry"><option>Solar Energy</option><option>Renewable Energy</option><option>Energy Services</option><option>O&M Services</option><option>Commercial Real Estate</option><option>Industrial</option><option>Government / Municipality</option><option>Utility</option></select></label>
   <label class="org-only">Business Category <select name="businessCategory"><option>Enterprise</option><option>SME</option><option>Government</option></select></label>
   <label class="org-only">Parent Company <select name="parentCompany"><option>None</option><option>Parent Company A</option><option>Parent Company B</option></select></label>
-  <label class="org-only">Number of Employees <input type="number" name="employees" placeholder="120"></label>
+  <label class="org-only">Number of Employees <input type="number" name="employees" min="0" step="1" inputmode="numeric" placeholder="Example: 120"></label>
   <label class="org-only">Annual Revenue Range <select name="annualRevenue"><option>Less than $1M</option><option>$1M–$5M</option><option>$5M–$10M</option><option>$10M–$50M</option><option>$50M+</option></select></label>
   <label class="full org-only">Website <input type="url" name="webplant" placeholder="https://company.example"></label>
   <div class="country-rules full" id="countryRules"><strong>Country rules: Armenia</strong><p>Registration Number: 286.110.123456 · Tax ID / VAT Number: 01234567 · Phone: +374 XX XXX XXX</p></div>
@@ -1403,9 +1400,9 @@ function tenantWizard(){ const steps=['General Information','Address Information
 </div>
 <div class="wizard-step" data-tenant-step="1">
   <h3 class="full">Legal Address</h3>
-  <label>Country <select name="legalCountry" id="legalCountry"><option>Armenia</option><option>United States</option></select></label>
-  <label>State / Region <input name="region" id="legalRegion" placeholder="Example: Yerevan, Kotayk, Shirak"></label>
-  <label>City * <input name="city" required minlength="2" maxlength="100" autocomplete="address-level2" placeholder="Yerevan"></label>
+  <label>Country <select name="legalCountry" id="legalCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
+  <label>State / Region <select name="region" id="legalRegion"></select></label>
+  <label>City * <select name="city" id="legalCity" required autocomplete="address-level2"></select></label>
   <label>Street Address * <input name="address" required minlength="4" maxlength="500" autocomplete="street-address" placeholder="24 Energy Avenue"></label>
   <label>Building Number <input name="building" placeholder="12"></label>
   <label>Postal Code <input name="postal" id="legalPostal" placeholder="Example: 0010"></label>
@@ -1413,9 +1410,9 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <div class="full business-address-fields" id="businessAddressFields">
     <h3>Business Address</h3>
     <div class="form-grid nested-grid">
-      <label>Country <select name="businessCountry" id="businessCountry"><option>Armenia</option><option>United States</option></select></label>
-      <label>Region <input name="businessRegion" id="businessRegion" placeholder="Example: Yerevan, Kotayk, Shirak"></label>
-      <label>City <input name="businessCity" placeholder="City"></label>
+      <label>Country <select name="businessCountry" id="businessCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
+      <label>Region <select name="businessRegion" id="businessRegion"></select></label>
+      <label>City <select name="businessCity" id="businessCity"></select></label>
       <label>Street Address <input name="businessAddress" placeholder="Street Address"></label>
       <label>Building Number <input name="businessBuilding" placeholder="Building / unit"></label>
       <label>Postal Code <input name="businessPostal" id="businessPostal" placeholder="Example: 0010"></label>
@@ -1455,9 +1452,9 @@ function tenantWizard(){ const steps=['General Information','Address Information
 </div>
 <div class="wizard-step" data-tenant-step="4">
   <label>Preferred Language <select name="language"><option>English</option><option>Armenian</option></select></label>
-  <label>Preferred Time Zone <select name="timezone" id="preferredTimezone"><option>Asia/Yerevan</option><option>America/New_York</option><option>America/Los_Angeles</option><option>America/Chicago</option></select></label>
+  <label>Preferred Time Zone <select name="timezone" id="preferredTimezone">${Array.from(new Set(Object.values(tenantCountryRules).map(rule=>rule.timezone))).map(value=>`<option>${value}</option>`).join('')}</select></label>
   <label>Preferred Communication Channel <select name="channel"><option>Email</option><option>Phone</option><option>Portal</option></select></label>
-  <label>Business Hours <input name="businessHours" placeholder="09:00–18:00"></label>
+  <label>Business Hours <input name="businessHours" pattern="([01]\d|2[0-3]):[0-5]\d[–-]([01]\d|2[0-3]):[0-5]\d" title="Use 24-hour format, for example 09:00–18:00" placeholder="09:00–18:00"></label>
   ${yesNo('platformNotifications','Receive Platform Notifications')}
   ${yesNo('serviceNotifications','Receive Service Notifications')}
   ${yesNo('invoiceNotifications','Receive Invoice Notifications')}
@@ -1516,11 +1513,24 @@ function wireTenantRegistry(): void {
     validationSummary.innerHTML = '';
   };
 
-  const applyAddressRules = (country: string, prefix: string) => {
+  const populateTenantSelect = (select: HTMLSelectElement | null, values: string[], preferred = '') => {
+    if (!select) return;
+    const next = preferred && values.includes(preferred) ? preferred : (values[0] || '');
+    select.innerHTML = values.map(value => `<option value="${tenantEscapeHtml(value)}">${tenantEscapeHtml(value)}</option>`).join('');
+    select.value = next;
+  };
+
+  const applyAddressRules = (country: string, prefix: string, preserve = true) => {
     const rule = tenantCountryRules[country] || defaultTenantCountryRule();
-    const region = tenantElement<HTMLInputElement>(prefix + 'Region');
+    const region = tenantElement<HTMLSelectElement>(prefix + 'Region');
+    const city = tenantElement<HTMLSelectElement>(prefix + 'City');
     const postal = tenantElement<HTMLInputElement>(prefix + 'Postal');
-    if (region) region.placeholder = rule.regionPlaceholder;
+    const previousRegion = preserve ? region?.value || '' : '';
+    const previousCity = preserve ? city?.value || '' : '';
+    const regions = Object.keys(rule.regions);
+    populateTenantSelect(region, regions, previousRegion);
+    const cities = rule.regions[region?.value || regions[0] || ''] || [];
+    populateTenantSelect(city, cities, previousCity);
     if (postal) {
       postal.placeholder = rule.postalPlaceholder;
       if (country === 'Armenia') {
@@ -1534,6 +1544,13 @@ function wireTenantRegistry(): void {
         postal.removeAttribute('title');
       }
     }
+  };
+
+  const updateAddressCities = (prefix: string, country: string) => {
+    const rule = tenantCountryRules[country] || defaultTenantCountryRule();
+    const region = tenantElement<HTMLSelectElement>(prefix + 'Region');
+    const city = tenantElement<HTMLSelectElement>(prefix + 'City');
+    populateTenantSelect(city, rule.regions[region?.value || ''] || [], city?.value || '');
   };
 
   const updateCountryRules = () => {
@@ -1589,8 +1606,8 @@ function wireTenantRegistry(): void {
     const legalCountry = tenantElement<HTMLSelectElement>('legalCountry');
     const businessCountry = tenantElement<HTMLSelectElement>('businessCountry');
     if (legalCountry) legalCountry.value = country;
-    applyAddressRules(legalCountry?.value || country, 'legal');
-    applyAddressRules(businessCountry?.value || country, 'business');
+    applyAddressRules(legalCountry?.value || country, 'legal', false);
+    applyAddressRules(businessCountry?.value || country, 'business', false);
     const registrationHelp = document.getElementById('registrationHelp');
     const taxHelp = document.getElementById('taxHelp');
     const countryRules = document.getElementById('countryRules');
@@ -1768,9 +1785,29 @@ function wireTenantRegistry(): void {
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && modal.classList.contains('open')) attemptCloseWizard(); });
   requireTenantElement<HTMLSelectElement>('tenantCountry').onchange = updateCountryRules;
   requireTenantElement<HTMLSelectElement>('tenantEntityType').onchange = updateCountryRules;
-  requireTenantElement<HTMLSelectElement>('legalCountry').onchange = event => applyAddressRules((event.currentTarget as HTMLSelectElement).value, 'legal');
-  requireTenantElement<HTMLSelectElement>('businessCountry').onchange = event => applyAddressRules((event.currentTarget as HTMLSelectElement).value, 'business');
+  requireTenantElement<HTMLSelectElement>('legalCountry').onchange = event => applyAddressRules((event.currentTarget as HTMLSelectElement).value, 'legal', false);
+  requireTenantElement<HTMLSelectElement>('businessCountry').onchange = event => applyAddressRules((event.currentTarget as HTMLSelectElement).value, 'business', false);
+  requireTenantElement<HTMLSelectElement>('legalRegion').onchange = () => updateAddressCities('legal', requireTenantElement<HTMLSelectElement>('legalCountry').value);
+  requireTenantElement<HTMLSelectElement>('businessRegion').onchange = () => updateAddressCities('business', requireTenantElement<HTMLSelectElement>('businessCountry').value);
   requireTenantElement<HTMLInputElement>('businessSame').onchange = toggleBusiness;
+
+  const normalizeTenantPhone = (input: HTMLInputElement) => {
+    const country = tenantElement<HTMLSelectElement>('tenantCountry')?.value || 'Armenia';
+    const rule = tenantCountryRules[country] || defaultTenantCountryRule();
+    let value = input.value.replace(/[^\d+]/g, '');
+    if (value && !value.startsWith('+')) value = `${rule.phonePrefix}${value.replace(/^0+/, '')}`;
+    input.value = value.slice(0, 24);
+  };
+  ['contactPhone','contactOfficePhone'].forEach(id => {
+    const input = tenantElement<HTMLInputElement>(id);
+    if (!input) return;
+    input.inputMode = 'tel';
+    input.addEventListener('blur', () => normalizeTenantPhone(input));
+  });
+  const recipients = tenantForm.elements.namedItem('notificationRecipients');
+  if (recipients instanceof HTMLInputElement) recipients.addEventListener('blur', () => {
+    recipients.value = recipients.value.split(',').map(value => value.trim()).filter(Boolean).join(', ');
+  });
 
   const addContact = () => {
     const inlineContact = requireTenantElement<HTMLElement>('inlineContactForm');

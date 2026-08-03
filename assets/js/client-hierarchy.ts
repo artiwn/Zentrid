@@ -397,51 +397,30 @@ interface ClientCreateLocationRule {
   regions: Record<string, string[]>;
   timezone: string;
   currency: string;
+  phonePrefix: string;
   phonePlaceholder: string;
+  postalPlaceholder: string;
+  taxPlaceholder: string;
+  registrationPlaceholder: string;
 }
 
 const clientCreateSteps: ClientCreateStep[] = ['tenant', 'identity', 'location', 'portal', 'documentation', 'banking', 'review'];
 const clientCreateLocationRules: Record<string, ClientCreateLocationRule> = {
-  Armenia: {
-    regions: {
-      Yerevan: ['Yerevan'],
-      Kotayk: ['Abovyan', 'Hrazdan'],
-      Shirak: ['Gyumri'],
-      Armavir: ['Vagharshapat', 'Armavir']
-    },
-    timezone: 'Asia/Yerevan',
-    currency: 'AMD',
-    phonePlaceholder: '+374 00 000 000'
-  },
-  'United States': {
-    regions: {
-      California: ['San Diego', 'Los Angeles', 'San Francisco'],
-      Texas: ['Austin', 'Houston', 'Dallas']
-    },
-    timezone: 'America/Los_Angeles',
-    currency: 'USD',
-    phonePlaceholder: '+1 000 000 0000'
-  },
-  Germany: {
-    regions: {
-      Bavaria: ['Munich', 'Nuremberg'],
-      Berlin: ['Berlin'],
-      Hamburg: ['Hamburg']
-    },
-    timezone: 'Europe/Berlin',
-    currency: 'EUR',
-    phonePlaceholder: '+49 000 000000'
-  },
-  Spain: {
-    regions: {
-      Madrid: ['Madrid'],
-      Catalonia: ['Barcelona'],
-      Andalusia: ['Seville', 'Málaga']
-    },
-    timezone: 'Europe/Madrid',
-    currency: 'EUR',
-    phonePlaceholder: '+34 000 000 000'
-  }
+  Armenia: { regions: { Yerevan:['Yerevan'], Kotayk:['Abovyan','Hrazdan'], Shirak:['Gyumri'], Lori:['Vanadzor'], Armavir:['Vagharshapat','Armavir'], Syunik:['Kapan'] }, timezone:'Asia/Yerevan', currency:'AMD', phonePrefix:'+374', phonePlaceholder:'+374 00 000 000', postalPlaceholder:'Example: 0019', taxPlaceholder:'Example: 01234567', registrationPlaceholder:'Example: 286.110.123456' },
+  Germany: { regions: { Berlin:['Berlin'], Bavaria:['Munich','Nuremberg'], Hamburg:['Hamburg'], Hesse:['Frankfurt'], 'North Rhine-Westphalia':['Cologne','Düsseldorf'], 'Baden-Württemberg':['Stuttgart'] }, timezone:'Europe/Berlin', currency:'EUR', phonePrefix:'+49', phonePlaceholder:'+49 000 000000', postalPlaceholder:'Example: 10115', taxPlaceholder:'Example: DE123456789', registrationPlaceholder:'Example: HRB 123456' },
+  Spain: { regions: { Madrid:['Madrid'], Catalonia:['Barcelona'], Andalusia:['Seville','Málaga'], Valencia:['Valencia'], Aragon:['Zaragoza'] }, timezone:'Europe/Madrid', currency:'EUR', phonePrefix:'+34', phonePlaceholder:'+34 000 000 000', postalPlaceholder:'Example: 28001', taxPlaceholder:'Example: B12345678', registrationPlaceholder:'Example: M-123456' },
+  France: { regions: { 'Île-de-France':['Paris'], Provence:['Marseille','Nice'], 'Auvergne-Rhône-Alpes':['Lyon'], Occitanie:['Toulouse'], 'Pays de la Loire':['Nantes'] }, timezone:'Europe/Paris', currency:'EUR', phonePrefix:'+33', phonePlaceholder:'+33 0 00 00 00 00', postalPlaceholder:'Example: 75001', taxPlaceholder:'Example: FR12345678901', registrationPlaceholder:'Example: 123 456 789 RCS Paris' },
+  'United Kingdom': { regions: { England:['London','Birmingham','Manchester'], Scotland:['Glasgow','Edinburgh'], Wales:['Cardiff'], 'Northern Ireland':['Belfast'] }, timezone:'Europe/London', currency:'GBP', phonePrefix:'+44', phonePlaceholder:'+44 0000 000000', postalPlaceholder:'Example: SW1A 1AA', taxPlaceholder:'Example: GB123456789', registrationPlaceholder:'Example: 12345678' },
+  Italy: { regions: { Lazio:['Rome'], Lombardy:['Milan'], Campania:['Naples'], Piedmont:['Turin'], Sicily:['Palermo'] }, timezone:'Europe/Rome', currency:'EUR', phonePrefix:'+39', phonePlaceholder:'+39 000 000 0000', postalPlaceholder:'Example: 00100', taxPlaceholder:'Example: IT12345678901', registrationPlaceholder:'Example: REA RM-123456' },
+  Portugal: { regions: { Lisbon:['Lisbon'], Porto:['Porto'], Braga:['Braga'], Coimbra:['Coimbra'], Madeira:['Funchal'] }, timezone:'Europe/Lisbon', currency:'EUR', phonePrefix:'+351', phonePlaceholder:'+351 000 000 000', postalPlaceholder:'Example: 1000-001', taxPlaceholder:'Example: PT123456789', registrationPlaceholder:'Example: 123456789' },
+  Netherlands: { regions: { 'North Holland':['Amsterdam'], 'South Holland':['Rotterdam','The Hague'], Utrecht:['Utrecht'] }, timezone:'Europe/Amsterdam', currency:'EUR', phonePrefix:'+31', phonePlaceholder:'+31 00 000 0000', postalPlaceholder:'Example: 1012 AB', taxPlaceholder:'Example: NL123456789B01', registrationPlaceholder:'Example: 12345678' },
+  'United States': { regions: { 'New York':['New York'], California:['Los Angeles','San Francisco','San Diego'], Texas:['Austin','Houston','Dallas'], Illinois:['Chicago'], Washington:['Seattle'], Colorado:['Denver'], Arizona:['Phoenix'] }, timezone:'America/New_York', currency:'USD', phonePrefix:'+1', phonePlaceholder:'+1 000 000 0000', postalPlaceholder:'Example: 10001', taxPlaceholder:'Example: 12-3456789', registrationPlaceholder:'Example: State registration number' },
+  Canada: { regions: { Ontario:['Toronto'], Quebec:['Montreal'], 'British Columbia':['Vancouver'], Alberta:['Calgary','Edmonton'], 'Nova Scotia':['Halifax'] }, timezone:'America/Toronto', currency:'CAD', phonePrefix:'+1', phonePlaceholder:'+1 000 000 0000', postalPlaceholder:'Example: M5V 3A8', taxPlaceholder:'Example: 123456789RT0001', registrationPlaceholder:'Example: Corporation number' },
+  Australia: { regions: { 'New South Wales':['Sydney'], Victoria:['Melbourne'], Queensland:['Brisbane'], 'South Australia':['Adelaide'], 'Western Australia':['Perth'] }, timezone:'Australia/Sydney', currency:'AUD', phonePrefix:'+61', phonePlaceholder:'+61 0 0000 0000', postalPlaceholder:'Example: 2000', taxPlaceholder:'Example: 12 345 678 901', registrationPlaceholder:'Example: ACN 123 456 789' },
+  'United Arab Emirates': { regions: { Dubai:['Dubai'], 'Abu Dhabi':['Abu Dhabi'], Sharjah:['Sharjah'], Ajman:['Ajman'] }, timezone:'Asia/Dubai', currency:'AED', phonePrefix:'+971', phonePlaceholder:'+971 00 000 0000', postalPlaceholder:'Optional / PO Box', taxPlaceholder:'Example: 100123456700003', registrationPlaceholder:'Example: Trade license number' },
+  India: { regions: { Delhi:['New Delhi'], Maharashtra:['Mumbai'], Karnataka:['Bengaluru'], Telangana:['Hyderabad'], 'Tamil Nadu':['Chennai'] }, timezone:'Asia/Kolkata', currency:'INR', phonePrefix:'+91', phonePlaceholder:'+91 00000 00000', postalPlaceholder:'Example: 110001', taxPlaceholder:'Example: 22AAAAA0000A1Z5', registrationPlaceholder:'Example: U12345DL2020PTC123456' },
+  Japan: { regions: { Tokyo:['Tokyo'], Osaka:['Osaka'], Kyoto:['Kyoto'], Aichi:['Nagoya'], Hokkaido:['Sapporo'] }, timezone:'Asia/Tokyo', currency:'JPY', phonePrefix:'+81', phonePlaceholder:'+81 00 0000 0000', postalPlaceholder:'Example: 100-0001', taxPlaceholder:'Example: 1234567890123', registrationPlaceholder:'Example: Corporate number' },
+  Other: { regions: { Other:['Other'] }, timezone:'UTC', currency:'USD', phonePrefix:'+', phonePlaceholder:'+ country code and number', postalPlaceholder:'Postal / ZIP code', taxPlaceholder:'Tax identifier', registrationPlaceholder:'Registration number' }
 };
 
 let clientCreateCurrentStep = 0;
@@ -513,18 +492,18 @@ function clientCreateModal() {
               <label>Country *<select name="country" id="clientCreateCountry" required>${countries.map(x => `<option>${x}</option>`).join('')}</select></label>
               <label>Region *<select name="region" id="clientCreateRegion" required>${regions.map(x => `<option>${x}</option>`).join('')}</select></label>
               <label>City *<select name="city" id="clientCreateCity" required>${cities.map(x => `<option>${x}</option>`).join('')}</select></label>
-              <label class="wide-field">Address *<input name="address" required maxlength="180" autocomplete="street-address" placeholder="Street, building, apartment" /></label>
-              <label>Time Zone *<select name="timezone" id="clientCreateTimezone" required><option>Asia/Yerevan</option><option>America/Los_Angeles</option><option>America/Chicago</option><option>Europe/Berlin</option><option>Europe/Madrid</option></select></label>
+              <label class="wide-field">Address *<input name="address" required maxlength="180" autocomplete="street-address" placeholder="Example: Baghramyan Avenue 26, building 2" /></label>
+              <label>Time Zone *<select name="timezone" id="clientCreateTimezone" required></select><small class="field-help">Selected automatically from Country / Region / City.</small></label>
               <label>Temperature Format<select name="temperature"><option>°C</option></select></label>
-              <label>Currency Unit *<select name="currency" id="clientCreateCurrency" required><option>AMD</option><option>USD</option><option>EUR</option></select></label>
+              <label>Currency Unit *<select name="currency" id="clientCreateCurrency" required><option>AMD</option><option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>AUD</option><option>AED</option><option>INR</option><option>JPY</option></select></label>
               <label>Irradiation<select name="irradiation"><option>kWh/m2</option><option>W/m2</option><option>MJ/m2</option></select></label>
             </div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="portal">
             <div class="section-title"><div><h3>Contacts & Portal Account</h3><p class="muted">Client contact details and initial local prototype portal credentials.</p></div></div>
             <div class="client-form-grid three-col">
-              <label>Phone Number 1 *<input name="phone1" type="tel" required maxlength="40" autocomplete="tel" placeholder="+374..." /></label>
-              <label>Phone Number 2<input name="phone2" type="tel" maxlength="40" placeholder="Optional" /></label>
+              <label>Phone Number 1 *<input name="phone1" type="tel" required maxlength="40" autocomplete="tel" inputmode="tel" placeholder="+374..." /></label>
+              <label>Phone Number 2<input name="phone2" type="tel" maxlength="40" inputmode="tel" placeholder="Optional" /></label>
               <label>E-mail *<input name="email" type="email" required maxlength="160" autocomplete="email" placeholder="client@example.com" /></label>
               <label>Username *<input name="username" required minlength="4" maxlength="60" autocomplete="username" pattern="[A-Za-z0-9._\\-]+" title="Use letters, numbers, dots, dashes or underscores." placeholder="username" /></label>
               <label>Temporary Password *<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" placeholder="At least 8 characters" /></label>
@@ -553,8 +532,8 @@ function clientCreateModal() {
                 <div class="client-bank-head"><strong>Bank 1</strong><label class="checkbox-label checkbox-inline"><input type="radio" name="primaryBank" value="0" checked><span>Primary bank</span></label></div>
                 <div class="client-form-grid four-col">
                   <label>Bank<input name="bankName" maxlength="120" placeholder="Bank name" /></label>
-                  <label>Bank Code<input name="bankCode" maxlength="60" placeholder="Bank code" /></label>
-                  <label>Account Number<input name="accountNumber" maxlength="80" placeholder="Account number / IBAN" /></label>
+                  <label>Bank Code<input name="bankCode" maxlength="60" inputmode="text" placeholder="Bank code" /></label>
+                  <label>Account Number<input name="accountNumber" maxlength="80" inputmode="text" autocomplete="off" placeholder="Example: AM00 0000 0000 0000 0000" /></label>
                   <label>Account Currency<select name="accountCurrency"><option>AMD</option><option>USD</option><option>EUR</option><option>GBP</option></select></label>
                 </div>
                 <div class="inline-actions client-bank-actions"><button type="button" class="secondary-action" data-remove-bank>Delete</button></div>
@@ -782,6 +761,28 @@ function initClientCreateWizard(): void {
     updateClientCreateCities();
     updateClientCreateReview();
   });
+  modal.querySelector('#clientCreateCity')?.addEventListener('change', () => {
+    syncClientCreateTimezone();
+    updateClientCreateReview();
+  });
+  modal.querySelectorAll<HTMLInputElement>('input[name="phone1"], input[name="phone2"]').forEach(input => {
+    input.addEventListener('input', () => normalizeClientPhoneInput(input, false));
+    input.addEventListener('blur', () => normalizeClientPhoneInput(input, true));
+  });
+  modal.querySelectorAll<HTMLInputElement>('input[name="accountNumber"]').forEach(input => {
+    input.addEventListener('input', () => {
+      const compact = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 34);
+      input.value = (compact.match(/.{1,4}/g) || []).join(' ');
+    });
+  });
+  modal.addEventListener('input', event => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.name === 'accountNumber') {
+      const compact = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 34);
+      target.value = (compact.match(/.{1,4}/g) || []).join(' ');
+    }
+  });
   modal.querySelectorAll('input, select').forEach(element => {
     element.addEventListener('input', updateClientCreateReview);
     element.addEventListener('change', updateClientCreateReview);
@@ -847,11 +848,75 @@ function setClientSelectOptions(select: HTMLSelectElement | null, options: strin
   if (options.includes(current)) select.value = current;
 }
 
+function clientCreateTimezoneFor(country: string, region: string): string {
+  if (country === 'United States') {
+    if (['California', 'Washington'].includes(region)) return 'America/Los_Angeles';
+    if (region === 'Texas' || region === 'Illinois') return 'America/Chicago';
+    if (region === 'Colorado') return 'America/Denver';
+    if (region === 'Arizona') return 'America/Phoenix';
+    return 'America/New_York';
+  }
+  if (country === 'Canada') {
+    if (region === 'British Columbia') return 'America/Vancouver';
+    if (region === 'Alberta') return 'America/Edmonton';
+    if (region === 'Nova Scotia') return 'America/Halifax';
+    return 'America/Toronto';
+  }
+  if (country === 'Australia') {
+    if (region === 'Victoria') return 'Australia/Melbourne';
+    if (region === 'Queensland') return 'Australia/Brisbane';
+    if (region === 'South Australia') return 'Australia/Adelaide';
+    if (region === 'Western Australia') return 'Australia/Perth';
+    return 'Australia/Sydney';
+  }
+  if (country === 'Portugal' && region === 'Madeira') return 'Atlantic/Madeira';
+  return (clientCreateLocationRules[country] || clientCreateLocationRules.Armenia!).timezone;
+}
+
+function syncClientCreateTimezone(): void {
+  const country = clientCreateControl<HTMLSelectElement>('country')?.value || 'Armenia';
+  const region = clientCreateControl<HTMLSelectElement>('region')?.value || '';
+  const timezone = clientCreateControl<HTMLSelectElement>('timezone');
+  if (!timezone) return;
+  const value = clientCreateTimezoneFor(country, region);
+  const all = Array.from(new Set(Object.keys(clientCreateLocationRules).flatMap(name => {
+    const rule = clientCreateLocationRules[name]!;
+    return [rule.timezone, clientCreateTimezoneFor(name, Object.keys(rule.regions)[0] || '')];
+  }).concat(['America/Los_Angeles','America/Chicago','America/Denver','America/Phoenix','America/Vancouver','America/Edmonton','America/Halifax','Australia/Melbourne','Australia/Brisbane','Australia/Adelaide','Australia/Perth','Atlantic/Madeira','UTC'])));
+  setClientSelectOptions(timezone, all, value);
+  timezone.value = value;
+}
+
+function normalizeClientPhoneInput(input: HTMLInputElement, finalize = false): void {
+  const country = clientCreateControl<HTMLSelectElement>('country')?.value || 'Armenia';
+  const rule = clientCreateLocationRules[country] || clientCreateLocationRules.Armenia!;
+  let value = input.value.replace(/[^\d+]/g, '');
+  value = value.replace(/(?!^)\+/g, '');
+  if (finalize && value && !value.startsWith('+')) value = `${rule.phonePrefix}${value}`;
+  const plus = value.startsWith('+');
+  const digits = value.replace(/\D/g, '').slice(0, 15);
+  if (!digits) { input.value = plus ? '+' : ''; return; }
+  const groups = digits.match(/.{1,3}/g) || [];
+  input.value = `${plus ? '+' : ''}${groups.join(' ')}`;
+}
+
+function applyClientCreateIdentityPlaceholders(): void {
+  const country = clientCreateControl<HTMLSelectElement>('country')?.value || 'Armenia';
+  const rule = clientCreateLocationRules[country] || clientCreateLocationRules.Armenia!;
+  const registration = clientCreateControl<HTMLInputElement>('registrationNo');
+  const tax = clientCreateControl<HTMLInputElement>('taxId');
+  const personalTax = clientCreateControl<HTMLInputElement>('personalTaxId');
+  if (registration) registration.placeholder = rule.registrationPlaceholder;
+  if (tax) tax.placeholder = rule.taxPlaceholder;
+  if (personalTax) personalTax.placeholder = rule.taxPlaceholder;
+}
+
 function updateClientCreateCities(): void {
   const country = clientCreateControl<HTMLSelectElement>('country')?.value || 'Armenia';
   const region = clientCreateControl<HTMLSelectElement>('region')?.value || '';
   const rule = clientCreateLocationRules[country] || clientCreateLocationRules.Armenia!;
   setClientSelectOptions(clientCreateControl<HTMLSelectElement>('city'), rule.regions[region] || []);
+  syncClientCreateTimezone();
 }
 
 function applyClientCreateLocationRules(resetDependent = false): void {
@@ -861,15 +926,16 @@ function applyClientCreateLocationRules(resetDependent = false): void {
   const currentRegion = resetDependent ? undefined : region?.value;
   setClientSelectOptions(region, Object.keys(rule.regions), currentRegion);
   updateClientCreateCities();
-  const timezone = clientCreateControl<HTMLSelectElement>('timezone');
-  if (timezone && Array.from(timezone.options).some(option => option.value === rule.timezone)) timezone.value = rule.timezone;
+  syncClientCreateTimezone();
   const currency = clientCreateControl<HTMLSelectElement>('currency');
   if (currency && Array.from(currency.options).some(option => option.value === rule.currency)) currency.value = rule.currency;
   const phone1 = clientCreateControl<HTMLInputElement>('phone1');
   const phone2 = clientCreateControl<HTMLInputElement>('phone2');
   if (phone1) phone1.placeholder = rule.phonePlaceholder;
   if (phone2) phone2.placeholder = `Optional · ${rule.phonePlaceholder}`;
+  applyClientCreateIdentityPlaceholders();
 }
+
 
 function clientCreateCustomIssues(index: number, includeDuplicates = false): ZentridFormIssue[] {
   const form = clientCreateFormElement();
@@ -883,12 +949,10 @@ function clientCreateCustomIssues(index: number, includeDuplicates = false): Zen
     });
     const dob = clientCreateControl<HTMLInputElement>('dob');
     if (dob && !dob.disabled && dob.value) {
-      const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob.value.trim());
-      const month = Number(match?.[1] || 0);
-      const day = Number(match?.[2] || 0);
-      const year = Number(match?.[3] || 0);
-      const currentYear = new Date().getFullYear();
-      if (!match || day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > currentYear) issues.push({ control:dob, message:'Enter a valid date of birth in MM/DD/YYYY format.' });
+      const selected = new Date(`${dob.value}T00:00:00`);
+      const today = new Date();
+      const earliest = new Date('1900-01-01T00:00:00');
+      if (Number.isNaN(selected.getTime()) || selected > today || selected < earliest) issues.push({ control:dob, message:'Enter a valid date of birth between 1900 and today.' });
     }
     if (includeDuplicates) {
       const name = clientDraftName(form);
@@ -1162,7 +1226,7 @@ function clientCreateApiPayload(
   const companyName = type === 'Legal Entity' ? formValue(fd.get('companyName')).trim() : null;
   const dob = formValue(fd.get('dob')).trim();
   const dobMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob);
-  const dateOfBirth = dobMatch ? `${dobMatch[3]}-${dobMatch[1]}-${dobMatch[2]}` : null;
+  const dateOfBirth = /^\d{4}-\d{2}-\d{2}$/.test(dob) ? dob : (dobMatch ? `${dobMatch[3]}-${dobMatch[1]}-${dobMatch[2]}` : null);
   const language = formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English';
   const role = formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User';
   const username = formValue(fd.get('username')).trim();

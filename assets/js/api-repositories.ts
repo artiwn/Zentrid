@@ -58,6 +58,8 @@
     timeoutMs?: number;
     page?: number;
     pageSize?: number;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
     signal?: AbortSignal;
   }
 
@@ -208,7 +210,9 @@
   function requestCacheKey(entity: RepositoryEntity, options: ZentridRepositoryReadOptions = {}): string {
     const { page, pageSize } = normalizedPageOptions(options);
     const variant = String(options.cacheVariant || 'list').trim().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase() || 'list';
-    return `${entity}|variant=${variant}|page=${page}|pageSize=${pageSize}`;
+    const sortBy = String(options.sortBy || '').trim();
+    const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
+    return `${entity}|variant=${variant}|page=${page}|pageSize=${pageSize}|sortBy=${sortBy}|sortDirection=${sortDirection}`;
   }
 
   function persistentStorage(): Storage | null {
@@ -718,7 +722,12 @@
     let lastError: unknown = null;
 
     try {
-      payload = await ZentridAPI.request(`${path}?page=${page}&size=${pageSize}`, requestOptions);
+      const query = new URLSearchParams({ page: String(page), size: String(pageSize) });
+      const sortBy = String(options.sortBy || '').trim();
+      const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
+      if (sortBy) query.set('sortBy', sortBy);
+      if (sortDirection) query.set('sortDirection', sortDirection);
+      payload = await ZentridAPI.request(`${path}?${query.toString()}`, requestOptions);
       successfulResponse = true;
     } catch (error) {
       lastError = error;

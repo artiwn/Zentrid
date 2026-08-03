@@ -205,6 +205,7 @@ function plantCreateVendorPayload(form: HTMLFormElement, formData: FormData): Re
   const coreNames = new Set([
     'assetType', 'client', 'tenant', 'clientContact', 'timezone', 'country', 'region', 'sourceScheme', 'status',
     'creationMode', 'name', 'genericName', 'code', 'type', 'countryManual', 'city', 'address', 'timezoneManual',
+    'coordinateLongitude', 'coordinateLatitude',
     'commissioned', 'capacityDc', 'capacityAc', 'gridCapacity', 'modules', 'batteryCapacity', 'serviceProvider',
     ...PLANT_CANONICAL_VENDOR_FIELD_NAMES
   ]);
@@ -668,6 +669,268 @@ const vendorFlowConfig: Record<string, ZentridVendorFlow> = {
   }
 };
 const defaultVendorFlow: ZentridVendorFlow = vendorFlowConfig['Other / Manual'] ?? { hint:'Manual vendor flow', steps:[] };
+
+
+interface ZentridPlantGeoCity {
+  name: string;
+  timezone: string;
+}
+
+interface ZentridPlantGeoCountry {
+  name: string;
+  cities: ZentridPlantGeoCity[];
+  defaultTimezone: string;
+}
+
+const ZENTRID_PLANT_GEO_CATALOG: ZentridPlantGeoCountry[] = [
+  { name:'Armenia', defaultTimezone:'Asia/Yerevan', cities:[
+    {name:'Yerevan', timezone:'Asia/Yerevan'}, {name:'Gyumri', timezone:'Asia/Yerevan'},
+    {name:'Vanadzor', timezone:'Asia/Yerevan'}, {name:'Vagharshapat', timezone:'Asia/Yerevan'},
+    {name:'Hrazdan', timezone:'Asia/Yerevan'}, {name:'Abovyan', timezone:'Asia/Yerevan'},
+    {name:'Kapan', timezone:'Asia/Yerevan'}, {name:'Armavir', timezone:'Asia/Yerevan'}
+  ]},
+  { name:'Germany', defaultTimezone:'Europe/Berlin', cities:[
+    {name:'Berlin', timezone:'Europe/Berlin'}, {name:'Hamburg', timezone:'Europe/Berlin'},
+    {name:'Munich', timezone:'Europe/Berlin'}, {name:'Cologne', timezone:'Europe/Berlin'},
+    {name:'Frankfurt', timezone:'Europe/Berlin'}, {name:'Stuttgart', timezone:'Europe/Berlin'}
+  ]},
+  { name:'Spain', defaultTimezone:'Europe/Madrid', cities:[
+    {name:'Madrid', timezone:'Europe/Madrid'}, {name:'Barcelona', timezone:'Europe/Madrid'},
+    {name:'Valencia', timezone:'Europe/Madrid'}, {name:'Seville', timezone:'Europe/Madrid'},
+    {name:'Zaragoza', timezone:'Europe/Madrid'}, {name:'Malaga', timezone:'Europe/Madrid'}
+  ]},
+  { name:'France', defaultTimezone:'Europe/Paris', cities:[
+    {name:'Paris', timezone:'Europe/Paris'}, {name:'Marseille', timezone:'Europe/Paris'},
+    {name:'Lyon', timezone:'Europe/Paris'}, {name:'Toulouse', timezone:'Europe/Paris'},
+    {name:'Nice', timezone:'Europe/Paris'}, {name:'Nantes', timezone:'Europe/Paris'}
+  ]},
+  { name:'United Kingdom', defaultTimezone:'Europe/London', cities:[
+    {name:'London', timezone:'Europe/London'}, {name:'Birmingham', timezone:'Europe/London'},
+    {name:'Manchester', timezone:'Europe/London'}, {name:'Glasgow', timezone:'Europe/London'},
+    {name:'Edinburgh', timezone:'Europe/London'}
+  ]},
+  { name:'Italy', defaultTimezone:'Europe/Rome', cities:[
+    {name:'Rome', timezone:'Europe/Rome'}, {name:'Milan', timezone:'Europe/Rome'},
+    {name:'Naples', timezone:'Europe/Rome'}, {name:'Turin', timezone:'Europe/Rome'},
+    {name:'Palermo', timezone:'Europe/Rome'}
+  ]},
+  { name:'Portugal', defaultTimezone:'Europe/Lisbon', cities:[
+    {name:'Lisbon', timezone:'Europe/Lisbon'}, {name:'Porto', timezone:'Europe/Lisbon'},
+    {name:'Braga', timezone:'Europe/Lisbon'}, {name:'Coimbra', timezone:'Europe/Lisbon'},
+    {name:'Funchal', timezone:'Atlantic/Madeira'}
+  ]},
+  { name:'Netherlands', defaultTimezone:'Europe/Amsterdam', cities:[
+    {name:'Amsterdam', timezone:'Europe/Amsterdam'}, {name:'Rotterdam', timezone:'Europe/Amsterdam'},
+    {name:'The Hague', timezone:'Europe/Amsterdam'}, {name:'Utrecht', timezone:'Europe/Amsterdam'}
+  ]},
+  { name:'United States', defaultTimezone:'America/New_York', cities:[
+    {name:'New York', timezone:'America/New_York'}, {name:'Washington', timezone:'America/New_York'},
+    {name:'Chicago', timezone:'America/Chicago'}, {name:'Denver', timezone:'America/Denver'},
+    {name:'Phoenix', timezone:'America/Phoenix'}, {name:'Los Angeles', timezone:'America/Los_Angeles'},
+    {name:'San Francisco', timezone:'America/Los_Angeles'}, {name:'Seattle', timezone:'America/Los_Angeles'}
+  ]},
+  { name:'Canada', defaultTimezone:'America/Toronto', cities:[
+    {name:'Toronto', timezone:'America/Toronto'}, {name:'Montreal', timezone:'America/Toronto'},
+    {name:'Vancouver', timezone:'America/Vancouver'}, {name:'Calgary', timezone:'America/Edmonton'},
+    {name:'Edmonton', timezone:'America/Edmonton'}, {name:'Halifax', timezone:'America/Halifax'}
+  ]},
+  { name:'Australia', defaultTimezone:'Australia/Sydney', cities:[
+    {name:'Sydney', timezone:'Australia/Sydney'}, {name:'Melbourne', timezone:'Australia/Melbourne'},
+    {name:'Brisbane', timezone:'Australia/Brisbane'}, {name:'Adelaide', timezone:'Australia/Adelaide'},
+    {name:'Perth', timezone:'Australia/Perth'}
+  ]},
+  { name:'United Arab Emirates', defaultTimezone:'Asia/Dubai', cities:[
+    {name:'Dubai', timezone:'Asia/Dubai'}, {name:'Abu Dhabi', timezone:'Asia/Dubai'},
+    {name:'Sharjah', timezone:'Asia/Dubai'}, {name:'Ajman', timezone:'Asia/Dubai'}
+  ]},
+  { name:'India', defaultTimezone:'Asia/Kolkata', cities:[
+    {name:'New Delhi', timezone:'Asia/Kolkata'}, {name:'Mumbai', timezone:'Asia/Kolkata'},
+    {name:'Bengaluru', timezone:'Asia/Kolkata'}, {name:'Hyderabad', timezone:'Asia/Kolkata'},
+    {name:'Chennai', timezone:'Asia/Kolkata'}
+  ]},
+  { name:'Japan', defaultTimezone:'Asia/Tokyo', cities:[
+    {name:'Tokyo', timezone:'Asia/Tokyo'}, {name:'Osaka', timezone:'Asia/Tokyo'},
+    {name:'Kyoto', timezone:'Asia/Tokyo'}, {name:'Nagoya', timezone:'Asia/Tokyo'},
+    {name:'Sapporo', timezone:'Asia/Tokyo'}
+  ]},
+  { name:'Other', defaultTimezone:'UTC', cities:[] }
+];
+
+const ZENTRID_PLANT_FIELD_PLACEHOLDERS: Record<string, string> = {
+  name:'Example: Yerevan Solar North', genericName:'Enter plant name', code:'Example: PLT-YER-001',
+  mapRef:'Search or enter plant address', street:'Example: Baghramyan Avenue 26', postalCode:'Example: 0019',
+  address:'Example: Baghramyan Avenue 26, Yerevan', detailedAddress:'Building, plot, landmark or access notes',
+  serviceProvider:'Example: Zentrid O&M', deviceSn:'Enter vendor device serial number',
+  unitPrice:'Example: 30.00', totalCost:'Example: 15000000', capacityDc:'Example: 5.5',
+  capacityAc:'Example: 5.0', gridCapacity:'Example: 4.8', batteryCapacity:'Example: 20',
+  modules:'Example: 1200', moduleCapacity:'Example: 550', azimuth:'0–360', tilt:'0–90',
+  organizationCode:'Enter organization code', dataloggerSn:'Enter datalogger serial number',
+  manualExternalRef:'External source reference', manualNotes:'Describe source mapping or onboarding notes'
+};
+
+function plantGeoCountry(name: string): ZentridPlantGeoCountry {
+  return ZENTRID_PLANT_GEO_CATALOG.find(country => country.name === name) || ZENTRID_PLANT_GEO_CATALOG[ZENTRID_PLANT_GEO_CATALOG.length - 1]!;
+}
+
+function escapePlantOption(value: string): string {
+  return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function replacePlantControlWithSelect(control: HTMLInputElement | HTMLSelectElement, options: string[], selectedValue: string): HTMLSelectElement {
+  if (control instanceof HTMLSelectElement) {
+    control.innerHTML = options.map(value => `<option value="${escapePlantOption(value)}">${escapePlantOption(value)}</option>`).join('');
+    if (options.includes(selectedValue)) control.value = selectedValue;
+    return control;
+  }
+  const select = document.createElement('select');
+  Array.from(control.attributes).forEach(attribute => {
+    if (!['type', 'value', 'placeholder', 'readonly'].includes(attribute.name)) select.setAttribute(attribute.name, attribute.value);
+  });
+  select.name = control.name;
+  select.id = control.id;
+  select.required = control.required;
+  select.innerHTML = options.map(value => `<option value="${escapePlantOption(value)}">${escapePlantOption(value)}</option>`).join('');
+  if (options.includes(selectedValue)) select.value = selectedValue;
+  control.replaceWith(select);
+  return select;
+}
+
+function enhancePlantCoordinates(panel: ParentNode): void {
+  panel.querySelectorAll<HTMLInputElement>('input[name="coordinates"]').forEach(original => {
+    if (original.dataset.coordinateEnhanced === 'true') return;
+    original.dataset.coordinateEnhanced = 'true';
+    const label = original.closest('label');
+    if (!label) return;
+    const initial = String(original.value || '').split(/[\/,;]+/).map(value => value.trim());
+    const required = original.required;
+    original.required = false;
+    original.type = 'hidden';
+    original.placeholder = '';
+    const shell = document.createElement('div');
+    shell.className = 'plant-coordinate-inputs-v141';
+    shell.innerHTML = `<div><span>Longitude</span><input type="number" name="coordinateLongitude" inputmode="decimal" min="-180" max="180" step="any" placeholder="44.5152"${required?' required':''}></div><div><span>Latitude</span><input type="number" name="coordinateLatitude" inputmode="decimal" min="-90" max="90" step="any" placeholder="40.1872"${required?' required':''}></div><small>Saved as Longitude / Latitude. Valid ranges: −180…180 / −90…90.</small>`;
+    label.appendChild(shell);
+    const longitude = shell.querySelector<HTMLInputElement>('input[name="coordinateLongitude"]')!;
+    const latitude = shell.querySelector<HTMLInputElement>('input[name="coordinateLatitude"]')!;
+    longitude.value = initial[0] || '';
+    latitude.value = initial[1] || '';
+    const sync = (): void => {
+      const lng = longitude.value.trim();
+      const lat = latitude.value.trim();
+      original.value = lng && lat ? `${lng} / ${lat}` : '';
+      longitude.setCustomValidity(longitude.value && !longitude.validity.valid ? 'Longitude must be between -180 and 180.' : '');
+      latitude.setCustomValidity(latitude.value && !latitude.validity.valid ? 'Latitude must be between -90 and 90.' : '');
+    };
+    longitude.addEventListener('input', sync);
+    latitude.addEventListener('input', sync);
+    sync();
+  });
+}
+
+function enhancePlantLocationControls(panel: ParentNode, client: ZentridAssetClient, onUpdate: () => void): void {
+  const countryControl = panel.querySelector<HTMLInputElement | HTMLSelectElement>('[name="countryManual"]');
+  if (!countryControl) return;
+  const clientCountry = client.country || 'Armenia';
+  const priorCountry = countryControl.value || clientCountry;
+  const country = replacePlantControlWithSelect(countryControl, ZENTRID_PLANT_GEO_CATALOG.map(item => item.name), priorCountry);
+  country.setAttribute('aria-label', 'Country / Region');
+  const countryLabel = country.closest('label');
+  if (countryLabel?.firstChild) countryLabel.firstChild.textContent = 'Country / Region';
+
+  let city = panel.querySelector<HTMLInputElement | HTMLSelectElement>('[name="city"]');
+  if (!city) {
+    const label = document.createElement('label');
+    label.textContent = 'City';
+    const input = document.createElement('select');
+    input.name = 'city';
+    input.id = 'assetCityManual';
+    input.required = country.required;
+    label.appendChild(input);
+    countryLabel?.insertAdjacentElement('afterend', label);
+    city = input;
+  }
+
+  let timezone = panel.querySelector<HTMLInputElement | HTMLSelectElement>('[name="timezoneManual"]');
+  if (!timezone) return;
+  const existingTimezone = timezone.value || client.timezone || '';
+  timezone = replacePlantControlWithSelect(timezone, ['UTC'], existingTimezone);
+
+  const updateCityAndTimezone = (preserveCity = true): void => {
+    const countryData = plantGeoCountry(country.value);
+    const previousCity = preserveCity ? city!.value : '';
+    if (countryData.cities.length) {
+      city = replacePlantControlWithSelect(city!, countryData.cities.map(item => item.name), previousCity || client.city || countryData.cities[0]!.name);
+      city.required = country.required;
+    } else if (city instanceof HTMLSelectElement) {
+      const input = document.createElement('input');
+      Array.from(city.attributes).forEach(attribute => {
+        if (!['value'].includes(attribute.name)) input.setAttribute(attribute.name, attribute.value);
+      });
+      input.type = 'text';
+      input.placeholder = 'Enter city';
+      input.value = previousCity;
+      city.replaceWith(input);
+      city = input;
+    }
+    const selectedCity = countryData.cities.find(item => item.name === city!.value);
+    const zone = selectedCity?.timezone || countryData.defaultTimezone || 'UTC';
+    const zones = Array.from(new Set([zone, countryData.defaultTimezone, 'UTC'].filter(Boolean)));
+    timezone = replacePlantControlWithSelect(timezone!, zones, existingTimezone || zone);
+    timezone.value = zones.includes(existingTimezone) ? existingTimezone : zone;
+    onUpdate();
+  };
+
+  country.addEventListener('change', () => updateCityAndTimezone(false));
+  const locationHost = country.closest('.client-form-grid') || panel;
+  if (!(locationHost as HTMLElement).dataset.plantGeoChangeBound) {
+    (locationHost as HTMLElement).dataset.plantGeoChangeBound = 'true';
+    locationHost.addEventListener('change', event => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement || target instanceof HTMLInputElement) || target.name !== 'city') return;
+      const activeCountry = locationHost.querySelector<HTMLSelectElement>('[name="countryManual"]');
+      const activeTimezone = locationHost.querySelector<HTMLInputElement | HTMLSelectElement>('[name="timezoneManual"]');
+      if (!activeCountry || !activeTimezone) return;
+      const countryData = plantGeoCountry(activeCountry.value);
+      const selectedCity = countryData.cities.find(item => item.name === target.value);
+      if (selectedCity) {
+        const zones = Array.from(new Set([selectedCity.timezone, countryData.defaultTimezone, 'UTC']));
+        const nextTimezone = replacePlantControlWithSelect(activeTimezone, zones, selectedCity.timezone);
+        nextTimezone.value = selectedCity.timezone;
+        timezone = nextTimezone;
+      }
+      onUpdate();
+    });
+  }
+  updateCityAndTimezone(true);
+}
+
+function enhancePlantFieldSemantics(panel: ParentNode): void {
+  panel.querySelectorAll<HTMLInputElement>('input').forEach(input => {
+    if (input.type === 'hidden' || input.type === 'file' || input.type === 'checkbox') return;
+    const labelText = String(input.closest('label')?.childNodes[0]?.textContent || '').trim().replace(/\s*\*$/, '');
+    const placeholder = ZENTRID_PLANT_FIELD_PLACEHOLDERS[input.name] || (input.type === 'text' && labelText ? `Enter ${labelText.toLowerCase()}` : '');
+    if (!input.placeholder && placeholder) input.placeholder = placeholder;
+    if (input.type === 'number') {
+      input.inputMode = 'decimal';
+      if (!input.step) input.step = 'any';
+      if (['capacityDc','capacityAc','gridCapacity','batteryCapacity','unitPrice','totalCost','moduleCapacity'].includes(input.name)) input.min = '0';
+      if (input.name === 'azimuth') { input.min = '0'; input.max = '360'; }
+      if (input.name === 'tilt') { input.min = '0'; input.max = '90'; }
+      if (input.name === 'modules') { input.min = '0'; input.step = '1'; input.inputMode = 'numeric'; }
+    }
+    if (input.name === 'postalCode') input.inputMode = 'text';
+  });
+  panel.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(textarea => {
+    const placeholder = ZENTRID_PLANT_FIELD_PLACEHOLDERS[textarea.name];
+    if (!textarea.placeholder && placeholder) textarea.placeholder = placeholder;
+  });
+}
+
+function enhancePlantVendorForm(panel: ParentNode, client: ZentridAssetClient, onUpdate: () => void): void {
+  enhancePlantFieldSemantics(panel);
+  enhancePlantLocationControls(panel, client, onUpdate);
+  enhancePlantCoordinates(panel);
+}
 
 function vendorFieldControl(field: ZentridVendorField): string {
   const req = field.required ? ' required' : '';
@@ -1246,6 +1509,7 @@ function wirePlants(){
     });
     const note = document.getElementById('sourceSchemeNote');
     if (note) note.innerHTML = `<strong>Source scheme: ${selectedSourceScheme()}</strong><small>${flow.hint}</small>`;
+    document.querySelectorAll('[data-vendor-step-host]:not([hidden])').forEach(panel => enhancePlantVendorForm(panel, selectedClient(), updateAssetReview));
     bindVendorFlowControls();
     applyVendorConditionals();
   }
