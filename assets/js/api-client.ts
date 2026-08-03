@@ -308,7 +308,11 @@ const ZentridAuth: ZentridAuthAPI = (() => {
 
 
   function clientMutationDebugEnabled(path: string, method: string): boolean {
-    return path.startsWith('/api/admin/clients') && ['POST', 'PUT', 'PATCH'].includes(method);
+    return (path.startsWith('/api/admin/clients') || path.startsWith('/api/admin/plants')) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  }
+
+  function mutationDiagnosticEntity(path: string): 'Client' | 'Plant' {
+    return path.startsWith('/api/admin/plants') ? 'Plant' : 'Client';
   }
 
   type ClientMutationDiagnosticContext = {
@@ -329,9 +333,10 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     try { return JSON.parse(body); } catch (_error) { return body; }
   }
 
-  function clientDiagnosticRequestId(): string {
+  function clientDiagnosticRequestId(path = ''): string {
+    const prefix = mutationDiagnosticEntity(path).toLowerCase();
     try { return crypto.randomUUID(); }
-    catch (_error) { return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+    catch (_error) { return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
   }
 
   function clientPayloadSummary(payload: unknown): ZentridUnknownRecord {
@@ -359,7 +364,7 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     if (!clientMutationDebugEnabled(path, method)) return null;
     const payload = clientDebugPayload(body);
     const context: ClientMutationDiagnosticContext = {
-      requestId: clientDiagnosticRequestId(),
+      requestId: clientDiagnosticRequestId(path),
       url,
       path,
       method,
@@ -369,12 +374,31 @@ const ZentridAuth: ZentridAuthAPI = (() => {
       payloadJson: typeof body === 'string' ? body : null
     };
     activeClientMutationDiagnostic = context;
-    console.groupCollapsed(`[Client API Diagnostic] ${method} ${path} · ${context.requestId}`);
+    const entity = mutationDiagnosticEntity(path);
+    console.groupCollapsed(`[${entity} API Diagnostic] ${method} ${path} · ${context.requestId}`);
     console.log('Request ID:', context.requestId);
     console.log('URL:', url);
     console.log('Method:', method);
     console.log('Started at:', context.startedAtIso);
     console.log('Payload summary:', clientPayloadSummary(payload));
+    if (entity === 'Plant' && isRecord(payload)) {
+      console.log('Plant payload keys:', Object.keys(payload));
+      console.log('Plant required-value candidates:', {
+        plantName: payload.plantName ?? payload.name ?? null,
+        plantCode: payload.plantCode ?? payload.code ?? null,
+        clientId: payload.clientId ?? null,
+        plantType: payload.plantType ?? null,
+        countryRegion: payload.countryRegion ?? null,
+        plantTimeZone: payload.plantTimeZone ?? null,
+        sourceScheme: payload.sourceScheme ?? null
+      });
+      console.log('Plant canonical DTO sections:', {
+        location: isRecord(payload.location) ? payload.location : null,
+        technical: isRecord(payload.technical) ? payload.technical : null,
+        commercial: isRecord(payload.commercial) ? payload.commercial : null,
+        vendorPayloadKeys: isRecord(payload.vendorPayload) ? Object.keys(payload.vendorPayload) : []
+      });
+    }
     console.log('Request payload:', payload);
     console.log('Request payload JSON:', context.payloadJson || '(non-string body)');
     console.log('Browser:', navigator.userAgent);
@@ -387,11 +411,12 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     const message = isRecord(body) ? textValue(body.message) || textValue(body.error) || textValue(body.title) : textValue(body);
     const hints: string[] = [];
     if (status === 400) {
-      hints.push('Backend returned 400. Compare the request payload below with the Client create/update DTO expected by Swagger/backend.');
+      const entity = mutationDiagnosticEntity(context.path);
+      hints.push(`Backend returned 400. Compare the request payload below with the ${entity} create/update DTO expected by Swagger/backend.`);
       if (message) hints.push(`Backend message: ${message}`);
     }
     if (status >= 500) hints.push('Backend returned a server error. Search backend logs using the request ID and timestamp below.');
-    if (context.method === 'PUT') hints.push(`Route client ID: ${context.path.split('/').pop() || '(missing)'}`);
+    if (context.method === 'PUT') hints.push(`Route entity ID: ${context.path.split('/').pop() || '(missing)'}`);
     return hints;
   }
 
@@ -403,8 +428,9 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     const completedAtIso = new Date().toISOString();
     const durationMs = Math.max(0, Math.round(performance.now() - context.startedAt));
     const headers = Object.fromEntries(response.headers.entries());
+    const diagnosticEntity = mutationDiagnosticEntity(path);
     const report = {
-      title: 'FleetOS Client API Diagnostic Report',
+      title: `FleetOS ${diagnosticEntity} API Diagnostic Report`,
       requestId: context.requestId,
       request: {
         method: context.method,
@@ -425,10 +451,15 @@ const ZentridAuth: ZentridAuthAPI = (() => {
       },
       analysisHints: clientBackendReportHints(response.status, body, context)
     };
-    (window as unknown as { __FLEETOS_LAST_CLIENT_API_REPORT__?: unknown }).__FLEETOS_LAST_CLIENT_API_REPORT__ = report;
-    try { sessionStorage.setItem('__FLEETOS_LAST_CLIENT_API_REPORT__', JSON.stringify(report)); } catch (_error) { /* diagnostic backup is best-effort */ }
+    if (diagnosticEntity === 'Plant') {
+      (window as unknown as { __FLEETOS_LAST_PLANT_API_REPORT__?: unknown }).__FLEETOS_LAST_PLANT_API_REPORT__ = report;
+      try { sessionStorage.setItem('__FLEETOS_LAST_PLANT_API_REPORT__', JSON.stringify(report)); } catch (_error) { /* diagnostic backup is best-effort */ }
+    } else {
+      (window as unknown as { __FLEETOS_LAST_CLIENT_API_REPORT__?: unknown }).__FLEETOS_LAST_CLIENT_API_REPORT__ = report;
+      try { sessionStorage.setItem('__FLEETOS_LAST_CLIENT_API_REPORT__', JSON.stringify(report)); } catch (_error) { /* diagnostic backup is best-effort */ }
+    }
     const logger = response.ok ? console.log : console.error;
-    console.group(`[Client API FULL REPORT] ${method} ${path} → ${response.status} · ${context.requestId}`);
+    console.group(`[${diagnosticEntity} API FULL REPORT] ${method} ${path} → ${response.status} · ${context.requestId}`);
     logger('COPY THIS OBJECT FOR FRONTEND/BACKEND TEAM:', report);
     logger('COPYABLE JSON:', JSON.stringify(report, null, 2));
     logger('Request ID / correlation key:', context.requestId);
@@ -437,7 +468,7 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     logger('Response headers:', headers);
     const hints = clientBackendReportHints(response.status, body, context);
     if (hints.length) console.warn('Diagnostic hints:', hints);
-    console.info('Retrieve this report later with: window.__FLEETOS_LAST_CLIENT_API_REPORT__');
+    console.info(`Retrieve this report later with: window.__FLEETOS_LAST_${diagnosticEntity.toUpperCase()}_API_REPORT__`);
     console.groupEnd();
     activeClientMutationDiagnostic = null;
   }

@@ -683,12 +683,34 @@ function integrationRowActions(record: IntegrationRecord): string{
     </div>
   </div>`;
 }
+
+function integrationRegistryTimestamp(record: IntegrationRecord): number {
+  const raw = record.raw && typeof record.raw === 'object' ? record.raw as Record<string, unknown> : {};
+  const candidates = [
+    record.createdAt, raw.createdAtUtc, raw.createdAt,
+    record.updatedAt, raw.updatedAtUtc, raw.updatedAt,
+    record.lastActivity, record.lastSync
+  ];
+  for (const value of candidates) {
+    const timestamp = Date.parse(String(value ?? ''));
+    if (Number.isFinite(timestamp)) return timestamp;
+  }
+  return 0;
+}
+
+function newestIntegrationRows(rows: IntegrationRecord[]): IntegrationRecord[] {
+  return rows.map((record, index) => ({ record, index, timestamp: integrationRegistryTimestamp(record) }))
+    .sort((left, right) => right.timestamp - left.timestamp || left.index - right.index)
+    .map(entry => entry.record);
+}
+
 function integrationRows(rows: IntegrationRecord[]): string{
   return `<div class="data-table integration-table integration-table-actions"><div class="data-head"><span>Connector</span><span>Vendor / Type</span><span>Assigned Tenants</span><span>Status</span><span>Last Activity</span><span>Actions</span></div>${rows.map(x => { const cStatus = connectorStatus(x); return `<div class="data-row clickable-row" data-id="${x.id}" role="button" tabindex="0"><div>${ZentridDataSource.badge(x, 'integration')}<strong>${x.vendor} ${x.software}</strong><small>${x.code}<br>${x.id}</small></div><div><strong>${x.vendor}</strong><small>${resolveIntegrationVendorTemplate(x.vendor || 'Other').method}</small></div><div><strong>${assignedTenantsLabel(x)}</strong><small>${x.tenant || 'Platform scope'}</small></div><div class="integration-health-cell"><span class="badge ${statusCls(cStatus)}">${cStatus}</span><small>Lifecycle controlled by Global Admin</small></div><div><strong>${x.lastActivity || x.lastSync || '—'}</strong><small>Last successful sync: ${x.lastSuccessfulSync || x.lastSync || '—'}</small></div>${integrationRowActions(x)}</div>`; }).join('')}</div>`;
 }
 function renderIntegrations(): string{
   const tenant = localStorage.getItem('zentrid_integration_tenant') || 'All Tenants';
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry</p><h1>Connector Registry</h1><p class="muted">Reusable vendor connector definitions with status, tenant assignment and registry metadata.</p></div><button class="create-action" id="openIntegrationWizard" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>+ New Connector</strong><small>${tenant}</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Visible Integrations</span><strong>${integrations.filter(x=>!isArchivedIntegration(x)).length}</strong></button><button class="ctx-item"><span>Active</span><strong>${integrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Active').length}</strong></button><button class="ctx-item"><span>Inactive</span><strong>${integrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Inactive').length}</strong></button><button class="ctx-item"><span>Tenant Scope</span><strong>${tenant}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Vendor Connectors</h2><p>Click a connector row to open registry details. Operational sync monitoring belongs to Connector Operations.</p></div><div class="toolbar"><input id="intSearch" placeholder="Search connector, vendor, tenant..."/><select id="vendorFilter"><option>All Vendors</option>${allVendorTemplateKeys().map(v=>`<option>${v}</option>`).join('')}</select></div></div><div id="integrationTable">${integrationRows(integrations.filter(x=>!isArchivedIntegration(x)))}</div></section>${integrationWizard(tenant)}`;
+  const orderedIntegrations = newestIntegrationRows(integrations);
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry</p><h1>Connector Registry</h1><p class="muted">Reusable vendor connector definitions with status, tenant assignment and registry metadata.</p></div><button class="create-action" id="openIntegrationWizard" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>+ New Connector</strong><small>${tenant}</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Visible Integrations</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x)).length}</strong></button><button class="ctx-item"><span>Active</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Active').length}</strong></button><button class="ctx-item"><span>Inactive</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Inactive').length}</strong></button><button class="ctx-item"><span>Tenant Scope</span><strong>${tenant}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Vendor Connectors</h2><p>Click a connector row to open registry details. Operational sync monitoring belongs to Connector Operations.</p></div><div class="toolbar"><input id="intSearch" placeholder="Search connector, vendor, tenant..."/><select id="vendorFilter"><option>All Vendors</option>${allVendorTemplateKeys().map(v=>`<option>${v}</option>`).join('')}</select></div></div><div id="integrationTable">${integrationRows(orderedIntegrations.filter(x=>!isArchivedIntegration(x)))}</div></section>${integrationWizard(tenant)}`;
 }
 function integrationWizard(_tenant?: string): string{
   const steps = ['General','Connection & Authentication','API Request','Synchronization','Partner Account'];

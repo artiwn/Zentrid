@@ -65,12 +65,22 @@ type ZentridMutationCreateModule = {
   create(payload: unknown): Promise<ZentridMutationResult>;
 };
 
+type ZentridMutationPlantModule = ZentridMutationCreateModule & {
+  update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+  activate(id: string): Promise<ZentridMutationResult>;
+  deactivate(id: string): Promise<ZentridMutationResult>;
+  archive(id: string): Promise<ZentridMutationResult>;
+  uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+  deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
+};
+
 type ZentridMutationTenantModule = ZentridMutationCreateModule & {
   update(id: string, payload: unknown): Promise<ZentridMutationResult>;
   activate(id: string): Promise<ZentridMutationResult>;
   deactivate(id: string): Promise<ZentridMutationResult>;
   archive(id: string): Promise<ZentridMutationResult>;
   uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+  deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
 };
 
 type ZentridMutationIntegrationModule = ZentridMutationCreateModule & {
@@ -85,7 +95,12 @@ type ZentridMutationIntegrationModule = ZentridMutationCreateModule & {
 
 type ZentridMutationClientModule = ZentridMutationCreateModule & {
   update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+  activate(id: string): Promise<ZentridMutationResult>;
+  deactivate(id: string): Promise<ZentridMutationResult>;
+  suspend(id: string): Promise<ZentridMutationResult>;
+  archive(id: string): Promise<ZentridMutationResult>;
   uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+  deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
 };
 
 type ZentridAPIMutationsShape = {
@@ -95,7 +110,7 @@ type ZentridAPIMutationsShape = {
   unwrap<T>(result: ZentridMutationResult<T>): T;
   clients: ZentridMutationClientModule;
   tenants: ZentridMutationTenantModule;
-  plants: ZentridMutationCreateModule;
+  plants: ZentridMutationPlantModule;
   integrations: ZentridMutationIntegrationModule;
 };
 
@@ -262,10 +277,15 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
       descriptor('client.update', `/api/admin/clients/${encoded(id)}`, ['clients'], 'Client updated successfully.', 'PUT'),
       () => ZentridPlatformAPI.clients.update(id, payload)
     ),
+    activate: (id: string) => run(descriptor('client.activate', `/api/admin/clients/${encoded(id)}/activate`, ['clients'], 'Client activated successfully.'), () => ZentridPlatformAPI.clients.activate(id)),
+    deactivate: (id: string) => run(descriptor('client.deactivate', `/api/admin/clients/${encoded(id)}/deactivate`, ['clients'], 'Client deactivated successfully.'), () => ZentridPlatformAPI.clients.deactivate(id)),
+    suspend: (id: string) => run(descriptor('client.suspend', `/api/admin/clients/${encoded(id)}/suspend`, ['clients'], 'Client suspended successfully.'), () => ZentridPlatformAPI.clients.suspend(id)),
+    archive: (id: string) => run(descriptor('client.archive', `/api/admin/clients/${encoded(id)}/archive`, ['clients'], 'Client archived successfully.'), () => ZentridPlatformAPI.clients.archive(id)),
     uploadDocument: (id: string, payload: FormData) => run(
       descriptor('client.document.upload', `/api/admin/clients/${encoded(id)}/documents`, ['clients'], 'Client document uploaded successfully.'),
       () => ZentridPlatformAPI.clients.uploadDocument(id, payload)
-    )
+    ),
+    deleteDocument: (id: string, documentId: string) => run(descriptor('client.document.delete', `/api/admin/clients/${encoded(id)}/documents/${encoded(documentId)}`, ['clients'], 'Client document deleted successfully.', 'DELETE'), () => ZentridPlatformAPI.clients.deleteDocument(id, documentId))
   };
 
   const tenants: ZentridMutationTenantModule = {
@@ -292,14 +312,24 @@ const ZentridAPIMutations: ZentridAPIMutationsShape = (() => {
     uploadDocument: (id: string, payload: FormData) => run(
       descriptor('tenant.document.upload', `/api/admin/tenants/${encoded(id)}/documents`, ['tenants'], 'Tenant document uploaded successfully.'),
       () => ZentridPlatformAPI.tenants.uploadDocument(id, payload)
-    )
+    ),
+    deleteDocument: (id: string, documentId: string) => run(descriptor('tenant.document.delete', `/api/admin/tenants/${encoded(id)}/documents/${encoded(documentId)}`, ['tenants'], 'Tenant document deleted successfully.', 'DELETE'), () => ZentridPlatformAPI.tenants.deleteDocument(id, documentId))
   };
 
-  const plants: ZentridMutationCreateModule = {
+  const plants: ZentridMutationPlantModule = {
     create: (payload: unknown) => run(
       descriptor('plant.create', '/api/admin/plants', ['plants'], 'Plant created successfully.'),
       () => ZentridPlatformAPI.plantRegistry.create(payload)
-    )
+    ),
+    update: (id: string, payload: unknown) => run(
+      descriptor('plant.update', `/api/admin/plants/${encoded(id)}`, ['plants'], 'Plant updated successfully.', 'PUT'),
+      () => ZentridPlatformAPI.plantRegistry.update(id, payload)
+    ),
+    activate: (id: string) => run(descriptor('plant.activate', `/api/admin/plants/${encoded(id)}/activate`, ['plants'], 'Plant activated successfully.'), () => ZentridPlatformAPI.plantRegistry.activate(id)),
+    deactivate: (id: string) => run(descriptor('plant.deactivate', `/api/admin/plants/${encoded(id)}/deactivate`, ['plants'], 'Plant deactivated successfully.'), () => ZentridPlatformAPI.plantRegistry.deactivate(id)),
+    archive: (id: string) => run(descriptor('plant.archive', `/api/admin/plants/${encoded(id)}/archive`, ['plants'], 'Plant archived successfully.'), () => ZentridPlatformAPI.plantRegistry.archive(id)),
+    uploadDocument: (id: string, payload: FormData) => run(descriptor('plant.document.upload', `/api/admin/plants/${encoded(id)}/documents`, ['plants'], 'Plant document uploaded successfully.'), () => ZentridPlatformAPI.plantRegistry.uploadDocument(id, payload)),
+    deleteDocument: (id: string, documentId: string) => run(descriptor('plant.document.delete', `/api/admin/plants/${encoded(id)}/documents/${encoded(documentId)}`, ['plants'], 'Plant document deleted successfully.', 'DELETE'), () => ZentridPlatformAPI.plantRegistry.deleteDocument(id, documentId))
   };
 
   const integrationEntities: ZentridMutationEntity[] = ['integrations', 'plants', 'devices', 'alerts'];

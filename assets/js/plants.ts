@@ -125,7 +125,7 @@ function plantStatusCls(v: unknown): string {
   return 'success';
 }
 function selectedPlant(): ZentridPlant {
-  const list = plants();
+  const list = newestPlantRows(plants());
   const id = localStorage.getItem('zentrid_selected_plant');
   return list.find(p => String(p.id ?? '') === String(id ?? '')) || list[0] || {};
 }
@@ -183,11 +183,30 @@ function plantCreateNumber(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+const PLANT_CANONICAL_VENDOR_FIELD_NAMES = new Set([
+  // Location/address fields belong to the backend location section, not vendorPayload.
+  'mapRef', 'street', 'postalCode', 'coordinates', 'detailedAddress', 'lat', 'lng',
+  // Technical/common plant fields belong to the backend technical section.
+  'gridConnectionType', 'systemType', 'moduleCapacity', 'azimuth', 'tilt',
+  // Commercial/common plant fields belong to the backend commercial section.
+  'currency', 'unitPrice', 'totalCost', 'tariffType'
+]);
+
+function plantCreateSection(formData: FormData, fieldNames: string[]): Record<string, unknown> {
+  const section: Record<string, unknown> = {};
+  fieldNames.forEach(key => {
+    const value = plantCreateText(formData.get(key));
+    if (value) section[key] = value;
+  });
+  return section;
+}
+
 function plantCreateVendorPayload(form: HTMLFormElement, formData: FormData): Record<string, unknown> {
   const coreNames = new Set([
     'assetType', 'client', 'tenant', 'clientContact', 'timezone', 'country', 'region', 'sourceScheme', 'status',
     'creationMode', 'name', 'genericName', 'code', 'type', 'countryManual', 'city', 'address', 'timezoneManual',
-    'commissioned', 'capacityDc', 'capacityAc', 'gridCapacity', 'modules', 'batteryCapacity', 'serviceProvider'
+    'commissioned', 'capacityDc', 'capacityAc', 'gridCapacity', 'modules', 'batteryCapacity', 'serviceProvider',
+    ...PLANT_CANONICAL_VENDOR_FIELD_NAMES
   ]);
   const vendorPayload: Record<string, unknown> = {};
   for (const [key, rawValue] of formData.entries()) {
@@ -222,33 +241,20 @@ function plantCreateApiPayload(
   const timezone = plantCreateText(formData.get('timezoneManual')) || client.timezone;
   const clientId = String(client.id || client.code || client.name).trim();
   const clientReference = String(client.code || client.id || client.name).trim();
-  const clientName = String(client.name || clientReference).trim();
   const managingTenant = String(client.tenant || plantCreateText(formData.get('tenant'))).trim();
   const recordStatus = plantCreateText(formData.get('status')) || 'Draft';
   const plantType = plantCreateText(formData.get('type')) || (isSolar ? 'Solar' : type);
   const payload: Record<string, unknown> = {
     plantName,
-    PlantName: plantName,
-    name: plantName,
-    Name: plantName,
-    clientId,
-    ClientId: clientId,
-    client: clientReference,
     Client: clientReference,
-    clientName,
-    ClientName: clientName,
+    ClientId: clientId,
+    clientId,
     managingTenant,
-    ManagingTenant: managingTenant,
     sourceScheme,
-    SourceScheme: sourceScheme,
     recordStatus,
-    RecordStatus: recordStatus,
     plantType,
-    PlantType: plantType,
     countryRegion: country,
-    CountryRegion: country,
-    plantTimeZone: timezone,
-    PlantTimeZone: timezone
+    plantTimeZone: timezone
   };
   const optional = (key: string, value: unknown): void => {
     if (value === undefined || value === null) return;
@@ -264,6 +270,27 @@ function plantCreateApiPayload(
   optional('address', plantCreateText(formData.get('address')));
   optional('commissioningDate', plantCreateText(formData.get('commissioned')));
   optional('serviceProvider', plantCreateText(formData.get('serviceProvider')));
+
+  // Backend Plant DTO groups shared vendor-form values into canonical sections.
+  // Keep top-level compatibility fields above, but do not bury these values in vendorPayload.
+  const location = plantCreateSection(formData, ['mapRef', 'street', 'postalCode', 'coordinates', 'detailedAddress', 'lat', 'lng']);
+  const locationAddress = plantCreateText(formData.get('address'));
+  const locationCountry = plantCreateText(formData.get('countryManual')) || client.country;
+  const locationRegion = client.region;
+  const locationCity = plantCreateText(formData.get('city')) || client.city;
+  const locationTimezone = plantCreateText(formData.get('timezoneManual')) || client.timezone;
+  if (locationAddress) location.address = locationAddress;
+  if (locationCountry) location.countryRegion = locationCountry;
+  if (locationRegion) location.region = locationRegion;
+  if (locationCity) location.city = locationCity;
+  if (locationTimezone) location.timezone = locationTimezone;
+  optional('location', location);
+
+  const technical = plantCreateSection(formData, ['gridConnectionType', 'systemType', 'moduleCapacity', 'azimuth', 'tilt']);
+  optional('technical', technical);
+
+  const commercial = plantCreateSection(formData, ['currency', 'unitPrice', 'totalCost', 'tariffType']);
+  optional('commercial', commercial);
   const capacityDcMw = plantCreateNumber(formData.get('capacityDc'));
   const capacityAcMw = plantCreateNumber(formData.get('capacityAc'));
   const gridCapacityMw = plantCreateNumber(formData.get('gridCapacity'));
@@ -795,6 +822,29 @@ function groupCreateModal(){
       <div class="modal-actions"><button class="secondary-btn" id="cancelGroupCreate" type="button">Cancel</button><button class="primary-btn" id="saveGroupCreate" type="button">Create Group</button></div>
     </div>
   </div>`;
+}
+
+
+function plantRegistryTimestamp(record: ZentridPlant): number {
+  const raw = record.raw && typeof record.raw === 'object' ? record.raw : {};
+  const adminRecord = raw.adminRecord && typeof raw.adminRecord === 'object' ? raw.adminRecord as Record<string, unknown> : {};
+  const candidates = [
+    raw.createdAtUtc, raw.createdAt, adminRecord.createdAtUtc, adminRecord.createdAt,
+    record.createdAtUtc, record.createdAt,
+    raw.updatedAtUtc, raw.updatedAt, adminRecord.updatedAtUtc, adminRecord.updatedAt,
+    record.updatedAtUtc, record.updatedAt, record.lastSyncAt
+  ];
+  for (const value of candidates) {
+    const timestamp = Date.parse(String(value ?? ''));
+    if (Number.isFinite(timestamp)) return timestamp;
+  }
+  return 0;
+}
+
+function newestPlantRows(rows: ZentridPlant[]): ZentridPlant[] {
+  return rows.map((record, index) => ({ record, index, timestamp: plantRegistryTimestamp(record) }))
+    .sort((left, right) => right.timestamp - left.timestamp || left.index - right.index)
+    .map(entry => entry.record);
 }
 
 function renderPlants(): string {
@@ -1379,6 +1429,12 @@ function wirePlants(){
     if (submitButton) ZentridFormUX.setBusy(submitButton, true, 'Creating Plant…');
     try {
       if (!window.ZentridAPIMutations) throw new Error('Plant mutation runtime is unavailable.');
+      console.groupCollapsed('[Plant Create] Request payload');
+      console.log('Selected client:', client);
+      console.log('Selected source/vendor:', plantCreateText(fd.get('sourceScheme')) || 'Other / Manual');
+      console.log('Payload:', payload);
+      console.log('Payload JSON:', JSON.stringify(payload, null, 2));
+      console.groupEnd();
       const result = await ZentridAPIMutations.plants.create(payload);
       if (result.ok) {
         const backendId = plantCreateBackendId(result.data);
@@ -1408,6 +1464,12 @@ function wirePlants(){
         return;
       }
 
+      console.error('[Plant Create] Backend rejected request', {
+        error: result.error,
+        payload,
+        selectedClient: client,
+        report: (window as unknown as { __FLEETOS_LAST_PLANT_API_REPORT__?: unknown }).__FLEETOS_LAST_PLANT_API_REPORT__
+      });
       plantCreateSaving = false;
       if (submitButton) ZentridFormUX.setBusy(submitButton, false);
       const detail = result.error.status ? `${result.message} (HTTP ${result.error.status})` : result.message;

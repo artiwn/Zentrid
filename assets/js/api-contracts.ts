@@ -365,7 +365,7 @@
       requirements: [
         requirement('identity', ['id', 'plantId', 'canonicalId', 'sourcePlantId']),
         requirement('display name', ['vendorExtensions.plantName', 'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'name']),
-        requirement('provider', ['provider', 'sourceScheme', 'adminRecord.sourceScheme'], 'warning')
+        requirement('provider', ['provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], 'warning')
       ],
       optionalNumbers: ['currentPowerKw', 'installedPowerKw', 'todayEnergyKwh', 'totalEnergyKwh']
     },
@@ -453,20 +453,20 @@
       field('id', ['id', 'plantId', 'canonicalId', 'adminRecord.id'], ['Plant Registry row ID', 'Plant Detail identity'], 'identifier', '—', 'error'),
       field('plantCode', ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode', 'vendorExtensions.plantCode'], ['Plant Registry code', 'Plant Detail code'], 'identifier', '—'),
       field('plantName', ['adminName', 'liveName', 'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name', 'adminRecord.plantName', 'liveRecord.plantName'], ['Plant Registry name', 'Plant Detail heading'], 'text', '—', 'error'),
-      field('provider', ['provider', 'sourceScheme', 'adminRecord.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
-      field('clientId', ['clientId', 'adminRecord.clientId'], ['Plant Detail client relation'], 'relation', ''),
-      field('client', ['client', 'clientName', 'adminRecord.client'], ['Plant Registry owner', 'Plant Detail client'], 'relation', '—'),
-      field('managingTenant', ['managingTenant', 'tenantName', 'tenant', 'adminRecord.managingTenant'], ['Plant Registry tenant', 'Plant Detail operator'], 'relation', '—'),
-      field('recordStatus', ['recordStatus', 'status', 'adminRecord.recordStatus'], ['Plant Registry status', 'Plant Detail lifecycle'], 'status', '—'),
-      field('plantType', ['plantType', 'type', 'adminRecord.plantType'], ['Plant Registry type', 'Plant Detail type'], 'text', '—'),
-      field('countryRegion', ['countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.countryRegion'], ['Plant Registry country', 'Plant Detail location'], 'text', '—'),
-      field('region', ['region', 'vendorExtensions.region', 'adminRecord.region'], ['Plant Detail location'], 'text', '—'),
-      field('city', ['city', 'vendorExtensions.city', 'adminRecord.city'], ['Plant Detail location'], 'text', '—'),
-      field('plantTimeZone', ['plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.plantTimeZone'], ['Plant Detail timezone'], 'text', '—'),
+      field('provider', ['provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
+      field('clientId', ['clientAssignment.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ['Plant Detail client relation'], 'relation', ''),
+      field('client', ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], ['Plant Registry owner', 'Plant Detail client'], 'relation', '—'),
+      field('managingTenant', ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], ['Plant Registry tenant', 'Plant Detail operator'], 'relation', '—'),
+      field('recordStatus', ['recordStatus', 'lifecycleStatus', 'lifecycle.status', 'status', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], ['Plant Registry status', 'Plant Detail lifecycle'], 'status', '—'),
+      field('plantType', ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], ['Plant Registry type', 'Plant Detail type'], 'text', '—'),
+      field('countryRegion', ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], ['Plant Registry country', 'Plant Detail location'], 'text', '—'),
+      field('region', ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], ['Plant Detail location'], 'text', '—'),
+      field('city', ['location.city', 'city', 'vendorExtensions.city', 'adminRecord.location.city', 'adminRecord.city'], ['Plant Detail location'], 'text', '—'),
+      field('plantTimeZone', ['location.plantTimeZone', 'location.timezone', 'location.timeZone', 'plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.location.timezone', 'adminRecord.location.timeZone', 'adminRecord.plantTimeZone'], ['Plant Detail timezone'], 'text', '—'),
       field('devicesCount', ['devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount', 'vendorExtensions.onlineDeviceCount'], ['Plant Registry devices', 'Plant Detail devices KPI'], 'count', '0'),
       field('alertsCount', ['vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], ['Plant Registry alerts', 'Plant Detail alerts KPI'], 'count', '0'),
       field('currentPowerKw', ['currentPowerKw'], ['Plant Registry live power', 'Plant Detail telemetry'], 'power', '—'),
-      field('installedPowerKw', ['installedPowerKw'], ['Plant Detail installed capacity'], 'power', '0'),
+      field('installedPowerKw', ['technical.installedPowerKw', 'installedPowerKw', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], ['Plant Detail installed capacity'], 'power', '0'),
       field('todayEnergyKwh', ['todayEnergyKwh'], ['Plant Registry today energy', 'Plant Detail telemetry'], 'energy', '—'),
       field('totalEnergyKwh', ['totalEnergyKwh'], ['Plant Detail lifetime energy'], 'energy', '—'),
       field('lastDataAt', ['lastDataAt', 'lastSyncAt'], ['Plant Registry freshness', 'Plant Detail telemetry freshness'], 'date', 'No live data'),
@@ -1095,17 +1095,25 @@
 
   const plants = createContract<ZentridPlantDto>(CONTRACT_DEFINITIONS.plants, (row, _index, context) => {
     const id = normalizedId(row, context);
-    const provider = normalization.provider(context.firstOf(row, ['provider', 'sourceScheme', 'adminRecord.sourceScheme'], '—'));
+    const provider = normalization.provider(context.firstOf(row, [
+      'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem',
+      'source.provider', 'source.vendor', 'integration.provider',
+      'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor',
+      'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem',
+      'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'
+    ], '—'));
     const name = strictDisplayName(row, context, [
       'adminName', 'liveName', 'vendorExtensions.plantName', 'vendorExtensions.stationName',
       'vendorExtensions.siteName', 'vendorExtensions.displayName', 'vendorExtensions.name',
       'adminRecord.plantName', 'adminRecord.stationName', 'adminRecord.siteName',
       'adminRecord.displayName', 'adminRecord.name', 'liveRecord.plantName',
       'liveRecord.stationName', 'liveRecord.siteName', 'liveRecord.displayName', 'liveRecord.name',
+      'technical.plantName', 'adminRecord.technical.plantName',
       'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name'
     ], ['plantId', 'sourcePlantId', 'plantCode', 'id']);
     const powerKw = optionalNumber(row.currentPowerKw);
-    const installedKw = optionalNumber(row.installedPowerKw);
+    const installedKw = optionalNumber(context.firstOf(row, ['technical.installedPowerKw', 'installedPowerKw', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], undefined));
+    const installedDcMw = optionalNumber(context.firstOf(row, ['technical.installedCapacityDcMw', 'installedCapacityDcMw', 'technical.capacityDcMw', 'capacityDcMw', 'adminRecord.technical.installedCapacityDcMw', 'adminRecord.installedCapacityDcMw'], undefined));
     const todayEnergy = optionalNumber(row.todayEnergyKwh);
     const integration = context.safeText(context.firstOf(row, ['integrationName', 'integration', 'sourceIntegrationName', 'adminRecord.integration'], '—'));
     return {
@@ -1115,29 +1123,29 @@
       code: context.safeText(context.firstOf(row, ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode'], ''), ''),
       name, vendorDisplayName: name,
       registeredName: context.safeText(context.firstOf(row, ['sourcePlantId', 'plantId', 'code', 'id'], ''), ''),
-      tenant: context.safeText(context.firstOf(row, ['managingTenant', 'tenantName', 'tenant', 'adminRecord.managingTenant'], '—')),
-      clientId: context.safeText(context.firstOf(row, ['clientId', 'adminRecord.clientId'], ''), ''),
+      tenant: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
+      clientId: context.safeText(context.firstOf(row, ['clientAssignment.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ''), ''),
       portfolio: context.safeText(context.firstOf(row, ['portfolio', 'portfolioName', 'groupName'], '—')),
       integration, vendor: provider,
-      status: normalization.plantStatus(context.firstOf(row, ['status', 'recordStatus', 'adminRecord.recordStatus'], '—')),
-      health: normalization.plantStatus(context.firstOf(row, ['health', 'status', 'recordStatus', 'adminRecord.recordStatus'], '—')),
-      type: context.safeText(context.firstOf(row, ['plantType', 'type', 'adminRecord.plantType'], '—')),
-      country: normalization.country(context.firstOf(row, ['countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.countryRegion'], '—')),
-      region: context.safeText(context.firstOf(row, ['region', 'vendorExtensions.region', 'adminRecord.region'], '—')),
-      city: context.safeText(context.firstOf(row, ['city', 'vendorExtensions.city', 'adminRecord.city'], '—')),
-      address: context.safeText(context.firstOf(row, ['address', 'vendorExtensions.address', 'adminRecord.address'], '—')),
-      lat: context.safeText(context.firstOf(row, ['latitude', 'vendorExtensions.latitude'], '—')),
-      lng: context.safeText(context.firstOf(row, ['longitude', 'vendorExtensions.longitude'], '—')),
-      timezone: context.safeText(context.firstOf(row, ['plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.plantTimeZone'], '—')),
-      capacityDc: installedKw === null ? null : Number((installedKw / 1000).toFixed(2)),
-      capacityAc: optionalNumber(context.firstOf(row, ['capacityAc', 'installedPowerAcKw', 'vendorExtensions.capacityAc'], undefined)),
-      gridCapacity: optionalNumber(context.firstOf(row, ['gridCapacity', 'gridCapacityKw', 'vendorExtensions.gridCapacity'], undefined)),
+      status: normalization.plantStatus(context.firstOf(row, ['vendorPlatform.recordStatus', 'status', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], '—')),
+      health: normalization.plantStatus(context.firstOf(row, ['health', 'operationalStatus', 'vendorPlatform.recordStatus', 'status', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], '—')),
+      type: context.safeText(context.firstOf(row, ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], '—')),
+      country: normalization.country(context.firstOf(row, ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], '—')),
+      region: context.safeText(context.firstOf(row, ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], '—')),
+      city: context.safeText(context.firstOf(row, ['location.city', 'city', 'vendorExtensions.city', 'adminRecord.location.city', 'adminRecord.city'], '—')),
+      address: context.safeText(context.firstOf(row, ['location.address', 'location.street', 'location.detailedAddress', 'address', 'detailedAddress', 'vendorExtensions.address', 'adminRecord.location.address', 'adminRecord.location.street', 'adminRecord.location.detailedAddress', 'adminRecord.address'], '—')),
+      lat: context.safeText(context.firstOf(row, ['location.latitude', 'location.lat', 'latitude', 'lat', 'vendorExtensions.latitude', 'adminRecord.location.latitude', 'adminRecord.location.lat'], '—')),
+      lng: context.safeText(context.firstOf(row, ['location.longitude', 'location.lng', 'longitude', 'lng', 'vendorExtensions.longitude', 'adminRecord.location.longitude', 'adminRecord.location.lng'], '—')),
+      timezone: context.safeText(context.firstOf(row, ['location.plantTimeZone', 'location.timezone', 'location.timeZone', 'plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.location.timezone', 'adminRecord.location.timeZone', 'adminRecord.plantTimeZone'], '—')),
+      capacityDc: installedDcMw !== null ? installedDcMw : installedKw === null ? null : Number((installedKw / 1000).toFixed(3)),
+      capacityAc: optionalNumber(context.firstOf(row, ['technical.installedCapacityAcMw', 'installedCapacityAcMw', 'technical.capacityAcMw', 'capacityAcMw', 'capacityAc', 'technical.installedPowerAcKw', 'installedPowerAcKw', 'vendorExtensions.capacityAc', 'adminRecord.technical.installedCapacityAcMw', 'adminRecord.installedCapacityAcMw'], undefined)),
+      gridCapacity: optionalNumber(context.firstOf(row, ['technical.gridConnectionCapacityMw', 'gridConnectionCapacityMw', 'technical.gridCapacityMw', 'gridCapacityMw', 'gridCapacity', 'technical.gridCapacityKw', 'gridCapacityKw', 'vendorExtensions.gridCapacity', 'adminRecord.technical.gridConnectionCapacityMw', 'adminRecord.gridConnectionCapacityMw'], undefined)),
       panels: optionalNumber(context.firstOf(row, ['panels', 'panelCount', 'vendorExtensions.panelCount'], undefined)),
       inverters: optionalNumber(context.firstOf(row, ['inverters', 'inverterCount', 'vendorExtensions.inverterCount'], undefined)),
       strings: optionalNumber(context.firstOf(row, ['strings', 'stringCount', 'vendorExtensions.stringCount'], undefined)),
       transformers: optionalNumber(context.firstOf(row, ['transformers', 'transformerCount', 'vendorExtensions.transformerCount'], undefined)),
       meters: optionalNumber(context.firstOf(row, ['meters', 'meterCount', 'vendorExtensions.meterCount'], undefined)),
-      battery: context.safeText(context.firstOf(row, ['battery', 'batteryInstalled', 'vendorExtensions.batteryInstalled'], '—')),
+      battery: (() => { const explicit = context.firstOf(row, ['technical.batteryInstalled', 'batteryInstalled', 'battery', 'vendorExtensions.batteryInstalled', 'adminRecord.technical.batteryInstalled'], ''); if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '') return context.safeText(explicit, '—'); const capacity = optionalNumber(context.firstOf(row, ['technical.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh', 'adminRecord.technical.batteryCapacityKwh', 'adminRecord.batteryCapacityKwh'], '')); return capacity !== null ? (capacity > 0 ? `Yes · ${capacity} kWh` : 'No') : '—'; })(),
       devices: optionalNumber(context.firstOf(row, ['devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount'], undefined)),
       alerts: optionalNumber(context.firstOf(row, ['alertsCount', 'vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], undefined)),
       livePower: powerKw === null ? '—' : `${powerKw} kW`,
@@ -1146,11 +1154,11 @@
       pr: context.safeText(context.firstOf(row, ['performanceRatio', 'pr', 'vendorExtensions.performanceRatio'], '—')),
       lastData: context.formatDate(row.lastDataAt, '—'),
       freshness: context.safeText(row.dataQualityStatus, '—'),
-      commissioned: context.formatDate(context.firstOf(row, ['commissioningDate', 'createdAtUtc', 'adminRecord.createdAtUtc'], undefined), '—'),
-      owner: context.safeText(context.firstOf(row, ['client', 'clientName', 'ownerName', 'adminRecord.client'], '—')),
-      operator: context.safeText(context.firstOf(row, ['managingTenant', 'operatorName', 'adminRecord.managingTenant'], '—')),
-      om: context.safeText(context.firstOf(row, ['serviceProvider', 'omProvider'], '—')),
-      sourceSystem: context.safeText(context.firstOf(row, ['sourceScheme', 'adminRecord.sourceScheme', 'sourceSystem'], provider), provider),
+      commissioned: context.formatDate(context.firstOf(row, ['commissioningDate', 'technical.commissioningDate', 'adminRecord.commissioningDate', 'adminRecord.technical.commissioningDate'], undefined), '—'),
+      owner: context.safeText(context.firstOf(row, ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'ownerName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], '—')),
+      operator: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'operator.name', 'operator.tenantName', 'operator.id', 'operatorName', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
+      om: context.safeText(context.firstOf(row, ['serviceProvider.name', 'serviceProvider', 'omProvider.name', 'omProvider', 'commercial.serviceProvider', 'technical.serviceProvider', 'adminRecord.serviceProvider.name', 'adminRecord.serviceProvider'], '—')),
+      sourceSystem: context.safeText(context.firstOf(row, ['vendorPlatform.sourceScheme', 'sourceScheme', 'sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
       updated: context.formatDate(context.firstOf(row, ['updatedAtUtc', 'createdAtUtc', 'adminRecord.updatedAtUtc', 'adminRecord.createdAtUtc'], undefined), '—'),
       lastSyncAt: context.safeText(context.firstOf(row, ['lastDataAt', 'updatedAtUtc', 'createdAtUtc'], ''), ''),
       totalEnergy: optionalNumber(row.totalEnergyKwh), raw: row

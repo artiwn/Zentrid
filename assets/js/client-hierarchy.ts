@@ -275,6 +275,27 @@ const ZentridDeviceCatalog = (() => {
   return { catalog, compatibility };
 })();
 
+
+function registryNewestFirstTimestamp(record: Record<string, unknown>): number {
+  const raw = record.raw && typeof record.raw === 'object' ? record.raw as Record<string, unknown> : {};
+  const candidates = [
+    raw.createdAtUtc, raw.createdAt, raw.creationDateUtc, raw.creationDate,
+    record.createdAtUtc, record.createdAt,
+    raw.updatedAtUtc, raw.updatedAt, record.updatedAtUtc, record.updatedAt, record.lastSyncAt
+  ];
+  for (const value of candidates) {
+    const timestamp = Date.parse(String(value ?? ''));
+    if (Number.isFinite(timestamp)) return timestamp;
+  }
+  return 0;
+}
+
+function newestFirstRegistryRows<T extends Record<string, unknown>>(rows: T[]): T[] {
+  return rows.map((record, index) => ({ record, index, timestamp: registryNewestFirstTimestamp(record) }))
+    .sort((left, right) => right.timestamp - left.timestamp || left.index - right.index)
+    .map(entry => entry.record);
+}
+
 function clientKpis(client: ZentridClientRecord): string {
   const c = ZentridClientModel.countsForClient(client.id);
   return `<section class="kpi-grid client-kpi-grid">
@@ -286,7 +307,7 @@ function clientKpis(client: ZentridClientRecord): string {
 }
 
 function renderClientsPage() {
-  const rows = ZentridClientModel.clients;
+  const rows = newestFirstRegistryRows(ZentridClientModel.clients);
   const queryState = window.ZentridRegistryQuery?.read('clients');
   const pagination = window.ZentridRegistryQuery?.pagination('clients');
   const totalClients = pagination?.totalCount || rows.length;
@@ -1487,7 +1508,7 @@ function clientDetailClone(record: ZentridClientRecord): ZentridClientRecord { r
 function clientDetailOrigin(record: ZentridClientRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'client'); }
 function clientDetailBackendManaged(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'client'); }
 function clientDetailIsArchived(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
-function clientDetailEditableTab(tab: ClientDetailTabKey = clientDetailActiveTab): boolean { return ['overview','identity','location','portal','users','commercial'].includes(tab); }
+function clientDetailEditableTab(tab: ClientDetailTabKey = clientDetailActiveTab): boolean { return ['overview','identity','location','portal','commercial'].includes(tab); }
 function clientDetailCanEdit(record: ZentridClientRecord, tab: ClientDetailTabKey = clientDetailActiveTab): boolean {
   return !clientDetailIsArchived(record) && clientDetailEditableTab(tab);
 }
@@ -1577,7 +1598,7 @@ function clientDetailDocumentsEditor(client: ZentridClientRecord): string {
   return `<div class="tenant-detail-table-head-v117"><div><h3>Client Documents</h3><p class="muted">Upload a new client document through POST /api/admin/clients/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div><button class="small-btn primary" type="button" data-add-client-document>Add Document</button></div>
     <div class="data-table compact-table client-document-editor-v118">
       <div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Document File</span><span>Actions</span></div>
-      ${rows.length ? rows.map((doc,index) => { const isNew = !doc.id && !doc.filePath; return `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" ${isNew ? '' : 'readonly'} required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type" ${isNew ? '' : 'disabled'}>${allowedTypes.map(type => `<option ${doc.type===type?'selected':''}>${type}</option>`).join('')}</select></label><label><span class="sr-only">Document status</span><input value="${clientDetailAttr(doc.status || (isNew ? 'Pending' : ''))}" readonly></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry" ${isNew ? '' : 'readonly'}></label><div class="tenant-document-file-field">${isNew ? `<label class="tenant-document-file-picker"><span class="small-btn">Choose File</span><input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-client-document-file="${index}"></label>` : `<strong>${clientDetailEscape(doc.fileName || doc.name || 'Uploaded')}</strong>`}</div><div class="row-actions single-action">${isNew ? `<button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button>` : '<span class="badge success">Uploaded</span>'}</div></div>`; }).join('') : `<div class="empty-state"><strong>No client documents</strong><small>Click Add Document to attach the first backend document.</small></div>`}
+      ${rows.length ? rows.map((doc,index) => { const isNew = !doc.id && !doc.filePath; return `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" ${isNew ? '' : 'readonly'} required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type" ${isNew ? '' : 'disabled'}>${allowedTypes.map(type => `<option ${doc.type===type?'selected':''}>${type}</option>`).join('')}</select></label><label><span class="sr-only">Document status</span><input value="${clientDetailAttr(doc.status || (isNew ? 'Pending' : ''))}" readonly></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry" ${isNew ? '' : 'readonly'}></label><div class="tenant-document-file-field">${isNew ? `<label class="tenant-document-file-picker"><span class="small-btn">Choose File</span><input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-client-document-file="${index}"></label>` : `<strong>${clientDetailEscape(doc.fileName || doc.name || 'Uploaded')}</strong>`}</div><div class="row-actions single-action">${isNew ? `<button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button>` : `<button class="danger-action" type="button" data-delete-client-document="${clientDetailAttr(String(doc.id || doc.filePath || ''))}">Delete</button>`}</div></div>`; }).join('') : `<div class="empty-state"><strong>No client documents</strong><small>Click Add Document to attach the first backend document.</small></div>`}
     </div>`;
 }
 function clientDetailUsersEditor(client: ZentridClientRecord): string {
@@ -1593,11 +1614,11 @@ function clientDetailBankEditor(client: ZentridClientRecord): string {
     ${accounts.length ? accounts.map((account,index) => `<div class="data-row" data-client-bank-row="${index}"><input aria-label="Bank name" value="${clientDetailAttr(account.bankName)}" data-client-bank-field="bankName" required><input aria-label="Bank code" value="${clientDetailAttr(account.bankCode)}" data-client-bank-field="bankCode"><input aria-label="Account number" value="${clientDetailAttr(account.accountNumber)}" data-client-bank-field="accountNumber" required><select aria-label="Account currency" data-client-bank-field="accountCurrency"><option ${account.accountCurrency==='AMD'?'selected':''}>AMD</option><option ${account.accountCurrency==='USD'?'selected':''}>USD</option><option ${account.accountCurrency==='EUR'?'selected':''}>EUR</option></select><label class="inline-check-v118"><input type="radio" name="client-primary-bank" ${account.primary?'checked':''} data-client-bank-primary="${index}"><span>Primary</span></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-bank="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No bank accounts</strong><small>Banking is optional until a commercial settlement is configured.</small></div>`}</div>`;
 }
 function clientDetailEditTab(client: ZentridClientRecord, plants: ZentridPlantRecord[], tab: ClientDetailTabKey): string {
-  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields. Fields marked * are required by the Client API for this client type.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,['', ...CLIENT_LEGAL_FORM_OPTIONS],'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('verification','Verification',client.verification,['Draft · Pending verification','Identity Pending','KYC Review','Verified','Rejected'],'text',true)}${clientDetailInput('status','Client Status',client.status,['Active','Pending','Review','Suspended','Archived'],'text',true)}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}${clientDetailInput('account','Account Manager',client.account,undefined,'text',true)}</div>${clientDetailDocumentsEditor(client)}`;
+  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields supported by PUT /api/admin/clients/{id}. Fields marked * are required by the Client API for this client type.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,['', ...CLIENT_LEGAL_FORM_OPTIONS],'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}<label>Verification<input type="text" value="${clientDetailAttr(client.verification || '—')}" readonly aria-readonly="true"><small class="field-help">Read-only backend verification result.</small></label><label>Client Status<input type="text" value="${clientDetailAttr(client.status || '—')}" readonly aria-readonly="true"><small class="field-help">Use Lifecycle Actions to change it.</small></label><label>Account Manager<input type="text" value="${clientDetailAttr(client.account || '—')}" readonly aria-readonly="true"><small class="field-help">The current Client update contract does not accept this field.</small></label></div>${clientDetailDocumentsEditor(client)}`;
   if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences. Street Address is required for backend updates.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,['Armenia','United States','Germany','Spain'],'text',true)}${clientDetailInput('region','Region',client.region || '',undefined,'text',true)}${clientDetailInput('city','City',client.city,undefined,'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || 'Asia/Yerevan',undefined,'text',true)}${clientDetailInput('language','Language',client.language || 'English',['English','Armenian','German','Spanish'],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '°C',['°C','°F'])}${clientDetailInput('currency','Currency',client.currency || 'AMD',['AMD','USD','EUR'])}${clientDetailInput('irradiation','Irradiation',client.irradiation || 'kWh/m2',['kWh/m2','W/m2'])}</div>`;
-  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact and client-facing portal defaults. Email, Phone Number 1 and Portal Role are required; Legal Entity clients also require Primary Contact Full Name.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailPortalUsernameInput(client.username)}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}${clientDetailInput('accessScope','Plant / Data Scope',client.accessScope,undefined,'text',true)}${clientDetailInput('exportPolicy','Export Policy',client.exportPolicy,undefined,'text',true)}${clientDetailInput('onboarding','Onboarding State',client.onboarding,undefined,'text',true)}</div>`;
-  if (tab === 'users') return `${clientDetailSectionContext(client, tab, true)}${clientDetailUsersEditor(client)}`;
-  if (tab === 'commercial') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Edit billing summary, service tier and payment destination metadata.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('billing','Billing Profile',client.billing,undefined,'text',true)}${clientDetailInput('supportTier','Support Tier',client.supportTier,undefined,'text',true)}</div>${clientDetailBankEditor(client)}`;
+  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Edit the primary contact and portal account fields supported by PUT /api/admin/clients/{id}.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailPortalUsernameInput(client.username)}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}<label>Plant / Data Scope<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.accessScope) || '—')}</textarea><small class="field-help">Read-only until the backend exposes a supported access-scope update contract.</small></label><label>Export Policy<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.exportPolicy) || '—')}</textarea><small class="field-help">Read-only backend policy.</small></label><label>Onboarding State<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.onboarding) || '—')}</textarea><small class="field-help">Read-only workflow state.</small></label></div>`;
+  if (tab === 'users') return `${clientDetailSectionContext(client, tab, false)}${clientTab(client, plants, tab, false, true)}`;
+  if (tab === 'commercial') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Bank accounts are supported by the current Client update contract. Billing Profile and Support Tier remain read-only.</p></div></div><div class="client-edit-grid-v118"><label>Billing Profile<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.billing) || '—')}</textarea><small class="field-help">The current Client update contract does not accept this field.</small></label><label>Support Tier<input type="text" value="${clientDetailAttr(client.supportTier || '—')}" readonly aria-readonly="true"><small class="field-help">Read-only until a supported commercial update contract is available.</small></label></div>${clientDetailBankEditor(client)}`;
   return `${clientDetailSectionContext(client, tab, false)}${clientTab(client, plants, tab, false, true)}`;
 }
 function clientDetailSyncControlToDraft(control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void {
@@ -1702,12 +1723,22 @@ function updateClientDetailActions(record: ZentridClientRecord): void {
   const save = document.getElementById('saveClientEdit') as HTMLButtonElement | null;
   const canEdit = clientDetailCanEdit(record);
   if (edit) {
-    edit.hidden = clientDetailEditMode;
+    const showEdit = canEdit && !clientDetailEditMode;
+    edit.hidden = !showEdit;
+    edit.style.display = showEdit ? '' : 'none';
     edit.disabled = clientDetailBusy || !canEdit;
-    edit.title = canEdit ? (clientDetailBackendManaged(record) ? 'Edit as a local browser override' : 'Edit this local client section') : clientDetailIsArchived(record) ? 'Archived clients are read-only' : 'This section is read-only';
+    edit.title = canEdit ? (clientDetailBackendManaged(record) ? 'Edit fields supported by the Client backend' : 'Edit this local client section') : clientDetailIsArchived(record) ? 'Archived clients are read-only' : 'This section is read-only';
   }
-  if (cancel) cancel.hidden = !clientDetailEditMode;
-  if (save) save.hidden = !clientDetailEditMode;
+  if (cancel) {
+    const showCancel = clientDetailEditMode && clientDetailEditableTab();
+    cancel.hidden = !showCancel;
+    cancel.style.display = showCancel ? '' : 'none';
+  }
+  if (save) {
+    const showSave = clientDetailEditMode && clientDetailEditableTab();
+    save.hidden = !showSave;
+    save.style.display = showSave ? '' : 'none';
+  }
 }
 function renderClientDetailCurrentTab(baseRecord: ZentridClientRecord, plants: ZentridPlantRecord[]): void {
   const record = clientDetailEditMode && clientDetailDraft ? clientDetailDraft : baseRecord;
@@ -1790,8 +1821,7 @@ function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unk
     clientName: String(record.name || '').trim(),
     tenantLink: {
       managingTenantId: managingTenantId || null,
-      clientType: String(record.type || rawTenantLink.clientType || '').trim(),
-      status: String(record.status || rawTenantLink.status || '').trim()
+      clientType: String(record.type || rawTenantLink.clientType || '').trim()
     },
     identity: {
       firstName: isIndividual ? String(rawIdentity.firstName || nameParts[0] || '').trim() || null : null,
@@ -2056,6 +2086,15 @@ function renderClientDetailPage() {
   clientTabContent?.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    const lifecycle = target.closest<HTMLElement>('[data-client-lifecycle]');
+    if (lifecycle) { void runClientDetailLifecycle(client, lifecycle.dataset.clientLifecycle as 'activate'|'deactivate'|'suspend'|'archive'); return; }
+    const deleteClientDocument = target.closest<HTMLElement>('[data-delete-client-document]');
+    if (deleteClientDocument) {
+      const documentId = String(deleteClientDocument.dataset.deleteClientDocument || '').trim();
+      if (!documentId || !window.confirm('Delete this client document?')) return;
+      void ZentridAPIMutations.clients.deleteDocument(client.id, documentId).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+      return;
+    }
     if (target.closest('[data-add-client-document]')) { addClientDetailDocument(client, plants); return; }
     const removeDocument = target.closest<HTMLElement>('[data-remove-client-document]');
     if (removeDocument) { removeClientDetailDocument(Number(removeDocument.dataset.removeClientDocument), client, plants); return; }
@@ -2278,6 +2317,26 @@ function clientDocuments(client: ZentridClientRecord): string {
 }
 
 
+function clientDetailLifecycleHtml(client: ZentridClientRecord): string {
+  if (!clientDetailBackendManaged(client)) return '';
+  const status = String(client.status || '').trim().toLowerCase();
+  if (status === 'archived') return `<div class="section-title-v17 mini"><div><h3>Lifecycle Actions</h3><p class="muted">Client lifecycle is managed by the backend.</p></div></div><div class="empty-state"><strong>Client archived</strong><small>This client is read-only.</small></div>`;
+  const activate = status === 'active' ? '' : '<button class="primary-action" type="button" data-client-lifecycle="activate">Activate</button>';
+  const deactivate = status === 'active' ? '<button class="secondary-action" type="button" data-client-lifecycle="deactivate">Deactivate</button>' : '';
+  const suspend = status === 'suspended' ? '' : '<button class="secondary-action" type="button" data-client-lifecycle="suspend">Suspend</button>';
+  return `<div class="section-title-v17 mini"><div><h3>Lifecycle Actions</h3><p class="muted">These actions write directly to the Client backend.</p></div></div><div class="row-actions client-lifecycle-actions-v142"><span class="badge neutral">${clientDetailEscape(client.status || '—')}</span>${activate}${deactivate}${suspend}<button class="danger-action" type="button" data-client-lifecycle="archive">Archive</button></div>`;
+}
+async function runClientDetailLifecycle(client: ZentridClientRecord, action: 'activate'|'deactivate'|'suspend'|'archive'): Promise<void> {
+  if (!clientDetailBackendManaged(client) || !ZentridAPIMutations?.clients?.[action]) return;
+  const verb = action.charAt(0).toUpperCase() + action.slice(1);
+  if (!window.confirm(`${verb} “${client.name}”?`)) return;
+  setClientDetailFeedback('info', `${verb} client`, 'Sending lifecycle action to backend…');
+  const result = await ZentridAPIMutations.clients[action](client.id);
+  ZentridLayout.toast(result.message);
+  if (result.ok) window.setTimeout(() => window.location.reload(), 250);
+  else setClientDetailFeedback('danger', `${verb} failed`, result.message);
+}
+
 function clientOverviewTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const counts = ZentridClientModel.countsForClient(client.id);
   const alertState = counts.alerts > 0 ? 'warning' : 'success';
@@ -2299,7 +2358,8 @@ function clientOverviewTab(client: ZentridClientRecord, plants: ZentridPlantReco
     <article><span>Portal Users</span><strong>${clientPortalUsers(client, plants).length}</strong><small>Open Users & Access for detailed portal scope</small></article>
     <article><span>Documents</span><strong>${client.documents || 0}</strong><small>Client documents stay available from registry context</small></article>
   </div>
-  ${plants.length ? `<div class="section-title-v17 mini"><div><h3>Assigned Plants Preview</h3><p class="muted">Quick preview of the most important linked plants.</p></div></div>${plantSummaryCards(plants.slice(0, 3))}` : `<div class="empty-state"><strong>No plant assigned yet</strong><small>Use Assigned Plants to review plant role, access scope and commercial visibility.</small></div>`}`;
+  ${plants.length ? `<div class="section-title-v17 mini"><div><h3>Assigned Plants Preview</h3><p class="muted">Quick preview of the most important linked plants.</p></div></div>${plantSummaryCards(plants.slice(0, 3))}` : `<div class="empty-state"><strong>No plant assigned yet</strong><small>Use Assigned Plants to review plant role, access scope and commercial visibility.</small></div>`}
+  ${clientDetailLifecycleHtml(client)}`;
 }
 
 function clientIdentityTab(client: ZentridClientRecord): string {
@@ -2651,7 +2711,7 @@ function plantDetailClone(record: ZentridPlantRecord): ZentridPlantRecord { retu
 function plantDetailOrigin(record: ZentridPlantRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'plant'); }
 function plantDetailBackendManaged(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'plant'); }
 function plantDetailArchived(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
-function plantDetailEditableTab(tab: PlantDetailTabKey = plantDetailActiveTab): boolean { return tab === 'overview' || tab === 'adminsync'; }
+function plantDetailEditableTab(tab: PlantDetailTabKey = plantDetailActiveTab): boolean { return tab === 'overview'; }
 function plantDetailCanEdit(record: ZentridPlantRecord, tab: PlantDetailTabKey = plantDetailActiveTab): boolean {
   return !plantDetailArchived(record) && plantDetailEditableTab(tab);
 }
@@ -2676,8 +2736,8 @@ function plantDetailFreshness(record: ZentridPlantRecord): string {
 function plantDetailModeCopy(record: ZentridPlantRecord): { tone: PlantDetailFeedbackTone; title: string; message: string } {
   return ZentridEntityDetailUX.modeCopy(record, 'plant', {
     status:record.status,
-    backendTitle:'Live plant · local override available',
-    backendMessage:'Edit creates a browser-only override for configuration fields. No backend update request is sent.',
+    backendTitle:'Live plant · backend editing available',
+    backendMessage:'Supported master-data edits are saved through PUT /api/admin/plants/{id}. Lifecycle changes use dedicated backend actions.',
     backendTone:'info',
     archivedTitle:'Archived plant',
     archivedMessage:'Archived plants are read-only. Plant status is not editable as a normal form field.',
@@ -2713,17 +2773,20 @@ function plantDetailNumber(value: unknown): number {
 }
 function plantDetailFormatCapacity(value: unknown, unit: 'MWp' | 'MW'): string {
   const number = plantDetailNumber(value);
-  return Number.isFinite(number) ? `${Number(number.toFixed(3))} ${unit}` : `0 ${unit}`;
+  return Number.isFinite(number) ? `${Number(number.toFixed(3))} ${unit}` : '—';
 }
 function plantDetailFormValue(value: unknown): string {
   const number = plantDetailNumber(value);
   return Number.isFinite(number) ? String(number) : '';
 }
-function plantDetailInput(name: keyof ZentridPlantRecord, label: string, value: unknown, options?: string[], type = 'text', required = false, help = ''): string {
-  const requiredAttr = required ? ' required' : '';
+function plantDetailInput(name: keyof ZentridPlantRecord, label: string, value: unknown, options?: string[], type = 'text', required = false, help = '', placeholder = ''): string {
+  const requiredAttr = required ? ' required aria-required="true"' : '';
+  const normalizedValue = String(value ?? '').trim();
+  const displayValue = normalizedValue === '—' ? '' : normalizedValue;
+  const placeholderText = placeholder || (required ? `Select or enter ${label.toLowerCase()}` : `Enter ${label.toLowerCase()}`);
   const control = options
-    ? `<select name="${String(name)}" data-plant-edit="${String(name)}"${requiredAttr}>${options.map(option => `<option value="${plantDetailAttr(option)}" ${String(value) === option ? 'selected' : ''}>${plantDetailEscape(option)}</option>`).join('')}</select>`
-    : `<input type="${type}" name="${String(name)}" data-plant-edit="${String(name)}" value="${plantDetailAttr(value)}"${requiredAttr}${type === 'number' ? ' step="0.01" min="0" inputmode="decimal"' : ''} />`;
+    ? `<select name="${String(name)}" data-plant-edit="${String(name)}"${requiredAttr}><option value="" ${displayValue ? '' : 'selected'} disabled>${plantDetailEscape(placeholder || `Select ${label.toLowerCase()}`)}</option>${options.map(option => `<option value="${plantDetailAttr(option)}" ${displayValue === option ? 'selected' : ''}>${plantDetailEscape(option)}</option>`).join('')}</select>`
+    : `<input type="${type}" name="${String(name)}" data-plant-edit="${String(name)}" value="${plantDetailAttr(displayValue)}" placeholder="${plantDetailAttr(placeholderText)}"${requiredAttr}${type === 'number' ? ' step="0.01" min="0" inputmode="decimal"' : ''} />`;
   return `<label>${plantDetailEscape(label)}${required ? ' *' : ''}${control}${help ? `<small class="field-help">${plantDetailEscape(help)}</small>` : ''}</label>`;
 }
 function plantDetailClientOptions(selectedId: string): string[] {
@@ -2735,47 +2798,55 @@ function plantDetailTenantOptions(record: ZentridPlantRecord): string[] {
 }
 function plantDetailClientLabel(clientId: string): string {
   const client = ZentridClientModel.clients.find(item => item.id === clientId);
-  return client ? `${client.name} · ${client.id}` : clientId || 'Unassigned client';
+  const rawLabel = client ? String(client.name || client.code || client.id) : clientId || 'Unassigned client';
+  if (!clientId) return rawLabel;
+  const suffix = ` · ${clientId}`;
+  return rawLabel.endsWith(suffix) ? rawLabel.slice(0, -suffix.length).trim() : rawLabel;
+}
+function plantDetailClientDisplay(clientId: string): string {
+  const label = plantDetailEscape(plantDetailClientLabel(clientId));
+  const id = String(clientId || '').trim();
+  return `<strong>${label}</strong>${id ? `<small class="plant-assignment-id-v140">${plantDetailEscape(id)}</small>` : ''}`;
 }
 function plantDetailClientSelect(record: ZentridPlantRecord): string {
   const options = plantDetailClientOptions(record.clientId).map(id => `<option value="${plantDetailAttr(id)}" ${id === record.clientId ? 'selected' : ''}>${plantDetailEscape(plantDetailClientLabel(id))}</option>`).join('');
-  return `<label>Client / Owner *<select name="clientId" data-plant-edit="clientId" required>${options}</select><small class="field-help">Changes the client assignment only in the local prototype.</small></label>`;
+  return `<label>Client / Owner *<select name="clientId" data-plant-edit="clientId" required>${options}</select><small class="field-help">Changes the client assignment through the Plant Registry backend update for live records.</small></label>`;
 }
 function plantDetailEditTab(record: ZentridPlantRecord, tab: PlantDetailTabKey): string {
   if (tab === 'overview') {
-    return `${plantDetailSectionContext(record, tab, true)}<div class="section-title-v17"><div><h2>Plant Master Data</h2><p class="muted">Edit local identity, location and technical passport values. Operational status stays read-only.</p></div></div>
+    return `${plantDetailSectionContext(record, tab, true)}<div class="section-title-v17"><div><h2>Plant Master Data</h2><p class="muted">Edit plant identity, location and technical passport values. Live records are saved to the Plant Registry backend; operational status stays read-only.</p></div></div>
       <div class="plant-edit-grid-v119">
-        ${plantDetailInput('name','Plant Name',record.name,undefined,'text',true)}
-        ${plantDetailInput('code','Plant Code',record.code,undefined,'text',true)}
+        ${plantDetailInput('name','Plant Name',record.name,undefined,'text',true,'','e.g. Yerevan Solar North')}
+        ${plantDetailInput('code','Plant Code',record.code,undefined,'text',true,'','e.g. PLT-YER-001')}
         ${plantDetailInput('type','Plant Type',record.type,['Residential','Commercial','Industrial','Utility Scale','Hybrid / Storage'],'text',true)}
         ${plantDetailClientSelect(record)}
-        ${plantDetailInput('operator','Managing Tenant',record.operator,plantDetailTenantOptions(record),'text',true)}
-        ${plantDetailInput('om','Service / O&M Provider',record.om,undefined,'text',true)}
+        ${plantDetailInput('operator','Managing Tenant',record.operator,plantDetailTenantOptions(record),'text',true,'','Select managing tenant')}
+        ${plantDetailInput('om','Service / O&M Provider',record.om,undefined,'text',false,'','e.g. Zentrid O&M')}
         ${plantDetailInput('country','Country',record.country,['Armenia','United States','Germany','Spain','France','Other'],'text',true)}
-        ${plantDetailInput('region','Region',record.region,undefined,'text',true)}
-        ${plantDetailInput('city','City',record.city,undefined,'text',true)}
-        ${plantDetailInput('address','Address',record.address,undefined,'text',true)}
-        ${plantDetailInput('timezone','Time Zone',record.timezone,undefined,'text',true)}
-        ${plantDetailInput('commissioning','Commissioning Date',record.commissioning,undefined,'date',false)}
+        ${plantDetailInput('region','Region',record.region,undefined,'text',false,'','e.g. Yerevan')}
+        ${plantDetailInput('city','City',record.city,undefined,'text',false,'','e.g. Yerevan')}
+        ${plantDetailInput('address','Address',record.address,undefined,'text',false,'','e.g. 10 Solar Street')}
+        ${plantDetailInput('timezone','Time Zone',record.timezone,['Asia/Yerevan','UTC','Europe/London','Europe/Berlin','Europe/Paris','Europe/Madrid','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Asia/Dubai','Asia/Tbilisi','Asia/Tokyo','Australia/Sydney'],'text',true,'IANA timezone used for plant timestamps and reports.','Select time zone')}
+        ${plantDetailInput('commissioning','Commissioning Date',record.commissioning,undefined,'date',false,'','YYYY-MM-DD')}
         ${plantDetailInput('latitude','Latitude',record.latitude || '',undefined,'number',false,'Optional · -90 to 90')}
         ${plantDetailInput('longitude','Longitude',record.longitude || '',undefined,'number',false,'Optional · -180 to 180')}
-        ${plantDetailInput('capacityDc','Installed Capacity DC (MWp)',plantDetailFormValue(record.capacityDc),undefined,'number',true)}
-        ${plantDetailInput('capacityAc','Installed Capacity AC (MW)',plantDetailFormValue(record.capacityAc),undefined,'number',true)}
-        ${plantDetailInput('gridCapacity','Grid Connection Capacity (MW)',plantDetailFormValue(record.gridCapacity),undefined,'number',true)}
+        ${plantDetailInput('capacityDc','Installed Capacity DC (MWp)',plantDetailFormValue(record.capacityDc),undefined,'number',false,'Optional. Enter a non-negative MWp value.','e.g. 5.25')}
+        ${plantDetailInput('capacityAc','Installed Capacity AC (MW)',plantDetailFormValue(record.capacityAc),undefined,'number',false,'Optional. Enter a non-negative MW value.','e.g. 4.8')}
+        ${plantDetailInput('gridCapacity','Grid Connection Capacity (MW)',plantDetailFormValue(record.gridCapacity),undefined,'number',false,'Optional. Enter a non-negative MW value.','e.g. 4.5')}
         ${plantDetailInput('battery','Battery Installed',record.battery,['No','Yes','Unknown'],'text',true)}
       </div>
       <div class="plant-readonly-status-v119"><div><span>Lifecycle Status</span><strong>${plantDetailEscape(record.status)}</strong><small>Status is not editable through the generic form.</small></div><div><span>Operational Health</span><strong>${plantDetailEscape(record.health)}</strong><small>Derived from live data, devices and alerts.</small></div></div>`;
   }
-  return `${plantDetailSectionContext(record, tab, true)}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Edit local assignment and source metadata. Changing source identity may break mappings and requires confirmation.</p></div></div>
+  return `${plantDetailSectionContext(record, tab, true)}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Edit assignment and source metadata. Live records are saved to the Plant Registry backend. Changing source identity may affect mappings and requires confirmation.</p></div></div>
     <div class="plant-edit-grid-v119">
       ${plantDetailInput('portfolio','Portfolio',record.portfolio,undefined,'text',true)}
       ${plantDetailInput('sourceSystem','Source System',record.sourceSystem || plantDetailSourceSystem(record),['Manual / Local storage','Huawei FusionSolar','Sungrow iSolarCloud','SolisCloud','GoodWe SEMS','SolaX Cloud','Deye / Solarman','SolarEdge','Other Vendor'],'text',true)}
       ${plantDetailInput('integration','Integration / Connector',record.integration || plantDetailSourceSystem(record),undefined,'text',true)}
       ${plantDetailInput('externalId','External Plant ID',record.externalId,undefined,'text',true,'Changing this value affects source mapping traceability.')}
       ${plantDetailInput('tenantId','Tenant ID / Reference',record.tenantId || '',undefined,'text',false)}
-      ${plantDetailInput('om','Service / O&M Provider',record.om,undefined,'text',true)}
+      ${plantDetailInput('om','Service / O&M Provider',record.om,undefined,'text',false,'','e.g. Zentrid O&M')}
     </div>
-    <div class="plant-source-warning-v119" role="note"><strong>Mapping safety</strong><small>Any change to Source System, Integration or External Plant ID is local metadata only. Confirm the change before saving.</small></div>`;
+    <div class="plant-source-warning-v119" role="note"><strong>Mapping safety</strong><small>Changes to Source System, Integration or External Plant ID affect mapping traceability. Confirm the change before saving to the backend.</small></div>`;
 }
 function plantDetailSnapshot(): string { return JSON.stringify(plantDetailDraft || {}); }
 function plantDetailHasUnsavedEdits(): boolean { return plantDetailEditMode && plantDetailEditSnapshot !== plantDetailSnapshot(); }
@@ -2788,6 +2859,10 @@ function plantDetailPrepareDraft(record: ZentridPlantRecord): ZentridPlantRecord
   draft.integration = draft.integration || plantDetailSourceSystem(record);
   return draft;
 }
+// Historical prototype rules intentionally removed from blocking validation:
+// "Installed AC capacity cannot exceed installed DC capacity" and
+// "Grid connection capacity cannot exceed installed AC capacity".
+// The backend contract does not currently justify preventing a save on these relationships.
 function plantDetailValidationIssues(record: ZentridPlantRecord, tab: PlantDetailTabKey, root: ParentNode): ZentridFormIssue[] {
   const issues: ZentridFormIssue[] = [];
   const control = (name: string): ZentridFormControl | null => root.querySelector<ZentridFormControl>(`[data-plant-edit="${name}"]`);
@@ -2797,15 +2872,13 @@ function plantDetailValidationIssues(record: ZentridPlantRecord, tab: PlantDetai
     const duplicateCode = ZentridClientModel.plants.find(plant => plant.id !== record.id && normalized(plant.code) === normalized(record.code));
     if (duplicateName) issues.push({ control:control('name'), message:`Another plant already uses the name ${record.name}.` });
     if (duplicateCode) issues.push({ control:control('code'), message:`Another plant already uses the code ${record.code}.` });
-    if (!ZentridClientModel.clients.some(client => client.id === record.clientId)) issues.push({ control:control('clientId'), message:'Select a valid client assignment.' });
+    if (!String(record.clientId || '').trim()) issues.push({ control:control('clientId'), message:'Select a client assignment.' });
     const dc = plantDetailNumber(record.capacityDc);
     const ac = plantDetailNumber(record.capacityAc);
     const grid = plantDetailNumber(record.gridCapacity);
-    if (!Number.isFinite(dc) || dc <= 0) issues.push({ control:control('capacityDc'), message:'Installed DC capacity must be greater than 0 MWp.' });
-    if (!Number.isFinite(ac) || ac <= 0) issues.push({ control:control('capacityAc'), message:'Installed AC capacity must be greater than 0 MW.' });
-    if (!Number.isFinite(grid) || grid <= 0) issues.push({ control:control('gridCapacity'), message:'Grid connection capacity must be greater than 0 MW.' });
-    if (Number.isFinite(dc) && Number.isFinite(ac) && ac > dc) issues.push({ control:control('capacityAc'), message:'Installed AC capacity cannot exceed installed DC capacity.' });
-    if (Number.isFinite(ac) && Number.isFinite(grid) && grid > ac) issues.push({ control:control('gridCapacity'), message:'Grid connection capacity cannot exceed installed AC capacity.' });
+    if (String(record.capacityDc || '').trim() && (!Number.isFinite(dc) || dc < 0)) issues.push({ control:control('capacityDc'), message:'Installed DC capacity must be a non-negative number.' });
+    if (String(record.capacityAc || '').trim() && (!Number.isFinite(ac) || ac < 0)) issues.push({ control:control('capacityAc'), message:'Installed AC capacity must be a non-negative number.' });
+    if (String(record.gridCapacity || '').trim() && (!Number.isFinite(grid) || grid < 0)) issues.push({ control:control('gridCapacity'), message:'Grid connection capacity must be a non-negative number.' });
     const latitude = String(record.latitude || '').trim();
     const longitude = String(record.longitude || '').trim();
     if (latitude && (!Number.isFinite(Number(latitude)) || Number(latitude) < -90 || Number(latitude) > 90)) issues.push({ control:control('latitude'), message:'Latitude must be between -90 and 90.' });
@@ -2830,6 +2903,121 @@ function plantDetailNormalizeForSave(record: ZentridPlantRecord): ZentridPlantRe
     updated: new Date().toLocaleString()
   };
 }
+function plantDetailUpdatePayload(record: ZentridPlantRecord): Record<string, unknown> {
+  const dcMw = plantDetailNumber(record.capacityDc);
+  const acMw = plantDetailNumber(record.capacityAc);
+  const gridMw = plantDetailNumber(record.gridCapacity);
+  const clean = (value: unknown): string => {
+    const text = String(value ?? '').trim();
+    return text === '—' ? '' : text;
+  };
+  const payload: Record<string, unknown> = {
+    plantName: clean(record.name),
+    plantCode: clean(record.code),
+    clientId: clean(record.clientId),
+    plantType: clean(record.type),
+    countryRegion: clean(record.country),
+    plantTimeZone: clean(record.timezone)
+  };
+  const optional = (key: string, value: unknown): void => {
+    if (value === undefined || value === null || value === '') return;
+    payload[key] = value;
+  };
+  optional('managingTenantId', clean(record.tenantId));
+  optional('managingTenant', clean(record.tenantId || record.operator));
+  optional('region', clean(record.region));
+  optional('city', clean(record.city));
+  optional('address', clean(record.address));
+  optional('commissioningDate', clean(record.commissioning));
+  optional('serviceProvider', clean(record.om));
+
+  // Preserve the canonical nested DTO used by Plant Registry create/update.
+  const raw = record.raw || {};
+  const rawLocation = raw.location && typeof raw.location === 'object' && !Array.isArray(raw.location) ? raw.location as Record<string, unknown> : {};
+  const rawTechnical = raw.technical && typeof raw.technical === 'object' && !Array.isArray(raw.technical) ? raw.technical as Record<string, unknown> : {};
+  const rawCommercial = raw.commercial && typeof raw.commercial === 'object' && !Array.isArray(raw.commercial) ? raw.commercial as Record<string, unknown> : {};
+  const location: Record<string, unknown> = { ...rawLocation };
+  const setLocation = (key: string, value: unknown): void => { const text = clean(value); if (text) location[key] = text; };
+  setLocation('address', record.address);
+  setLocation('countryRegion', record.country);
+  setLocation('region', record.region);
+  setLocation('city', record.city);
+  setLocation('timezone', record.timezone);
+  const latText = clean(record.latitude);
+  const lngText = clean(record.longitude);
+  if (latText) location.lat = latText;
+  if (lngText) location.lng = lngText;
+  if (!clean(location.coordinates) && latText && lngText) location.coordinates = `${latText}, ${lngText}`;
+  if (!clean(location.mapRef) && clean(record.address)) location.mapRef = clean(record.address);
+  optional('location', location);
+
+  const technical: Record<string, unknown> = { ...rawTechnical };
+  optional('technical', technical);
+  const commercial: Record<string, unknown> = { ...rawCommercial };
+  optional('commercial', commercial);
+  optional('sourceScheme', clean(record.sourceSystem || plantDetailSourceSystem(record)));
+  optional('integrationName', clean(record.integration));
+  optional('externalPlantId', clean(record.externalId));
+  optional('portfolio', clean(record.portfolio));
+  const latitude = Number(clean(record.latitude));
+  const longitude = Number(clean(record.longitude));
+  if (clean(record.latitude) && Number.isFinite(latitude)) optional('latitude', latitude);
+  if (clean(record.longitude) && Number.isFinite(longitude)) optional('longitude', longitude);
+  optional('batteryInstalled', clean(record.battery));
+  if (Number.isFinite(dcMw)) { payload.installedCapacityDcMw = dcMw; payload.installedPowerKw = dcMw * 1000; }
+  if (Number.isFinite(acMw)) payload.installedCapacityAcMw = acMw;
+  if (Number.isFinite(gridMw)) payload.gridConnectionCapacityMw = gridMw;
+  return payload;
+}
+function plantDetailLifecycleHtml(record: ZentridPlantRecord): string {
+  if (!plantDetailBackendManaged(record)) return '<div class="empty-state"><strong>Lifecycle requires a live plant</strong><small>Backend lifecycle actions are available only for Plant Registry API records.</small></div>';
+  const status = String(record.status || '').toLowerCase();
+  if (status === 'archived') return '<div class="empty-state"><strong>Plant archived</strong><small>This plant is read-only.</small></div>';
+  const primary = status === 'active'
+    ? '<button class="secondary-action" type="button" data-plant-lifecycle="deactivate">Deactivate</button>'
+    : '<button class="primary-action" type="button" data-plant-lifecycle="activate">Activate</button>';
+  return `<div class="row-actions"><span class="badge neutral">${plantDetailEscape(record.status)}</span>${primary}<button class="danger-action" type="button" data-plant-lifecycle="archive">Archive</button></div>`;
+}
+function plantDetailBackendConfigurationHtml(record: ZentridPlantRecord): string {
+  const raw = record.raw || {};
+  const location = raw.location && typeof raw.location === 'object' && !Array.isArray(raw.location) ? raw.location as Record<string, unknown> : {};
+  const technical = raw.technical && typeof raw.technical === 'object' && !Array.isArray(raw.technical) ? raw.technical as Record<string, unknown> : {};
+  const commercial = raw.commercial && typeof raw.commercial === 'object' && !Array.isArray(raw.commercial) ? raw.commercial as Record<string, unknown> : {};
+  const vendorPayload = raw.vendorPayload && typeof raw.vendorPayload === 'object' && !Array.isArray(raw.vendorPayload) ? raw.vendorPayload as Record<string, unknown> : {};
+  const values: Array<[string, unknown]> = [
+    ['Grid Connection Type', technical.gridConnectionType],
+    ['Postal Code', location.postalCode],
+    ['Map Reference', location.mapRef],
+    ['Coordinates', location.coordinates],
+    ['Street', location.street],
+    ['Currency', commercial.currency],
+    ['Unit Price', commercial.unitPrice],
+    ['Total Cost', commercial.totalCost],
+    ['Vendor Device SN', vendorPayload.deviceSn],
+    ['Vendor Image Mode', vendorPayload.deyeImageMode],
+    ['Vendor Add Method', vendorPayload.deyeDeviceMethod]
+  ];
+  const available = values.filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '');
+  if (!available.length) return '';
+  return `<div class="section-title-v17 mini"><div><h3>Backend Configuration</h3><p class="muted">Canonical and vendor-specific values returned by the Plant Registry API.</p></div></div><div class="info-grid plant-backend-config-v140">${available.map(([label,value]) => `<div><span>${plantDetailEscape(label)}</span><strong>${plantDetailEscape(String(value))}</strong></div>`).join('')}</div>`;
+}
+
+function plantDetailDocuments(record: ZentridPlantRecord): Record<string, unknown>[] {
+  const raw = record.raw || {};
+  const candidates = [raw.documents, raw.documentRecords, raw.adminRecord && typeof raw.adminRecord === 'object' ? (raw.adminRecord as Record<string, unknown>).documents : null];
+  return candidates.find(Array.isArray) as Record<string, unknown>[] || [];
+}
+function plantDetailDocumentsHtml(record: ZentridPlantRecord): string {
+  const docs = plantDetailDocuments(record);
+  const rows = docs.map((doc, index) => {
+    const id = String(doc.id || doc.documentId || '').trim();
+    const name = String(doc.name || doc.fileName || doc.filename || `Document ${index + 1}`);
+    const type = String(doc.type || doc.documentType || '—');
+    const expiry = String(doc.expiry || doc.expiryDate || '—');
+    return `<div class="data-row"><div><strong>${plantDetailEscape(name)}</strong><small>${plantDetailEscape(id || 'No document id')}</small></div><span>${plantDetailEscape(type)}</span><span>${plantDetailEscape(expiry)}</span><div class="row-actions">${id ? `<button type="button" data-action="plant-document-download" data-plant-document-download="${plantDetailAttr(id)}">Download</button><button class="danger-action" type="button" data-action="plant-document-delete" data-plant-document-delete="${plantDetailAttr(id)}">Delete</button>` : '<span class="badge muted">Unavailable</span>'}</div></div>`;
+  }).join('');
+  return `<form id="plantDocumentUploadForm" class="plant-document-upload-form"><div class="plant-edit-grid-v119 plant-document-upload-grid-v141"><label>Document Name *<input name="name" placeholder="e.g. Grid Connection Agreement" required></label><label>Type *<select name="type" required><option>Legal</option><option>Technical</option><option>Compliance</option><option>Contract</option><option>Other</option></select></label><label>Expiry Date<input type="date" name="expiry"></label><label>Document File *<input type="file" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required></label></div><div class="row-actions plant-document-upload-actions-v141"><button class="primary-action" type="submit">Upload Document</button></div></form><div class="data-table compact-table plant-document-table-v141"><div class="data-head"><span>Document</span><span>Type</span><span>Expiry</span><span>Actions</span></div>${rows || '<div class="empty-state"><strong>No plant documents</strong><small>Upload the first document using the form above.</small></div>'}</div>`;
+}
 function plantDetailSourceChanged(base: ZentridPlantRecord, draft: ZentridPlantRecord): boolean {
   return ['sourceSystem','integration','externalId'].some(key => String(base[key] || '') !== String(draft[key] || ''));
 }
@@ -2849,12 +3037,23 @@ function updatePlantDetailActions(record: ZentridPlantRecord): void {
   const save = document.getElementById('savePlantEdit') as HTMLButtonElement | null;
   const canEdit = plantDetailCanEdit(record);
   if (edit) {
-    edit.hidden = plantDetailEditMode;
-    edit.disabled = plantDetailBusy || !canEdit;
-    edit.title = canEdit ? (plantDetailBackendManaged(record) ? 'Edit as a local browser override' : 'Edit this local plant section') : plantDetailArchived(record) ? 'Archived plants are read-only' : 'This section is operational and read-only';
+    const showEdit = canEdit && !plantDetailEditMode;
+    edit.hidden = !showEdit;
+    edit.style.display = showEdit ? '' : 'none';
+    edit.disabled = plantDetailBusy;
+    edit.setAttribute('aria-hidden', showEdit ? 'false' : 'true');
+    edit.title = plantDetailBackendManaged(record) ? 'Edit this live plant through the backend' : 'Edit this local plant section';
   }
-  if (cancel) cancel.hidden = !plantDetailEditMode;
-  if (save) save.hidden = !plantDetailEditMode;
+  if (cancel) {
+    const showCancel = canEdit && plantDetailEditMode;
+    cancel.hidden = !showCancel;
+    cancel.style.display = showCancel ? '' : 'none';
+  }
+  if (save) {
+    const showSave = canEdit && plantDetailEditMode;
+    save.hidden = !showSave;
+    save.style.display = showSave ? '' : 'none';
+  }
 }
 function renderPlantDetailCurrentTab(baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): void {
   const record = plantDetailEditMode && plantDetailDraft ? plantDetailDraft : baseRecord;
@@ -2881,7 +3080,7 @@ function setPlantDetailEditMode(enabled: boolean, baseRecord: ZentridPlantRecord
   clearPlantDetailFeedback();
   renderPlantDetailCurrentTab(baseRecord, devices);
 }
-function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): void {
+async function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDeviceRecord[]): Promise<void> {
   if (!plantDetailEditMode || !plantDetailDraft || plantDetailBusy) return;
   if (!ZentridActionPermissions.guard({ action:'edit', resource:'plant', record:baseRecord, status:baseRecord.status, origin:plantDetailOrigin(baseRecord), updateAvailable:false, localOverride:true })) return;
   if (!plantDetailCanEdit(baseRecord)) {
@@ -2904,6 +3103,17 @@ function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDe
   if (button) ZentridFormUX.setBusy(button, true, 'Saving…');
   try {
     const normalized = plantDetailNormalizeForSave(plantDetailDraft);
+    if (plantDetailBackendManaged(baseRecord)) {
+      const result = await ZentridAPIMutations.plants.update(baseRecord.id, plantDetailUpdatePayload(normalized));
+      if (!result.ok) throw new Error(result.message);
+      plantDetailEditMode = false;
+      plantDetailDraft = null;
+      plantDetailEditSnapshot = '';
+      plantDetailBusy = false;
+      ZentridLayout.toast(result.message);
+      window.setTimeout(() => window.location.reload(), 250);
+      return;
+    }
     const changed = ZentridDataSource.markChanged(normalized, 'plant') as ZentridPlantRecord;
     syncPlantClientAssignments(baseRecord, changed);
     Object.assign(baseRecord, changed);
@@ -2913,12 +3123,13 @@ function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: ZentridDe
     plantDetailEditSnapshot = '';
     plantDetailBusy = false;
     renderPlantDetailPage();
-    setPlantDetailFeedback('success','Plant section saved locally','No backend request was sent. The plant now shows Local changes as its source.');
+    setPlantDetailFeedback('success','Plant section saved locally','This local-only plant was updated in browser storage.');
   } catch (error) {
+    console.error('[Plant Detail Save] Failed to update plant', { plantId:baseRecord.id, error, draft:plantDetailDraft, report:(window as unknown as { __FLEETOS_LAST_PLANT_API_REPORT__?: unknown }).__FLEETOS_LAST_PLANT_API_REPORT__ });
     plantDetailBusy = false;
     document.getElementById('plantDetailControl')?.setAttribute('aria-busy','false');
     if (button) ZentridFormUX.setBusy(button, false);
-    ZentridFormUX.renderSummary(summary, [{ message:'Unable to save the plant locally. Review browser storage and try again.' }], 'Plant changes were not saved');
+    ZentridFormUX.renderSummary(summary, [{ message:error instanceof Error ? error.message : 'Unable to save the plant. Review the Plant API diagnostic report in the browser console.' }], 'Plant changes were not saved');
     summary?.focus();
   }
 }
@@ -3020,18 +3231,18 @@ function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab
   if (activeTab === 'device') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Devices & Device</h2><p class="muted">Full device registry for this plant. Use specific tabs for focused views.</p></div><span class="badge neutral">${devices.length} records</span></div>${deviceRows(devices, plant)}`);
   if (activeTab === 'arrays') return `${context}<div class="section-title-v17"><div><h2>Arrays & Strings</h2><p class="muted">PV module and string hierarchy linked to inverter / MPPT structure.</p></div></div><div class="info-grid"><div><span>Panels</span><strong>${Number(plant.panels || 0).toLocaleString()}</strong></div><div><span>Strings</span><strong>${plant.strings}</strong></div><div><span>Associated Inverters</span><strong>${plant.inverters}</strong></div><div><span>Traceability</span><strong>Plant → Area → Inverter → MPPT → String</strong></div></div>`;
   if (activeTab === 'metering') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Metering & Grid</h2><p class="muted">Metering points, transformers, switchgear, grid interface and weather context.</p></div></div>${deviceRows(devices.filter(d => d.type === 'Meter' || d.type === 'Grid Device' || d.type === 'Switchgear' || d.type === 'Weather Station'), plant)}`);
-  if (activeTab === 'reportsdocs') return `${context}<div class="section-title-v17"><div><h2>Reports & Documents</h2><p class="muted">Plant-level reports and documents are not persisted until their backend domains are available.</p></div></div><div class="empty-state plant-empty-state-v119"><strong>No persisted report or document records</strong><small>Generated reports and uploaded documents will appear here after the reporting and document APIs are connected.</small></div>`;
-  if (activeTab === 'adminsync') return `${context}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Plant assignment, source traceability and lifecycle-safe configuration context.</p></div></div><div class="info-grid"><div><span>Portfolio</span><strong>${plantDetailEscape(plant.portfolio)}</strong></div><div><span>Client / Owner</span><strong>${plantDetailEscape(plantDetailClientLabel(plant.clientId))}</strong></div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Service / O&M Provider</span><strong>${plantDetailEscape(plant.om)}</strong></div><div><span>Source System</span><strong>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))}</strong></div><div><span>Integration</span><strong>${plantDetailEscape(plant.integration || plantDetailSourceSystem(plant))}</strong></div><div><span>Zentrid Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(plantDetailFreshness(plant))}</strong></div><div><span>Lifecycle Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Read-only in generic editing</small></div></div>`;
+  if (activeTab === 'reportsdocs') return `${context}<div class="section-title-v17"><div><h2>Reports & Documents</h2><p class="muted">Plant documents are persisted through the Plant Registry document API. Reporting remains a separate domain.</p></div></div>${plantDetailBackendManaged(plant) ? plantDetailDocumentsHtml(plant) : '<div class="empty-state plant-empty-state-v119"><strong>Live Plant Registry record required</strong><small>Document upload, open and delete actions require a backend-managed plant.</small></div>'}`;
+  if (activeTab === 'adminsync') return `${context}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Plant assignment, source traceability and lifecycle-safe configuration context.</p></div></div><div class="info-grid"><div><span>Portfolio</span><strong>${plantDetailEscape(plant.portfolio)}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Service / O&M Provider</span><strong>${plantDetailEscape(plant.om)}</strong></div><div><span>Source System</span><strong>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))}</strong></div><div><span>Integration</span><strong>${plantDetailEscape(plant.integration || plantDetailSourceSystem(plant))}</strong></div><div><span>Zentrid Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(plantDetailFreshness(plant))}</strong></div><div><span>Lifecycle Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Changed only through dedicated lifecycle actions</small></div></div>${plantDetailBackendConfigurationHtml(plant)}<div class="section-title-v17 mini"><div><h3>Lifecycle Actions</h3><p class="muted">These actions write directly to the Plant Registry backend.</p></div></div>${plantDetailLifecycleHtml(plant)}`;
   if (activeTab === 'inverters') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Inverters</h2><p class="muted">Inverter registry with MPPT and string traceability.</p></div></div>${deviceRows(by('Inverter'), plant)}`);
   if (activeTab === 'batteries') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>BESS / PCS</h2><p class="muted">Storage devices are separated because they have SOC, SOH, cycle and safety logic.</p></div></div>${deviceRows(by('Battery'), plant)}`);
   if (activeTab === 'gateways') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Loggers & Gateways</h2><p class="muted">Communication devices that collect child-device telemetry and forward it through vendor connectors.</p></div></div>${deviceRows(devices.filter(d => d.type === 'Logger' || d.type === 'Gateway'), plant)}`);
   if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(ZentridDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Source mapping</b><span>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))} · ${plantDetailEscape(plant.externalId)}</span></div></div>`;
-  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Canonical identity, location and technical characteristics for this plant.</p></div><span class="badge ${ZentridClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Plant Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Lifecycle value · read-only</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type)}</strong></div><div><span>Client / Owner</span><strong>${plantDetailEscape(plantDetailClientLabel(plant.clientId))}</strong></div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Location</span><strong>${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.region)}, ${plantDetailEscape(plant.city)}</strong></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">Device, alert and telemetry requests are deferred until their tabs are opened.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${Number(plant.devices || devices.length || 0)}</strong><small>Open Devices & Device to load records</small></div><div><span>Alert count</span><strong>${Number(plant.alerts || 0)}</strong><small>Open Alerts & Events to load records</small></div><div><span>Telemetry</span><strong>On demand</strong><small>Open Energy & Telemetry</small></div></div>`;
+  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Canonical identity, location and technical characteristics for this plant.</p></div><span class="badge ${ZentridClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Plant Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Lifecycle value · read-only</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type)}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Location</span><strong>${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.region)}, ${plantDetailEscape(plant.city)}</strong></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">Device, alert and telemetry requests are deferred until their tabs are opened.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${Number(plant.devices || devices.length || 0)}</strong><small>Open Devices & Device to load records</small></div><div><span>Alert count</span><strong>${Number(plant.alerts || 0)}</strong><small>Open Alerts & Events to load records</small></div><div><span>Telemetry</span><strong>On demand</strong><small>Open Energy & Telemetry</small></div></div>`;
 }
 
 function renderPlantDetailPage() {
   const requestedEditTab = localStorage.getItem('zentrid_plant_detail_edit') as PlantDetailTabKey | null;
-  if (requestedEditTab && ['overview','adminsync'].includes(requestedEditTab)) plantDetailActiveTab = requestedEditTab;
+  if (requestedEditTab === 'overview') plantDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_plant_detail_edit');
   const plant = ZentridClientModel.selectedPlant();
   if (!plant.id) { window.ZentridApiOnly?.mountEmpty('Plant Detail', 'The plant endpoint has not returned a selected record.', '/api/plants'); return; }
@@ -3116,6 +3327,108 @@ function renderPlantDetailPage() {
   plantTabContent?.addEventListener('click', event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    const lifecycle = target.closest<HTMLElement>('[data-plant-lifecycle]');
+    const downloadDocument = target.closest<HTMLElement>('[data-plant-document-download]');
+    const deleteDocument = target.closest<HTMLElement>('[data-plant-document-delete]');
+    if (lifecycle) {
+      const action = String(lifecycle.dataset.plantLifecycle || '');
+      if (!['activate','deactivate','archive'].includes(action) || !plantDetailBackendManaged(plant)) return;
+      const run = action === 'activate' ? ZentridAPIMutations.plants.activate : action === 'deactivate' ? ZentridAPIMutations.plants.deactivate : ZentridAPIMutations.plants.archive;
+      const prompt = action === 'archive' ? `Archive ${plant.name}?` : action === 'deactivate' ? `Deactivate ${plant.name}?` : '';
+      if (prompt && !window.confirm(prompt)) return;
+      void run(plant.id).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+      return;
+    }
+    if (downloadDocument?.dataset.plantDocumentDownload) {
+      const documentId = downloadDocument.dataset.plantDocumentDownload;
+      const documentRecord = plantDetailDocuments(plant).find(doc => String(doc.id || doc.documentId || '').trim() === documentId);
+      const requestedName = String(documentRecord?.fileName || documentRecord?.filename || documentRecord?.name || `plant-document-${documentId}`).trim();
+      const safeFileName = requestedName || `plant-document-${documentId}`;
+      const mimeForFileName = (fileName: string): string => {
+        const lower = fileName.toLowerCase();
+        if (lower.endsWith('.pdf')) return 'application/pdf';
+        if (lower.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (lower.endsWith('.doc')) return 'application/msword';
+        if (lower.endsWith('.png')) return 'image/png';
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+        return 'application/octet-stream';
+      };
+      const triggerDownload = (blob: Blob, fileName: string): void => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      };
+      const downloadResolvedDocument = (payload: unknown): boolean => {
+        const visited = new Set<unknown>();
+        const resolve = (value: unknown, depth = 0): boolean => {
+          if (depth > 4 || value == null || visited.has(value)) return false;
+          if (value instanceof Blob) {
+            triggerDownload(value, safeFileName);
+            return true;
+          }
+          if (typeof value === 'string') {
+            // The current backend returns raw Office/PDF bytes decoded as a binary string.
+            // DOCX starts with the ZIP signature "PK"; preserving charCode & 0xff reconstructs the bytes.
+            if (value.length && (value.startsWith('PK\x03\x04') || value.startsWith('%PDF-') || /[\x00-\x08\x0e-\x1f]/.test(value.slice(0, 64)))) {
+              const bytes = new Uint8Array(value.length);
+              for (let i = 0; i < value.length; i += 1) bytes[i] = value.charCodeAt(i) & 0xff;
+              triggerDownload(new Blob([bytes], { type: mimeForFileName(safeFileName) }), safeFileName);
+              return true;
+            }
+            const text = value.trim();
+            if (/^(https?:|blob:|data:)/i.test(text)) {
+              const anchor = document.createElement('a');
+              anchor.href = text;
+              anchor.download = safeFileName;
+              anchor.target = '_blank';
+              anchor.rel = 'noopener noreferrer';
+              anchor.click();
+              return true;
+            }
+            return false;
+          }
+          if (typeof value !== 'object') return false;
+          visited.add(value);
+          const record = value as Record<string, unknown>;
+          const base64 = ['contentBase64','base64','fileContentBase64','fileBase64'].map(key => record[key]).find(item => typeof item === 'string' && item.trim());
+          if (typeof base64 === 'string') {
+            try {
+              const binary = atob(base64.replace(/^data:[^,]+,/, ''));
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+              const mime = String(record.contentType || record.mimeType || mimeForFileName(safeFileName));
+              triggerDownload(new Blob([bytes], { type: mime }), String(record.fileName || record.filename || safeFileName));
+              return true;
+            } catch (_error) { return false; }
+          }
+          for (const key of ['downloadUrl','fileUrl','url','uri','data','document','file','result','content']) if (resolve(record[key], depth + 1)) return true;
+          return false;
+        };
+        return resolve(payload);
+      };
+      void ZentridPlatformAPI.plantRegistry.getDocument(plant.id, documentId).then(payload => {
+        if (downloadResolvedDocument(payload)) ZentridLayout.toast('Plant document download started.');
+        else {
+          console.warn('[Plant Document] GET returned a payload that could not be converted into a downloadable file.', { plantId: plant.id, documentId, payload });
+          ZentridLayout.toast('Unable to convert the backend document response into a downloadable file.');
+        }
+      }).catch(error => {
+        console.error('[Plant Document] Unable to download document.', { plantId: plant.id, documentId, error });
+        ZentridLayout.toast('Unable to download plant document.');
+      });
+      return;
+    }
+    if (deleteDocument?.dataset.plantDocumentDelete) {
+      if (!window.confirm('Delete this plant document from the backend?')) return;
+      void ZentridAPIMutations.plants.deleteDocument(plant.id, deleteDocument.dataset.plantDocumentDelete).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+      return;
+    }
     const open = target.closest<HTMLElement>('[data-open-device]');
     const history = target.closest<HTMLElement>('[data-device-history]');
     const openDeviceId = open?.dataset.openDevice;
@@ -3146,6 +3459,16 @@ function renderPlantDetailPage() {
   plantTabContent?.addEventListener('change', event => {
     const target = event.target;
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) syncPlantField(target);
+  });
+  plantTabContent?.addEventListener('submit', event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.id !== 'plantDocumentUploadForm') return;
+    event.preventDefault();
+    if (!plantDetailBackendManaged(plant)) return;
+    const fd = new FormData(form);
+    const file = fd.get('file');
+    if (!(file instanceof File) || !file.name) { ZentridLayout.toast('Choose a document file first.'); return; }
+    void ZentridAPIMutations.plants.uploadDocument(plant.id, fd).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
   });
   if (requestedEditTab && plantDetailCanEdit(plant, requestedEditTab)) setPlantDetailEditMode(true, plant, devices);
   if (!plantDetailBeforeUnloadBound) {

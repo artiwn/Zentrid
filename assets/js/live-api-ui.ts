@@ -1455,7 +1455,7 @@
 
   function liveCapacity(value: unknown, unit: string): string {
     const text = safeText(value, '').trim();
-    if (!text || text === '—') return `0 ${unit}`;
+    if (!text || text === '—') return '—';
     if (/[a-z]/i.test(text)) return text;
     return `${text} ${unit}`;
   }
@@ -1463,8 +1463,10 @@
   function ensureLiveClientModelPlant(plant: AnyRecord, devices: AnyRecord[] = []): void {
     const model = window.ZentridClientModel;
     if (!model || !Array.isArray(model.plants) || !Array.isArray(model.devices)) return;
-    const client = (typeof model.selectedClient === 'function' ? model.selectedClient() : null) || model.clients?.[0] || null;
-    const clientId = client?.id || 'CL-LIVE-API';
+    const assignedClientId = String(plant.clientId || '').trim();
+    const assignedClient = assignedClientId ? model.clients?.find((item: AnyRecord) => String(item?.id || '').trim() === assignedClientId) : null;
+    const client = assignedClient || (typeof model.selectedClient === 'function' ? model.selectedClient() : null) || model.clients?.[0] || null;
+    const clientId = assignedClientId || client?.id || 'CL-LIVE-API';
     if (!client && Array.isArray(model.clients)) {
       model.clients.unshift({
         id: clientId,
@@ -1501,7 +1503,7 @@
       externalId: plant.externalId || plant.id,
       name: plant.name,
       clientId,
-      tenantId: plant.tenantId || 'LIVE-TENANT',
+      tenantId: plant.tenantId || plant.raw?.clientAssignment?.managingTenant || 'LIVE-TENANT',
       portfolio: plant.portfolio || plant.vendor || 'Backend Live API',
       status: plant.status || 'Active',
       type: plant.type || 'Solar Plant',
@@ -1514,7 +1516,7 @@
       capacityAc: liveCapacity(plant.capacityAc, 'MW'),
       gridCapacity: liveCapacity(plant.gridCapacity, 'MW'),
       commissioning: plant.commissioned || plant.commissioning || plant.commissionedAt || '—',
-      owner: plant.owner || client?.name || 'Backend Live API',
+      owner: assignedClient?.name || plant.owner || client?.name || 'Backend Live API',
       operator: plant.operator || plant.tenant || 'Backend Live API',
       om: plant.om || plant.operator || plant.tenant || 'Backend Live API',
       powerNow: plant.livePower || '0 kW',
@@ -1530,7 +1532,7 @@
       devices: devices.map(device => device.id).filter(Boolean),
       dataOrigin: 'live',
       lastSyncAt: plant.lastSyncAt || plant.lastData || plant.updatedAt || '',
-      sourceSystem: plant.vendor || plant.sourceSystem || plant.integration || 'Backend Live API',
+      sourceSystem: plant.sourceSystem || plant.vendor || plant.integration || 'Backend Live API',
       integration: plant.integration || `${plant.vendor || 'Backend'} live integration`,
       latitude: plant.latitude || plant.lat || '',
       longitude: plant.longitude || plant.lng || '',
@@ -1838,6 +1840,38 @@
         if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'No prototype plant detail is displayed.');
         else setLiveDataState('empty', selectedId ? 'The selected plant endpoint returned no matching record.' : 'Plant endpoints returned no records. No prototype plant detail is displayed.', { source: live.source || detailSource, recordCount: 0 });
         return;
+      }
+
+      // Resolve Plant assignment relations to human-readable labels before the legacy detail renderer runs.
+      // Keep the canonical IDs on the record so PUT still writes stable backend references.
+      const assignmentRecord = data[0] as AnyRecord | undefined;
+      if (assignmentRecord) {
+        const rawAssignment = assignmentRecord.raw?.clientAssignment || assignmentRecord.clientAssignment || {};
+        const assignmentClientId = String(assignmentRecord.clientId || rawAssignment.clientId || '').trim();
+        const assignmentTenantId = String(assignmentRecord.tenantId || rawAssignment.managingTenant || assignmentRecord.tenant || '').trim();
+        const [clientResult, tenantResult] = await Promise.all([
+          assignmentClientId
+            ? ZentridAPIRepositories.clients.get(assignmentClientId, detailReadOptions('plant-detail:client-assignment', 20, forceRefresh)).catch(() => null)
+            : Promise.resolve(null),
+          assignmentTenantId
+            ? ZentridAPIRepositories.tenants.get(assignmentTenantId, detailReadOptions('plant-detail:tenant-assignment', 20, forceRefresh)).catch(() => null)
+            : Promise.resolve(null)
+        ]);
+        const resolvedClient = clientResult && 'item' in clientResult ? clientResult.item as AnyRecord | null : null;
+        const resolvedTenant = tenantResult && 'item' in tenantResult ? tenantResult.item as AnyRecord | null : null;
+        if (resolvedClient?.id) {
+          const model = window.ZentridClientModel;
+          if (model && Array.isArray(model.clients)) upsertLiveRecord(model.clients as AnyRecord[], resolvedClient);
+          assignmentRecord.owner = safeText(resolvedClient.name || resolvedClient.clientName || resolvedClient.displayName || resolvedClient.code || assignmentRecord.owner, assignmentRecord.owner || '—');
+          assignmentRecord.clientId = String(resolvedClient.id || assignmentClientId);
+        }
+        if (assignmentTenantId) assignmentRecord.tenantId = assignmentTenantId;
+        if (resolvedTenant) {
+          const tenantLabel = safeText(resolvedTenant.name || resolvedTenant.tenantName || resolvedTenant.displayName || resolvedTenant.code || resolvedTenant.id, assignmentTenantId || '—');
+          assignmentRecord.operator = tenantLabel;
+          assignmentRecord.tenant = tenantLabel;
+          setLiveTenants([resolvedTenant]);
+        }
       }
 
       let deviceRows: AnyRecord[] = [];
