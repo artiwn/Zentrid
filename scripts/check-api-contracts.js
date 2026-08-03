@@ -155,6 +155,33 @@ if (contracts) {
   expect(normalizedTenant.country === 'Armenia' && normalizedTenant.status === 'Active', 'Tenant country/status normalization is incorrect.');
 
   const realPlant = contracts.plants.map({ id: 'P-LIVE', plantCode: 'PLANT-001', plantName: 'Live Plant', clientId: 'C-LIVE', client: 'CLIENT-001', managingTenant: 'TENANT-001', sourceScheme: 'Manual', recordStatus: 'Draft', plantType: 'Solar', countryRegion: 'AM', plantTimeZone: 'Asia/Yerevan', devicesCount: 3 }, 0, context);
+  const canonicalPlant = contracts.plants.map({
+    id: 'P-CANON', plantCode: 'plant-canon', plantName: 'Canonical Plant', clientId: 'C-1',
+    client: { id: 'C-1', code: 'CLIENT-001', name: 'Client One' },
+    managingTenant: { id: 'T-1', code: 'TENANT-001', name: 'Tenant One' },
+    sourceScheme: 'Deye / Solarman', recordStatus: 'Pending Review', plantType: 'Solar',
+    location: { countryRegion: 'Armenia', region: 'Yerevan', city: 'Yerevan', address: 'Test address', timezone: 'Asia/Yerevan', lat: 40.18, lng: 44.51 },
+    technical: { installedCapacityDcMw: 10, installedCapacityAcMw: 8, gridConnectionCapacityMw: 7, batteryCapacityKwh: 30 },
+    commercial: { currency: 'AMD' }
+  }, 0, context);
+  expect(canonicalPlant.country === 'Armenia' && canonicalPlant.region === 'Yerevan' && canonicalPlant.city === 'Yerevan' && canonicalPlant.address === 'Test address' && canonicalPlant.timezone === 'Asia/Yerevan', 'Canonical Plant location section is not mapped.');
+  expect(canonicalPlant.capacityDc === 10 && canonicalPlant.capacityAc === 8 && canonicalPlant.gridCapacity === 7, 'Canonical Plant technical capacities are not mapped.');
+  expect(String(canonicalPlant.battery).includes('30 kWh'), 'Canonical Plant battery capacity is not mapped.');
+  expect(canonicalPlant.operator === 'Tenant One' && canonicalPlant.clientId === 'C-1', 'Canonical Plant relations are not mapped.');
+  expect(canonicalPlant.sourceSystem === 'Deye / Solarman' && canonicalPlant.status !== '—' && canonicalPlant.type === 'Solar', 'Canonical Plant source/lifecycle/type are not mapped.');
+  const currentPlantDetailDto = contracts.plants.map({
+    id: '43217d34-d3f9-49a4-987e-c4a7b72b1ed9', plantCode: 'test-tenant', plantName: 'test-tenant',
+    clientAssignment: { clientId: '8240e436-8150-4019-923d-10aec70e85fc', client: 'client-api5-20260715-111', managingTenant: '62c1e055-2e2b-4a42-b7c4-f6b84a72b379' },
+    vendorPlatform: { sourceScheme: 'Deye / Solarman', recordStatus: 'Inactive', creationMode: 'Manual vendor-driven form' },
+    location: { countryRegion: 'Armenia', region: 'Yerevan', city: 'Yerevan', address: 'Test address', plantTimeZone: 'Asia/Yerevan', mapRef: 'Yerevan', postalCode: '1020', coordinates: '9080' },
+    technical: { plantType: 'Solar', commissioningDate: null, installedCapacityDcMw: 30, installedCapacityAcMw: null, installedPowerKw: 30000, gridConnectionCapacityMw: null, batteryCapacityKwh: 60, gridConnectionType: 'Maximum Export' },
+    commercial: { currency: 'AMD', unitPrice: 30, totalCost: 60 }, createdAtUtc: '2026-07-31T12:14:12.408311Z'
+  }, 0, context);
+  expect(currentPlantDetailDto.status === 'Inactive' && currentPlantDetailDto.sourceSystem === 'Deye / Solarman', 'Current Plant Detail vendorPlatform aliases are not mapped.');
+  expect(currentPlantDetailDto.clientId === '8240e436-8150-4019-923d-10aec70e85fc' && currentPlantDetailDto.owner === 'client-api5-20260715-111', 'Current Plant Detail clientAssignment client aliases are not mapped.');
+  expect(currentPlantDetailDto.operator === '62c1e055-2e2b-4a42-b7c4-f6b84a72b379' && currentPlantDetailDto.timezone === 'Asia/Yerevan', 'Current Plant Detail tenant/timezone aliases are not mapped.');
+  expect(currentPlantDetailDto.capacityDc === 30 && currentPlantDetailDto.capacityAc === null && currentPlantDetailDto.gridCapacity === null, 'Current Plant Detail null capacities must remain unavailable instead of becoming zero.');
+  expect(currentPlantDetailDto.commissioned === '—', 'createdAtUtc must not be used as a commissioning date fallback.');
   expect(realPlant.code === 'PLANT-001' && realPlant.status === 'Draft' && realPlant.timezone === 'Asia/Yerevan' && realPlant.devices === 3, 'Actual Plant Registry aliases are not mapped.');
   expect(realPlant.country === 'Armenia', 'Plant country normalization is incorrect.');
 

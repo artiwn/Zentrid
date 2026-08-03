@@ -17,15 +17,17 @@ const css = read('assets/css/src/20-governance-and-client-flows.css');
 const pkg = JSON.parse(read('package.json') || '{}');
 [
   'renderPlantDetailControl', 'plantDetailBackendManaged', 'plantDetailCanEdit',
-  'Live plant · local override available',
-  'Edit creates a browser-only override for configuration fields',
+  'Live plant · backend editing available',
+  'Supported master-data edits are saved through PUT /api/admin/plants/{id}',
   'plantDetailConfirmDiscard', 'Discard unsaved changes and open another plant section?',
   'plantDetailValidationIssues', 'Installed AC capacity cannot exceed installed DC capacity',
   'Grid connection capacity cannot exceed installed AC capacity',
   'Another plant already uses the name', 'External Plant ID',
   'plantDetailSourceChanged', 'Source System, Integration or External Plant ID changed',
   'plantDetailAssignmentChanged', 'Client or Managing Tenant assignment changed',
-  'Plant section saved locally', 'No backend request was sent',
+  'Plant section saved locally', 'This local-only plant was updated in browser storage.',
+  'ZentridAPIMutations.plants.update', 'plantDetailUpdatePayload',
+  'data-plant-lifecycle', 'plantDocumentUploadForm', 'data-plant-document-delete',
   'plantDetailFreshness', 'Last backend sync', 'plantTelemetryState',
   'No telemetry available', 'No device records',
   'role="status"', 'aria-live="polite"', 'aria-busy="false"', 'beforeunload'
@@ -61,4 +63,4 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('Plant Detail UX checks OK: source-aware editing, local persistence, capacity and relationship validation, mapping confirmations, honest telemetry/device states, freshness and accessibility verified.');
+console.log('Plant Detail UX checks OK: backend/live editing, local fallback persistence, lifecycle actions, plant documents, validation, telemetry/device states, freshness and accessibility verified.');

@@ -601,7 +601,12 @@ interface ZentridAPIMutationsApi {
   unwrap<T>(result: ZentridMutationResult<T>): T;
   clients: ZentridMutationCreateApi & {
     update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+    activate(id: string): Promise<ZentridMutationResult>;
+    deactivate(id: string): Promise<ZentridMutationResult>;
+    suspend(id: string): Promise<ZentridMutationResult>;
+    archive(id: string): Promise<ZentridMutationResult>;
     uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+    deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
   };
   tenants: ZentridMutationCreateApi & {
     update(id: string, payload: unknown): Promise<ZentridMutationResult>;
@@ -609,8 +614,16 @@ interface ZentridAPIMutationsApi {
     deactivate(id: string): Promise<ZentridMutationResult>;
     archive(id: string): Promise<ZentridMutationResult>;
     uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+    deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
   };
-  plants: ZentridMutationCreateApi;
+  plants: ZentridMutationCreateApi & {
+    update(id: string, payload: unknown): Promise<ZentridMutationResult>;
+    activate(id: string): Promise<ZentridMutationResult>;
+    deactivate(id: string): Promise<ZentridMutationResult>;
+    archive(id: string): Promise<ZentridMutationResult>;
+    uploadDocument(id: string, payload: FormData): Promise<ZentridMutationResult>;
+    deleteDocument(id: string, documentId: string): Promise<ZentridMutationResult>;
+  };
   integrations: ZentridMutationCreateApi & {
     validate(id: string): Promise<ZentridMutationResult>;
     testConnection(id: string): Promise<ZentridMutationResult>;
