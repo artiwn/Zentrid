@@ -1,42 +1,7 @@
 {
-  "snapshot": "clients-documents-swagger-2026-07-30",
+  "snapshot": "plant-registry-swagger-2026-07-31",
   "operationCount": 49,
   "operations": [
-    {
-      "method": "POST",
-      "path": "/api/Auth/login",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/Auth/register",
-      "expectedUsed": false
-    },
-    {
-      "method": "POST",
-      "path": "/api/Auth/refresh",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/Auth/logout",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/Auth/me",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/Auth/validate",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/.well-known/jwks.json",
-      "expectedUsed": false
-    },
     {
       "method": "GET",
       "path": "/api/admin/clients",
@@ -65,6 +30,41 @@
     {
       "method": "GET",
       "path": "/api/admin/plants/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/plants/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants/{id}/activate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants/{id}/deactivate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants/{id}/archive",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants/{id}/documents",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/plants/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/plants/{id}/documents/{documentId}",
       "expectedUsed": true
     },
     {
@@ -200,27 +200,27 @@
     {
       "method": "POST",
       "path": "/api/admin/clients/{id}/activate",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
       "path": "/api/admin/clients/{id}/deactivate",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
       "path": "/api/admin/clients/{id}/suspend",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
       "path": "/api/admin/clients/{id}/archive",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
       "path": "/api/admin/clients/{id}/documents",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "GET",
@@ -230,12 +230,12 @@
     {
       "method": "DELETE",
       "path": "/api/admin/clients/{id}/documents/{documentId}",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
       "path": "/api/admin/tenants/{id}/documents",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "GET",
@@ -245,7 +245,7 @@
     {
       "method": "DELETE",
       "path": "/api/admin/tenants/{id}/documents/{documentId}",
-      "expectedUsed": false
+      "expectedUsed": true
     }
   ]
 }
