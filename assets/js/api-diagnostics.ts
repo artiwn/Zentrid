@@ -13,7 +13,7 @@ const api = (() => {
     { entity: 'clients', endpoint: 'GET /api/admin/clients' },
     { entity: 'tenants', endpoint: 'GET /api/admin/tenants' },
     { entity: 'plants', endpoint: 'GET /api/plants' },
-    { entity: 'devices', endpoint: 'GET /api/devices' },
+    { entity: 'devices', endpoint: 'GET /api/admin/devices' },
     { entity: 'alerts', endpoint: 'GET /api/alerts' },
     { entity: 'telemetry', endpoint: 'GET /api/telemetry' },
     { entity: 'integrations', endpoint: 'GET /api/integrations' }

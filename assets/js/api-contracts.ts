@@ -20,6 +20,7 @@
     totalEnergyKwh?: unknown;
     lastDataAt?: unknown;
     dataQualityStatus?: unknown;
+    documents?: unknown;
   }
   interface ZentridDeviceDto extends ZentridApiBaseDto {
     sourceDeviceId?: unknown;
@@ -373,9 +374,9 @@
       entity: 'devices', label: '—',
       requirements: [
         requirement('identity', ['id', 'deviceId', 'canonicalId', 'sourceDeviceId', 'serialNumber']),
-        requirement('display name', ['vendorExtensions.deviceName', 'sourceDeviceName', 'deviceName', 'equipmentName', 'displayName', 'sourceEntityName', 'name']),
-        requirement('provider', ['provider'], 'warning'),
-        requirement('plant relation', ['sourcePlantId', 'plantId'], 'warning')
+        requirement('display name', ['identity.deviceName', 'vendorExtensions.deviceName', 'sourceDeviceName', 'deviceName', 'equipmentName', 'displayName', 'sourceEntityName', 'name']),
+        requirement('provider', ['source.provider', 'provider'], 'warning'),
+        requirement('plant relation', ['plantRelation.plantId', 'sourcePlantId', 'plantId'], 'warning')
       ]
     },
     alerts: {
@@ -1167,51 +1168,59 @@
 
   const devices = createContract<ZentridDeviceDto>(CONTRACT_DEFINITIONS.devices, (row, _index, context) => {
     const id = normalizedId(row, context);
-    const provider = normalization.provider(context.firstOf(row, ['provider', 'vendorExtensions.provider'], '—'));
-    const deviceType = context.safeText(context.firstOf(row, ['deviceType', 'vendorExtensions.deviceType', 'type'], '—'));
+    const provider = normalization.provider(context.firstOf(row, ['source.provider', 'provider', 'vendorExtensions.provider'], '—'));
+    const deviceType = context.safeText(context.firstOf(row, ['identity.deviceType', 'deviceType', 'vendorExtensions.deviceType', 'type'], '—'));
     const name = strictDisplayName(row, context, [
-      'vendorExtensions.deviceName', 'vendorExtensions.equipmentName', 'vendorExtensions.displayName',
+      'identity.deviceName', 'vendorExtensions.deviceName', 'vendorExtensions.equipmentName', 'vendorExtensions.displayName',
       'vendorExtensions.name', 'sourceDeviceName', 'deviceName', 'equipmentName',
       'displayName', 'sourceEntityName', 'name'
-    ], ['deviceId', 'sourceDeviceId', 'serialNumber', 'id']);
-    const ratedPower = optionalNumber(context.firstOf(row, ['vendorExtensions.ratedPowerKw', 'ratedPowerKw'], undefined));
+    ], ['deviceCode', 'identity.deviceCode', 'deviceId', 'source.sourceDeviceId', 'sourceDeviceId', 'identity.serialNumber', 'serialNumber', 'id']);
+    const ratedPower = optionalNumber(context.firstOf(row, ['specification.ratedActivePowerKw', 'technical.ratedPowerKw', 'vendorExtensions.ratedPowerKw', 'ratedPowerKw'], undefined));
+    const lifecycleStatus = context.safeText(context.firstOf(row, ['status.lifecycleStatus', 'status.deviceStatus', 'lifecycleStatus', 'lifecycle'], '—'));
+    const operationalStatus = context.safeText(context.firstOf(row, ['status.operationalStatus', 'operationalStatus', 'status'], 'Unknown'));
     return {
       dataOrigin: 'live', id,
-      externalId: context.safeText(row.sourceDeviceId, '—'),
+      adminId: id,
+      externalId: context.safeText(context.firstOf(row, ['source.sourceDeviceId', 'sourceDeviceId', 'identity.deviceCode', 'deviceCode'], '—')),
       name, vendorDisplayName: name,
-      registeredName: context.safeText(context.firstOf(row, ['sourceDeviceId', 'deviceId', 'serialNumber', 'code', 'id'], ''), ''),
+      registeredName: context.safeText(context.firstOf(row, ['deviceCode', 'identity.deviceCode', 'source.sourceDeviceId', 'sourceDeviceId', 'deviceId', 'identity.serialNumber', 'serialNumber', 'code', 'id'], ''), ''),
       type: deviceType,
-      subtype: context.safeText(context.firstOf(row, ['vendorExtensions.subtype', 'vendorExtensions.rawDeviceType'], '—')),
-      manufacturer: provider,
-      model: context.safeText(context.firstOf(row, ['vendorExtensions.vendorModel', 'vendorExtensions.productModel', 'vendorExtensions.model', 'model'], '—')),
-      serial: context.safeText(row.serialNumber, '—'),
-      firmware: context.safeText(context.firstOf(row, ['vendorExtensions.firmwareVersion', 'vendorExtensions.firmware', 'firmwareVersion'], '—')),
-      ip: context.safeText(row.vendorExtensions?.ip, '—'),
-      mac: context.safeText(row.vendorExtensions?.mac, '—'),
-      plantId: context.safeText(row.sourcePlantId, ''),
-      plant: context.safeText(context.firstOf(row, ['plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName', 'vendorExtensions.stationName'], '—')),
-      tenant: context.safeText(context.firstOf(row, ['tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], '—')),
+      subtype: context.safeText(context.firstOf(row, ['specification.inverterCategory', 'specification.deviceCategory', 'vendorExtensions.subtype', 'vendorExtensions.rawDeviceType'], '—')),
+      manufacturer: context.safeText(context.firstOf(row, ['identity.manufacturer', 'manufacturer'], provider), provider),
+      model: context.safeText(context.firstOf(row, ['identity.model', 'technical.vendorModel', 'vendorModel', 'vendorExtensions.vendorModel', 'vendorExtensions.productModel', 'vendorExtensions.model', 'model'], '—')),
+      serial: context.safeText(context.firstOf(row, ['identity.serialNumber', 'serialNumber'], '—')),
+      firmware: context.safeText(context.firstOf(row, ['technical.firmwareVersion', 'firmwareVersion', 'vendorExtensions.firmwareVersion', 'vendorExtensions.firmware'], '—')),
+      protocol: context.safeText(context.firstOf(row, ['technical.protocolVersion', 'communication.protocol', 'protocol'], '—')),
+      ip: context.safeText(context.firstOf(row, ['technical.ipAddress', 'network.ipAddress', 'vendorExtensions.ip'], '—')),
+      mac: context.safeText(context.firstOf(row, ['technical.macAddress', 'network.macAddress', 'vendorExtensions.mac'], '—')),
+      plantId: context.safeText(context.firstOf(row, ['plantRelation.plantId', 'plantId', 'sourcePlantId'], ''), ''),
+      plant: context.safeText(context.firstOf(row, ['plantRelation.plantName', 'plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName', 'vendorExtensions.stationName'], '—')),
+      tenant: context.safeText(context.firstOf(row, ['plantRelation.tenantName', 'plantRelation.managingTenant', 'tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], '—')),
       vendor: provider,
-      integration: context.safeText(context.firstOf(row, ['integration', 'integrationName', 'sourceIntegrationName'], '—')),
-      status: normalization.deviceStatus(row.status),
-      lifecycle: context.safeText(context.firstOf(row, ['lifecycle', 'lifecycleStatus'], '—')),
+      integration: context.safeText(context.firstOf(row, ['source.integration', 'integration', 'integrationName', 'sourceIntegrationName'], '—')),
+      status: normalization.deviceStatus(operationalStatus),
+      lifecycle: lifecycleStatus,
       capacity: ratedPower === null
-        ? context.safeText(context.firstOf(row, ['vendorExtensions.capacity', 'capacity'], '—'))
+        ? context.safeText(context.firstOf(row, ['technical.ratedPowerKw', 'vendorExtensions.capacity', 'capacity'], '—'))
         : `${ratedPower} kW`,
-      installation: context.formatDate(context.firstOf(row, ['installationDate', 'installDate'], undefined), '—'),
-      warranty: context.safeText(context.firstOf(row, ['warranty', 'warrantyStatus', 'warrantyEndDate'], '—')),
-      lastSeen: context.formatDate(row.lastSeenAt, '—'),
+      installation: context.formatDate(context.firstOf(row, ['lifecycle.installedAt', 'lifecycle.installDate', 'installationDate', 'installDate'], undefined), '—'),
+      installDate: context.formatDate(context.firstOf(row, ['lifecycle.installDate', 'lifecycle.installedAt', 'installationDate', 'installDate'], undefined), '—'),
+      warranty: context.safeText(context.firstOf(row, ['technical.warranty', 'lifecycle.warrantyExpiresAt', 'warranty', 'warrantyStatus', 'warrantyEndDate'], '—')),
+      lastSeen: context.formatDate(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt'], undefined), '—'),
       alerts: optionalNumber(context.firstOf(row, ['alertsCount', 'vendorExtensions.alertsCount'], undefined)),
-      power: context.safeText(context.firstOf(row, ['power', 'currentPowerKw', 'vendorExtensions.power'], '—')),
-      voltage: context.safeText(context.firstOf(row, ['voltage', 'vendorExtensions.voltage'], '—')),
-      current: context.safeText(context.firstOf(row, ['current', 'vendorExtensions.current'], '—')),
-      temperature: context.safeText(context.firstOf(row, ['temperature', 'vendorExtensions.temperature'], '—')),
-      sourceStatus: context.safeText(context.firstOf(row, ['vendorExtensions.dataFreshness', 'dataQualityStatus'], '—')),
-      dataQualityStatus: context.safeText(row.dataQualityStatus, '—'),
+      power: context.safeText(context.firstOf(row, ['telemetry.power', 'telemetry.currentPowerKw', 'power', 'currentPowerKw', 'vendorExtensions.power'], '—')),
+      voltage: context.safeText(context.firstOf(row, ['telemetry.voltage', 'voltage', 'vendorExtensions.voltage'], '—')),
+      current: context.safeText(context.firstOf(row, ['telemetry.current', 'current', 'vendorExtensions.current'], '—')),
+      temperature: context.safeText(context.firstOf(row, ['telemetry.temperature', 'temperature', 'vendorExtensions.temperature'], '—')),
+      sourceStatus: context.safeText(context.firstOf(row, ['status.dataQualityStatus', 'vendorExtensions.dataFreshness', 'dataQualityStatus'], '—')),
+      dataQualityStatus: context.safeText(context.firstOf(row, ['status.dataQualityStatus', 'dataQualityStatus'], '—')),
       alarmStatus: context.safeText(context.firstOf(row, ['vendorExtensions.alarmStatus', 'alarmStatus'], '—')),
-      sourceSystem: context.safeText(context.firstOf(row, ['vendorExtensions.sourceSystem', 'sourceSystem'], provider), provider),
-      parent: context.safeText(context.firstOf(row, ['vendorExtensions.parentDeviceId', 'vendorExtensions.parent', 'parentDeviceId'], '—')),
-      children: context.firstOf(row, ['vendorExtensions.children', 'children'], null), raw: row
+      sourceSystem: context.safeText(context.firstOf(row, ['source.provider', 'vendorExtensions.sourceSystem', 'sourceSystem'], provider), provider),
+      parent: context.safeText(context.firstOf(row, ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'vendorExtensions.parent', 'parentDeviceId'], '—')),
+      children: context.firstOf(row, ['topology.childCount', 'childCount', 'vendorExtensions.children', 'children'], null),
+      location: context.safeText(context.firstOf(row, ['locationRelation.locationName', 'technical.location', 'location'], '—')),
+      documents: Array.isArray(context.firstOf(row, ['documents'], [])) ? context.firstOf(row, ['documents'], []) : [],
+      raw: row
     };
   });
 

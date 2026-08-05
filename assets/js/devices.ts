@@ -1,7 +1,7 @@
 type ZentridDeviceStatusTone = "success" | "warning" | "danger" | "info" | "neutral" | string;
 
 interface ZentridDeviceRecord {
-  [key: string]: string | number | boolean | null | undefined;
+  [key: string]: any;
   id: string;
   externalId?: string;
   name: string;
@@ -37,6 +37,25 @@ interface ZentridDeviceRecord {
   parent?: string;
   children?: string;
   location?: string;
+  linkedDevices?: unknown;
+  connectivityDetail?: unknown;
+  networkDetail?: unknown;
+  warrantyDetail?: unknown;
+  telemetryLatest?: unknown;
+  auditDetail?: unknown;
+  documents?: ZentridDeviceDocument[];
+  raw?: Record<string, unknown>;
+}
+
+interface ZentridDeviceDocument {
+  id: string;
+  name: string;
+  type: string;
+  status?: string;
+  expiry?: string;
+  uploaded?: boolean;
+  fileName?: string;
+  filePath?: string;
 }
 
 interface ZentridDevicePagerState {
@@ -66,8 +85,54 @@ declare const ZentridLocalStore: ZentridLocalStoreApi;
 declare function plants(): Array<Record<string, unknown>>;
 
 function saveDevices(_list: ZentridDeviceRecord[]): void { /* API-only: use a confirmed backend mutation. */ }
+function optionText(value: unknown): string { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character] || character)); }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
-function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${d.status || 'Unknown'}</span>`; }
+function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${optionText(d.status || 'Unknown')}</span>`; }
+function deviceLifecycleTone(value: unknown): ZentridDeviceStatusTone { const text=String(value||'').toLowerCase(); if(text.includes('inactive')||text.includes('archived')||text.includes('retired')) return 'neutral'; if(text.includes('draft')||text.includes('pending')) return 'warning'; if(text.includes('active')||text.includes('commissioned')) return 'success'; return 'info'; }
+function deviceLifecyclePill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceLifecycleTone(d.lifecycle)}">${optionText(d.lifecycle || 'Unknown')}</span>`; }
+function deviceApiValueRows(payload: unknown, prefix = '', depth = 0): Array<[string, string]> {
+  if (payload === null || payload === undefined || depth > 3) return [];
+  if (Array.isArray(payload)) {
+    return payload.slice(0, 20).flatMap((item, index) => deviceApiValueRows(item, `${prefix}${prefix ? ' · ' : ''}${index + 1}`, depth + 1));
+  }
+  if (typeof payload !== 'object') return [[prefix || 'Value', String(payload)]];
+  return Object.entries(payload as Record<string, unknown>).flatMap(([key, value]) => {
+    const label = `${prefix}${prefix ? ' · ' : ''}${key.replace(/([a-z])([A-Z])/g, '$1 $2')}`;
+    if (value !== null && typeof value === 'object') return deviceApiValueRows(value, label, depth + 1);
+    return [[label, value === null || value === undefined || value === '' ? '—' : String(value)]];
+  });
+}
+function deviceApiPanel(title: string, payload: unknown, emptyText: string): string {
+  const rows = deviceApiValueRows(payload).slice(0, 60);
+  if (!rows.length) return `<div class="empty-state"><strong>${optionText(emptyText)}</strong><small>The endpoint returned no displayable fields.</small></div>`;
+  return `<div class="section-title-v17 mini"><div><h3>${optionText(title)}</h3><p class="muted">Loaded from the updated DeviceRegistry API.</p></div></div><div class="info-grid">${rows.map(([label,value])=>`<div><span>${optionText(label)}</span><strong>${optionText(value)}</strong></div>`).join('')}</div>`;
+}
+function linkedDevicesPanel(payload: unknown): string {
+  const record = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
+  const items = Array.isArray(payload) ? payload : Array.isArray(record.items) ? record.items : Array.isArray(record.data) ? record.data : [];
+  if (!items.length) return `<div class="empty-state"><strong>No linked devices returned</strong><small>GET /api/admin/devices/{id}/linked-devices returned an empty collection.</small></div>`;
+  return `<div class="data-table compact-table subordinate-device-table-v59"><div class="data-head"><span>Status</span><span>Device Type</span><span>Model</span><span>Software Version</span><span>SN</span></div>${items.map(item=>{ const row=(item||{}) as Record<string,unknown>; return `<div class="data-row"><div><span class="badge ${deviceStatusCls(row.status)}">${optionText(row.status || row.operationalStatus || 'Unknown')}</span></div><div><strong>${optionText(row.deviceType || row.type || '—')}</strong></div><div><span>${optionText(row.model || row.name || '—')}</span></div><div><span>${optionText(row.firmwareVersion || row.softwareVersion || '—')}</span></div><div><span>${optionText(row.serialNumber || row.serial || row.id || '—')}</span></div></div>`;}).join('')}</div>`;
+}
+function deviceAuditEntries(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) return payload.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  if (!payload || typeof payload !== 'object') return [];
+  const record=payload as Record<string, unknown>;
+  for (const key of ['items','data','auditHistory','history']) {
+    const value=record[key];
+    if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  }
+  return [];
+}
+function deviceAuditPanel(payload: unknown): string {
+  const entries=deviceAuditEntries(payload);
+  if (!entries.length) return `<div class="empty-state"><strong>No audit entries returned</strong><small>The device audit endpoint returned an empty collection.</small></div>`;
+  return `<div class="timeline-v17 device-api-audit-v141">${entries.map(entry=>{ const occurred=entry.occurredAtUtc || entry.occurredAt || entry.timestamp || '—'; const action=entry.action || 'Activity'; const summary=entry.summary || entry.message || 'Device activity recorded.'; const actor=entry.actor || entry.user || 'System'; const changes=entry.changes && typeof entry.changes==='object' ? Object.entries(entry.changes as Record<string,unknown>).map(([key,value])=>`${key.replace(/([a-z])([A-Z])/g,'$1 $2')}: ${String(value)}`).join(' · ') : ''; return `<div><b>${optionText(occurred)}</b><span><strong>${optionText(action)}</strong> · ${optionText(summary)}<small>${optionText(actor)}${changes ? ` · ${optionText(changes)}` : ''}</small></span></div>`;}).join('')}</div>`;
+}
+function deviceTelemetryPanel(payload: unknown): string {
+  const rows=deviceApiValueRows(payload).slice(0,60);
+  if (!rows.length) return `<div class="empty-state"><strong>Telemetry has not been received</strong><small>The latest telemetry endpoint returned an empty object. This is a valid empty state, not an API error.</small></div>`;
+  return deviceApiPanel('Latest Telemetry', payload, 'No latest telemetry returned');
+}
 function selectedDevice(): ZentridDeviceRecord { const list=devices(); const id=new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device'); const snapshot=window.ZentridLiveSelection?.readDevice?.(id) as ZentridDeviceRecord | null | undefined; return list.find(d=>d.id===id || d.externalId===id || d.serial===id) ?? snapshot ?? (!id ? list[0] : undefined) ?? ({} as ZentridDeviceRecord); }
 function wireDevices(): void {
   const table = document.getElementById('deviceTable') as HTMLElement;
@@ -83,7 +148,7 @@ function wireDevices(): void {
     if(type.value!=='All Types') list=list.filter(d=>d.type===type.value);
     if(status.value!=='All Statuses') list=list.filter(d=>d.status===status.value);
     ZentridRuntimeStability.replaceHtml(table, deviceRows(list));
-    window.ZentridRegistryQuery?.update('devices', { search: q || null, deviceType: type.value === 'All Types' ? null : type.value, deviceStatus: status.value === 'All Statuses' ? null : status.value }, { replace: true, emit: false });
+    window.ZentridRegistryQuery?.update('devices', { search: q || null, deviceType: type.value === 'All Types' ? null : type.value, deviceStatus: status.value === 'All Statuses' ? null : status.value, page: 1 }, { replace: true, emit: true });
     const scope = document.getElementById('deviceFilterScopeV126');
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('devices') || '';
     bindRows();
@@ -94,62 +159,423 @@ function wireDevices(): void {
   bindRows();
   document.getElementById('clearPlantDeviceFilter')?.addEventListener('click',()=>{ localStorage.removeItem('zentrid_device_filter_plant'); location.reload(); });
 
-  document.getElementById('openDeviceCreate')?.addEventListener('click',()=>{
-    const select = document.getElementById('devicePlantSelect') as HTMLSelectElement | null;
-    if (select) {
-      let plantRows: Array<Record<string, unknown>> = [];
-      try { plantRows = typeof plants === 'function' ? plants() : (Array.isArray(window.ZentridLivePlants) ? window.ZentridLivePlants as Array<Record<string, unknown>> : []); } catch(e) { plantRows = []; }
-      const current = localStorage.getItem('zentrid_device_filter_plant') || '';
-      select.innerHTML = plantRows.map(p => `<option value="${String(p.id || '')}" ${String(p.id || '')===current?'selected':''}>${String(p.name || p.id || 'Plant')} · ${String(p.tenant || p.operator || 'Tenant')}</option>`).join('') || '<option value="">No plant selected</option>';
+  let deviceCreatePlantRows: Array<Record<string, unknown>> = [];
+  let deviceCreateProviderRows: Array<Record<string, unknown>> = [];
+  const collectionRows = (payload: unknown): Array<Record<string, unknown>> => {
+    if (Array.isArray(payload)) return payload.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+    if (!payload || typeof payload !== 'object') return [];
+    const record = payload as Record<string, unknown>;
+    for (const key of ['items','data','results','providers','rows']) {
+      const value = record[key];
+      if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+      if (value && typeof value === 'object') {
+        const nested = collectionRows(value);
+        if (nested.length) return nested;
+      }
     }
+    return [];
+  };
+  const plantLocation = (plant: Record<string, unknown>): { id: string; label: string } => {
+    const nested = plant.location && typeof plant.location === 'object' ? plant.location as Record<string, unknown> : {};
+    const id = String(plant.locationId || nested.id || plant.siteLocationId || '');
+    const label = [plant.address || nested.address, plant.city || nested.city, plant.region || nested.region, plant.country || nested.country]
+      .map(value => String(value || '').trim()).filter(Boolean).join(' · ') || String(plant.locationName || nested.name || plant.name || 'Plant location');
+    return { id: id || label, label };
+  };
+  const syncLocationFromPlant = (): void => {
+    const plantSelect = document.getElementById('devicePlantSelect') as HTMLSelectElement | null;
+    const locationSelect = document.getElementById('deviceLocationSelect') as HTMLSelectElement | null;
+    if (!plantSelect || !locationSelect) return;
+    const plant = deviceCreatePlantRows.find(row => String(row.id || row.plantId || row.adminId || '') === plantSelect.value);
+    if (!plant) { locationSelect.innerHTML = '<option value="">Select a plant first</option>'; return; }
+    const location = plantLocation(plant);
+    locationSelect.innerHTML = `<option value="${optionText(location.id)}">${optionText(location.label)}</option>`;
+  };
+  const loadDeviceCreateReferences = async (): Promise<void> => {
+    const plantSelect = document.getElementById('devicePlantSelect') as HTMLSelectElement | null;
+    const vendorSelect = document.getElementById('deviceVendorSelect') as HTMLSelectElement | null;
+    if (plantSelect) plantSelect.innerHTML = '<option value="">Loading plants…</option>';
+    if (vendorSelect) vendorSelect.innerHTML = '<option value="">Loading vendors…</option>';
+    const [plantsResult, providersResult] = await Promise.allSettled([
+      window.ZentridPlatformAPI?.plantRegistry?.list(),
+      window.ZentridPlatformAPI?.live?.integrations()
+    ]);
+    deviceCreatePlantRows = plantsResult.status === 'fulfilled' ? collectionRows(plantsResult.value) : [];
+    deviceCreateProviderRows = providersResult.status === 'fulfilled' ? collectionRows(providersResult.value) : [];
+    const current = localStorage.getItem('zentrid_device_filter_plant') || '';
+    if (plantSelect) {
+      plantSelect.innerHTML = '<option value="">Select plant</option>' + deviceCreatePlantRows.map(row => {
+        const id = String(row.id || row.plantId || row.adminId || '');
+        const name = String(row.name || row.plantName || row.code || id || 'Plant');
+        const tenant = String(row.tenantName || row.tenant || row.operator || '');
+        return `<option value="${optionText(id)}" ${id === current ? 'selected' : ''}>${optionText(name)}${tenant ? ` · ${optionText(tenant)}` : ''}</option>`;
+      }).join('');
+      if (!deviceCreatePlantRows.length) plantSelect.innerHTML = '<option value="">No plants returned by API</option>';
+    }
+    if (vendorSelect) {
+      vendorSelect.innerHTML = '<option value="">Select manufacturer / vendor</option>' + deviceCreateProviderRows.map(row => {
+        const id = String(row.id || row.providerId || row.provider || row.code || row.providerType || row.name || '');
+        const name = String(row.displayName || row.provider || row.name || row.providerName || row.providerType || row.code || id);
+        return `<option value="${optionText(id)}" data-provider-name="${optionText(name)}">${optionText(name)}</option>`;
+      }).join('');
+      if (!deviceCreateProviderRows.length) vendorSelect.innerHTML = '<option value="">No vendors returned by /api/integrations</option>';
+    }
+    syncLocationFromPlant();
+  };
+  document.getElementById('openDeviceCreate')?.addEventListener('click', async ()=>{
     document.getElementById('deviceCreateModal')?.classList.add('open');
+    await loadDeviceCreateReferences().catch(error => {
+      console.groupCollapsed('[Device Create Debug] Reference data load failed');
+      console.error(error);
+      console.groupEnd();
+      ZentridLayout.toast('Device reference data failed to load. Open Console for details.');
+    });
+    syncDevicePayload();
   });
   const closeDeviceCreate = () => document.getElementById('deviceCreateModal')?.classList.remove('open');
   document.getElementById('closeDeviceCreate')?.addEventListener('click', closeDeviceCreate);
   document.getElementById('cancelDeviceCreate')?.addEventListener('click', closeDeviceCreate);
-  document.getElementById('deviceCreateForm')?.addEventListener('submit', (e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget as HTMLFormElement);
-    const field = (name: string, fallback = ''): string => String(fd.get(name) || fallback);
-    let plant: Record<string, unknown> | undefined;
-    try { plant = (typeof plants === 'function' ? plants() : []).find(p => String(p.id || '') === field('plantId')); } catch(err) {}
-    const id = 'DEV-LOCAL-' + String(Date.now()).slice(-7);
-    const device: ZentridDeviceRecord = {
-      dataOrigin:'local',
-      id,
-      externalId:'LOCAL-STORAGE',
-      name: field('name', id),
-      type: field('type', 'Device'),
-      subtype: field('type', 'Device'),
-      manufacturer: field('vendor', 'Manual'),
-      model: field('model', 'Manual Model'),
-      serial: field('serial', id),
-      firmware: field('firmware', '—'),
-      ip:'—', mac:'—',
-      plantId: field('plantId'),
-      plant: String(plant?.name || 'Local Plant'),
-      tenant: String(plant?.tenant || plant?.operator || 'Tenant workspace'),
-      vendor: field('vendor', 'Manual'),
-      integration:'Manual / Local storage',
-      status: field('status', 'Online'),
-      lifecycle:'Active',
-      capacity: field('capacity', '—'),
-      installation: new Date().toISOString().slice(0,10),
-      warranty:'—',
-      lastSeen:'Local draft',
-      alerts:0,
-      sourceStatus:'Local draft',
-      parent: field('location', 'Plant level'),
-      children:'No child objects yet'
+  type DeviceCreateField = { name: string; label: string; path: string; type?: 'text'|'number'|'select'|'checkbox'; required?: boolean; unit?: string; placeholder?: string; options?: string[]; step?: string };
+  const deviceCreateTypeFields: Record<string, DeviceCreateField[]> = {
+    Inverter: [
+      {name:'ratedActivePowerKw',label:'Rated Active Power',path:'specification.ratedActivePowerKw',type:'number',required:true,unit:'kW',step:'any'},
+      {name:'ratedApparentPowerKva',label:'Rated Apparent Power',path:'specification.ratedApparentPowerKva',type:'number',unit:'kVA',step:'any'},
+      {name:'phaseType',label:'Phase Type',path:'specification.phaseType',type:'select',required:true,options:['SinglePhase','ThreePhase']},
+      {name:'inverterCategory',label:'Inverter Category',path:'specification.inverterCategory',type:'select',required:true,options:['String','Central','Hybrid','Microinverter']},
+      {name:'mpptCount',label:'MPPT Count',path:'specification.mpptCount',type:'number',step:'1'},
+      {name:'pvInputCount',label:'PV Input Count',path:'specification.pvInputCount',type:'number',step:'1'},
+      {name:'maxDcVoltageV',label:'Maximum DC Voltage',path:'specification.maxDcVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'maxDcCurrentA',label:'Maximum DC Current',path:'specification.maxDcCurrentA',type:'number',unit:'A',step:'any'},
+      {name:'nominalAcVoltageV',label:'Nominal AC Voltage',path:'specification.nominalAcVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'gridFrequencyHz',label:'Grid Frequency',path:'specification.gridFrequencyHz',type:'select',options:['50','60'],unit:'Hz'},
+      {name:'maxEfficiencyPct',label:'Maximum Efficiency',path:'specification.maxEfficiencyPct',type:'number',unit:'%',step:'any'},
+      {name:'batterySupported',label:'Battery Supported',path:'capabilities.batterySupported',type:'checkbox'}
+    ],
+    Battery: [
+      {name:'chemistry',label:'Battery Chemistry',path:'specification.chemistry',type:'select',required:true,options:['LFP','NMC','LeadAcid','Other']},
+      {name:'nominalCapacityKwh',label:'Nominal Capacity',path:'specification.nominalCapacityKwh',type:'number',required:true,unit:'kWh',step:'any'},
+      {name:'usableCapacityKwh',label:'Usable Capacity',path:'specification.usableCapacityKwh',type:'number',unit:'kWh',step:'any'},
+      {name:'nominalVoltageV',label:'Nominal Voltage',path:'specification.nominalVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'maxChargePowerKw',label:'Maximum Charge Power',path:'specification.maxChargePowerKw',type:'number',unit:'kW',step:'any'},
+      {name:'maxDischargePowerKw',label:'Maximum Discharge Power',path:'specification.maxDischargePowerKw',type:'number',unit:'kW',step:'any'},
+      {name:'minSocPct',label:'Minimum SOC',path:'specification.minSocPct',type:'number',unit:'%',step:'any'},
+      {name:'maxSocPct',label:'Maximum SOC',path:'specification.maxSocPct',type:'number',unit:'%',step:'any'},
+      {name:'reserveSocPct',label:'Backup Reserve SOC',path:'specification.reserveSocPct',type:'number',unit:'%',step:'any'},
+      {name:'moduleCount',label:'Pack / Module Count',path:'specification.moduleCount',type:'number',step:'1'},
+      {name:'bmsModel',label:'BMS Model',path:'specification.bmsModel',type:'text'},
+      {name:'couplingType',label:'Coupling Type',path:'specification.couplingType',type:'select',options:['ACCoupled','DCCoupled']}
+    ],
+    Meter: [
+      {name:'meterType',label:'Meter Type',path:'specification.meterType',type:'select',required:true,options:['Smart','Grid','Generation','Consumption','Revenue']},
+      {name:'measurementDirection',label:'Measurement Direction',path:'specification.measurementDirection',type:'select',required:true,options:['Import','Export','Bidirectional']},
+      {name:'phaseType',label:'Phase Type',path:'specification.phaseType',type:'select',required:true,options:['SinglePhase','ThreePhase']},
+      {name:'nominalVoltageV',label:'Nominal Voltage',path:'specification.nominalVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'nominalCurrentA',label:'Nominal Current',path:'specification.nominalCurrentA',type:'number',unit:'A',step:'any'},
+      {name:'ctRatio',label:'CT Ratio',path:'specification.ctRatio',type:'text',placeholder:'200/5'},
+      {name:'vtRatio',label:'VT Ratio',path:'specification.vtRatio',type:'text',placeholder:'10000/100'},
+      {name:'accuracyClass',label:'Accuracy Class',path:'specification.accuracyClass',type:'select',options:['0.2S','0.5S','1.0','Other']},
+      {name:'modbusAddress',label:'Modbus Address',path:'communication.modbusAddress',type:'number',step:'1'},
+      {name:'accountingPointId',label:'Accounting Point ID',path:'specification.accountingPointId',type:'text'}
+    ],
+    'Weather Station': [
+      {name:'stationType',label:'Station Type',path:'specification.stationType',type:'select',required:true,options:['Compact','Modular','PyranometerOnly','Other']},
+      {name:'irradiance',label:'Irradiance Sensor',path:'capabilities.irradiance',type:'checkbox'},
+      {name:'ambientTemperature',label:'Ambient Temperature Sensor',path:'capabilities.ambientTemperature',type:'checkbox'},
+      {name:'moduleTemperature',label:'Module Temperature Sensor',path:'capabilities.moduleTemperature',type:'checkbox'},
+      {name:'windSpeed',label:'Wind Speed Sensor',path:'capabilities.windSpeed',type:'checkbox'},
+      {name:'windDirection',label:'Wind Direction Sensor',path:'capabilities.windDirection',type:'checkbox'},
+      {name:'humidity',label:'Humidity Sensor',path:'capabilities.humidity',type:'checkbox'},
+      {name:'rainfall',label:'Rainfall Sensor',path:'capabilities.rainfall',type:'checkbox'},
+      {name:'atmosphericPressure',label:'Atmospheric Pressure Sensor',path:'capabilities.atmosphericPressure',type:'checkbox'},
+      {name:'sensorHeightM',label:'Sensor Height',path:'specification.sensorHeightM',type:'number',unit:'m',step:'any'},
+      {name:'samplingIntervalSec',label:'Sampling Interval',path:'communication.samplingIntervalSec',type:'number',unit:'sec',step:'1'}
+    ],
+    Logger: [
+      {name:'loggerType',label:'Logger Type',path:'specification.loggerType',type:'select',required:true,options:['DataLogger','CommunicationManager','VendorLogger','Other']},
+      {name:'protocol',label:'Primary Protocol',path:'communication.protocol',type:'select',options:['ModbusRTU','ModbusTCP','MQTT','REST','Proprietary']},
+      {name:'ethernet',label:'Ethernet Supported',path:'capabilities.ethernet',type:'checkbox'},
+      {name:'wifi',label:'Wi-Fi Supported',path:'capabilities.wifi',type:'checkbox'},
+      {name:'cellular',label:'Cellular Supported',path:'capabilities.cellular',type:'checkbox'},
+      {name:'simIccid',label:'SIM ICCID',path:'communication.simIccid',type:'text'},
+      {name:'imei',label:'IMEI',path:'communication.imei',type:'text'},
+      {name:'lanIp',label:'LAN IP',path:'communication.lanIp',type:'text'},
+      {name:'macAddress',label:'MAC Address',path:'communication.macAddress',type:'text'},
+      {name:'maxConnectedDevices',label:'Maximum Connected Devices',path:'specification.maxConnectedDevices',type:'number',step:'1'},
+      {name:'pollingIntervalSec',label:'Polling Interval',path:'communication.pollingIntervalSec',type:'number',unit:'sec',step:'1'},
+      {name:'timezone',label:'Timezone',path:'communication.timezone',type:'text',placeholder:'Asia/Yerevan'}
+    ],
+    Gateway: [
+      {name:'gatewayRole',label:'Gateway Role',path:'specification.gatewayRole',type:'select',required:true,options:['ProtocolGateway','EdgeGateway','SiteController','CloudGateway']},
+      {name:'primaryConnection',label:'Primary Connection',path:'communication.primaryConnection',type:'select',options:['Ethernet','WiFi','Cellular','Fiber','Other']},
+      {name:'backupConnection',label:'Backup Connection',path:'communication.backupConnection',type:'select',options:['None','Ethernet','WiFi','Cellular','Other']},
+      {name:'edgeProcessing',label:'Edge Processing Enabled',path:'capabilities.edgeProcessing',type:'checkbox'},
+      {name:'localStorageGb',label:'Local Storage Capacity',path:'specification.localStorageGb',type:'number',unit:'GB',step:'any'},
+      {name:'vpn',label:'VPN Supported',path:'capabilities.vpn',type:'checkbox'},
+      {name:'maxConnectedDevices',label:'Connected Device Capacity',path:'specification.maxConnectedDevices',type:'number',step:'1'},
+      {name:'southboundProtocols',label:'Southbound Protocols',path:'communication.southboundProtocols',type:'text',placeholder:'ModbusRTU, ModbusTCP'},
+      {name:'northboundProtocols',label:'Northbound Protocols',path:'communication.northboundProtocols',type:'text',placeholder:'MQTT, HTTPS'}
+    ],
+    Transformer: [
+      {name:'transformerType',label:'Transformer Type',path:'specification.transformerType',type:'select',required:true,options:['StepUp','StepDown','Isolation','Distribution']},
+      {name:'ratedPowerKva',label:'Rated Power',path:'specification.ratedPowerKva',type:'number',required:true,unit:'kVA',step:'any'},
+      {name:'primaryVoltageV',label:'Primary Voltage',path:'specification.primaryVoltageV',type:'number',required:true,unit:'V',step:'any'},
+      {name:'secondaryVoltageV',label:'Secondary Voltage',path:'specification.secondaryVoltageV',type:'number',required:true,unit:'V',step:'any'},
+      {name:'tertiaryVoltageV',label:'Tertiary Voltage',path:'specification.tertiaryVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'phaseCount',label:'Phase Count',path:'specification.phaseCount',type:'select',required:true,options:['1','3']},
+      {name:'vectorGroup',label:'Vector Group',path:'specification.vectorGroup',type:'text',placeholder:'Dyn11'},
+      {name:'frequencyHz',label:'Frequency',path:'specification.frequencyHz',type:'select',options:['50','60'],unit:'Hz'},
+      {name:'coolingMethod',label:'Cooling Method',path:'specification.coolingMethod',type:'select',options:['AN','AF','ONAN','ONAF','OFAF','Other']},
+      {name:'impedancePct',label:'Impedance',path:'specification.impedancePct',type:'number',unit:'%',step:'any'},
+      {name:'tapChangerType',label:'Tap Changer Type',path:'specification.tapChangerType',type:'select',options:['OffCircuit','OnLoad','None']},
+      {name:'installationType',label:'Installation Type',path:'specification.installationType',type:'select',options:['Indoor','Outdoor']},
+      {name:'temperatureSensors',label:'Temperature Sensors',path:'capabilities.temperatureSensors',type:'checkbox'},
+      {name:'oilLevelSensor',label:'Oil Level Sensor',path:'capabilities.oilLevelSensor',type:'checkbox'}
+    ],
+    Microinverter: [
+      {name:'ratedAcPowerW',label:'Rated AC Power',path:'specification.ratedAcPowerW',type:'number',required:true,unit:'W',step:'any'},
+      {name:'moduleInputCount',label:'Module Input Count',path:'specification.moduleInputCount',type:'number',required:true,step:'1'},
+      {name:'mpptCount',label:'MPPT Count',path:'specification.mpptCount',type:'number',step:'1'},
+      {name:'maxInputVoltageV',label:'Maximum Input Voltage',path:'specification.maxInputVoltageV',type:'number',unit:'V',step:'any'},
+      {name:'maxInputCurrentA',label:'Maximum Input Current',path:'specification.maxInputCurrentA',type:'number',unit:'A',step:'any'},
+      {name:'gridFrequencyHz',label:'Grid Frequency',path:'specification.gridFrequencyHz',type:'select',options:['50','60'],unit:'Hz'},
+      {name:'rapidShutdown',label:'Rapid Shutdown Supported',path:'capabilities.rapidShutdown',type:'checkbox'}
+    ],
+    'PV Module': [
+      {name:'ratedPowerWp',label:'Rated Power',path:'specification.ratedPowerWp',type:'number',required:true,unit:'Wp',step:'any'},
+      {name:'moduleTechnology',label:'Module Technology',path:'specification.moduleTechnology',type:'select',required:true,options:['Monocrystalline','Polycrystalline','ThinFilm','Bifacial']},
+      {name:'cellTechnology',label:'Cell Technology',path:'specification.cellTechnology',type:'select',options:['PERC','TOPCon','HJT','IBC','Other']},
+      {name:'efficiencyPct',label:'Module Efficiency',path:'specification.efficiencyPct',type:'number',unit:'%',step:'any'},
+      {name:'vocV',label:'Open Circuit Voltage',path:'specification.vocV',type:'number',unit:'V',step:'any'},
+      {name:'iscA',label:'Short Circuit Current',path:'specification.iscA',type:'number',unit:'A',step:'any'},
+      {name:'vmpV',label:'Maximum Power Voltage',path:'specification.vmpV',type:'number',unit:'V',step:'any'},
+      {name:'impA',label:'Maximum Power Current',path:'specification.impA',type:'number',unit:'A',step:'any'},
+      {name:'cellCount',label:'Cell Count',path:'specification.cellCount',type:'number',step:'1'},
+      {name:'bifacialFactorPct',label:'Bifacial Factor',path:'specification.bifacialFactorPct',type:'number',unit:'%',step:'any'},
+      {name:'row',label:'Position Row',path:'position.row',type:'text'},
+      {name:'column',label:'Position Column',path:'position.column',type:'text'}
+    ],
+    Other: [
+      {name:'customType',label:'Custom Device Type',path:'specification.customType',type:'text',required:true},
+      {name:'description',label:'Technical Description',path:'specification.description',type:'text'}
+    ]
+  };
+  const setNestedDeviceValue = (target: Record<string, unknown>, path: string, value: unknown): void => {
+    const parts = path.split('.'); let cursor: Record<string, unknown> = target;
+    parts.forEach((part, index) => { if (index === parts.length - 1) cursor[part] = value; else { const next = cursor[part]; if (!next || typeof next !== 'object' || Array.isArray(next)) cursor[part] = {}; cursor = cursor[part] as Record<string, unknown>; } });
+  };
+  const renderDeviceTypeFields = (): void => {
+    const host = document.getElementById('deviceTypeSpecificFields');
+    const form = document.getElementById('deviceCreateForm') as HTMLFormElement | null;
+    if (!host || !form) return;
+    const type = String(new FormData(form).get('type') || 'Inverter');
+    const fields = deviceCreateTypeFields[type] || deviceCreateTypeFields.Other || [];
+    const placeholderForField = (field: DeviceCreateField): string => {
+      if (field.placeholder) return field.placeholder;
+      if (field.type === 'number') {
+        if (field.unit === '%') return 'e.g. 95';
+        if (field.unit === 'Hz') return 'e.g. 50';
+        if (field.unit === 'V') return 'e.g. 400';
+        if (field.unit === 'A') return 'e.g. 120';
+        if (field.unit === 'kW' || field.unit === 'kVA' || field.unit === 'kWh') return 'e.g. 100';
+        if (field.unit === 'W' || field.unit === 'Wp') return 'e.g. 550';
+        if (field.unit === 'GB') return 'e.g. 64';
+        if (field.unit === 'm') return 'e.g. 2.5';
+        return field.step === '1' ? 'e.g. 1' : 'e.g. 10';
+      }
+      return `Enter ${field.label.toLowerCase()}`;
     };
-    if (window.ZentridLocalStore) ZentridLocalStore.addDevice(device);
-    else { const rows = devices(); rows.unshift(device); saveDevices(rows); }
-    localStorage.setItem('zentrid_selected_device', id);
-    window.ZentridFormReadiness?.markCommitted(e.currentTarget as HTMLFormElement);
-    ZentridLayout.toast('Device saved locally');
-    closeDeviceCreate();
-    table.innerHTML = deviceRows(baseList());
-    bindRows();
+    host.innerHTML = `<div class="full device-type-fields-head"><strong>${optionText(type)} technical specification</strong><small>Fields below are specific to the selected device type.</small></div>` + fields.map(field => {
+      const req = field.required ? ' required aria-required="true"' : '';
+      const labelText = `<span class="device-field-label">${optionText(field.label)}${field.unit ? `<small class="device-field-unit">${optionText(field.unit)}</small>` : ''}</span>`;
+      if (field.type === 'select') return `<label>${labelText}<select name="${optionText(field.name)}" data-device-path="${optionText(field.path)}"${req}><option value="">Select ${optionText(field.label.toLowerCase())}</option>${(field.options||[]).map(v=>`<option value="${optionText(v)}">${optionText(v)}</option>`).join('')}</select></label>`;
+      if (field.type === 'checkbox') return `<label class="device-checkbox-field"><input type="checkbox" name="${optionText(field.name)}" data-device-path="${optionText(field.path)}"><span>${optionText(field.label)}</span></label>`;
+      return `<label>${labelText}<input type="${field.type === 'number' ? 'number' : 'text'}" name="${optionText(field.name)}" data-device-path="${optionText(field.path)}"${field.step ? ` step="${optionText(field.step)}"` : ''} placeholder="${optionText(placeholderForField(field))}"${req}></label>`;
+    }).join('');
+    host.querySelectorAll('input,select').forEach(control => { control.addEventListener('input', syncDevicePayload); control.addEventListener('change', syncDevicePayload); });
+  };
+  const deviceCreateForm = document.getElementById('deviceCreateForm') as HTMLFormElement | null;
+  const buildDeviceCreatePayload = (): Record<string, unknown> => {
+    const fd = new FormData(deviceCreateForm || undefined);
+    const field = (name: string): string => String(fd.get(name) || '').trim();
+    const providerValue = field('vendorId');
+    const providerName = (document.getElementById('deviceVendorSelect') as HTMLSelectElement | null)?.selectedOptions[0]?.dataset.providerName || providerValue;
+    const locationValue = field('locationId');
+    const locationText = (document.getElementById('deviceLocationSelect') as HTMLSelectElement | null)?.selectedOptions[0]?.textContent?.trim() || '';
+    const selectedType = field('type');
+    const canonicalType: Record<string,string> = { 'Weather Station':'WeatherStation', 'PV Module':'PVModule' };
+    const deviceType = canonicalType[selectedType] || selectedType;
+    const deviceName = field('name');
+    const serialNumber = field('serial');
+    const deviceCode = (deviceName || serialNumber || deviceType)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || `device-${Date.now()}`;
+    const model = field('model');
+    const payload: Record<string, unknown> = {
+      deviceCode,
+      plantRelation: { plantId: field('plantId') },
+      identity: {
+        deviceName,
+        deviceType,
+        serialNumber,
+        deviceCode,
+        manufacturer: providerName,
+        model
+      },
+      source: {
+        provider: providerName,
+        sourceDeviceId: serialNumber
+      },
+      status: {
+        lifecycleStatus: field('status') || 'Draft'
+      },
+      technical: {
+        vendorModel: model,
+        firmwareVersion: field('firmware'),
+        location: locationText || locationValue
+      }
+    };
+    deviceCreateForm?.querySelectorAll<HTMLElement>('[data-device-path]').forEach(control => {
+      const path = control.dataset.devicePath || '';
+      if (!path) return;
+      let value: unknown = '';
+      if (control instanceof HTMLInputElement && control.type === 'checkbox') value = control.checked;
+      else if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement) value = control.value.trim();
+      if (value === '' || value === false) return;
+      if (control instanceof HTMLInputElement && control.type === 'number') value = Number(control.value);
+      if ((path.endsWith('Protocols')) && typeof value === 'string') value = value.split(',').map(item => item.trim()).filter(Boolean);
+      setNestedDeviceValue(payload, path, value);
+    });
+    const specification = payload.specification && typeof payload.specification === 'object' ? payload.specification as Record<string, unknown> : null;
+    const technical = payload.technical && typeof payload.technical === 'object' ? payload.technical as Record<string, unknown> : null;
+    if (technical && specification) {
+      const ratedPower = specification.ratedActivePowerKw ?? specification.ratedPowerKw ?? specification.ratedPowerKva;
+      if (ratedPower !== undefined && ratedPower !== null && ratedPower !== '') technical.ratedPowerKw = ratedPower;
+    }
+    const compactObject = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(compactObject).filter(item => item !== undefined);
+      if (!value || typeof value !== 'object') return value === '' ? undefined : value;
+      const entries = Object.entries(value as Record<string, unknown>)
+        .map(([key, item]) => [key, compactObject(item)] as const)
+        .filter(([, item]) => item !== undefined);
+      return entries.length ? Object.fromEntries(entries) : undefined;
+    };
+    return compactObject(payload) as Record<string, unknown>;
+  };
+  const syncDevicePayload = (): void => { /* Payload is generated in memory and logged on submit. */ };
+  deviceCreateForm?.querySelectorAll('input,select').forEach(control => { control.addEventListener('input', syncDevicePayload); control.addEventListener('change', syncDevicePayload); });
+  deviceCreateForm?.querySelector<HTMLSelectElement>('select[name="type"]')?.addEventListener('change', () => { renderDeviceTypeFields(); syncDevicePayload(); });
+  renderDeviceTypeFields();
+  document.getElementById('devicePlantSelect')?.addEventListener('change', () => { syncLocationFromPlant(); syncDevicePayload(); });
+  deviceCreateForm?.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const submit = deviceCreateForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    const payload = buildDeviceCreatePayload();
+    const requestStartedAt = new Date();
+    const requestStartedAtMs = requestStartedAt.getTime();
+    const debugId = `device-create-${requestStartedAtMs}`;
+    const endpoint = '/api/admin/devices';
+    console.group(`[Device Create Debug] ${debugId} · POST ${endpoint}`);
+    console.info('Started at', requestStartedAt.toISOString());
+    console.info('Request endpoint', endpoint);
+    console.info('Request payload', payload);
+    console.info('Request payload JSON', JSON.stringify(payload, null, 2));
+    const persistCreateDebug = (details: Record<string, unknown>): void => {
+      const snapshot = { debugId, endpoint, timestamp: new Date().toISOString(), requestPayload: payload, ...details };
+      try { sessionStorage.setItem('zentrid_last_device_create_debug', JSON.stringify(snapshot, null, 2)); } catch (_error) { /* best effort */ }
+      (window as unknown as { __ZENTRID_LAST_DEVICE_CREATE_DEBUG__?: unknown }).__ZENTRID_LAST_DEVICE_CREATE_DEBUG__ = snapshot;
+      console.info('Persistent debug snapshot', snapshot);
+      console.info('Copy later with: copy(window.__ZENTRID_LAST_DEVICE_CREATE_DEBUG__)');
+    };
+    try {
+      const response = await window.ZentridPlatformAPI?.deviceRegistry?.create(payload);
+      const created = (response && typeof response === 'object' && 'data' in response) ? (response as { data?: unknown }).data : response;
+      const createdRecord = created && typeof created === 'object' ? created as Record<string, unknown> : {};
+      const createdId = String(createdRecord.id || createdRecord.deviceId || createdRecord.adminId || '');
+      console.info('HTTP/API response', response);
+      console.info('Normalized created record', created);
+      console.info('Resolved device id', createdId || '(not returned)');
+      persistCreateDebug({ outcome: 'success', apiResponse: response, createdRecord: created, createdId });
+      if (createdId) localStorage.setItem('zentrid_selected_device', createdId);
+      window.ZentridFormReadiness?.markCommitted(deviceCreateForm);
+      ZentridLayout.toast('Device created through Admin API');
+      window.setTimeout(() => location.reload(), 700);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const errorRecord = error && typeof error === 'object' ? error as Record<string, unknown> : null;
+      const backendBody = errorRecord?.responseBody;
+      const validationErrors = backendBody && typeof backendBody === 'object' && 'errors' in (backendBody as Record<string, unknown>)
+        ? (backendBody as { errors?: Record<string, unknown> }).errors || {}
+        : {};
+      const operationalStatusBlocked = Object.prototype.hasOwnProperty.call(validationErrors, 'status.operationalStatus');
+      console.error('Create request failed', error);
+      console.error('Error message', message);
+      console.error('Backend response body', backendBody ?? '(not available)');
+      console.error('Validation errors', validationErrors);
+      const errorProperties = errorRecord ? Object.fromEntries(Object.getOwnPropertyNames(errorRecord).map(key => [key, errorRecord[key]])) : error;
+      console.info('Error object properties', errorProperties);
+      const status = typeof errorRecord?.status === 'number' ? errorRecord.status : null;
+      const shouldVerifyCommit = status === null || [500, 502, 503, 504].includes(status);
+      persistCreateDebug({ outcome: 'request-error', errorMessage: message, backendResponse: backendBody, validationErrors, errorProperties, httpStatus: status, commitVerificationEligible: shouldVerifyCommit });
+
+      if (!shouldVerifyCommit) {
+        console.info(`Commit verification skipped for HTTP ${status}. Validation/client errors are treated as pre-commit failures.`);
+        if (Object.keys(validationErrors).length) console.table(Object.entries(validationErrors).map(([field, details]) => ({ field, details: Array.isArray(details) ? details.join(' | ') : String(details) })));
+        ZentridLayout.toast(operationalStatusBlocked ? 'Device API is waiting for the operationalStatus backend fix' : 'Device validation failed. Open Console for field details.');
+      } else {
+        console.warn(`The request returned ${status ? `HTTP ${status}` : 'a network error'}. Verifying whether this exact device was committed…`);
+        try {
+          const deviceCode = String(payload.deviceCode || '');
+          const identity = payload.identity && typeof payload.identity === 'object' ? payload.identity as Record<string, unknown> : {};
+          const plantRelation = payload.plantRelation && typeof payload.plantRelation === 'object' ? payload.plantRelation as Record<string, unknown> : {};
+          const source = payload.source && typeof payload.source === 'object' ? payload.source as Record<string, unknown> : {};
+          const serialNumber = String(identity.serialNumber || '');
+          const plantId = String(plantRelation.plantId || '');
+          const sourceDeviceId = String(source.sourceDeviceId || '');
+          const verificationResponse = await window.ZentridPlatformAPI?.deviceRegistry?.list({ search: deviceCode, page: 1, pageSize: 100 });
+          const verificationBody = verificationResponse && typeof verificationResponse === 'object' && 'data' in verificationResponse
+            ? (verificationResponse as { data?: unknown }).data
+            : verificationResponse;
+          const verificationRecord = verificationBody && typeof verificationBody === 'object' ? verificationBody as Record<string, unknown> : {};
+          const items = Array.isArray(verificationRecord.items) ? verificationRecord.items as Array<Record<string, unknown>> : Array.isArray(verificationBody) ? verificationBody as Array<Record<string, unknown>> : [];
+          const normalize = (value: unknown): string => String(value || '').trim().toLowerCase();
+          const match = items.find(item => {
+            const createdAtMs = Date.parse(String(item.createdAtUtc || ''));
+            const recentEnough = Number.isFinite(createdAtMs) && createdAtMs >= requestStartedAtMs - 5000;
+            const sameCode = normalize(item.deviceCode) === normalize(deviceCode);
+            const sameSerial = !serialNumber || normalize(item.serialNumber) === normalize(serialNumber);
+            const samePlant = !plantId || normalize(item.plantId) === normalize(plantId);
+            const sameSource = !sourceDeviceId || !item.sourceDeviceId || normalize(item.sourceDeviceId) === normalize(sourceDeviceId);
+            return sameCode && sameSerial && samePlant && sameSource && recentEnough;
+          });
+          console.info('Post-error verification criteria', { deviceCode, serialNumber, plantId, sourceDeviceId, requestStartedAt: requestStartedAt.toISOString(), allowedClockSkewMs: 5000 });
+          console.info('Post-error verification response', verificationResponse);
+          console.table(items.map(item => ({ id: item.id, deviceCode: item.deviceCode, serialNumber: item.serialNumber, plantId: item.plantId, deviceName: item.deviceName, lifecycleStatus: item.lifecycleStatus, provider: item.provider, createdAtUtc: item.createdAtUtc })));
+          if (match) {
+            console.warn('POST returned an error, but the exact newly-created device was found on the server.', match);
+            const createdId = String(match.id || '');
+            if (createdId) localStorage.setItem('zentrid_selected_device', createdId);
+            persistCreateDebug({ outcome: 'committed-after-error', backendResponse: backendBody, validationErrors, verifiedDevice: match, verificationResponse, verificationCriteria: { deviceCode, serialNumber, plantId, sourceDeviceId, requestStartedAt: requestStartedAt.toISOString() } });
+            console.error(`Backend returned ${status ? `HTTP ${status}` : 'a network error'} after the device was committed. The popup will remain open and the page will not reload.`);
+            console.info('Use copy(window.__ZENTRID_LAST_DEVICE_CREATE_DEBUG__) to copy the complete debug object.');
+            ZentridLayout.toast(`Device was created, but backend returned ${status || 'a network error'}. Popup kept open; see Console.`);
+          } else {
+            persistCreateDebug({ outcome: 'not-found-after-error', backendResponse: backendBody, validationErrors, verificationResponse, verificationCriteria: { deviceCode, serialNumber, plantId, sourceDeviceId, requestStartedAt: requestStartedAt.toISOString() } });
+            console.error('Verification did not find an exact newly-created device. Older records with the same deviceCode are ignored.');
+            ZentridLayout.toast('Device creation failed or could not be confirmed. Open Console for full debug.');
+          }
+        } catch (verificationError) {
+          persistCreateDebug({ outcome: 'verification-error', backendResponse: backendBody, validationErrors, verificationError: verificationError instanceof Error ? { name: verificationError.name, message: verificationError.message, stack: verificationError.stack } : String(verificationError) });
+          console.error('Post-error verification request also failed', verificationError);
+          ZentridLayout.toast('Device creation returned an error. Open Console for full debug.');
+        }
+      }
+    } finally {
+      console.info('Finished at', new Date().toISOString());
+      console.groupEnd();
+      if (submit) submit.disabled = false;
+    }
   });
 
   document.getElementById('openDeviceSource')?.addEventListener('click',()=>document.getElementById('deviceSourceDrawer')?.classList.add('open'));
@@ -202,19 +628,15 @@ function telemetrySummaryPanelV92(d: ZentridDeviceRecord): string {
   ${cardGrid(rows, 'device-param-grid-v58')}`;
 }
 function lifecyclePanelV92(d: ZentridDeviceRecord): string {
-  return `<div class="section-title-v17"><div><h2>Lifecycle / Replacement History</h2><p class="muted">Device lifecycle state, service events, replacement trace and warranty checkpoints.</p></div></div>
+  return `<div class="section-title-v17"><div><h2>Lifecycle / Replacement History</h2><p class="muted">Lifecycle status comes from DeviceRegistry; warranty and audit data load from their dedicated endpoints.</p></div></div>
   <div class="device-lifecycle-summary-v92">
-    <article><span>Lifecycle Status</span><strong>${d.lifecycle || 'Active'}</strong><small>Active device in operational registry</small></article>
-    <article><span>Commissioning Date</span><strong>${d.installation}</strong><small>First operational binding</small></article>
-    <article><span>Warranty Until</span><strong>${d.warranty}</strong><small>Warranty and service tracking</small></article>
+    <article><span>Lifecycle Status</span><strong>${deviceLifecyclePill(d)}</strong><small>Registry lifecycle state</small></article>
+    <article><span>Operational Status</span><strong>${deviceStatusPill(d)}</strong><small>Connectivity and operating state</small></article>
+    <article><span>Commissioning Date</span><strong>${optionText(d.installation || '—')}</strong><small>First operational binding</small></article>
+    <article><span>Warranty Until</span><strong>${optionText(d.warranty || '—')}</strong><small>Warranty and service tracking</small></article>
   </div>
-  <div class="timeline-v17 device-lifecycle-v92">
-    <div><b>${d.installation}</b><span>Commissioned and linked to ${d.plant}</span></div>
-    <div><b>2025</b><span>Firmware baseline confirmed · ${d.firmware}</span></div>
-    <div><b>2026</b><span>Topology relation checked · ${d.parent}</span></div>
-    <div><b>2026</b><span>${d.type==='Battery' ? 'Battery health inspection completed' : d.type==='Meter' ? 'Accounting point verification completed' : 'Communication module / device health verified'}</span></div>
-    <div><b>Next</b><span>Warranty inspection and replacement eligibility review</span></div>
-  </div>`;
+  ${deviceApiPanel('Warranty API', d.warrantyDetail, 'No warranty record returned')}
+  <div class="section-title-v17 mini"><div><h3>Lifecycle Audit</h3><p class="muted">Server-recorded create, update and lifecycle actions.</p></div></div>${deviceAuditPanel(d.auditDetail)}`;
 }
 function relatedObjectsPanelV92(d: ZentridDeviceRecord): string {
   return `<div class="section-title-v17"><div><h2>Related Objects</h2><p class="muted">Shows where the device belongs in Zentrid and who is responsible for it.</p></div></div>
@@ -234,16 +656,39 @@ function relatedObjectsPanelV92(d: ZentridDeviceRecord): string {
     <div class="data-row"><div><strong>Service Team</strong></div><div><span>Tenant Operations Team</span></div><div><small>Device support, replacement and field checks</small></div><div><button class="small-btn" type="button" onclick="location.href='tasks-work-orders.html'">Tasks</button></div></div>
   </div>`;
 }
+const DEVICE_DOCUMENT_TYPES = ['Technical','Commercial','Legal','Compliance','Warranty','Manual','Other'];
+function deviceDocumentCacheKey(deviceId: string): string { return `zentrid_device_documents_${deviceId}`; }
+function readDeviceDocumentCache(deviceId: string): ZentridDeviceDocument[] {
+  try { const parsed=JSON.parse(sessionStorage.getItem(deviceDocumentCacheKey(deviceId)) || '[]'); return Array.isArray(parsed) ? parsed : []; } catch (_error) { return []; }
+}
+function writeDeviceDocumentCache(deviceId: string, documents: ZentridDeviceDocument[]): void {
+  try { sessionStorage.setItem(deviceDocumentCacheKey(deviceId), JSON.stringify(documents)); } catch (_error) { /* best effort */ }
+}
+function deviceDocuments(d: ZentridDeviceRecord): ZentridDeviceDocument[] {
+  const apiDocuments=Array.isArray(d.documents) ? d.documents.filter(item => item && typeof item === 'object') : [];
+  const cached=readDeviceDocumentCache(d.id);
+  const merged=[...apiDocuments, ...cached].reduce<ZentridDeviceDocument[]>((items, item) => {
+    const document=item as ZentridDeviceDocument; const key=String(document.id || document.filePath || document.fileName || '');
+    if (!key || items.some(existing => String(existing.id || existing.filePath || existing.fileName) === key)) return items;
+    items.push(document); return items;
+  }, []);
+  return merged;
+}
 function deviceDocumentsPanelV92(d: ZentridDeviceRecord): string {
-  return `<div class="section-title-v17"><div><h2>Documents</h2><p class="muted">Device-level documents for support, warranty, commissioning and compliance.</p></div></div>
-  <div class="document-grid-v17 device-documents-v92">
-    <article><strong>Datasheet</strong><small>${d.manufacturer || d.vendor} ${d.model} · PDF · Valid</small><button class="small-btn" type="button">View</button></article>
-    <article><strong>Warranty Certificate</strong><small>Until ${d.warranty} · Linked to serial ${d.serial}</small><button class="small-btn" type="button">View</button></article>
-    <article><strong>Installation Report</strong><small>${d.installation} · Commissioning evidence</small><button class="small-btn" type="button">View</button></article>
-    <article><strong>Service Report</strong><small>Last inspection · 2026 · No blocker</small><button class="small-btn" type="button">View</button></article>
-    <article><strong>Firmware Snapshot</strong><small>${d.firmware} · Vendor source record</small><button class="small-btn" type="button">View</button></article>
-    <article><strong>Replacement Record</strong><small>No active replacement case</small><button class="small-btn" type="button">Create</button></article>
-  </div>`;
+  const documents=deviceDocuments(d);
+  const rows=documents.length ? documents.map(document => `<div class="data-row" data-device-document-id="${optionText(document.id)}"><div><strong>${optionText(document.name || document.fileName || 'Device document')}</strong><small>${optionText(document.fileName || 'Stored file')}</small></div><div><span>${optionText(document.type || 'Other')}</span></div><div><span class="badge ${String(document.status || '').toLowerCase()==='pending' ? 'warning' : 'success'}">${optionText(document.status || 'Uploaded')}</span></div><div><span>${optionText(document.expiry || '—')}</span></div><div class="mini-row-actions"><button class="small-btn" type="button" data-download-device-document="${optionText(document.id)}">Download</button><button class="danger-action" type="button" data-delete-device-document="${optionText(document.id)}">Delete</button></div></div>`).join('') : '<div class="empty-state"><strong>No device documents</strong><small>Upload a document to make it available from Device Detail.</small></div>';
+  return `<div class="section-title-v17"><div><h2>Documents</h2><p class="muted">Upload, download and delete files through the DeviceRegistry document endpoints.</p></div></div>
+  <form id="deviceDocumentUploadForm" class="glass-card compact-form device-document-upload-v141" novalidate>
+    <div class="form-grid">
+      <label>Document Name<input id="deviceDocumentName" name="name" required placeholder="Document name"></label>
+      <label>Type<select id="deviceDocumentType" name="type">${DEVICE_DOCUMENT_TYPES.map(type => `<option value="${type}">${type}</option>`).join('')}</select></label>
+      <label>Expiry<input id="deviceDocumentExpiry" name="expiry" type="datetime-local"></label>
+      <label class="full">File<input id="deviceDocumentFile" name="file" type="file" required></label>
+    </div>
+    <div id="deviceDocumentFeedback" class="api-inline-result" aria-live="polite"></div>
+    <div class="drawer-actions"><button class="primary-action" type="submit">Upload Document</button></div>
+  </form>
+  <div class="data-table compact-table device-document-table-v141"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Actions</span></div>${rows}</div>`;
 }
 function deviceAuditPanelV92(d: ZentridDeviceRecord): string {
   return `<div class="section-title-v17"><div><h2>Audit</h2><p class="muted">Immutable device change trail across registry, integration, topology and user actions.</p></div></div>
@@ -316,11 +761,11 @@ function renderDevices(): string {
   const statuses=Array.from(new Set(['Online','Warning','Fault','Offline','Draft',...all.map(d=>String(d.status||'').trim()).filter(Boolean)]));
   const optionText=(value: unknown): string=>String(value??'').replace(/[&<>"']/g, character=>({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]||character));
   const filterBanner=activePlantFilter ? `<div class="filter-banner"><div><strong>Filtered by plant</strong><small>${activePlant ? activePlant.plant : activePlantFilter} · ${list.length} device records</small></div><button id="clearPlantDeviceFilter">Clear filter</button></div>` : '';
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>Device List</h1><p class="muted">All devices connected to Plants, grouped by plant, tenant, vendor source and operational status.</p></div><div class="hero-actions"><button class="create-action" id="openDeviceCreate" type="button"><span class="pulse"></span><div><strong>+ Add Device</strong><small>Save to localStorage</small></div></button><button class="freshness-card" id="openDeviceSource"><span class="pulse"></span><div><strong>Source Traceability</strong><small>Vendor ID → Zentrid Device</small></div></button></div></section>
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>Device List</h1><p class="muted">All devices connected to Plants, grouped by plant, tenant, vendor source and operational status.</p></div><div class="hero-actions"><button class="create-action" id="openDeviceCreate" type="button"><span class="pulse"></span><div><strong>+ Add Device</strong><small>POST /api/admin/devices</small></div></button><button class="freshness-card" id="openDeviceSource"><span class="pulse"></span><div><strong>Source Traceability</strong><small>Vendor ID → Zentrid Device</small></div></button></div></section>
   ${filterBanner}
   <section class="context-bar glass-card"><button class="ctx-item"><span>Total Devices</span><strong>${(serverPagination?.totalCount || list.length).toLocaleString()}</strong></button><button class="ctx-item"><span>Online</span><strong>${online}</strong></button><button class="ctx-item"><span>Attention</span><strong>${attention}</strong></button><button class="ctx-item"><span>Mapped Devices</span><strong>${mapped}</strong></button></section>
   <section class="panel glass-card"><div class="panel-head"><div><h2>Device List</h2><p>Search by device, plant, tenant, vendor, type, serial or status.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${optionText(t)}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${statuses.map(value=>`<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
-  <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head"><div><h2>Add Device</h2><p>Creates a local device record and shows it in Device List and Device Detail after refresh.</p></div><span class="badge info">localStorage</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-zentrid-form-readiness="local" data-zentrid-form-contract="DeviceCreateDraft" data-zentrid-form-method="POST" data-zentrid-form-validation="native" data-zentrid-form-api-note="A Device create endpoint is not confirmed; Save Device continues to store a local record only."><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect"></select></label><label>Status<select name="status"><option>Online</option><option>Warning</option><option>Offline</option><option>Draft</option></select></label><label>Vendor<input name="vendor" placeholder="Huawei / GoodWe / Manual"></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Capacity / Role<input name="capacity" placeholder="100 kW / Bidirectional / Logger"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<input name="location" placeholder="Area A / Control room"></label><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Save Device</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
+  <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal device-create-modal-v2"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head device-create-panel-head"><div><h2>Add Device</h2><p>Create a typed administrative device. Common identity fields stay fixed; technical specification changes by Device Type.</p></div><span class="badge info">Typed Admin API</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-zentrid-form-readiness="api" data-zentrid-form-contract="DeviceCreateRequest" data-zentrid-form-method="POST" data-zentrid-form-validation="native" data-zentrid-form-api-note="POST /api/admin/devices with type-specific specification, capabilities and communication objects."><div class="full device-form-section-title"><strong>Classification & identity</strong><small>Fields shared by every device type.</small></div><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Microinverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>PV Module</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect" required></select></label><label>Administrative Status<select name="status"><option>Draft</option><option>Active</option><option>Inactive</option></select></label><label>Manufacturer / Vendor<select name="vendorId" id="deviceVendorSelect" required><option value="">Loading vendors…</option></select></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<select name="locationId" id="deviceLocationSelect" required><option value="">Select a plant first</option></select><small>Location is loaded from the selected plant record.</small></label><div id="deviceTypeSpecificFields" class="full client-form-grid two-col device-type-specific-fields"></div><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Create Device via API</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
 }
 function devicePrimaryMetric(d: ZentridDeviceRecord): ZentridDevicePrimaryMetric {
   const k=deviceTypeKey(d);
@@ -332,7 +777,7 @@ function devicePrimaryMetric(d: ZentridDeviceRecord): ZentridDevicePrimaryMetric
   return {label:'Active Power', value:d.power||'83.4 kW', hint:'Realtime output'};
 }
 function deviceHeroActions(d: ZentridDeviceRecord): string {
-  return `<button class="secondary-action" type="button" onclick="location.href='devices.html'">Back to Device List</button><button class="secondary-action" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${d.plantId}');location.href='plant-detail.html'">Open Plant</button><button class="primary-action" type="button" id="refreshDeviceV59">Refresh</button>`;
+  return `<button class="secondary-action" type="button" onclick="location.href='devices.html'">Back to Device List</button><button class="secondary-action" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${d.plantId}');location.href='plant-detail.html'">Open Plant</button><button class="secondary-action" type="button" id="openDeviceEdit">Edit Device</button><button class="primary-action" type="button" id="refreshDeviceV59">Refresh</button>`;
 }
 function deviceKpis(d: ZentridDeviceRecord): string {
   const primary=devicePrimaryMetric(d);
@@ -546,43 +991,202 @@ function deviceLazyPanel(tab: ZentridDeviceTab, content: string): string {
   return window.ZentridDetailLazyTabs?.panel('device', String(tab || 'overview'), content) || content;
 }
 function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): string {
-  if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${operatingDataGrid(d)}`;
-  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Chart-ready operational view for ${deviceTypeLabel(d)}.</p></div></div>${deviceTelemetryCharts(d)}<div class="section-title-v17 mini"><div><h3>Live Metrics</h3><p class="muted">Fast numeric inspection from the loaded telemetry records.</p></div></div>${operatingDataGrid(d)}`);
+  if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Operational Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Lifecycle</span><strong>${deviceLifecyclePill(d)}</strong><small>Device Registry state</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${operatingDataGrid(d)}`;
+  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Latest type-specific snapshot from DeviceRegistry.</p></div></div>${deviceTelemetryPanel(d.telemetryLatest)}`);
   if(tab==='architecture') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Architecture</h2><p class="muted">Visual relationship between plant, device and connected objects.</p></div></div>${architectureFlow(d)}${architectureRelations(d)}`);
   if(tab==='strings') return `<div class="section-title-v17"><div><h2>PV Strings / Inputs</h2><p class="muted">MPPT and PV input values for inverter and microinverter devices.</p></div></div>${stringRows(d)}`;
   if(tab==='battery') return `<div class="section-title-v17"><div><h2>Battery State</h2><p class="muted">Storage-specific information: SOC, health, voltage/current, packages and limits.</p></div></div>${batteryDetail(d)}`;
-  if(tab==='connectivity') return `<div class="section-title-v17"><div><h2>Connectivity</h2><p class="muted">Logger / communication module status and subordinate devices.</p></div></div>${operatingDataGrid(d)}<div class="section-title-v17 mini"><div><h3>Subordinate Devices</h3><p class="muted">Devices managed through this logger.</p></div></div><div class="data-table compact-table subordinate-device-table-v59"><div class="data-head"><span>Status</span><span>Device Type</span><span>Model</span><span>Software Version</span><span>SN</span></div><div class="data-row"><div><span class="badge success">Connected</span></div><div><strong>Inverter</strong></div><div><span>SUN2000-50KTL-M0</span></div><div><span>V300R001C00SPC127</span></div><div><span>BN2251034144</span></div></div><div class="data-row"><div><span class="badge success">Connected</span></div><div><strong>Meter</strong></div><div><span>DTSU666-H</span></div><div><span>1.2.9</span></div><div><span>SN-MTR-00088</span></div></div></div>`;
+  if(tab==='connectivity') return `<div class="section-title-v17"><div><h2>Connectivity</h2><p class="muted">Logger / communication module status and subordinate devices.</p></div></div>${deviceApiPanel('Connectivity', d.connectivityDetail, 'No connectivity record returned')}${deviceApiPanel('Network', d.networkDetail, 'No network record returned')}<div class="section-title-v17 mini"><div><h3>Subordinate Devices</h3><p class="muted">Devices managed through this logger.</p></div></div>${linkedDevicesPanel(d.linkedDevices)}`;
   if(tab==='measurements') return `<div class="section-title-v17"><div><h2>Measurements</h2><p class="muted">Meter measurements for import/export and accounting context.</p></div></div>${operatingDataGrid(d)}${cardGrid([['Total Import',deviceMetricValue(d,'import')],['Total Export',deviceMetricValue(d,'export')],['Accounting Source','Smart Meter'],['Data Status','Confirmed']])}`;
   if(tab==='weather') return `<div class="section-title-v17"><div><h2>Weather Data</h2><p class="muted">Weather plant values used for performance analytics.</p></div></div>${operatingDataGrid(d)}`;
   if(tab==='module') return `<div class="section-title-v17"><div><h2>Module Data</h2><p class="muted">Module-level values are shown inside the device topology without turning the whole registry into module-only UI.</p></div></div>${operatingDataGrid(d)}`;
   if(tab==='information') return `<div class="section-title-v17"><div><h2>Technical Info</h2><p class="muted">Static master data, vendor identifiers and lifecycle attributes.</p></div></div><div class="info-grid"><div><span>Device Name</span><strong>${d.name}</strong></div><div><span>Device Type</span><strong>${d.type}</strong></div><div><span>Subtype</span><strong>${d.subtype}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>Manufacturer</span><strong>${d.manufacturer}</strong></div><div><span>Model</span><strong>${d.model}</strong></div><div><span>Serial Number</span><strong>${d.serial}</strong></div><div><span>Firmware</span><strong>${d.firmware}</strong></div><div><span>IP Address</span><strong>${d.ip}</strong></div><div><span>MAC Address</span><strong>${d.mac}</strong></div><div><span>Installation Date</span><strong>${d.installation}</strong></div><div><span>Warranty</span><strong>${d.warranty}</strong></div></div>`;
   if(tab==='alerts') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Alerts / Faults</h2><p class="muted">Device-level active and historical events.</p></div></div><div class="data-table compact-table device-alert-table-v58"><div class="data-head"><span>Alert</span><span>Severity</span><span>Source</span><span>Time</span><span>Status</span></div>${d.alerts ? `<div class="data-row"><div><strong>${d.type} communication / performance warning</strong><small>${d.name}</small></div><div><span class="badge warning">Warning</span></div><div><span>${d.vendor}</span></div><div><span>${d.lastSeen}</span></div><div><span>Open</span></div></div>` : `<div class="data-row"><div><strong>No active issues</strong><small>${d.name}</small></div><div><span class="badge success">Normal</span></div><div><span>Zentrid</span></div><div><span>Now</span></div><div><span>Clear</span></div></div>`}</div><div class="drawer-actions"><button class="primary-action" onclick='localStorage.setItem("zentrid_alert_context", JSON.stringify({deviceId:"${d.id}", plantId:"${d.plantId}", tenant:"${d.tenant}"})); location.href="alerts.html"'>Open Alerts Center</button></div>`);
   if(tab==='configuration') return configurationPanel(d) + `<div class="section-title-v17 mini"><div><h3>Remote Actions</h3><p class="muted">Common actions are shown below the config blocks.</p></div></div>${remoteControlPanel(d)}`;
-  if(tab==='activity') return `<div class="section-title-v17"><div><h2>Activity Log</h2><p class="muted">Telemetry refresh, configuration changes, firmware and repair history.</p></div></div><div class="timeline-v17"><div><b>Today</b><span>Operational telemetry refreshed · ${d.lastSeen}</span></div><div><b>Today</b><span>Architecture relationship checked · ${d.parent}</span></div><div><b>Yesterday</b><span>Configuration snapshot stored from ${d.vendor}</span></div><div><b>03 Jun</b><span>Firmware version confirmed · ${d.firmware}</span></div><div><b>${d.installation}</b><span>Device registered and linked to ${d.plant}</span></div></div>`;
+  if(tab==='activity') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Activity Log</h2><p class="muted">Server-recorded device activity from DeviceRegistry.</p></div></div>${deviceAuditPanel(d.auditDetail)}`);
   if(tab==='source') return `<div class="section-title-v17"><div><h2>Source & Sync</h2><p class="muted">Vendor traceability and canonical mapping state.</p></div></div><div class="info-grid"><div><span>Integration</span><strong>${d.integration}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>External ID</span><strong>${d.externalId}</strong></div><div><span>Zentrid ID</span><strong>${d.id}</strong></div><div><span>Mapping Status</span><strong>${d.sourceStatus}</strong></div><div><span>Last Seen</span><strong>${d.lastSeen}</strong></div><div><span>Raw Payload</span><strong>Available in Data Governance</strong></div><div><span>Capability Flags</span><strong>Telemetry · Alerts · Architecture · ${deviceTypeLabel(d)} controls</strong></div></div>`;
-  if(tab==='passport') return devicePassportPanelV92(d);
-  if(tab==='connectivity-full') return deviceConnectivityFullPanelV92(d);
-  if(tab==='lifecycle') return lifecyclePanelV92(d);
+  if(tab==='passport') return deviceLazyPanel(tab, devicePassportPanelV92(d) + deviceApiPanel('Warranty', d.warrantyDetail, 'No warranty record returned'));
+  if(tab==='connectivity-full') return deviceLazyPanel(tab, deviceConnectivityFullPanelV92(d) + deviceApiPanel('Connectivity API', d.connectivityDetail, 'No connectivity record returned') + deviceApiPanel('Network API', d.networkDetail, 'No network record returned'));
+  if(tab==='lifecycle') return deviceLazyPanel(tab, lifecyclePanelV92(d));
   if(tab==='related') return deviceLazyPanel(tab, relatedObjectsPanelV92(d));
   if(tab==='documents') return deviceDocumentsPanelV92(d);
-  if(tab==='audit') return deviceAuditPanelV92(d);
+  if(tab==='audit') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Device Audit</h2><p class="muted">Create, update and lifecycle actions returned by DeviceRegistry.</p></div></div>${deviceAuditPanel(d.auditDetail)}`);
   return '';
 }
+
+function deviceRawObject(d: ZentridDeviceRecord): Record<string, unknown> {
+  return d.raw && typeof d.raw === 'object' ? d.raw : {};
+}
+function deviceRawRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function deviceUpdatePayload(d: ZentridDeviceRecord, form: HTMLFormElement): Record<string, unknown> {
+  const raw=deviceRawObject(d);
+  const identity=deviceRawRecord(raw.identity);
+  const source=deviceRawRecord(raw.source);
+  const status=deviceRawRecord(raw.status);
+  const technical=deviceRawRecord(raw.technical);
+  const plantRelation=deviceRawRecord(raw.plantRelation);
+  const fd=new FormData(form);
+  const text=(name:string, fallback=''):string=>String(fd.get(name) ?? fallback).trim();
+  const payload: Record<string, unknown> = {
+    deviceCode: text('deviceCode', String(raw.deviceCode || identity.deviceCode || d.externalId || d.id)),
+    plantRelation: { plantId: text('plantId', String(plantRelation.plantId || d.plantId || '')) },
+    identity: {
+      deviceName: text('deviceName', String(identity.deviceName || d.name || '')),
+      deviceType: String(identity.deviceType || d.type || ''),
+      serialNumber: text('serialNumber', String(identity.serialNumber || d.serial || '')),
+      deviceCode: text('deviceCode', String(raw.deviceCode || identity.deviceCode || d.externalId || d.id)),
+      manufacturer: text('manufacturer', String(identity.manufacturer || d.manufacturer || d.vendor || '')),
+      model: text('model', String(identity.model || d.model || ''))
+    },
+    source: {
+      provider: String(source.provider || d.vendor || ''),
+      integration: source.integration ?? undefined,
+      sourceDeviceId: String(source.sourceDeviceId || identity.serialNumber || d.serial || '')
+    },
+    status: {
+      lifecycleStatus: String(status.lifecycleStatus || status.deviceStatus || d.lifecycle || 'Draft'),
+      dataQualityStatus: status.dataQualityStatus ?? undefined
+    },
+    technical: {
+      vendorModel: text('model', String(technical.vendorModel || identity.model || d.model || '')),
+      ratedPowerKw: technical.ratedPowerKw ?? undefined,
+      role: technical.role ?? undefined,
+      firmwareVersion: text('firmwareVersion', String(technical.firmwareVersion || d.firmware || '')),
+      protocolVersion: technical.protocolVersion ?? undefined,
+      location: text('location', String(technical.location || d.location || '')),
+      ipAddress: technical.ipAddress ?? undefined,
+      macAddress: technical.macAddress ?? undefined,
+      warranty: technical.warranty ?? undefined
+    }
+  };
+  for (const key of ['locationRelation','topology','parentRelation','lifecycle','specification','capabilities','communication','security','position','relations','telemetry','mpptChannels','pvStrings','batteryModules','inputChannels','linkedModules','accounting','vendorPayload','vendorExtensions']) {
+    if (raw[key] !== undefined) payload[key]=raw[key];
+  }
+  const compact=(value:unknown):unknown=>{
+    if (Array.isArray(value)) return value.map(compact);
+    if (!value || typeof value !== 'object') return value === undefined ? undefined : value;
+    const entries=Object.entries(value as Record<string,unknown>).map(([key,item])=>[key,compact(item)] as const).filter(([,item])=>item!==undefined);
+    return Object.fromEntries(entries);
+  };
+  return compact(payload) as Record<string, unknown>;
+}
+function deviceEditModal(d: ZentridDeviceRecord): string {
+  const raw=deviceRawObject(d); const identity=deviceRawRecord(raw.identity); const technical=deviceRawRecord(raw.technical); const plantRelation=deviceRawRecord(raw.plantRelation);
+  return `<aside class="modal" id="deviceEditModal"><div class="modal-card wide-modal device-create-modal-v2"><button class="modal-close" id="closeDeviceEdit" type="button">×</button><div class="panel-head device-create-panel-head"><div><h2>Edit Device</h2><p>Updates the administrative record through PUT. The request is never retried automatically.</p></div><span class="badge warning">Backend-safe mode</span></div><form id="deviceEditForm" class="client-form-grid two-col"><label>Device Name<input name="deviceName" required value="${optionText(identity.deviceName || d.name || '')}"></label><label>Device Code<input name="deviceCode" required value="${optionText(raw.deviceCode || identity.deviceCode || d.externalId || '')}"></label><label>Plant ID<input name="plantId" required value="${optionText(plantRelation.plantId || d.plantId || '')}"></label><label>Serial Number<input name="serialNumber" required value="${optionText(identity.serialNumber || d.serial || '')}"></label><label>Manufacturer<input name="manufacturer" value="${optionText(identity.manufacturer || d.manufacturer || d.vendor || '')}"></label><label>Model<input name="model" value="${optionText(identity.model || d.model || '')}"></label><label>Firmware<input name="firmwareVersion" value="${optionText(technical.firmwareVersion || d.firmware || '')}"></label><label>Location<input name="location" value="${optionText(technical.location || d.location || '')}"></label><details class="full device-payload-details"><summary>PUT payload preview</summary><label class="full">Request JSON<textarea id="deviceEditPayload" rows="18" spellcheck="false"></textarea><small>Operational status is intentionally excluded. Existing type-specific objects are preserved from the latest GET response.</small></label></details><div id="deviceEditResult" class="api-inline-result neutral full"><strong>No update sent yet</strong><small>After any 500 response the UI verifies the actual server state with GET.</small></div><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceEdit" type="button">Cancel</button><button class="primary-action" type="submit">Save Device</button></div></form></div></aside>`;
+}
+function deviceUpdateMatches(payload: Record<string, unknown>, raw: Record<string, unknown>): boolean {
+  const wantedIdentity=deviceRawRecord(payload.identity); const actualIdentity=deviceRawRecord(raw.identity);
+  const wantedTechnical=deviceRawRecord(payload.technical); const actualTechnical=deviceRawRecord(raw.technical);
+  return ['deviceName','serialNumber','manufacturer','model'].every(key => String(wantedIdentity[key] ?? '') === String(actualIdentity[key] ?? '')) &&
+    ['firmwareVersion','location','vendorModel'].every(key => String(wantedTechnical[key] ?? '') === String(actualTechnical[key] ?? ''));
+}
+function wireDeviceEdit(d: ZentridDeviceRecord): void {
+  const modal=document.getElementById('deviceEditModal'); const form=document.getElementById('deviceEditForm') as HTMLFormElement | null; const editor=document.getElementById('deviceEditPayload') as HTMLTextAreaElement | null; const result=document.getElementById('deviceEditResult');
+  if (!modal || !form || !editor) return;
+  const sync=()=>{ editor.value=JSON.stringify(deviceUpdatePayload(d, form), null, 2); };
+  document.getElementById('openDeviceEdit')?.addEventListener('click',()=>{ sync(); modal.classList.add('open'); });
+  const close=()=>modal.classList.remove('open');
+  document.getElementById('closeDeviceEdit')?.addEventListener('click',close); document.getElementById('cancelDeviceEdit')?.addEventListener('click',close);
+  form.querySelectorAll('input').forEach(control=>control.addEventListener('input',sync)); sync();
+  form.addEventListener('submit', async event=>{
+    event.preventDefault(); const submit=form.querySelector<HTMLButtonElement>('button[type="submit"]'); if (submit) submit.disabled=true;
+    let payload:Record<string,unknown>; try { payload=JSON.parse(editor.value); } catch (_error) { if(result){result.className='api-inline-result danger';result.innerHTML='<strong>Invalid JSON</strong><small>Correct the PUT payload before saving.</small>';} if(submit)submit.disabled=false; return; }
+    if(result){result.className='api-inline-result loading';result.innerHTML='<strong>Updating device…</strong><small>PUT /api/admin/devices/{id}</small>';}
+    try {
+      await window.ZentridPlatformAPI.deviceRegistry.update(d.id,payload);
+      if(result){result.className='api-inline-result success';result.innerHTML='<strong>Device updated</strong><small>The backend returned a successful response.</small>';}
+      window.setTimeout(()=>location.reload(),600);
+    } catch(error) {
+      const message=error instanceof Error?error.message:String(error);
+      try {
+        const verification=await window.ZentridPlatformAPI.deviceRegistry.get(d.id) as Record<string,unknown>;
+        const verified=deviceUpdateMatches(payload, verification);
+        if(verified){ if(result){result.className='api-inline-result warning';result.innerHTML='<strong>Update saved despite server error</strong><small>The PUT returned an error, but a follow-up GET confirmed the edited values. The request was not retried.</small>';} window.setTimeout(()=>location.reload(),1000); }
+        else if(result){result.className='api-inline-result danger';result.innerHTML=`<strong>Device update failed</strong><small>${optionText(message)} Follow-up GET did not confirm the requested values.</small>`;}
+      } catch(_verificationError) { if(result){result.className='api-inline-result danger';result.innerHTML=`<strong>Device update failed</strong><small>${optionText(message)} Server state could not be verified.</small>`;} }
+      if(submit) submit.disabled=false;
+    }
+  });
+}
+
 function renderDeviceDetail(): string {
   const d=selectedDevice();
-  if (!d.id) return window.ZentridApiOnly?.emptyState('Device Detail', 'The device endpoint has not returned a selected record.', '/api/devices') || '';
+  if (!d.id) return window.ZentridApiOnly?.emptyState('Device Detail', 'The device endpoint has not returned a selected record.', '/api/admin/devices') || '';
   return `<section class="page-hero device-hero-v58 device-hero-v59"><div><p class="eyebrow">Global Admin · Device Detail ${ZentridDataSource.badge(d, 'device', true)}</p><h1>${d.name}</h1><p class="muted">${deviceTypeLabel(d)} · ${d.manufacturer || d.vendor} ${d.model} · ${d.serial}</p></div><div class="hero-actions">${deviceHeroActions(d)}</div></section>
   <section class="context-bar glass-card device-context-v58"><div><span>Plant</span><strong>${d.plant}</strong></div><div><span>Tenant</span><strong>${d.tenant}</strong></div><div><span>Device Type</span><strong>${deviceTypeLabel(d)}</strong></div><div><span>Last Communication</span><strong>${d.lastSeen}</strong></div></section>
   ${deviceKpis(d)}
-  <section class="detail-layout-v58 device-detail-layout-v58 device-detail-layout-v59">${universalDeviceSidebar(d, deviceDetailActiveTab)}<main class="glass-card detail-main-v58"><div id="deviceDetailContent">${deviceDetailPanel(d,deviceDetailActiveTab)}</div></main></section>`;
+  <section class="detail-layout-v58 device-detail-layout-v58 device-detail-layout-v59">${universalDeviceSidebar(d, deviceDetailActiveTab)}<main class="glass-card detail-main-v58"><div id="deviceDetailContent">${deviceDetailPanel(d,deviceDetailActiveTab)}</div></main></section>${deviceEditModal(d)}`;
 }
+function deviceDocumentFeedback(tone: string, title: string, message: string): void {
+  const box=document.getElementById('deviceDocumentFeedback');
+  if (!box) return;
+  box.className=`api-inline-result ${tone}`;
+  box.innerHTML=`<strong>${optionText(title)}</strong><small>${optionText(message)}</small>`;
+}
+async function downloadDeviceDocument(deviceId: string, deviceDocument: ZentridDeviceDocument): Promise<void> {
+  const path=`/api/admin/devices/${encodeURIComponent(deviceId)}/documents/${encodeURIComponent(deviceDocument.id)}`;
+  const base=window.ZentridConfig?.apiBaseUrl || '';
+  const headers=new Headers({ Accept:'*/*' });
+  const token=window.ZentridAuth?.getAccessToken?.();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response=await fetch(`${base}${path}`, { headers });
+  if (!response.ok) { let message=`Document download failed (${response.status}).`; try { const body=await response.json(); message=String(body?.message || message); } catch (_error) {} throw new Error(message); }
+  const blob=await response.blob();
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url; link.download=deviceDocument.fileName || deviceDocument.name || 'device-document';
+  document.body.appendChild(link); link.click(); link.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function wireDeviceDocuments(d: ZentridDeviceRecord): void {
+  const form=document.getElementById('deviceDocumentUploadForm') as HTMLFormElement | null;
+  form?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const fileInput=document.getElementById('deviceDocumentFile') as HTMLInputElement | null;
+    const nameInput=document.getElementById('deviceDocumentName') as HTMLInputElement | null;
+    const typeInput=document.getElementById('deviceDocumentType') as HTMLSelectElement | null;
+    const expiryInput=document.getElementById('deviceDocumentExpiry') as HTMLInputElement | null;
+    const file=fileInput?.files?.[0];
+    const name=String(nameInput?.value || '').trim();
+    if (!file || !name) { deviceDocumentFeedback('danger','Missing document data','Select a file and enter a document name.'); return; }
+    const payload=new FormData(); payload.append('file', file); payload.append('name', name); payload.append('type', typeInput?.value || 'Other');
+    if (expiryInput?.value) payload.append('expiry', new Date(expiryInput.value).toISOString());
+    deviceDocumentFeedback('info','Uploading document','Sending multipart/form-data to DeviceRegistry…');
+    try {
+      const response=await window.ZentridPlatformAPI.deviceRegistry.uploadDocument(d.id, payload) as ZentridDeviceDocument;
+      const documents=deviceDocuments(d).filter(item => item.id !== response.id); documents.unshift(response); writeDeviceDocumentCache(d.id, documents); d.documents=documents;
+      const content=document.getElementById('deviceDetailContent'); if (content) content.innerHTML=deviceDocumentsPanelV92(d); wireDeviceDocuments(d);
+      deviceDocumentFeedback('success','Document uploaded',`${response.name || name} is available for download.`);
+    } catch (error) { deviceDocumentFeedback('danger','Document upload failed',error instanceof Error ? error.message : String(error)); }
+  });
+  document.querySelectorAll<HTMLElement>('[data-download-device-document]').forEach(button => button.addEventListener('click', async () => {
+    const id=button.dataset.downloadDeviceDocument || ''; const document=deviceDocuments(d).find(item => item.id===id); if (!document) return;
+    button.setAttribute('disabled','true');
+    try { await downloadDeviceDocument(d.id, document); } catch (error) { deviceDocumentFeedback('danger','Download failed',error instanceof Error ? error.message : String(error)); } finally { button.removeAttribute('disabled'); }
+  }));
+  document.querySelectorAll<HTMLElement>('[data-delete-device-document]').forEach(button => button.addEventListener('click', async () => {
+    const id=button.dataset.deleteDeviceDocument || ''; if (!id) return;
+    button.setAttribute('disabled','true');
+    try {
+      await window.ZentridPlatformAPI.deviceRegistry.deleteDocument(d.id, id);
+      const documents=deviceDocuments(d).filter(item => item.id!==id); writeDeviceDocumentCache(d.id, documents); d.documents=documents;
+      const content=document.getElementById('deviceDetailContent'); if (content) content.innerHTML=deviceDocumentsPanelV92(d); wireDeviceDocuments(d);
+      deviceDocumentFeedback('success','Document deleted','The device document was deleted successfully.');
+    } catch (error) { button.removeAttribute('disabled'); deviceDocumentFeedback('danger','Delete failed',error instanceof Error ? error.message : String(error)); }
+  }));
+}
+
 function wireDeviceDetail(): void {
   const d=selectedDevice();
   if (!d.id) return;
   document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>ZentridLayout.toast(`Device data refresh requested for ${d.name}`));
+  wireDeviceEdit(d);
   window.ZentridDetailLazyTabs?.observe('device', 'device-detail-content', () => {
     const content=document.getElementById('deviceDetailContent');
     if(content) content.innerHTML=deviceDetailPanel(selectedDevice(), deviceDetailActiveTab);
+    if (deviceDetailActiveTab === 'documents') wireDeviceDocuments(selectedDevice());
   });
   document.querySelectorAll<HTMLElement>('[data-device-tab]').forEach(btn=>btn.addEventListener('click',()=>{
     deviceDetailActiveTab = btn.dataset.deviceTab || 'overview';
@@ -594,5 +1198,6 @@ function wireDeviceDetail(): void {
     window.ZentridDetailLazyTabs?.activate('device', String(deviceDetailActiveTab));
     const content=document.getElementById('deviceDetailContent');
     if(content) content.innerHTML=deviceDetailPanel(d, deviceDetailActiveTab);
+    if (deviceDetailActiveTab === 'documents') wireDeviceDocuments(d);
   }));
 }

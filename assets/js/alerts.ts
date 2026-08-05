@@ -445,10 +445,70 @@ function wireAlertsPage(): void {
       applyAlertFilters(true);
     }
     if (target.closest('#clearAlertContext')) { clearAlertContext(); location.reload(); }
-    if (target.closest('#exportAlerts')) ZentridLayout.toast('Alert export queued');
+    if (target.closest('#exportAlerts')) { e.preventDefault(); void exportAlertsCsv(); }
   });
   document.getElementById('alertSearch')?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:alerts:search', () => applyAlertFilters(true), 220));
   ['severityFilter','statusFilter','tenantFilter','plantFilter','vendorFilter'].forEach(id => document.getElementById(id)?.addEventListener('change', () => applyAlertFilters(true)));
+}
+
+
+async function exportAlertsCsv(): Promise<void> {
+  const query: Record<string, string | number> = {};
+  const params = new URLSearchParams(location.search);
+  ['severity','alertStatus','status','tenant','plant','vendor','plantId','deviceId','tenantId','search','cursor','format'].forEach(key => {
+    const value = params.get(key);
+    if (value) query[key] = value;
+  });
+  query.page = Number(params.get('page') || 1);
+  query.pageSize = Number(params.get('pageSize') || 20);
+  try {
+    ZentridLayout.toast('Preparing filtered alert export…');
+    const result = await ZentridPlatformAPI.adminAlerts.exportCsv(query);
+    const url = URL.createObjectURL(result.blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = result.filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    ZentridLayout.toast(`${result.filename} downloaded`);
+  } catch (error) {
+    ZentridLayout.toast(error instanceof Error ? error.message : 'Alert export failed');
+  }
+}
+
+function currentAlertActor(): string {
+  const session = ZentridPlatformAPI.auth.session();
+  return String(session?.user?.username || session?.user?.email || 'globaladmin');
+}
+
+async function runAlertMutation(a: ZentridAlertRecord, action: 'acknowledge' | 'assign' | 'escalate' | 'resolve' | 'task' | 'sop'): Promise<void> {
+  const actor = currentAlertActor();
+  if (action === 'acknowledge') {
+    await ZentridPlatformAPI.adminAlerts.acknowledge(a.id, { actor, comment: 'Acknowledged from Zentrid Alert Detail' });
+  } else if (action === 'assign') {
+    await ZentridPlatformAPI.adminAlerts.assign(a.id, { assigneeId: '', assigneeName: 'Operations Team', teamId: '', actor });
+  } else if (action === 'escalate') {
+    await ZentridPlatformAPI.adminAlerts.escalate(a.id, { target: 'L2 Support / Vendor', reason: 'Operator escalation', comment: 'Escalated from Zentrid Alert Detail', actor });
+  } else if (action === 'resolve') {
+    await ZentridPlatformAPI.adminAlerts.resolve(a.id, { resolutionCode: 'Resolved', notes: 'Resolved from Zentrid Alert Detail', evidenceIds: [], actor });
+  } else if (action === 'task') {
+    await ZentridPlatformAPI.adminAlerts.createTask(a.id, {});
+  } else {
+    const sop = alertSopModel(a);
+    await ZentridPlatformAPI.adminAlerts.updateSop(a.id, {
+      procedureId: sop.procedure,
+      procedureVersion: '1',
+      title: sop.title,
+      steps: sop.items.map((item, index) => ({ id: String(index + 1), title: item.label, completed: item.done, owner: item.owner })),
+      notes: String(document.getElementById('sopResolutionNotes')?.value || ''),
+      outcome: String((document.getElementById('sopOutcome') as HTMLSelectElement | null)?.value || sop.outcome),
+      escalationTarget: String((document.getElementById('sopEscalationTarget') as HTMLSelectElement | null)?.value || sop.escalationTarget),
+      evidence: alertRuntimeState(a).evidence || []
+    });
+  }
+  window.ZentridAPIRepositories?.cache.invalidate('alerts');
 }
 
 function wireAlertDetailPage(): void {
@@ -507,10 +567,20 @@ function bindAlertDetailActions(a: ZentridAlertRecord): void {
     }
   };
   Object.entries(handlers).forEach(([id, fn]) => {
-    document.querySelectorAll(`#${id}`).forEach(btn => btn.onclick = () => {
-      const result = fn();
-      if (result !== false) ZentridLayout.toast(`${btn.textContent?.trim() || 'Action'} updated for ${a.id}`);
-      rerenderActiveAlertTab(a);
+    document.querySelectorAll(`#${id}`).forEach(btn => btn.onclick = async () => {
+      const actionMap: Record<string, 'acknowledge' | 'assign' | 'escalate' | 'resolve' | 'task' | 'sop' | undefined> = {
+        detailAck: 'acknowledge', actionAck: 'acknowledge', actionAssign: 'assign', actionTask: 'task',
+        actionEscalate: 'escalate', actionResolve: 'resolve', actionSopSave: 'sop', actionSopComplete: 'sop'
+      };
+      try {
+        const backendAction = actionMap[id];
+        if (backendAction) await runAlertMutation(a, backendAction);
+        const result = fn();
+        if (result !== false) ZentridLayout.toast(`${btn.textContent?.trim() || 'Action'} updated for ${a.id}`);
+        rerenderActiveAlertTab(a);
+      } catch (error) {
+        ZentridLayout.toast(error instanceof Error ? error.message : `Unable to update ${a.id}`);
+      }
     });
   });
 
@@ -817,7 +887,7 @@ function alertCurveBlock(a: ZentridAlertRecord, m: AlertDetailModel): string {
 }
 
 function renderAlertDetailContent(a: ZentridAlertRecord): string {
-  if (!a.id) return window.ZentridApiOnly?.emptyState('Alert Detail', 'The alert endpoint has not returned a selected record.', '/api/alerts') || '';
+  if (!a.id) return window.ZentridApiOnly?.emptyState('Alert Detail', 'The alert endpoint has not returned a selected record.', '/api/admin/alerts') || '';
   const m = alertDetailModel(a);
   return `
     <section class="page-hero alert-detail-page-hero">

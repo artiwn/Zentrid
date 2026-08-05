@@ -85,13 +85,15 @@ class ZentridRequestError extends Error {
   readonly status: number;
   readonly code: string;
   readonly path: string;
+  readonly responseBody: unknown;
 
-  constructor(message: string, status: number, code: string, path: string) {
+  constructor(message: string, status: number, code: string, path: string, responseBody: unknown = null) {
     super(message);
     this.name = 'ZentridRequestError';
     this.status = status;
     this.code = code;
     this.path = path;
+    this.responseBody = responseBody;
   }
 }
 
@@ -479,7 +481,7 @@ const ZentridAuth: ZentridAuthAPI = (() => {
     try { body = text ? JSON.parse(text) : null; } catch (error) { body = text; }
     finishClientMutationDiagnostic(path, method, response, body);
     if (!response.ok) {
-      throw new ZentridRequestError(`${responseMessage(body, response)} (${response.status})`, response.status, `HTTP_${response.status}`, path);
+      throw new ZentridRequestError(`${responseMessage(body, response)} (${response.status})`, response.status, `HTTP_${response.status}`, path, body);
     }
     return body as T;
   }

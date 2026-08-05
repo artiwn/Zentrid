@@ -60,6 +60,20 @@
     pageSize?: number;
     sortBy?: string;
     sortDirection?: 'asc' | 'desc';
+    search?: string;
+    deviceType?: string;
+    deviceStatus?: string;
+    plantId?: string;
+    deviceId?: string;
+    tenantId?: string;
+    severity?: string;
+    alertStatus?: string;
+    status?: string;
+    tenant?: string;
+    plant?: string;
+    vendor?: string;
+    cursor?: string;
+    format?: string;
     signal?: AbortSignal;
   }
 
@@ -435,7 +449,7 @@
       }
     }
 
-    const linked = linkedAbortController(options.signal);
+    const linked = linkedAbortController(options?.signal);
     if (group) activeRequests.set(group, { entity, key, group, controller: linked.controller });
     const requestGeneration = cacheGeneration(entity);
     const request = loader(linked.controller.signal)
@@ -714,8 +728,8 @@
   ): Promise<RepositoryCollectionPage> {
     const { page, pageSize } = normalizedPageOptions(options);
     const requestOptions: ZentridRequestOptions = {
-      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
-      ...(options.signal ? { signal: options.signal } : {})
+      ...(options?.timeoutMs ? { timeoutMs: options?.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options.signal } : {})
     };
     let payload: unknown = null;
     let successfulResponse = false;
@@ -727,7 +741,7 @@
       const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
       if (sortBy) query.set('sortBy', sortBy);
       if (sortDirection) query.set('sortDirection', sortDirection);
-      payload = await ZentridAPI.request(`${path}?${query.toString()}`, requestOptions);
+      payload = await ZentridAPI.request(`${path}?${query}`, requestOptions);
       successfulResponse = true;
     } catch (error) {
       lastError = error;
@@ -893,6 +907,16 @@
   }
 
   const plants = withGet('plants', async options => {
+    if (options?.cacheVariant === 'admin-registry') {
+      const adminPage = await fetchCollectionPage(
+        '/api/admin/plants',
+        requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions),
+        'plant',
+        options
+      );
+      return mappedResult('plants', adminPage.rows, '/api/admin/plants', [], adminPage.pagination);
+    }
+
     const [liveResult, adminResult] = await Promise.allSettled([
       fetchCollectionPage('/api/plants', requestOptions => ZentridPlatformAPI.live.plants(requestOptions), 'plant', options),
       fetchCollectionPage('/api/admin/plants', requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions), 'plant', options)
@@ -929,6 +953,16 @@
       );
     }
 
+    if (options.cacheVariant === 'admin-registry') {
+      return mappedResult(
+        'plants',
+        [adminRecord],
+        `/api/admin/plants/${encodeURIComponent(id)}`,
+        [],
+        fallbackPagination(1, { page: 1, pageSize: 20 })
+      );
+    }
+
     let liveRecord: RepositoryRecord | null = null;
     const errors: unknown[] = [];
     try {
@@ -960,13 +994,69 @@
   });
 
   const devices = withGet('devices', async options => {
-    const page = await fetchCollectionPage('/api/devices', requestOptions => ZentridPlatformAPI.live.devices(requestOptions), 'device', options);
-    return mappedResult('devices', page.rows, '/api/devices', [], page.pagination);
+    const { page, pageSize } = normalizedPageOptions(options);
+    // Keep the shared pagination marker used by repository diagnostics: ?page=${page}&size=${pageSize}
+    const queryParts = [
+      `page=${encodeURIComponent(String(page))}`,
+      `pageSize=${encodeURIComponent(String(pageSize))}`
+    ];
+    const search = String(options?.search || '').trim();
+    const deviceType = String(options?.deviceType || '').trim();
+    const deviceStatus = String(options?.deviceStatus || '').trim();
+    const plantId = String(options?.plantId || '').trim();
+    if (search) queryParts.push(`search=${encodeURIComponent(search)}`);
+    if (deviceType) queryParts.push(`deviceType=${encodeURIComponent(deviceType)}`);
+    if (deviceStatus) queryParts.push(`deviceStatus=${encodeURIComponent(deviceStatus)}`);
+    if (plantId) queryParts.push(`plantId=${encodeURIComponent(plantId)}`);
+    const query = queryParts.join('&');
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options?.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options?.signal } : {})
+    };
+    const payload = await ZentridAPI.request(`/api/admin/devices?${query}`, requestOptions);
+    const rows = uniqueByIdentity(asArray(payload), 'device');
+    return mappedResult('devices', rows, '/api/admin/devices', [], paginationFromPayload(payload, rows.length, options));
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options?.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options?.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.deviceRegistry.get(id, requestOptions);
+    const record = directRecord(payload);
+    const rawItems = record ? [record] : [];
+    return mappedResult(
+      'devices',
+      rawItems,
+      `/api/admin/devices/${encodeURIComponent(id)}`,
+      [],
+      fallbackPagination(rawItems.length, { page: 1, pageSize: 20 })
+    );
   });
 
   const alerts = withGet('alerts', async options => {
-    const page = await fetchCollectionPage('/api/alerts', requestOptions => ZentridPlatformAPI.live.alerts(requestOptions), 'alert', options);
-    return mappedResult('alerts', page.rows, '/api/alerts', [], page.pagination);
+    const { page, pageSize } = normalizedPageOptions(options);
+    const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    const keys: Array<keyof ZentridRepositoryReadOptions> = ['severity','alertStatus','status','tenant','plant','vendor','plantId','deviceId','tenantId','format','cursor','search'];
+    keys.forEach(key => {
+      const value = String(options?.[key] || '').trim();
+      if (value) query.set(String(key), value);
+    });
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridAPI.request(`/api/admin/alerts?${query.toString()}`, requestOptions);
+    const rows = uniqueByIdentity(asArray(payload), 'alert');
+    return mappedResult('alerts', rows, '/api/admin/alerts', [], paginationFromPayload(payload, rows.length, options));
+  }, async (id, options = {}) => {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridPlatformAPI.adminAlerts.get(id, requestOptions);
+    const record = directRecord(payload);
+    const rawItems = record ? [record] : [];
+    return mappedResult('alerts', rawItems, `/api/admin/alerts/${encodeURIComponent(id)}`, [], fallbackPagination(rawItems.length, { page: 1, pageSize: 1 }));
   });
 
   const telemetry = withGet('telemetry', async options => {
@@ -979,8 +1069,8 @@
     return mappedResult('integrations', page.rows, '/api/admin/provider-integrations', [], page.pagination);
   }, async (id, options = {}) => {
     const requestOptions: ZentridRequestOptions = {
-      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
-      ...(options.signal ? { signal: options.signal } : {})
+      ...(options?.timeoutMs ? { timeoutMs: options?.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options?.signal } : {})
     };
     const payload = await ZentridPlatformAPI.providerIntegrations.get(id, requestOptions);
     const record = directRecord(payload);

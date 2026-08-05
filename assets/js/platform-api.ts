@@ -95,6 +95,37 @@ type ZentridPlatformAPIShape = {
     getDocument(id: string, documentId: string): Promise<unknown>;
     deleteDocument(id: string, documentId: string): Promise<unknown>;
   };
+  deviceRegistry: ZentridPlatformModule & {
+    update(id: string, payload: unknown): Promise<unknown>;
+    audit(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    linkedDevices(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    connectivity(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    network(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    warranty(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    telemetryLatest(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    command(id: string, payload: unknown): Promise<unknown>;
+    activate(id: string): Promise<unknown>;
+    deactivate(id: string): Promise<unknown>;
+    archive(id: string): Promise<unknown>;
+    uploadDocument(id: string, payload: FormData): Promise<unknown>;
+    getDocument(id: string, documentId: string): Promise<unknown>;
+    deleteDocument(id: string, documentId: string): Promise<unknown>;
+  };
+  adminAlerts: {
+    list(options?: ZentridRequestOptions): Promise<unknown>;
+    get(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    exportCsv(query?: ZentridQueryParams): Promise<{ blob: Blob; filename: string; contentType: string }>;
+    acknowledge(id: string, payload: unknown): Promise<unknown>;
+    assign(id: string, payload: unknown): Promise<unknown>;
+    escalate(id: string, payload: unknown): Promise<unknown>;
+    resolve(id: string, payload: unknown): Promise<unknown>;
+    timeline(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    related(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    telemetryCurve(id: string, query?: ZentridQueryParams, options?: ZentridRequestOptions): Promise<unknown>;
+    sop(id: string, options?: ZentridRequestOptions): Promise<unknown>;
+    updateSop(id: string, payload: unknown): Promise<unknown>;
+    createTask(id: string, payload?: unknown): Promise<unknown>;
+  };
   providerIntegrations: {
     templates(): Promise<unknown>;
     template(providerType: string): Promise<unknown>;
@@ -130,7 +161,11 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     /^\/api\/admin\/plants\/[^/]+\/documents(?:\/[^/]+)?$/,
     /^\/api\/admin\/tenants(?:\/[^/]+)?(?:\/(activate|deactivate|archive))?$/,
     /^\/api\/admin\/tenants\/[^/]+\/documents(?:\/[^/]+)?$/,
+    /^\/api\/admin\/devices(?:\/[^/]+)?(?:\/(audit|commands|linked-devices|connectivity|network|warranty|activate|deactivate|archive))?$/,
+    /^\/api\/admin\/devices\/[^/]+\/telemetry\/latest$/,
+    /^\/api\/admin\/devices\/[^/]+\/documents(?:\/[^/]+)?$/,
     /^\/api\/alerts$/,
+    /^\/api\/admin\/alerts(?:\/export|\/[^/]+(?:\/(acknowledge|assign|escalate|resolve|timeline|related|telemetry-curve|sop|tasks))?)?$/,
     /^\/api\/devices$/,
     /^\/api\/integrations$/,
     /^\/api\/plants$/,
@@ -369,6 +404,55 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     deleteDocument: (id: string, documentId: string) => mutationRequest(`/api/admin/plants/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' }, ['plants'], 'plant.document.delete')
   };
 
+
+  const deviceRegistry = {
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/devices', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}`, options),
+    create: (payload: unknown) => mutationRequest('/api/admin/devices', jsonOptions('POST', payload), ['devices'], 'device.create'),
+    update: (id: string, payload: unknown) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['devices'], 'device.update'),
+    audit: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/audit`, options),
+    linkedDevices: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/linked-devices`, options),
+    connectivity: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/connectivity`, options),
+    network: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/network`, options),
+    warranty: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/warranty`, options),
+    telemetryLatest: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/telemetry/latest`, options),
+    command: (id: string, payload: unknown) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/commands`, jsonOptions('POST', payload), ['devices'], 'device.command'),
+    activate: (id: string) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['devices'], 'device.activate'),
+    deactivate: (id: string) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['devices'], 'device.deactivate'),
+    archive: (id: string) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/archive`, { method: 'POST' }, ['devices'], 'device.archive'),
+    uploadDocument: (id: string, payload: FormData) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/documents`, { method: 'POST', body: payload }, ['devices'], 'device.document.upload'),
+    getDocument: (id: string, documentId: string) => ZentridAPI.request(`/api/admin/devices/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`),
+    deleteDocument: (id: string, documentId: string) => mutationRequest(`/api/admin/devices/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' }, ['devices'], 'device.document.delete')
+  };
+
+  const adminAlerts = {
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/alerts', options),
+    get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/alerts/${encodeURIComponent(id)}`, options),
+    exportCsv: async (query: ZentridQueryParams = {}) => {
+      const path = `/api/admin/alerts/export${qs(query)}`;
+      const headers = new Headers({ Accept: 'text/csv, */*;q=0.8' });
+      const token = ZentridAPI.auth.getAccessToken();
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      const response = await fetch(`${ZentridAPI.config.apiBaseUrl}${path}`, { method: 'GET', headers });
+      if (!response.ok) throw new Error(`Unable to export alerts (${response.status})`);
+      const disposition = response.headers.get('content-disposition') || '';
+      const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plain = disposition.match(/filename=\"?([^;\"]+)/i)?.[1];
+      const filename = decodeURIComponent(encoded || plain || `alerts-export-${Date.now()}.csv`);
+      return { blob: await response.blob(), filename, contentType: response.headers.get('content-type') || 'text/csv' };
+    },
+    acknowledge: (id: string, payload: unknown) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/acknowledge`, jsonOptions('POST', payload), ['alerts'], 'alert.acknowledge'),
+    assign: (id: string, payload: unknown) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/assign`, jsonOptions('POST', payload), ['alerts'], 'alert.assign'),
+    escalate: (id: string, payload: unknown) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/escalate`, jsonOptions('POST', payload), ['alerts'], 'alert.escalate'),
+    resolve: (id: string, payload: unknown) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/resolve`, jsonOptions('POST', payload), ['alerts'], 'alert.resolve'),
+    timeline: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/alerts/${encodeURIComponent(id)}/timeline`, options),
+    related: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/alerts/${encodeURIComponent(id)}/related`, options),
+    telemetryCurve: (id: string, query: ZentridQueryParams = {}, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/alerts/${encodeURIComponent(id)}/telemetry-curve${qs(query)}`, options),
+    sop: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/alerts/${encodeURIComponent(id)}/sop`, options),
+    updateSop: (id: string, payload: unknown) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/sop`, jsonOptions('PUT', payload), ['alerts'], 'alert.sop.update'),
+    createTask: (id: string, payload: unknown = {}) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/tasks`, jsonOptions('POST', payload), ['alerts'], 'alert.task.create')
+  };
+
   const providerIntegrations = {
     templates: () => ZentridAPI.request('/api/admin/provider-integrations/templates'),
     template: (providerType: string) => ZentridAPI.request(`/api/admin/provider-integrations/templates/${encodeURIComponent(providerType)}`),
@@ -416,12 +500,34 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'PlantRegistry', label: 'Get Plant Document', method: 'GET', path: '/api/admin/plants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Plant Detail document actions.' },
     { group: 'PlantRegistry', label: 'Delete Plant Document', method: 'DELETE', path: '/api/admin/plants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Plant Detail document actions.' },
 
-    { group: 'Platform Live API', label: 'Live Alerts', method: 'GET', path: '/api/alerts', safe: true, used: true, notes: 'Returns normalized alert list.' },
-    { group: 'Platform Live API', label: 'Live Devices', method: 'GET', path: '/api/devices', safe: true, used: true, notes: 'Returns normalized device list.' },
+    { group: 'Platform Live API', label: 'Live Alerts', method: 'GET', path: '/api/alerts', safe: true, used: false, notes: 'Legacy alert list retained for compatibility; Alerts UI uses Admin Alerts.' },
+    { group: 'DeviceRegistry', label: 'List Admin Devices', method: 'GET', path: '/api/admin/devices', safe: true, used: true, notes: 'Primary Global Admin Device Registry list. Supports page and pageSize plus device filters.' },
+    { group: 'DeviceRegistry', label: 'Get Admin Device', method: 'GET', path: '/api/admin/devices/{id}', safe: false, used: true, notes: 'Device Detail core administrative record.' },
+    { group: 'DeviceRegistry', label: 'Device Audit', method: 'GET', path: '/api/admin/devices/{id}/audit', safe: false, used: true, notes: 'Device Detail audit timeline.' },
+    { group: 'DeviceRegistry', label: 'Linked Devices', method: 'GET', path: '/api/admin/devices/{id}/linked-devices', safe: false, used: true, notes: 'Logger, gateway and topology linked-device records.' },
+    { group: 'DeviceRegistry', label: 'Device Connectivity', method: 'GET', path: '/api/admin/devices/{id}/connectivity', safe: false, used: true, notes: 'Connectivity summary for Device Detail.' },
+    { group: 'DeviceRegistry', label: 'Device Network', method: 'GET', path: '/api/admin/devices/{id}/network', safe: false, used: true, notes: 'Network configuration and status for Device Detail.' },
+    { group: 'DeviceRegistry', label: 'Device Warranty', method: 'GET', path: '/api/admin/devices/{id}/warranty', safe: false, used: true, notes: 'Warranty and lifecycle metadata for Device Detail.' },
+    { group: 'DeviceRegistry', label: 'Latest Device Telemetry', method: 'GET', path: '/api/admin/devices/{id}/telemetry/latest', safe: false, used: true, notes: 'Latest normalized type-specific telemetry snapshot.' },
+    { group: 'Platform Live API', label: 'Live Devices', method: 'GET', path: '/api/devices', safe: false, used: false, notes: 'Legacy endpoint retained for reference only. It is excluded from safe diagnostics and is not used by Device Registry.' },
     { group: 'Platform Live API', label: 'Live Integrations', method: 'GET', path: '/api/integrations', safe: true, used: true, notes: 'Returns provider integration summary list.' },
     { group: 'Platform Live API', label: 'Live Plants', method: 'GET', path: '/api/plants', safe: true, used: true, notes: 'Returns normalized plant list.' },
     { group: 'Platform Live API', label: 'Providers', method: 'GET', path: '/api/Providers', safe: true, used: true, notes: 'Returns provider registry.' },
     { group: 'Platform Live API', label: 'Telemetry', method: 'GET', path: '/api/telemetry', safe: true, used: true, notes: 'Used by Telemetry Governance through the typed telemetry repository with server pagination and preserved raw payloads.' },
+
+    { group: 'Admin Alerts', label: 'List Alerts', method: 'GET', path: '/api/admin/alerts', safe: true, used: true, notes: 'Primary Alerts registry endpoint with filters, KPI and server pagination.' },
+    { group: 'Admin Alerts', label: 'Export Alerts', method: 'GET', path: '/api/admin/alerts/export', safe: false, used: true, notes: 'Downloads filtered CSV output.' },
+    { group: 'Admin Alerts', label: 'Get Alert by ID', method: 'GET', path: '/api/admin/alerts/{id}', safe: false, used: true, notes: 'Primary Alert Detail endpoint.' },
+    { group: 'Admin Alerts', label: 'Acknowledge Alert', method: 'POST', path: '/api/admin/alerts/{id}/acknowledge', safe: false, used: true, notes: 'Operational mutation from Alert Detail.' },
+    { group: 'Admin Alerts', label: 'Assign Alert', method: 'POST', path: '/api/admin/alerts/{id}/assign', safe: false, used: true, notes: 'Operational mutation from Alert Detail.' },
+    { group: 'Admin Alerts', label: 'Escalate Alert', method: 'POST', path: '/api/admin/alerts/{id}/escalate', safe: false, used: true, notes: 'Operational mutation from Alert Detail.' },
+    { group: 'Admin Alerts', label: 'Resolve Alert', method: 'POST', path: '/api/admin/alerts/{id}/resolve', safe: false, used: true, notes: 'Operational mutation from Alert Detail.' },
+    { group: 'Admin Alerts', label: 'Alert Timeline', method: 'GET', path: '/api/admin/alerts/{id}/timeline', safe: false, used: true, notes: 'Lazy Alert Detail timeline.' },
+    { group: 'Admin Alerts', label: 'Alert Related Objects', method: 'GET', path: '/api/admin/alerts/{id}/related', safe: false, used: true, notes: 'Lazy Alert Detail related objects.' },
+    { group: 'Admin Alerts', label: 'Alert Telemetry Curve', method: 'GET', path: '/api/admin/alerts/{id}/telemetry-curve', safe: false, used: true, notes: 'Lazy telemetry curve around alert time.' },
+    { group: 'Admin Alerts', label: 'Get Alert SOP', method: 'GET', path: '/api/admin/alerts/{id}/sop', safe: false, used: true, notes: 'Lazy SOP read.' },
+    { group: 'Admin Alerts', label: 'Update Alert SOP', method: 'PUT', path: '/api/admin/alerts/{id}/sop', safe: false, used: true, notes: 'Persists Alert SOP state.' },
+    { group: 'Admin Alerts', label: 'Create Alert Task', method: 'POST', path: '/api/admin/alerts/{id}/tasks', safe: false, used: true, notes: 'Creates a task linked to an alert; request DTO remains backend-defined.' },
 
     { group: 'ProviderIntegrations', label: 'List Provider Templates', method: 'GET', path: '/api/admin/provider-integrations/templates', safe: true, used: true, notes: 'Returns available provider template names.' },
     { group: 'ProviderIntegrations', label: 'Provider Template by Type', method: 'GET', path: '/api/admin/provider-integrations/templates/{providerType}', safe: false, used: true, notes: 'Used by the existing Connector Wizard after provider selection.' },
@@ -472,6 +578,8 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     tenants,
     clients,
     plantRegistry,
+    deviceRegistry,
+    adminAlerts,
     providerIntegrations,
     endpointCatalog,
     allowedEndpointPatterns,

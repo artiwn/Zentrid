@@ -53,9 +53,16 @@
   function registryReadOptions(entity: RegistryEntity, forceRefresh = false): ZentridRepositoryReadOptions {
     const state = window.ZentridRegistryQuery?.read(entity);
     const newestFirst = entity === 'clients' || entity === 'plants';
+    const deviceFilters = entity === 'devices' ? {
+      search: state?.search || '',
+      deviceType: state?.params?.deviceType || '',
+      deviceStatus: state?.params?.deviceStatus || '',
+      plantId: state?.params?.plantId || localStorage.getItem('zentrid_device_filter_plant') || ''
+    } : {};
     return {
       page: state?.page || 1,
       pageSize: state?.pageSize || 50,
+      ...deviceFilters,
       ...(newestFirst ? {
         sortBy: state?.sortBy || 'createdAtUtc',
         sortDirection: state?.sortDirection || 'desc'
@@ -64,7 +71,8 @@
       persist: true,
       requestGroup: `registry:${entity}`,
       supersede: true,
-      forceRefresh
+      forceRefresh,
+      ...(entity === 'plants' ? { cacheVariant: 'admin-registry' } : {})
     };
   }
 
@@ -76,7 +84,8 @@
       persist: true,
       requestGroup: `detail:${entity}`,
       supersede: true,
-      forceRefresh
+      forceRefresh,
+      ...(entity === 'plants' ? { cacheVariant: 'admin-registry' } : {})
     };
   }
 
@@ -1116,7 +1125,7 @@
   async function applyPlants(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/plants\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('plants');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested plant page first. Device and alert relations will be attached in the background.', { source: '/api/plants + /api/admin/plants' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested administrative plant page first. Device and alert relations will be attached in the background.', { source: '/api/admin/plants' });
     try {
       const live = await ZentridAPIRepositories.plants.list(registryReadOptions('plants', forceRefresh));
       if (!isCurrentRegistryRequest('plants', requestVersion)) return;
@@ -1173,14 +1182,14 @@
         .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
-      if (isCurrentRegistryRequest('plants', requestVersion)) setRequestFailure('/api/plants', error, 'No prototype plant records are displayed.');
+      if (isCurrentRegistryRequest('plants', requestVersion)) setRequestFailure('/api/admin/plants', error, 'No plant registry records are displayed.');
     }
   }
 
   async function applyDevices(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/devices\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('devices');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested device page first. Plant and alert relations will be attached in the background.', { source: '/api/devices' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested device page first. Plant and alert relations will be attached in the background.', { source: '/api/admin/devices' });
     try {
       const live = await ZentridAPIRepositories.devices.list(registryReadOptions('devices', forceRefresh));
       if (!isCurrentRegistryRequest('devices', requestVersion)) return;
@@ -1226,7 +1235,10 @@
       };
       render();
 
-      void ZentridAPIRepositories.plants.list(detailReadOptions('device-relations:plants', 100, forceRefresh))
+      void ZentridAPIRepositories.plants.list({
+        ...detailReadOptions('device-relations:plants', 100, forceRefresh),
+        cacheVariant: 'admin-registry'
+      })
         .then(result => { if (isCurrentRegistryRequest('devices', requestVersion)) { relatedPlants = result.items; relationErrors.push(...result.errors); } })
         .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('plants'); render(); } });
@@ -1236,21 +1248,21 @@
         .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
         .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
-      if (isCurrentRegistryRequest('devices', requestVersion)) setRequestFailure('/api/devices', error, 'No prototype device records are displayed.');
+      if (isCurrentRegistryRequest('devices', requestVersion)) setRequestFailure('/api/admin/devices', error, 'No prototype device records are displayed.');
     }
   }
 
   async function applyAlerts(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/alerts\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('alerts');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested alert page.', { source: '/api/alerts' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested alert page.', { source: '/api/admin/alerts' });
     try {
       const result = await ZentridAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
       publishRegistryPagination('alerts', result);
       const data = result.items;
       if (!data.length) {
-        setLiveDataState('empty', 'The requested alert page returned no records. No prototype alert records are displayed.', { source: '/api/alerts', recordCount: result.pagination.totalCount });
+        setLiveDataState('empty', 'The requested alert page returned no records. No prototype alert records are displayed.', { source: '/api/admin/alerts', recordCount: result.pagination.totalCount });
         return;
       }
       const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
@@ -1260,14 +1272,14 @@
         wireAlertsPage();
         const cacheInfo = repositoryCachePresentation(result);
         setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}Alert page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`, {
-          source: '/api/alerts',
+          source: '/api/admin/alerts',
           details: [`Server pagination · ${result.pagination.pageSize} rows per page`, cacheInfo.details].filter(Boolean).join(' · '),
           recordCount: result.pagination.totalCount,
           ...cacheFreshnessOptions(cacheInfo)
         });
       }
     } catch (error) {
-      if (isCurrentRegistryRequest('alerts', requestVersion)) setRequestFailure('/api/alerts', error, 'No prototype alert records are displayed.');
+      if (isCurrentRegistryRequest('alerts', requestVersion)) setRequestFailure('/api/admin/alerts', error, 'No prototype alert records are displayed.');
     }
   }
 
@@ -1610,9 +1622,9 @@
       <section class="context-bar plant-context-v17"><div><span>Provider</span><strong>${htmlEscape(plant.vendor)}</strong></div><div><span>External ID</span><strong>${htmlEscape(plant.externalId)}</strong></div><div><span>Status</span><strong>${htmlEscape(plant.status)}</strong></div><div><span>Last Data</span><strong>${htmlEscape(plant.lastData)}</strong></div></section>
       <section class="kpi-grid plant-kpi-grid-v17">
         <article class="kpi-card cyan"><span class="kpi-label">Current Power</span><div class="kpi-value">${htmlEscape(plant.livePower)}</div><small class="kpi-delta">From /api/plants</small></article>
-        <article class="kpi-card green"><span class="kpi-label">Linked Devices</span><div class="kpi-value">${htmlEscape(relatedDevices.length || plant.devices || 0)}</div><small class="kpi-delta">Matched from /api/devices</small></article>
+        <article class="kpi-card green"><span class="kpi-label">Linked Devices</span><div class="kpi-value">${htmlEscape(relatedDevices.length || plant.devices || 0)}</div><small class="kpi-delta">Matched from /api/admin/devices</small></article>
         <article class="kpi-card blue"><span class="kpi-label">Capacity DC</span><div class="kpi-value">${htmlEscape(plant.capacityDc)} MWp</div><small class="kpi-delta">Installed capacity</small></article>
-        <article class="kpi-card yellow"><span class="kpi-label">Related Alerts</span><div class="kpi-value">${htmlEscape(relatedAlerts.length || plant.alerts || 0)}</div><small class="kpi-delta">Matched from /api/alerts</small></article>
+        <article class="kpi-card yellow"><span class="kpi-label">Related Alerts</span><div class="kpi-value">${htmlEscape(relatedAlerts.length || plant.alerts || 0)}</div><small class="kpi-delta">Matched from /api/admin/alerts</small></article>
       </section>
       <section class="plant-workspace-v17">
         <aside class="glass-card plant-side-card-v17"><h3>Live Plant</h3><button class="active">Overview</button><button onclick="location.href='devices.html'">Devices</button><button onclick="location.href='alerts.html'">Alerts</button><button onclick="location.href='telemetry.html'">Telemetry</button></aside>
@@ -1637,9 +1649,9 @@
       </section>
       <section class="context-bar glass-card device-context-v58"><div><span>Plant</span><strong>${htmlEscape(device.plant)}</strong></div><div><span>Source Plant ID</span><strong>${htmlEscape(device.plantId)}</strong></div><div><span>Device Type</span><strong>${htmlEscape(device.type)}</strong></div><div><span>Last Communication</span><strong>${htmlEscape(device.lastSeen)}</strong></div></section>
       <section class="kpi-grid plant-kpi-grid-v17">
-        <article class="kpi-card cyan"><span class="kpi-label">Status</span><div class="kpi-value">${htmlEscape(device.status)}</div><small class="kpi-delta">From /api/devices</small></article>
+        <article class="kpi-card cyan"><span class="kpi-label">Status</span><div class="kpi-value">${htmlEscape(device.status)}</div><small class="kpi-delta">From /api/admin/devices</small></article>
         <article class="kpi-card green"><span class="kpi-label">Related Plant</span><div class="kpi-value">${plant ? '1' : '0'}</div><small class="kpi-delta">Matched from /api/plants</small></article>
-        <article class="kpi-card yellow"><span class="kpi-label">Related Alerts</span><div class="kpi-value">${alerts.length}</div><small class="kpi-delta">Matched from /api/alerts</small></article>
+        <article class="kpi-card yellow"><span class="kpi-label">Related Alerts</span><div class="kpi-value">${alerts.length}</div><small class="kpi-delta">Matched from /api/admin/alerts</small></article>
         <article class="kpi-card blue"><span class="kpi-label">Data Quality</span><div class="kpi-value">${htmlEscape(device.sourceStatus)}</div><small class="kpi-delta">Backend normalized record</small></article>
       </section>
       <section class="glass-card plant-main-card-v17">
@@ -1659,20 +1671,22 @@
     const selectedSnapshot = readDetailSelection('device', selectedId);
     setLiveDataState('loading', selectedSnapshot
       ? 'Restoring the selected device while the current API page is checked for a fresher copy.'
-      : 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/devices' });
+      : 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/admin/devices' });
     try {
-      const deviceResult = await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:core', 100, forceRefresh));
+      const deviceResult = selectedId
+        ? await ZentridAPIRepositories.devices.get(selectedId, detailReadOptions('device-detail:core', 20, forceRefresh))
+        : await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:core', 20, forceRefresh));
       const networkRows = deviceResult.items;
       const selectedDeviceFromNetwork = selectedId
-        ? networkRows.find(record => detailSelectionMatches(record, selectedId))
+        ? (networkRows.find(record => detailSelectionMatches(record, selectedId)) || networkRows[0])
         : networkRows[0];
       const selectedRecord = selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined);
       if (!selectedRecord) {
         const message = selectedId
-          ? 'The selected device is not present on the loaded API page and no preserved selection snapshot is available.'
+          ? 'The selected device endpoint returned no record and no preserved selection snapshot is available.'
           : 'The device endpoint returned no records. No prototype device detail is displayed.';
-        window.ZentridApiOnly?.mountEmpty('Device Detail', message, '/api/devices');
-        setLiveDataState('empty', message, { source: '/api/devices', recordCount: deviceResult.pagination.totalCount });
+        window.ZentridApiOnly?.mountEmpty('Device Detail', message, '/api/admin/devices');
+        setLiveDataState('empty', message, { source: '/api/admin/devices', recordCount: deviceResult.pagination.totalCount });
         return;
       }
 
@@ -1698,6 +1712,14 @@
         return device;
       };
       const device = sync();
+      const selectedAdminDeviceId = String(device?.adminId || device?.id || selectedId || '').trim();
+      const applyDeviceResource = (field: string, payload: unknown): AnyRecord | undefined => {
+        const target = selectedId
+          ? deviceRows.find(record => detailSelectionMatches(record, selectedId))
+          : deviceRows[0];
+        if (target) target[field] = payload;
+        return sync();
+      };
 
       window.ZentridDetailLazyTabs?.register('device', [
         {
@@ -1736,26 +1758,50 @@
         },
         {
           key: 'telemetry',
-          tabs: ['telemetry', 'monitoring'],
-          label: 'Telemetry summary',
+          tabs: ['telemetry', 'monitoring', 'operating'],
+          label: 'Latest device telemetry',
           loader: async () => {
-            const selectedDevice = sync();
-            if (!selectedDevice) throw new Error('The selected device is not available for telemetry matching.');
-            const result = await ZentridAPIRepositories.telemetry.list({
-              ...detailReadOptions('device-detail:telemetry', 100, forceRefresh),
-              timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
-            });
-            telemetryRows = result.items.filter(row => deviceMatchesTelemetry(selectedDevice, row));
-            relationErrors.push(...result.errors);
-            if (!result.items.length && result.errors.length) throw result.errors[0];
-            publishDetailTelemetry('device', selectedDevice, telemetryRows);
-            setLiveDataState(result.errors.length ? 'partial' : 'live', 'Device telemetry was loaded only after the Telemetry Summary tab was opened.', {
-              source: `${deviceResult.source} + ${result.source}`,
-              details: telemetryRows.length
-                ? `${telemetryRows.length} matching telemetry record(s) on API page ${result.pagination.page}`
-                : `No matching device telemetry on API page ${result.pagination.page} of ${result.pagination.totalPages}`,
-              recordCount: result.pagination.totalCount
-            });
+            if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for latest telemetry.');
+            const payload = await window.ZentridPlatformAPI?.deviceRegistry?.telemetryLatest(selectedAdminDeviceId, detailReadOptions('device-detail:telemetry-latest', 20, forceRefresh));
+            applyDeviceResource('telemetryLatest', payload);
+            setLiveDataState('live', 'Latest type-specific telemetry was loaded from DeviceRegistry.', { source: `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest`, recordCount: deviceResult.pagination.totalCount });
+          }
+        },
+        {
+          key: 'connectivity',
+          tabs: ['connectivity', 'connectivity-full', 'configuration'],
+          label: 'Connectivity and network',
+          loader: async () => {
+            if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for connectivity.');
+            const [connectivity, network, linked] = await Promise.all([
+              window.ZentridPlatformAPI?.deviceRegistry?.connectivity(selectedAdminDeviceId, detailReadOptions('device-detail:connectivity', 20, forceRefresh)),
+              window.ZentridPlatformAPI?.deviceRegistry?.network(selectedAdminDeviceId, detailReadOptions('device-detail:network', 20, forceRefresh)),
+              window.ZentridPlatformAPI?.deviceRegistry?.linkedDevices(selectedAdminDeviceId, detailReadOptions('device-detail:linked-devices', 100, forceRefresh))
+            ]);
+            applyDeviceResource('connectivityDetail', connectivity);
+            applyDeviceResource('networkDetail', network);
+            applyDeviceResource('linkedDevices', linked);
+            setLiveDataState('live', 'Connectivity, network and linked devices were loaded from DeviceRegistry.', { source: `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}`, recordCount: deviceResult.pagination.totalCount });
+          }
+        },
+        {
+          key: 'warranty',
+          tabs: ['passport', 'lifecycle', 'information'],
+          label: 'Warranty',
+          loader: async () => {
+            if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for warranty.');
+            const payload = await window.ZentridPlatformAPI?.deviceRegistry?.warranty(selectedAdminDeviceId, detailReadOptions('device-detail:warranty', 20, forceRefresh));
+            applyDeviceResource('warrantyDetail', payload);
+          }
+        },
+        {
+          key: 'audit',
+          tabs: ['audit', 'activity'],
+          label: 'Device audit',
+          loader: async () => {
+            if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for audit.');
+            const payload = await window.ZentridPlatformAPI?.deviceRegistry?.audit(selectedAdminDeviceId, detailReadOptions('device-detail:audit', 100, forceRefresh));
+            applyDeviceResource('auditDetail', payload);
           }
         }
       ]);
@@ -1768,7 +1814,7 @@
         ? 'The exact selected device was restored from this browser session because it is not present on API page 1. Lazy relations remain available.'
         : 'The device overview is ready. Parent plant, alerts and telemetry remain idle until their tabs are opened.', {
         source: usingSnapshot ? `${deviceResult.source} + selected session record` : deviceResult.source,
-        details: usingSnapshot ? `Selected record preserved · API page ${deviceResult.pagination.page} checked` : 'Lazy sections: parent plant · alerts · telemetry',
+        details: usingSnapshot ? 'Selected record preserved · detail endpoint checked' : 'Lazy sections: parent plant · alerts · telemetry',
         recordCount: deviceResult.pagination.totalCount
       });
     } catch (error) {
@@ -1786,7 +1832,7 @@
         });
         return;
       }
-      setRequestFailure('/api/devices', error, 'No prototype device detail is displayed.');
+      setRequestFailure('/api/admin/devices', error, 'No prototype device detail is displayed.');
     }
   }
 
@@ -1834,11 +1880,11 @@
       return;
     }
     const selectedAdminId = selectedPlantAdministrativeId(selectedId);
-    const detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/plants + /api/admin/plants';
+    const detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/admin/plants';
     setLiveDataState('loading', selectedAdminId ? 'Loading the selected Global Admin plant record.' : 'Resolving the selected plant from the available live and administrative registries.', { source: detailSource });
     try {
       const live = selectedAdminId
-        ? await ZentridAPIRepositories.plants.get(selectedAdminId, detailReadOptions('plant-detail:core', 100, forceRefresh))
+        ? await ZentridAPIRepositories.plants.get(selectedAdminId, { ...detailReadOptions('plant-detail:core', 100, forceRefresh), cacheVariant: 'admin-registry' })
         : await ZentridAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
       const data = live.items;
       if (!data.length) {
@@ -1990,20 +2036,20 @@
     const selectedSnapshot = readDetailSelection('alert', selectedId);
     setLiveDataState('loading', selectedSnapshot
       ? 'Restoring the selected alert while the current API page is checked for a fresher copy.'
-      : 'Loading normalized alert data for this detail page.', { source: '/api/alerts' });
+      : 'Loading normalized alert data for this detail page.', { source: '/api/admin/alerts' });
     try {
-      const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+      const result = selectedId
+        ? await ZentridAPIRepositories.alerts.get(selectedId, { ...detailReadOptions('alerts', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+        : await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       const data = result.items;
-      const selectedAlertFromNetwork = selectedId
-        ? data.find(record => detailSelectionMatches(record, selectedId))
-        : data[0];
-      const selectedRecord = selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined);
+      const selectedAlertFromNetwork = selectedId && 'item' in result ? result.item : data[0];
+      const selectedRecord = (selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined)) as AnyRecord | undefined;
       if (!selectedRecord) {
         const message = selectedId
           ? 'The selected alert is not present on the loaded API page and no preserved selection snapshot is available.'
           : 'The alert endpoint returned no records.';
-        window.ZentridApiOnly?.mountEmpty('Alert Detail', message, '/api/alerts');
-        setLiveDataState('empty', message, { source: '/api/alerts', recordCount: result.pagination.totalCount });
+        window.ZentridApiOnly?.mountEmpty('Alert Detail', message, '/api/admin/alerts');
+        setLiveDataState('empty', message, { source: '/api/admin/alerts', recordCount: result.pagination.totalCount });
         return;
       }
       if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
@@ -2040,7 +2086,7 @@
         });
         return;
       }
-      setRequestFailure('/api/alerts', error, 'No prototype alert detail is displayed.');
+      setRequestFailure('/api/admin/alerts', error, 'No prototype alert detail is displayed.');
     }
   }
 
