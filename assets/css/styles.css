@@ -24,3 +24,72 @@
   .plant-coordinate-inputs-v141 { grid-template-columns: 1fr; }
   .plant-coordinate-inputs-v141 small { grid-column: auto; }
 }
+
+/* Device create form polish v142 */
+.device-create-modal-v2 .device-create-panel-head {
+  display: block;
+  padding-right: 52px;
+}
+.device-create-modal-v2 .device-create-panel-head > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.device-create-modal-v2 .device-create-panel-head > .badge {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.device-type-specific-fields > label:not(.device-checkbox-field) {
+  align-content: start;
+}
+.device-field-label {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.device-field-label .device-field-unit {
+  display: inline;
+  margin: 0;
+  color: var(--muted, #64748b);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1;
+}
+.device-checkbox-field {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
+  border-radius: 12px;
+  cursor: pointer;
+}
+.device-checkbox-field input[type="checkbox"] {
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  min-height: 17px !important;
+  max-width: 17px !important;
+  max-height: 17px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  flex: 0 0 17px;
+  accent-color: var(--primary, #2563eb);
+}
+.device-checkbox-field > span {
+  line-height: 1.25;
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .device-create-modal-v2 .device-create-panel-head {
+    padding-right: 42px;
+    flex-wrap: wrap;
+  }
+  .device-create-modal-v2 .device-create-panel-head > .badge {
+    margin-right: 0;
+  }
+}

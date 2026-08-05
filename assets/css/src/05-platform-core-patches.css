@@ -1977,3 +1977,78 @@ button.data-row {
     flex: 1 1 140px;
   }
 }
+
+/* Device Documents API integration polish (Step 6.1). */
+.device-document-upload-v141 {
+  padding: 20px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.device-document-upload-v141 .form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.device-document-upload-v141 .form-grid > label {
+  min-width: 0;
+  margin: 0;
+}
+.device-document-upload-v141 .form-grid > label.full {
+  grid-column: 1 / -1;
+}
+.device-document-upload-v141 .api-inline-result {
+  margin-top: 14px;
+}
+.device-document-upload-v141 .drawer-actions {
+  margin-top: 16px;
+}
+.device-document-table-v141 {
+  width: 100%;
+  overflow-x: auto;
+}
+.device-document-table-v141 .data-head,
+.device-document-table-v141 .data-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.45fr) minmax(110px, .65fr) minmax(110px, .65fr) minmax(160px, .9fr) minmax(190px, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-width: 850px;
+}
+.device-document-table-v141 .data-row > *,
+.device-document-table-v141 .data-head > * {
+  min-width: 0;
+}
+.device-document-table-v141 .data-row strong,
+.device-document-table-v141 .data-row small,
+.device-document-table-v141 .data-row span {
+  overflow-wrap: anywhere;
+}
+.device-document-table-v141 .mini-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.device-document-table-v141 > .empty-state {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .device-document-upload-v141 .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .device-document-upload-v141 {
+    padding: 16px;
+  }
+  .device-document-upload-v141 .form-grid {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+  .device-document-upload-v141 .form-grid > label.full {
+    grid-column: auto;
+  }
+}
