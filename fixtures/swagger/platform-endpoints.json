@@ -1,6 +1,6 @@
 {
-  "snapshot": "plant-registry-swagger-2026-07-31",
-  "operationCount": 49,
+  "snapshot": "device-registry-swagger-2026-08-03",
+  "operationCount": 61,
   "operations": [
     {
       "method": "GET",
@@ -245,6 +245,66 @@
     {
       "method": "DELETE",
       "path": "/api/admin/tenants/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/devices/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/audit",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/commands",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/activate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/deactivate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/archive",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/documents",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/devices/{id}/documents/{documentId}",
       "expectedUsed": true
     }
   ]
