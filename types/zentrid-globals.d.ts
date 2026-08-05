@@ -489,6 +489,10 @@ interface ZentridRepositoryReadOptions {
   pageSize?: number;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
+  search?: string;
+  deviceType?: string;
+  deviceStatus?: string;
+  plantId?: string;
   signal?: AbortSignal;
 }
 interface ZentridRepositoryCacheSnapshotEntry {

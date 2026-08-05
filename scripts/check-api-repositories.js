@@ -106,7 +106,7 @@ const sandbox = {
       requests.push(path);
       if (path.startsWith('/api/plants?')) return { items: [livePlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/admin/plants?')) return { items: [adminPlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
-      if (path.startsWith('/api/devices?')) return { items: [{ id: 'D-1', sourceDeviceId: 'INV-1', sourcePlantId: 'EXT-P-1', deviceName: 'Inverter A', provider: 'Huawei' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/admin/devices?')) return { items: [{ id: 'D-1', sourceDeviceId: 'INV-1', sourcePlantId: 'EXT-P-1', deviceName: 'Inverter A', provider: 'Huawei' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/alerts?')) return { items: [{ id: 'A-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/telemetry?')) return { telemetry: [{ metricName: 'Current Power', value: 1200, unit: 'kW', sourcePlantId: 'EXT-P-1', sourceDeviceId: 'INV-1', measuredAtUtc: '2026-07-22T08:00:00Z', dataQualityStatus: 'Fresh' }, { telemetry: { id: 'TM-2', metricName: 'Voltage' }, measurement: { value: 380, unit: 'V', measuredAtUtc: '2026-07-22T08:00:00Z', quality: 'Fresh' }, plant: { id: 'EXT-P-1', name: 'Yerevan North' }, device: { id: 'INV-1', name: 'Inverter A', type: 'Inverter' }, source: { provider: 'Huawei' } }], page: 1, pageSize: 50, totalCount: 2, totalPages: 1 };
       throw new Error(`Unexpected ZentridAPI path: ${path}`);
