@@ -799,6 +799,17 @@
     }
     if (!payload || typeof payload !== 'object') return null;
     const record = payload as RepositoryRecord;
+    // A real detail DTO can legitimately contain nested objects named tenant, plant,
+    // integration, etc. If the top-level object already has its own identity, it is
+    // the record itself and must not be mistaken for an API envelope.
+    const directIdentityKeys = [
+      'id', 'clientId', 'tenantId', 'plantId', 'deviceId', 'alertId',
+      'integrationId', 'sourceAlertId', 'sourcePlantId', 'sourceDeviceId'
+    ];
+    if (directIdentityKeys.some(key => {
+      const value = record[key];
+      return value !== undefined && value !== null && String(value).trim() !== '';
+    })) return record;
     const envelopeKeys = ['item', 'data', 'record', 'result', 'client', 'tenant', 'plant', 'integration', 'value'];
     for (const key of envelopeKeys) {
       const nested = record[key];
@@ -1053,9 +1064,16 @@
       ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
       ...(options?.signal ? { signal: options.signal } : {})
     };
-    const payload = await ZentridPlatformAPI.adminAlerts.get(id, requestOptions);
+    const [payload, timeline, related, sop, telemetryCurve] = await Promise.all([
+      ZentridPlatformAPI.adminAlerts.get(id, requestOptions),
+      ZentridPlatformAPI.adminAlerts.timeline(id, requestOptions).catch(() => []),
+      ZentridPlatformAPI.adminAlerts.related(id, requestOptions).catch(() => ({})),
+      ZentridPlatformAPI.adminAlerts.sop(id, requestOptions).catch(() => null),
+      ZentridPlatformAPI.adminAlerts.telemetryCurve(id, { windowMinutes: 60 }, requestOptions).catch(() => null)
+    ]);
     const record = directRecord(payload);
-    const rawItems = record ? [record] : [];
+    const enrichedRecord = record ? { ...record, __timeline: timeline, __related: related, __sop: sop, __telemetryCurve: telemetryCurve } : null;
+    const rawItems = enrichedRecord ? [enrichedRecord] : [];
     return mappedResult('alerts', rawItems, `/api/admin/alerts/${encodeURIComponent(id)}`, [], fallbackPagination(rawItems.length, { page: 1, pageSize: 1 }));
   });
 

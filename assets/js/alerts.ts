@@ -28,6 +28,7 @@ interface ZentridAlertRecord {
   priority: string;
   title: string;
   status: string;
+  occurrenceStatus?: string;
   category: string;
   tenant: string;
   plantId: string;
@@ -52,7 +53,10 @@ interface ZentridAlertRecord {
     telemetryMetric: string;
     caseId: string;
     taskId: string;
+    workOrderId?: string;
   };
+  sop?: { procedureId?: string; procedureVersion?: string; title?: string; steps?: Array<{ id?: string; title?: string; completed?: boolean; owner?: string | null }>; notes?: string | null; outcome?: string; escalationTarget?: string | null; evidence?: string[] } | null;
+  telemetryCurve?: { metricCode?: string; samples?: Array<{ timestampUtc?: string; value?: number | string; unit?: string }> } | null;
 }
 
 interface AlertContextState {
@@ -699,6 +703,28 @@ function alertCaseTimeline(a: ZentridAlertRecord): string {
 
 
 function alertSopModel(a: ZentridAlertRecord): AlertSopModel {
+  const liveSop = a.sop;
+  if (liveSop && Array.isArray(liveSop.steps) && liveSop.steps.length) {
+    const runtime = alertRuntimeState(a);
+    const doneState = Array.isArray(runtime.sopDone) ? runtime.sopDone : liveSop.steps.map(step => Boolean(step.completed));
+    const completed = doneState.filter(Boolean).length;
+    return {
+      title: liveSop.title || 'Recommended Resolution Procedure',
+      procedure: [liveSop.procedureId, liveSop.procedureVersion].filter(Boolean).join(' · ') || 'Alert SOP',
+      completed,
+      total: liveSop.steps.length,
+      progress: Math.round((completed / liveSop.steps.length) * 100),
+      outcome: runtime.outcome || liveSop.outcome || 'In Progress',
+      escalationTarget: runtime.escalationTarget || liveSop.escalationTarget || 'Not set',
+      evidence: Array.isArray(liveSop.evidence) ? liveSop.evidence : [],
+      items: liveSop.steps.map((step, i) => ({
+        label: step.title || step.id || `Step ${i + 1}`,
+        done: Boolean(doneState[i]),
+        owner: step.owner || (doneState[i] ? (a.owner || 'Operations Team') : 'Pending owner'),
+        time: doneState[i] ? a.updated : 'Pending'
+      }))
+    };
+  }
   const hay = `${a.title} ${a.category} ${a.description}`.toLowerCase();
   const outage = hay.includes('outage') || hay.includes('offline') || hay.includes('communication') || hay.includes('no telemetry');
   const voltage = hay.includes('voltage') || hay.includes('fault') || hay.includes('electrical');
@@ -834,7 +860,7 @@ function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
   const isOutage = /offline|outage|no telemetry|communication/i.test(`${a.title} ${a.category} ${a.description}`);
   return {
     levelLabel: a.severity === 'Critical' ? 'Fault' : 'Alert',
-    occurrenceStatus: isRecovered ? 'Recovered' : 'Occurring',
+    occurrenceStatus: a.occurrenceStatus || (isRecovered ? 'Recovered' : 'Occurring'),
     confirmStatus: a.status === 'Acknowledged' ? 'Confirmed' : 'Unconfirmed',
     recoveryTime: isRecovered ? '12/06/2026 09:54:50' : '',
     duration: a.age || '2m 15s',
@@ -883,7 +909,11 @@ function alertReasonBlock(title: string, icon: string, items: string[]): string 
 }
 
 function alertCurveBlock(a: ZentridAlertRecord, m: AlertDetailModel): string {
-  return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${m.curveMetric} around alert time</small></div><div class="alert-curve-visual"><div class="curve-line"></div>${m.samples.map((x,i)=>`<div class="curve-point" style="left:${16+i*24}%; bottom:${28+(i%3)*16}%"><span>${x}</span></div>`).join('')}</div></section>`;
+  const liveSamples = Array.isArray(a.telemetryCurve?.samples) ? a.telemetryCurve.samples : [];
+  const metric = a.telemetryCurve?.metricCode || m.curveMetric;
+  if (!liveSamples.length) return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time</small></div><div class="empty-state"><strong>No telemetry samples returned</strong><small>The API returned a valid telemetry window without sample points.</small></div></section>`;
+  const labels = liveSamples.slice(0, 8).map(sample => `${sample.value ?? '—'}${sample.unit ? ` ${sample.unit}` : ''}`);
+  return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time</small></div><div class="alert-curve-visual"><div class="curve-line"></div>${labels.map((x,i)=>`<div class="curve-point" style="left:${10+i*(80/Math.max(labels.length-1,1))}%; bottom:${28+(i%3)*16}%"><span>${x}</span></div>`).join('')}</div></section>`;
 }
 
 function renderAlertDetailContent(a: ZentridAlertRecord): string {

@@ -383,9 +383,9 @@
       entity: 'alerts', label: 'Alert',
       requirements: [
         requirement('identity', ['id', 'alertId', 'sourceAlertId']),
-        requirement('display text', ['vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'title', 'message', 'name']),
-        requirement('severity', ['severity'], 'warning'),
-        requirement('provider', ['provider'], 'warning')
+        requirement('display text', ['canonical.canonicalName', 'guidance.description', 'vendor.vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'title', 'message', 'name']),
+        requirement('severity', ['canonical.canonicalSeverity', 'severity'], 'warning'),
+        requirement('provider', ['vendor.provider', 'provider'], 'warning')
       ]
     },
     telemetry: {
@@ -506,21 +506,21 @@
     ],
     alerts: [
       field('id', ['id', 'alertId'], ['Alert Registry row ID', 'Alert Detail identity'], 'identifier', '—', 'error'),
-      field('provider', ['provider'], ['Alert Registry provider', 'Alert Detail source'], 'text', '—', 'warning'),
+      field('provider', ['vendor.provider', 'provider'], ['Alert Registry provider', 'Alert Detail source'], 'text', '—', 'warning'),
       field('sourceAlertId', ['sourceAlertId', 'vendorExtensions.alarmCode'], ['Alert Registry vendor code', 'Alert Detail source code'], 'identifier', '—', 'error'),
       field('sourcePlantId', ['sourcePlantId'], ['Alert Registry plant relation', 'Alert Detail plant'], 'relation', '—'),
       field('sourceDeviceId', ['sourceDeviceId', 'vendorExtensions.deviceSn'], ['Alert Registry device relation', 'Alert Detail device'], 'relation', '—'),
       field('plantName', ['plantName', 'sourcePlantName', 'vendorExtensions.plantName'], ['Alert Registry plant', 'Alert Detail plant'], 'relation', '—'),
       field('deviceName', ['deviceName', 'vendorExtensions.deviceName'], ['Alert Registry device', 'Alert Detail device'], 'relation', '—'),
-      field('title', ['title', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'name'], ['Alert Registry title', 'Alert Detail heading'], 'text', '—', 'error'),
-      field('message', ['message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
-      field('severity', ['severity'], ['Alert Registry severity', 'Alert Detail severity'], 'status', '—', 'warning'),
-      field('status', ['status'], ['Alert Registry status', 'Alert Detail status'], 'status', '—'),
-      field('occurredAtUtc', ['occurredAtUtc'], ['Alert Registry occurred', 'Alert Detail timeline'], 'date', 'No occurrence time'),
+      field('title', ['canonical.canonicalName', 'title', 'guidance.description', 'vendor.vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'name'], ['Alert Registry title', 'Alert Detail heading'], 'text', '—', 'error'),
+      field('message', ['guidance.description', 'vendor.vendorMessage', 'message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
+      field('severity', ['canonical.canonicalSeverity', 'severity'], ['Alert Registry severity', 'Alert Detail severity'], 'status', '—', 'warning'),
+      field('status', ['workflow.status', 'status'], ['Alert Registry status', 'Alert Detail status'], 'status', '—'),
+      field('occurredAtUtc', ['workflow.occurredAtUtc', 'occurredAtUtc'], ['Alert Registry occurred', 'Alert Detail timeline'], 'date', 'No occurrence time'),
       field('lastSyncAt', ['lastSyncAt'], ['Alert Registry updated', 'Alert Detail timeline'], 'date', 'No sync'),
-      field('alarmType', ['vendorExtensions.alarmType', 'vendorExtensions.category'], ['Alert Registry category', 'Alert Detail category'], 'text', '—'),
-      field('reason', ['vendorExtensions.reason', 'vendorExtensions.probableCause'], ['Alert Detail probable cause'], 'text', 'No backend probable cause'),
-      field('solution', ['vendorExtensions.solution', 'vendorExtensions.recommendation'], ['Alert Detail recommendation'], 'text', 'Review source data'),
+      field('alarmType', ['canonical.canonicalCategory', 'vendorExtensions.alarmType', 'vendorExtensions.category'], ['Alert Registry category', 'Alert Detail category'], 'text', '—'),
+      field('reason', ['guidance.probableCause', 'vendorExtensions.reason', 'vendorExtensions.probableCause'], ['Alert Detail probable cause'], 'text', 'No backend probable cause'),
+      field('solution', ['guidance.recommendation', 'vendorExtensions.solution', 'vendorExtensions.recommendation'], ['Alert Detail recommendation'], 'text', 'Review source data'),
       field('acknowledgedAtUtc', ['vendorExtensions.acknowledgedAtUtc'], ['Alert Detail timeline metadata'], 'date', '—'),
       field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.canonicalSource'], ['Raw payload diagnostics'], 'raw', '')
     ],
@@ -1226,52 +1226,66 @@
 
   const alerts = createContract<ZentridAlertDto>(CONTRACT_DEFINITIONS.alerts, (row, _index, context) => {
     const id = normalizedId(row, context);
-    const provider = normalization.provider(row.provider);
-    const severity = normalization.alertSeverity(row.severity);
-    const title = strictDisplayName(row, context, [
-      'vendorExtensions.alertName', 'vendorExtensions.displayName', 'vendorExtensions.name',
-      'sourceAlertName', 'alertName', 'title', 'message', 'name'
-    ], ['alertId', 'sourceAlertId', 'id']);
-    const occurredAt = context.formatDate(row.occurredAtUtc, '—');
-    const lastSync = context.formatDate(row.lastSyncAt, '—');
-    const timeline: string[] = [];
-    if (row.occurredAtUtc) timeline.push(`${occurredAt} · Alert received`);
-    if (row.lastSyncAt) timeline.push(`${lastSync} · Last synchronized`);
+    const provider = normalization.provider(context.firstOf(row, ['vendor.provider', 'provider'], 'Unknown'));
+    const severity = normalization.alertSeverity(context.firstOf(row, ['canonical.canonicalSeverity', 'severity'], 'Unknown'));
+    const title = context.safeText(context.firstOf(row, ['canonical.canonicalName', 'title', 'message', 'vendor.vendorMessage'], 'Unknown alert'));
+    const occurredRaw = context.firstOf(row, ['workflow.occurredAtUtc', 'occurredAtUtc'], undefined);
+    const updatedRaw = context.firstOf(row, ['audit.updatedAtUtc', 'workflow.lastSyncAtUtc', 'lastSyncAt', 'updated'], undefined);
+    const occurredAt = context.formatDate(occurredRaw, '—');
+    const updatedAt = context.formatDate(updatedRaw, '—');
+    const timelineRows = Array.isArray(row.__timeline) ? row.__timeline : [];
+    const timeline = timelineRows.length
+      ? timelineRows.map((event: Record<string, unknown>) => `${context.formatDate(event.occurredAtUtc, '—')} · ${context.safeText(event.eventType, 'Event')}${event.actor ? ` · ${context.safeText(event.actor)}` : ''}${event.comment ? ` · ${context.safeText(event.comment)}` : ''}`)
+      : [occurredRaw ? `${occurredAt} · Alert received` : '', updatedRaw ? `${updatedAt} · Last synchronized` : ''].filter(Boolean);
+    const relatedPayload = (row.__related && typeof row.__related === 'object') ? row.__related as Record<string, unknown> : (row.related as Record<string, unknown> || {});
+    const telemetryCurve = (row.__telemetryCurve && typeof row.__telemetryCurve === 'object') ? row.__telemetryCurve as Record<string, unknown> : {};
+    const sop = (row.__sop && typeof row.__sop === 'object') ? row.__sop as Record<string, unknown> : null;
     return {
       dataOrigin: 'live', id,
-      zentridCode: context.safeText(context.firstOf(row, ['vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], ''), ''),
-      vendorRawCode: context.safeText(row.sourceAlertId, ''),
-      vendorCode: context.safeText(row.sourceAlertId, ''),
-      vendorMessage: context.safeText(row.message, ''),
+      zentridCode: context.safeText(context.firstOf(row, ['canonical.canonicalCode', 'zentridCode', 'vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], ''), ''),
+      vendorRawCode: context.safeText(context.firstOf(row, ['vendor.vendorCode', 'vendorRawCode', 'sourceAlertId'], ''), ''),
+      vendorCode: context.safeText(context.firstOf(row, ['vendor.vendorCode', 'vendorRawCode', 'sourceAlertId'], ''), ''),
+      vendorMessage: context.safeText(context.firstOf(row, ['vendor.vendorMessage', 'message'], ''), ''),
       severity,
-      priority: context.safeText(context.firstOf(row, ['priority', 'vendorExtensions.priority'], '—')),
+      priority: context.safeText(context.firstOf(row, ['workflow.priority', 'priority'], '—')),
       title, vendorDisplayName: title,
-      registeredName: context.safeText(context.firstOf(row, ['sourceAlertId', 'id', 'title'], ''), ''),
-      status: normalization.alertStatus(row.status),
-      category: context.safeText(context.firstOf(row, ['vendorExtensions.alarmType', 'vendorExtensions.category', 'category'], '—')),
-      tenant: context.safeText(context.firstOf(row, ['tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], '—')),
-      plantId: context.safeText(row.sourcePlantId, ''),
-      plant: context.safeText(context.firstOf(row, ['plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName', 'vendorExtensions.stationName'], '—')),
-      deviceId: context.safeText(row.sourceDeviceId, ''),
-      device: context.safeText(context.firstOf(row, ['deviceName', 'sourceDeviceName', 'vendorExtensions.deviceName'], '—')),
-      deviceType: context.safeText(context.firstOf(row, ['deviceType', 'vendorExtensions.deviceType'], '—')),
-      vendor: provider, source: provider,
-      integration: context.safeText(context.firstOf(row, ['integration', 'integrationName', 'sourceIntegrationName'], '—')),
+      registeredName: context.safeText(context.firstOf(row, ['vendor.sourceAlertId', 'sourceAlertId', 'id'], ''), ''),
+      status: normalization.alertStatus(context.firstOf(row, ['workflow.status', 'status'], 'Unknown')),
+      occurrenceStatus: context.safeText(context.firstOf(row, ['workflow.occurrenceStatus', 'occurrenceStatus'], '—')),
+      category: context.safeText(context.firstOf(row, ['canonical.canonicalCategory', 'category', 'vendorExtensions.alarmType'], '—')),
+      tenant: context.safeText(context.firstOf(row, ['tenant.tenantName', 'tenant'], '—')),
+      tenantId: context.safeText(context.firstOf(row, ['tenant.tenantId', 'tenantId'], ''), ''),
+      plantId: context.safeText(context.firstOf(row, ['plant.plantId', 'plantId'], ''), ''),
+      plant: context.safeText(context.firstOf(row, ['plant.plantName', 'plantName', 'plant'], '—')),
+      deviceId: context.safeText(context.firstOf(row, ['device.deviceId', 'deviceId'], ''), ''),
+      device: context.safeText(context.firstOf(row, ['device.deviceName', 'deviceName', 'device'], '—')),
+      deviceType: context.safeText(context.firstOf(row, ['device.deviceType', 'deviceType'], '—')),
+      vendor: provider,
+      source: context.safeText(context.firstOf(row, ['vendor.sourceSystem', 'vendor.provider', 'source'], provider), provider),
+      integration: context.safeText(context.firstOf(row, ['integration.integrationName', 'integrationName'], '—')),
       created: occurredAt,
-      updated: lastSync,
+      updated: updatedAt,
       age: context.safeText(context.firstOf(row, ['age', 'ageText'], '—')),
-      sla: context.safeText(context.firstOf(row, ['sla', 'slaStatus', 'vendorExtensions.sla'], '—')),
-      owner: context.safeText(context.firstOf(row, ['owner', 'assignee', 'assignedTo'], '—')),
-      telemetry: context.safeText(context.firstOf(row, ['telemetry', 'vendorExtensions.telemetry'], '—')),
-      description: context.safeText(context.firstOf(row, ['message', 'description', 'title'], '—')),
-      probableCause: context.safeText(context.firstOf(row, ['vendorExtensions.reason', 'vendorExtensions.probableCause', 'probableCause'], '—')),
-      recommendation: context.safeText(context.firstOf(row, ['vendorExtensions.solution', 'vendorExtensions.recommendation', 'recommendation'], '—')),
+      sla: context.safeText(context.firstOf(row, ['sla.text', 'sla.status', 'sla'], '—')),
+      owner: context.safeText(context.firstOf(row, ['assignment.assigneeName', 'owner'], 'Unassigned')),
+      telemetry: context.safeText(telemetryCurve.metricCode || relatedPayload.telemetryMetric || '—'),
+      description: context.safeText(context.firstOf(row, ['guidance.description', 'vendor.vendorMessage', 'message'], '—')),
+      probableCause: context.safeText(context.firstOf(row, ['guidance.probableCause', 'probableCause'], '—')),
+      recommendation: context.safeText(context.firstOf(row, ['guidance.recommendation', 'recommendation'], '—')),
       timeline,
       related: {
-        telemetryMetric: context.safeText(context.firstOf(row, ['telemetryMetric', 'vendorExtensions.telemetryMetric'], '—')),
-        caseId: context.safeText(context.firstOf(row, ['caseId', 'vendorExtensions.caseId'], '—')),
-        taskId: context.safeText(context.firstOf(row, ['taskId', 'vendorExtensions.taskId'], '—'))
+        telemetryMetric: context.safeText(relatedPayload.telemetryMetric || telemetryCurve.metricCode || '—'),
+        caseId: context.safeText(relatedPayload.caseId || '—'),
+        taskId: context.safeText(relatedPayload.taskId || '—'),
+        workOrderId: context.safeText(relatedPayload.workOrderId || '—')
       },
+      canonical: row.canonical,
+      mapping: row.mapping,
+      workflow: row.workflow,
+      assignment: row.assignment,
+      guidance: row.guidance,
+      sop,
+      telemetryCurve,
       raw: row
     };
   });

@@ -59,10 +59,31 @@
       deviceStatus: state?.params?.deviceStatus || '',
       plantId: state?.params?.plantId || localStorage.getItem('zentrid_device_filter_plant') || ''
     } : {};
+    let alertContext: Record<string, string> = {};
+    if (entity === 'alerts') {
+      try {
+        const stored = JSON.parse(localStorage.getItem('zentrid_alert_context') || '{}') as Record<string, unknown>;
+        alertContext = Object.fromEntries(Object.entries(stored).filter(([, value]) => typeof value === 'string' && value.trim()).map(([key, value]) => [key, String(value).trim()]));
+      } catch {
+        alertContext = {};
+      }
+    }
+    const alertFilters = entity === 'alerts' ? {
+      search: state?.search || '',
+      severity: state?.params?.severity || alertContext.severity || '',
+      alertStatus: state?.params?.alertStatus || alertContext.status || '',
+      tenant: state?.params?.tenant || alertContext.tenant || '',
+      plant: state?.params?.plant || '',
+      vendor: state?.params?.vendor || '',
+      plantId: state?.params?.plantId || alertContext.plantId || '',
+      deviceId: state?.params?.deviceId || alertContext.deviceId || '',
+      tenantId: state?.params?.tenantId || ''
+    } : {};
     return {
       page: state?.page || 1,
       pageSize: state?.pageSize || 50,
       ...deviceFilters,
+      ...alertFilters,
       ...(newestFirst ? {
         sortBy: state?.sortBy || 'createdAtUtc',
         sortDirection: state?.sortDirection || 'desc'
@@ -1267,6 +1288,22 @@
       }
       const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
       if (Array.isArray(alertStore)) {
+        try {
+          const storedContext = JSON.parse(localStorage.getItem('zentrid_alert_context') || '{}') as Record<string, unknown>;
+          const plantId = String(storedContext.plantId || '').trim();
+          const deviceId = String(storedContext.deviceId || '').trim();
+          const tenant = String(storedContext.tenant || '').trim();
+          const contextMatches = data.some(item =>
+            (!plantId || String(item.plantId || '') === plantId) &&
+            (!deviceId || String(item.deviceId || '') === deviceId) &&
+            (!tenant || String(item.tenant || '') === tenant)
+          );
+          if ((plantId || deviceId || tenant) && !contextMatches) {
+            localStorage.removeItem('zentrid_alert_context');
+          }
+        } catch {
+          localStorage.removeItem('zentrid_alert_context');
+        }
         (alertStore as AnyRecord[]).splice(0, alertStore.length, ...data);
         ZentridLayout.mount(renderAlertsPage());
         wireAlertsPage();
