@@ -81,7 +81,7 @@ const ZentridTenantLifecycle: ZentridTenantLifecycleApi = (() => {
     const stateText = backendManaged
       ? actions.length
         ? 'Lifecycle actions are written directly to the Zentrid backend.'
-        : 'Archived tenant records are read-only.'
+        : 'Archived tenant lifecycle is closed. Archived tenant records are read-only.'
       : 'Lifecycle actions are available only for Live API tenant records.';
     const sourceBadge = backendManaged
       ? '<span class="badge success">Backend managed</span>'

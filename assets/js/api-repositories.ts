@@ -886,8 +886,20 @@
   });
 
   const tenants = withGet('tenants', async options => {
-    const page = await fetchCollectionPage('/api/admin/tenants', requestOptions => ZentridPlatformAPI.tenants.list(requestOptions), 'generic', options);
-    return mappedResult('tenants', page.rows, '/api/admin/tenants', [], page.pagination);
+    const { page, pageSize } = normalizedPageOptions(options);
+    const queryParts = [
+      `page=${encodeURIComponent(String(page))}`,
+      `pageSize=${encodeURIComponent(String(pageSize))}`
+    ];
+    const search = String(options?.search || '').trim();
+    if (search) queryParts.push(`search=${encodeURIComponent(search)}`);
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options.signal } : {})
+    };
+    const payload = await ZentridAPI.request(`/api/admin/tenants?${queryParts.join('&')}`, requestOptions);
+    const rows = uniqueByIdentity(asArray(payload), 'generic');
+    return mappedResult('tenants', rows, '/api/admin/tenants', [], paginationFromPayload(payload, rows.length, options));
   }, async (id, options = {}) => {
     const requestOptions: ZentridRequestOptions = {
       ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),

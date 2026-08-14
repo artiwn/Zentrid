@@ -27,12 +27,14 @@ interface ZentridClientRecord {
   totalCapacity?: string;
   vendorDisplayName?: string;
   registeredName?: string;
-  users: number;
-  documents: number;
+  users: number | null;
+  documents: number | null;
   billing: string;
   supportTier: string;
   accessScope: string;
   exportPolicy: string;
+  identityRole?: string;
+  portalRole?: string;
   assignmentRole: string;
   onboarding: string;
   region?: string;
@@ -40,6 +42,8 @@ interface ZentridClientRecord {
   bankAccounts?: ZentridBankAccount[];
   consentAccepted?: boolean;
   activationAt?: string;
+  createdAtUtc?: string;
+  updatedAtUtc?: string;
   username?: string;
   language?: string;
   timezone?: string;
@@ -146,6 +150,7 @@ interface ZentridClientDocumentRecord {
 }
 
 interface ZentridBankAccount {
+  id?: string;
   bankName: string;
   bankCode: string;
   accountNumber: string;
@@ -157,6 +162,7 @@ interface ZentridBankAccount {
 }
 
 interface ZentridPortalUser {
+  authUserId?: string;
   name: string;
   email: string;
   role: string;
@@ -456,9 +462,9 @@ function clientCreateModal() {
             <div class="section-title"><div><h3>Tenant Link</h3><p class="muted">Choose which tenant manages or supervises this client record.</p></div></div>
             <div class="client-form-grid two-col">
               <label>Managing Tenant *<select name="tenant" id="clientCreateTenant" required>${tenants.map(t => `<option value="${t}">${t}</option>`).join('')}</select></label>
-              <label>Client Type *<select name="type" id="clientCreateType" required><option>Individual</option><option>Legal Entity</option></select></label>
+              <label>Client Type *<select name="type" id="clientCreateType" required>${CLIENT_TYPE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
               <label>Account Activation<input name="activation" readonly value="Auto-generated on save" /></label>
-              <label>Status *<select name="status" required><option>Pending</option><option>Review</option><option>Active</option></select></label>
+              <label>Status *<select name="status" required>${CLIENT_STATUS_CREATE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
             </div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="identity">
@@ -470,8 +476,8 @@ function clientCreateModal() {
                 <label>Last name<input name="lastName" maxlength="80" placeholder="Optional middle / additional name" /></label>
                 <label>Date of birth<input name="dob" placeholder="MM/DD/YYYY" inputmode="numeric" pattern="\\d{2}/\\d{2}/\\d{4}" title="Use date format MM/DD/YYYY." /></label>
                 <label>Tax / Personal ID<input name="personalTaxId" maxlength="80" placeholder="Tax or personal identifier" /></label>
-                <label>User Role *<select name="userRole" required><option>End User</option><option>Owner Viewer</option><option>Investor Viewer</option><option>Technical Viewer</option></select></label>
-                <label>Language *<select name="language" required><option>English</option><option>Armenian</option><option>Russian</option><option>German</option><option>Spanish</option></select></label>
+                <label>Identity Role *<select name="userRole" required>${CLIENT_INDIVIDUAL_IDENTITY_ROLE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
+                <label>Language *<select name="language" required>${CLIENT_LANGUAGE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
               </div>
             </div>
             <div class="client-create-type-group" data-create-type-fields="Legal Entity" hidden>
@@ -481,8 +487,8 @@ function clientCreateModal() {
                 <label>Registration Number *<input name="registrationNo" required maxlength="80" placeholder="Company registration number" /></label>
                 <label>Tax ID / VAT Number *<input name="taxId" required maxlength="80" placeholder="Tax or VAT identifier" /></label>
                 <label>Primary Contact Person *<input name="contactPerson" required maxlength="120" autocomplete="name" placeholder="Full name" /></label>
-                <label>User Role *<select name="userRoleLegal" required><option>Owner Viewer</option><option>Finance Viewer</option><option>Operations Viewer</option><option>Investor Viewer</option></select></label>
-                <label>Language *<select name="languageLegal" required><option>English</option><option>Armenian</option><option>Russian</option><option>German</option><option>Spanish</option></select></label>
+                <label>Identity Role *<select name="userRoleLegal" required>${CLIENT_LEGAL_IDENTITY_ROLE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
+                <label>Language *<select name="languageLegal" required>${CLIENT_LANGUAGE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
               </div>
             </div>
           </section>
@@ -494,9 +500,9 @@ function clientCreateModal() {
               <label>City *<select name="city" id="clientCreateCity" required>${cities.map(x => `<option>${x}</option>`).join('')}</select></label>
               <label class="wide-field">Address *<input name="address" required maxlength="180" autocomplete="street-address" placeholder="Example: Baghramyan Avenue 26, building 2" /></label>
               <label>Time Zone *<select name="timezone" id="clientCreateTimezone" required></select><small class="field-help">Selected automatically from Country / Region / City.</small></label>
-              <label>Temperature Format<select name="temperature"><option>°C</option></select></label>
-              <label>Currency Unit *<select name="currency" id="clientCreateCurrency" required><option>AMD</option><option>USD</option><option>EUR</option><option>GBP</option><option>CAD</option><option>AUD</option><option>AED</option><option>INR</option><option>JPY</option></select></label>
-              <label>Irradiation<select name="irradiation"><option>kWh/m2</option><option>W/m2</option><option>MJ/m2</option></select></label>
+              <label>Temperature Format<select name="temperature">${CLIENT_TEMPERATURE_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
+              <label>Currency Unit *<select name="currency" id="clientCreateCurrency" required>${CLIENT_CURRENCY_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
+              <label>Irradiation<select name="irradiation">${CLIENT_IRRADIATION_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
             </div>
           </section>
           <section class="form-section-card client-create-step-panel" data-client-create-panel="portal">
@@ -534,7 +540,7 @@ function clientCreateModal() {
                   <label>Bank<input name="bankName" maxlength="120" placeholder="Bank name" /></label>
                   <label>Bank Code<input name="bankCode" maxlength="60" inputmode="text" placeholder="Bank code" /></label>
                   <label>Account Number<input name="accountNumber" maxlength="80" inputmode="text" autocomplete="off" placeholder="Example: AM00 0000 0000 0000 0000" /></label>
-                  <label>Account Currency<select name="accountCurrency"><option>AMD</option><option>USD</option><option>EUR</option><option>GBP</option></select></label>
+                  <label>Account Currency<select name="accountCurrency">${CLIENT_BANK_CURRENCY_OPTIONS.map(option => `<option value="${clientDetailAttr(option)}">${clientDetailEscape(option)}</option>`).join('')}</select></label>
                 </div>
                 <div class="inline-actions client-bank-actions"><button type="button" class="secondary-action" data-remove-bank>Delete</button></div>
               </div>
@@ -1228,7 +1234,8 @@ function clientCreateApiPayload(
   const dobMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dob);
   const dateOfBirth = /^\d{4}-\d{2}-\d{2}$/.test(dob) ? dob : (dobMatch ? `${dobMatch[3]}-${dobMatch[1]}-${dobMatch[2]}` : null);
   const language = formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English';
-  const role = formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User';
+  const identityRole = type === 'Individual' ? (formValue(fd.get('userRole')) || 'End User') : (formValue(fd.get('userRoleLegal')) || 'Owner Viewer');
+  const portalRole = formValue(fd.get('portalRole')) || 'End User';
   const username = formValue(fd.get('username')).trim();
   const password = formValue(fd.get('password'));
   const primaryFullName = type === 'Individual' ? fullName : contactPerson;
@@ -1255,7 +1262,7 @@ function clientCreateApiPayload(
       legalForm: type === 'Legal Entity' ? formValue(fd.get('legalForm')).trim() || null : null,
       registrationNumber: type === 'Legal Entity' ? legalRegistrationNumber || null : passportNumber || null,
       taxIdVatNumber: type === 'Legal Entity' ? legalTaxId || null : personalTaxId || null,
-      role,
+      role: identityRole,
       preferredLanguage: language
     },
     address: {
@@ -1279,7 +1286,7 @@ function clientCreateApiPayload(
     },
     portalAccount: {
       username,
-      role,
+      role: portalRole,
       temporaryPassword: password
     },
     documentation: {
@@ -1445,7 +1452,9 @@ async function submitClientCreateForm(e: Event): Promise<void> {
     supportTier: 'Not assigned',
     accessScope: 'No plant assignment yet',
     exportPolicy: 'Disabled until activation',
-    assignmentRole: formValue(fd.get('portalRole')) || formValue(fd.get('userRole')) || formValue(fd.get('userRoleLegal')) || 'End User',
+    identityRole: type === 'Individual' ? (formValue(fd.get('userRole')) || 'End User') : (formValue(fd.get('userRoleLegal')) || 'Owner Viewer'),
+    portalRole: formValue(fd.get('portalRole')) || 'End User',
+    assignmentRole: formValue(fd.get('portalRole')) || 'End User',
     onboarding: 'Client profile saved locally because the backend was unavailable',
     username: formValue(fd.get('username')).trim(),
     language: formValue(fd.get('language')) || formValue(fd.get('languageLegal')) || 'English',
@@ -1529,12 +1538,21 @@ function clientRowsMarkup(rows: ZentridClientRecord[]): string {
   if (!rows.length) return `<div class="empty-state-v28"><strong>No clients found</strong><small>Try changing search, type or status filters.</small></div>`;
   return `<div class="data-head"><span>Client</span><span>Legal / Identity</span><span>Assignment Scope</span><span>Access / Contract</span><span>Actions</span></div>${rows.map(c => {
     const k = ZentridClientModel.countsForClient(c.id);
-    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${ZentridDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${ZentridClientModel.badge(c.status)}">${c.status}</span><small>${c.users} portal accounts · ${c.billing}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="true">Edit</button></div></div>`;
+    return `<div class="data-row clickable-row" data-client="${c.id}"><div>${ZentridDataSource.badge(c, 'client')}<strong>${c.name}</strong><small>${c.code}<br>${c.id}</small></div><div><strong>${c.type}</strong><small>${c.legalForm} · ${c.verification}<br>${c.country}, ${c.city}</small></div><div><strong>${k.plants} plants · ${k.capacity}</strong><small>${c.assignmentRole} · ${c.tenant}</small></div><div><span class="badge ${ZentridClientModel.badge(c.status)}">${c.status}</span><small>${Number(c.users || 0)} portal account${Number(c.users || 0) === 1 ? '' : 's'} · ${clientDetailEditableValue(c.billing) || '—'}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}">Open Client</button><button data-action="edit" data-permission-action="edit" data-permission-resource="client" data-permission-status="${clientDetailAttr(c.status)}" data-permission-origin="${clientDetailAttr(clientDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="true">Edit</button></div></div>`;
   }).join('')}`;
 }
 
 
+const CLIENT_TYPE_OPTIONS = ['Individual','Legal Entity'] as const;
+const CLIENT_STATUS_CREATE_OPTIONS = ['Pending','Review','Active'] as const;
 const CLIENT_LEGAL_FORM_OPTIONS = ['LLC','Corporation','Holding Company','Partnership','Non-profit','Other'] as const;
+const CLIENT_INDIVIDUAL_IDENTITY_ROLE_OPTIONS = ['End User','Owner Viewer','Investor Viewer','Technical Viewer'] as const;
+const CLIENT_LEGAL_IDENTITY_ROLE_OPTIONS = ['Owner Viewer','Finance Viewer','Operations Viewer','Investor Viewer'] as const;
+const CLIENT_LANGUAGE_OPTIONS = ['English','Armenian','Russian','German','Spanish'] as const;
+const CLIENT_TEMPERATURE_OPTIONS = ['°C'] as const;
+const CLIENT_CURRENCY_OPTIONS = ['AMD','USD','EUR','GBP','CAD','AUD','AED','INR','JPY'] as const;
+const CLIENT_IRRADIATION_OPTIONS = ['kWh/m2','W/m2','MJ/m2'] as const;
+const CLIENT_BANK_CURRENCY_OPTIONS = ['AMD','USD','EUR','GBP'] as const;
 const CLIENT_DOCUMENT_ALLOWED_EXTENSIONS = ['.pdf','.doc','.docx','.jpg','.jpeg','.png'] as const;
 const CLIENT_DOCUMENT_ACCEPT = CLIENT_DOCUMENT_ALLOWED_EXTENSIONS.join(',');
 
@@ -1572,7 +1590,7 @@ function clientDetailClone(record: ZentridClientRecord): ZentridClientRecord { r
 function clientDetailOrigin(record: ZentridClientRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'client'); }
 function clientDetailBackendManaged(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'client'); }
 function clientDetailIsArchived(record: ZentridClientRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
-function clientDetailEditableTab(tab: ClientDetailTabKey = clientDetailActiveTab): boolean { return ['overview','identity','location','portal','commercial'].includes(tab); }
+function clientDetailEditableTab(tab: ClientDetailTabKey = clientDetailActiveTab): boolean { return ['identity','location','portal','commercial'].includes(tab); }
 function clientDetailCanEdit(record: ZentridClientRecord, tab: ClientDetailTabKey = clientDetailActiveTab): boolean {
   return !clientDetailIsArchived(record) && clientDetailEditableTab(tab);
 }
@@ -1633,7 +1651,10 @@ function clientDetailSectionTitle(tab: ClientDetailTabKey): string {
   return titles[tab];
 }
 function clientDetailSectionContext(record: ZentridClientRecord, tab: ClientDetailTabKey, editable = clientDetailEditMode): string {
-  const mode = ZentridEntityDetailUX.sectionMode({ editable, backendManaged:clientDetailBackendManaged(record), archived:clientDetailIsArchived(record), sectionEditable:clientDetailEditableTab(tab) });
+  const backendManaged = clientDetailBackendManaged(record);
+  const sectionEditable = clientDetailEditableTab(tab);
+  const archived = clientDetailIsArchived(record);
+  const mode = archived ? 'Archived read-only' : editable ? (backendManaged ? 'Live API · edit draft' : 'Local edit draft') : backendManaged ? (sectionEditable ? 'Live API · update available' : 'Live API · derived read-only') : sectionEditable ? 'View mode' : 'Derived read-only';
   const help = editable ? (clientDetailBackendManaged(record) ? 'Review the highlighted fields before saving them to the backend.' : 'Review the highlighted fields before saving locally.') : clientDetailEditableTab(tab) ? 'Editing is available for supported backend or session records.' : 'This section is derived from linked operational data.';
   return `<div class="client-section-context-v118"><div><span>${clientDetailEscape(mode)}</span><strong>${clientDetailEscape(clientDetailSectionTitle(tab))}</strong><small>${clientDetailEscape(help)}</small></div></div>`;
 }
@@ -1647,7 +1668,12 @@ function clientDetailInput(key: keyof ZentridClientRecord, label: string, value:
   const req = required ? ' required' : '';
   const editableValue = clientDetailEditableValue(value);
   const safeValue = clientDetailAttr(editableValue);
-  if (options) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<select data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${options.map(option => `<option value="${clientDetailAttr(option)}" ${editableValue === option ? 'selected' : ''}>${clientDetailEscape(option || 'Select an option')}</option>`).join('')}</select></label>`;
+  if (options) {
+    const normalizedOptions = [...options];
+    if (editableValue && !normalizedOptions.includes(editableValue)) normalizedOptions.push(editableValue);
+    if ((!required || !editableValue) && !normalizedOptions.includes('')) normalizedOptions.unshift('');
+    return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<select data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${normalizedOptions.map(option => `<option value="${clientDetailAttr(option)}" ${editableValue === option ? 'selected' : ''}>${clientDetailEscape(option || 'Not set')}</option>`).join('')}</select></label>`;
+  }
   const textarea = ['address','accessScope','exportPolicy','billing','onboarding'].includes(String(key));
   if (textarea) return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<textarea data-client-edit-key="${String(key)}" name="client-edit-${String(key)}"${req}>${clientDetailEscape(editableValue)}</textarea></label>`;
   return `<label>${clientDetailEscape(label)}${required ? ' *' : ''}<input type="${type}" data-client-edit-key="${String(key)}" name="client-edit-${String(key)}" value="${safeValue}"${req}></label>`;
@@ -1673,14 +1699,39 @@ function clientDetailUsersEditor(client: ZentridClientRecord): string {
 }
 function clientDetailBankEditor(client: ZentridClientRecord): string {
   const accounts = client.bankAccounts || [];
-  return `<div class="section-title-v17 mini"><div><h3>Bank Accounts</h3><p class="muted">Sensitive payment metadata is stored only in this browser in prototype mode.</p></div><button class="small-btn" type="button" data-add-client-bank>+ Add Bank</button></div>
+  return `<div class="section-title-v17 mini"><div><h3>Bank Accounts</h3><p class="muted">Bank accounts are loaded from and saved through the Client backend update contract.</p></div><button class="small-btn" type="button" data-add-client-bank>+ Add Bank</button></div>
     <div class="data-table compact-table client-bank-editor-v118"><div class="data-head"><span>Bank</span><span>Code</span><span>Account Number</span><span>Currency</span><span>Primary</span><span>Actions</span></div>
-    ${accounts.length ? accounts.map((account,index) => `<div class="data-row" data-client-bank-row="${index}"><input aria-label="Bank name" value="${clientDetailAttr(account.bankName)}" data-client-bank-field="bankName" required><input aria-label="Bank code" value="${clientDetailAttr(account.bankCode)}" data-client-bank-field="bankCode"><input aria-label="Account number" value="${clientDetailAttr(account.accountNumber)}" data-client-bank-field="accountNumber" required><select aria-label="Account currency" data-client-bank-field="accountCurrency"><option ${account.accountCurrency==='AMD'?'selected':''}>AMD</option><option ${account.accountCurrency==='USD'?'selected':''}>USD</option><option ${account.accountCurrency==='EUR'?'selected':''}>EUR</option></select><label class="inline-check-v118"><input type="radio" name="client-primary-bank" ${account.primary?'checked':''} data-client-bank-primary="${index}"><span>Primary</span></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-bank="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No bank accounts</strong><small>Banking is optional until a commercial settlement is configured.</small></div>`}</div>`;
+    ${accounts.length ? accounts.map((account,index) => `<div class="data-row" data-client-bank-row="${index}"><input aria-label="Bank name" value="${clientDetailAttr(account.bankName)}" data-client-bank-field="bankName" required><input aria-label="Bank code" value="${clientDetailAttr(account.bankCode)}" data-client-bank-field="bankCode"><input aria-label="Account number" value="${clientDetailAttr(account.accountNumber)}" data-client-bank-field="accountNumber" required><select aria-label="Account currency" data-client-bank-field="accountCurrency">${CLIENT_BANK_CURRENCY_OPTIONS.map(option => `<option ${account.accountCurrency===option?'selected':''}>${option}</option>`).join('')}</select><label class="inline-check-v118"><input type="radio" name="client-primary-bank" ${account.primary?'checked':''} data-client-bank-primary="${index}"><span>Primary</span></label><div class="row-actions single-action"><button class="danger-action" type="button" data-remove-client-bank="${index}">Remove</button></div></div>`).join('') : `<div class="empty-state"><strong>No bank accounts</strong><small>Banking is optional until a commercial settlement is configured.</small></div>`}</div>`;
 }
+function clientDetailCountryOptions(): string[] { return Object.keys(clientCreateLocationRules); }
+function clientDetailRegionOptions(country: string): string[] {
+  const rule = clientCreateLocationRules[country] || clientCreateLocationRules.Other!;
+  return Object.keys(rule.regions);
+}
+function clientDetailCityOptions(country: string, region: string): string[] {
+  const rule = clientCreateLocationRules[country] || clientCreateLocationRules.Other!;
+  return rule.regions[region] || [];
+}
+function clientDetailTimezoneOptions(): string[] {
+  return Array.from(new Set(Object.keys(clientCreateLocationRules).flatMap(country => {
+    const rule = clientCreateLocationRules[country]!;
+    return [rule.timezone, ...Object.keys(rule.regions).map(region => clientCreateTimezoneFor(country, region))];
+  }).concat(['UTC'])));
+}
+function clientDetailDisplayDate(value: unknown): string {
+  const text = String(value || '').trim();
+  if (!text) return '—';
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? text : date.toLocaleString();
+}
+function clientDetailIdentityRoleOptions(client: ZentridClientRecord): string[] {
+  return client.type === 'Individual' ? [...CLIENT_INDIVIDUAL_IDENTITY_ROLE_OPTIONS] : [...CLIENT_LEGAL_IDENTITY_ROLE_OPTIONS];
+}
+
 function clientDetailEditTab(client: ZentridClientRecord, plants: ZentridPlantRecord[], tab: ClientDetailTabKey): string {
-  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields supported by PUT /api/admin/clients/{id}. Fields marked * are required by the Client API for this client type.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,['Individual','Legal Entity'],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,['', ...CLIENT_LEGAL_FORM_OPTIONS],'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('assignmentRole','Default Client Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}<label>Verification<input type="text" value="${clientDetailAttr(client.verification || '—')}" readonly aria-readonly="true"><small class="field-help">Read-only backend verification result.</small></label><label>Client Status<input type="text" value="${clientDetailAttr(client.status || '—')}" readonly aria-readonly="true"><small class="field-help">Use Lifecycle Actions to change it.</small></label><label>Account Manager<input type="text" value="${clientDetailAttr(client.account || '—')}" readonly aria-readonly="true"><small class="field-help">The current Client update contract does not accept this field.</small></label></div>${clientDetailDocumentsEditor(client)}`;
-  if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences. Street Address is required for backend updates.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,['Armenia','United States','Germany','Spain'],'text',true)}${clientDetailInput('region','Region',client.region || '',undefined,'text',true)}${clientDetailInput('city','City',client.city,undefined,'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || 'Asia/Yerevan',undefined,'text',true)}${clientDetailInput('language','Language',client.language || 'English',['English','Armenian','German','Spanish'],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '°C',['°C','°F'])}${clientDetailInput('currency','Currency',client.currency || 'AMD',['AMD','USD','EUR'])}${clientDetailInput('irradiation','Irradiation',client.irradiation || 'kWh/m2',['kWh/m2','W/m2'])}</div>`;
-  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Edit the primary contact and portal account fields supported by PUT /api/admin/clients/{id}.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailPortalUsernameInput(client.username)}${clientDetailInput('assignmentRole','Portal Role',client.assignmentRole,['', ...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}<label>Plant / Data Scope<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.accessScope) || '—')}</textarea><small class="field-help">Read-only until the backend exposes a supported access-scope update contract.</small></label><label>Export Policy<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.exportPolicy) || '—')}</textarea><small class="field-help">Read-only backend policy.</small></label><label>Onboarding State<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.onboarding) || '—')}</textarea><small class="field-help">Read-only workflow state.</small></label></div>`;
+  if (tab === 'identity') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Edit canonical client identity fields supported by PUT /api/admin/clients/{id}. Fields marked * are required by the Client API for this client type.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('type','Client Type',client.type,[...CLIENT_TYPE_OPTIONS],'text',true)}${clientDetailInput('name',client.type==='Individual'?'Full Name':'Legal Name',client.name,undefined,'text',true)}${clientDetailInput('legalForm','Legal Form',client.legalForm,['', ...CLIENT_LEGAL_FORM_OPTIONS],'text',client.type!=='Individual')}${clientDetailInput('dob','Date of Birth',client.dob || '',undefined,'date',false)}${clientDetailInput('registrationNo',client.type==='Individual'?'Passport / Personal ID':'Registration Number',client.registrationNo,undefined,'text',true)}${clientDetailInput('taxId','Tax / Personal ID',client.taxId,undefined,'text',client.type!=='Individual')}${clientDetailInput('identityRole','Identity Role',client.identityRole || '',clientDetailIdentityRoleOptions(client),'text',true)}<label>Verification<input type="text" value="${clientDetailAttr(client.verification || '—')}" readonly aria-readonly="true"><small class="field-help">Read-only backend verification result.</small></label><label>Client Status<input type="text" value="${clientDetailAttr(client.status || '—')}" readonly aria-readonly="true"><small class="field-help">Use Lifecycle Actions to change it.</small></label><label>Account Manager<input type="text" value="${clientDetailAttr(client.account || '—')}" readonly aria-readonly="true"><small class="field-help">The current Client update contract does not accept this field.</small></label></div>${clientDetailDocumentsEditor(client)}`;
+  if (tab === 'location') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Location & Preferences</h2><p class="muted">Client geography and End User display preferences. Street Address is required for backend updates.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('country','Country',client.country,clientDetailCountryOptions(),'text',true)}${clientDetailInput('region','Region',client.region || '',clientDetailRegionOptions(client.country),'text',true)}${clientDetailInput('city','City',client.city,clientDetailCityOptions(client.country, client.region || ''),'text',true)}${clientDetailInput('address','Address',client.address,undefined,'text',true)}${clientDetailInput('timezone','Time Zone',client.timezone || '',clientDetailTimezoneOptions(),'text',true)}${clientDetailInput('language','Language',client.language || '',[...CLIENT_LANGUAGE_OPTIONS],'text',true)}${clientDetailInput('temperature','Temperature',client.temperature || '',[...CLIENT_TEMPERATURE_OPTIONS],'text',true)}${clientDetailInput('currency','Currency',client.currency || '',[...CLIENT_CURRENCY_OPTIONS],'text',true)}${clientDetailInput('irradiation','Irradiation',client.irradiation || '',[...CLIENT_IRRADIATION_OPTIONS],'text',true)}</div>`;
+  if (tab === 'portal') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Edit the primary contact and portal account fields supported by PUT /api/admin/clients/{id}.</p></div></div><div class="client-edit-grid-v118">${clientDetailInput('primaryContact','Primary Contact',client.primaryContact,undefined,'text',true)}${clientDetailInput('contactEmail','Email',client.contactEmail,undefined,'email',true)}${clientDetailInput('contactPhone','Phone Number 1',client.contactPhone,undefined,'tel',true)}${clientDetailInput('phone2','Phone Number 2',client.phone2 || '',undefined,'tel')}${clientDetailPortalUsernameInput(client.username)}${clientDetailInput('portalRole','Portal Role',client.portalRole || '',[...CLIENT_PORTAL_ROLE_OPTIONS],'text',true)}<label>Plant / Data Scope<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.accessScope) || '—')}</textarea><small class="field-help">Read-only until the backend exposes a supported access-scope update contract.</small></label><label>Export Policy<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.exportPolicy) || '—')}</textarea><small class="field-help">Read-only backend policy.</small></label><label>Onboarding State<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.onboarding) || '—')}</textarea><small class="field-help">Read-only workflow state.</small></label></div>`;
   if (tab === 'users') return `${clientDetailSectionContext(client, tab, false)}${clientTab(client, plants, tab, false, true)}`;
   if (tab === 'commercial') return `${clientDetailSectionContext(client, tab, true)}<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Bank accounts are supported by the current Client update contract. Billing Profile and Support Tier remain read-only.</p></div></div><div class="client-edit-grid-v118"><label>Billing Profile<textarea readonly aria-readonly="true">${clientDetailEscape(clientDetailEditableValue(client.billing) || '—')}</textarea><small class="field-help">The current Client update contract does not accept this field.</small></label><label>Support Tier<input type="text" value="${clientDetailAttr(client.supportTier || '—')}" readonly aria-readonly="true"><small class="field-help">Read-only until a supported commercial update contract is available.</small></label></div>${clientDetailBankEditor(client)}`;
   return `${clientDetailSectionContext(client, tab, false)}${clientTab(client, plants, tab, false, true)}`;
@@ -1691,6 +1742,31 @@ function clientDetailSyncControlToDraft(control: HTMLInputElement | HTMLSelectEl
   if (!key) return;
   clientDetailDraft[key] = control.value;
 }
+function clientDetailApplyLocationDependency(key: string): boolean {
+  if (!clientDetailDraft || clientDetailActiveTab !== 'location') return false;
+  if (key === 'country') {
+    const regions = clientDetailRegionOptions(clientDetailDraft.country);
+    clientDetailDraft.region = regions[0] || '';
+    const cities = clientDetailCityOptions(clientDetailDraft.country, clientDetailDraft.region || '');
+    clientDetailDraft.city = cities[0] || '';
+    clientDetailDraft.timezone = clientCreateTimezoneFor(clientDetailDraft.country, clientDetailDraft.region || '');
+    const rule = clientCreateLocationRules[clientDetailDraft.country] || clientCreateLocationRules.Other!;
+    clientDetailDraft.currency = rule.currency;
+    return true;
+  }
+  if (key === 'region') {
+    const cities = clientDetailCityOptions(clientDetailDraft.country, clientDetailDraft.region || '');
+    clientDetailDraft.city = cities[0] || '';
+    clientDetailDraft.timezone = clientCreateTimezoneFor(clientDetailDraft.country, clientDetailDraft.region || '');
+    return true;
+  }
+  if (key === 'city') {
+    clientDetailDraft.timezone = clientCreateTimezoneFor(clientDetailDraft.country, clientDetailDraft.region || '');
+    return true;
+  }
+  return false;
+}
+
 function clientDetailValidationIssues(record: ZentridClientRecord, tab: ClientDetailTabKey, root: HTMLElement): ZentridFormIssue[] {
   const issues: ZentridFormIssue[] = [];
   const byKey = (key: string): ZentridFormControl | null => root.querySelector<ZentridFormControl>(`[data-client-edit-key="${key}"]`);
@@ -1754,10 +1830,11 @@ function clientDetailRequiredProfileIssues(record: ZentridClientRecord): ClientD
     if (missing(record.taxId)) issues.push({ tab:'identity', key:'taxId', label:'Tax ID / VAT Number', message:'Tax ID / VAT number is required for a legal entity.' });
     if (missing(record.primaryContact)) issues.push({ tab:'portal', key:'primaryContact', label:'Primary Contact Full Name', message:'Primary contact full name is required for a legal entity.' });
   }
+  if (missing(record.identityRole)) issues.push({ tab:'identity', key:'identityRole', label:'Identity Role', message:'Identity role is required.' });
   if (missing(record.address)) issues.push({ tab:'location', key:'address', label:'Street Address', message:'Street address is required.' });
   if (missing(record.contactEmail)) issues.push({ tab:'portal', key:'contactEmail', label:'Primary Contact Email', message:'Primary contact email is required.' });
   if (missing(record.contactPhone)) issues.push({ tab:'portal', key:'contactPhone', label:'Phone Number 1', message:'Primary contact phone number 1 is required.' });
-  if (missing(record.assignmentRole)) issues.push({ tab:'portal', key:'assignmentRole', label:'Portal Role', message:'Portal role is required.' });
+  if (missing(record.portalRole)) issues.push({ tab:'portal', key:'portalRole', label:'Portal Role', message:'Portal role is required.' });
   return issues;
 }
 
@@ -1788,10 +1865,15 @@ function updateClientDetailActions(record: ZentridClientRecord): void {
   const canEdit = clientDetailCanEdit(record);
   if (edit) {
     const showEdit = canEdit && !clientDetailEditMode;
+    const editTitle = canEdit
+      ? (clientDetailBackendManaged(record) ? 'Edit fields supported by the Client backend' : 'Edit this local client section')
+      : clientDetailIsArchived(record) ? 'Archived clients are read-only' : 'This section is read-only';
     edit.hidden = !showEdit;
     edit.style.display = showEdit ? '' : 'none';
-    edit.disabled = clientDetailBusy || !canEdit;
-    edit.title = canEdit ? (clientDetailBackendManaged(record) ? 'Edit fields supported by the Client backend' : 'Edit this local client section') : clientDetailIsArchived(record) ? 'Archived clients are read-only' : 'This section is read-only';
+    edit.dataset.permissionBaseDisabled = canEdit && !clientDetailBusy ? 'false' : 'true';
+    edit.dataset.permissionOriginalTitle = editTitle;
+    edit.title = editTitle;
+    ZentridActionPermissions.apply(edit);
   }
   if (cancel) {
     const showCancel = clientDetailEditMode && clientDetailEditableTab();
@@ -1862,6 +1944,8 @@ function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unk
   const rawTenantLink = raw.tenantLink && typeof raw.tenantLink === 'object' && !Array.isArray(raw.tenantLink) ? raw.tenantLink as Record<string, unknown> : {};
   const rawIdentity = raw.identity && typeof raw.identity === 'object' && !Array.isArray(raw.identity) ? raw.identity as Record<string, unknown> : {};
   const rawPortal = raw.portalAccount && typeof raw.portalAccount === 'object' && !Array.isArray(raw.portalAccount) ? raw.portalAccount as Record<string, unknown> : {};
+  const rawAddress = raw.address && typeof raw.address === 'object' && !Array.isArray(raw.address) ? raw.address as Record<string, unknown> : {};
+  const rawPreferences = raw.preferences && typeof raw.preferences === 'object' && !Array.isArray(raw.preferences) ? raw.preferences as Record<string, unknown> : {};
   const rawPrimary = raw.primaryContact && typeof raw.primaryContact === 'object' && !Array.isArray(raw.primaryContact) ? raw.primaryContact as Record<string, unknown> : {};
   const rawPortalUsers = Array.isArray(raw.portalUsers) ? raw.portalUsers.filter(item => item && typeof item === 'object' && !Array.isArray(item)) as Record<string, unknown>[] : [];
   const firstRawPortalUser = rawPortalUsers[0] || {};
@@ -1876,7 +1960,7 @@ function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unk
   // the user actually changed it. This still allows a deliberate username change to be
   // validated by the backend, while avoiding self-conflicts for unrelated section edits.
   const portalAccountPayload: Record<string, unknown> = {
-    role: clientApiNullableScalar(record.assignmentRole) || clientApiNullableScalar(rawPortal.role)
+    role: clientApiNullableScalar(record.portalRole) || clientApiNullableScalar(rawPortal.role)
   };
   if (currentPortalUsername && currentPortalUsername !== originalPortalUsername) {
     portalAccountPayload.username = currentPortalUsername;
@@ -1896,21 +1980,21 @@ function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unk
       legalForm: clientApiNullableScalar(record.legalForm) || clientApiNullableScalar(rawIdentity.legalForm),
       registrationNumber: clientApiNullableScalar(record.registrationNo) || clientApiNullableScalar(rawIdentity.registrationNumber),
       taxIdVatNumber: clientApiNullableScalar(record.taxId) || clientApiNullableScalar(rawIdentity.taxIdVatNumber),
-      role: clientApiNullableScalar(record.assignmentRole) || clientApiNullableScalar(rawIdentity.role) || clientApiNullableScalar(rawPortal.role),
+      role: clientApiNullableScalar(record.identityRole) || clientApiNullableScalar(rawIdentity.role),
       preferredLanguage: String(record.language || rawIdentity.preferredLanguage || 'English').trim()
     },
     address: {
       country: String(record.country || '').trim(),
       stateRegion: String(record.region || '').trim(),
       city: String(record.city || '').trim(),
-      streetAddress: clientApiNullableScalar(record.address) || clientApiNullableScalar(raw.address) || ''
+      streetAddress: clientApiNullableScalar(record.address) || clientApiNullableScalar(rawAddress.streetAddress) || ''
     },
     preferences: {
-      timeZone: String(record.timezone || 'Asia/Yerevan').trim(),
-      temperatureUnit: String(record.temperature || '°C').trim(),
-      currency: String(record.currency || 'AMD').trim(),
-      irradiationUnit: String(record.irradiation || 'kWh/m2').trim(),
-      language: String(record.language || 'English').trim()
+      timeZone: String(clientApiNullableScalar(record.timezone) || clientApiNullableScalar(rawPreferences.timeZone) || '').trim(),
+      temperatureUnit: String(clientApiNullableScalar(record.temperature) || clientApiNullableScalar(rawPreferences.temperatureUnit) || '').trim(),
+      currency: String(clientApiNullableScalar(record.currency) || clientApiNullableScalar(rawPreferences.currency) || '').trim(),
+      irradiationUnit: String(clientApiNullableScalar(record.irradiation) || clientApiNullableScalar(rawPreferences.irradiationUnit) || '').trim(),
+      language: String(clientApiNullableScalar(record.language) || clientApiNullableScalar(rawPreferences.language) || clientApiNullableScalar(rawIdentity.preferredLanguage) || '').trim()
     },
     primaryContact: {
       phoneNumber1: clientApiNullableScalar(record.contactPhone) || clientApiNullableScalar(rawPrimary.phoneNumber1) || clientApiNullableScalar(firstRawPortalUser.phoneNumber1) || clientApiNullableScalar(firstRawPortalUser.phone),
@@ -1923,13 +2007,17 @@ function clientDetailApiPayload(record: ZentridClientRecord): Record<string, unk
       identityDocument: clientApiDocumentReference(rawDocumentation.identityDocument),
       registrationDocument: clientApiDocumentReference(rawDocumentation.registrationDocument)
     },
-    bankAccounts: Array.isArray(record.bankAccounts) ? record.bankAccounts.map(account => ({
-      bankName: String(account.bankName || account.bank || '').trim(),
-      bankCode: String(account.bankCode || '').trim(),
-      accountNumber: String(account.accountNumber || account.account || '').trim(),
-      accountCurrency: String(account.accountCurrency || account.currency || '').trim(),
-      primary: Boolean(account.primary)
-    })) : []
+    bankAccounts: Array.isArray(record.bankAccounts) ? record.bankAccounts.map(account => {
+      const payload: Record<string, unknown> = {
+        bankName: String(account.bankName || account.bank || '').trim(),
+        bankCode: String(account.bankCode || '').trim(),
+        accountNumber: String(account.accountNumber || account.account || '').trim(),
+        accountCurrency: String(account.accountCurrency || account.currency || '').trim(),
+        primary: Boolean(account.primary)
+      };
+      if (account.id) payload.id = account.id;
+      return payload;
+    }) : []
   };
 }
 
@@ -2221,7 +2309,13 @@ function renderClientDetailPage() {
       selectClientDetailDocumentFile(target);
       return;
     }
-    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) syncDynamicField(target);
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
+      syncDynamicField(target);
+      const key = target.dataset.clientEditKey || '';
+      if (target instanceof HTMLSelectElement && clientDetailApplyLocationDependency(key)) {
+        renderClientDetailCurrentTab(client, plants);
+      }
+    }
   });
   if (requestedEditTab && clientDetailCanEdit(client, requestedEditTab)) setClientDetailEditMode(true, client, plants);
   if (!clientDetailBeforeUnloadBound) {
@@ -2413,7 +2507,11 @@ function clientOverviewTab(client: ZentridClientRecord, plants: ZentridPlantReco
     <div><span>Assigned Plants</span><strong>${counts.plants}</strong><small>${counts.capacity} total DC capacity</small></div>
     <div><span>Device Records</span><strong>${counts.devices}</strong><small>Devices across assigned plants</small></div>
     <div><span>Active Alerts</span><strong>${healthText}</strong><small>Plant and device alerts visible for support context</small></div>
-    <div><span>Portal Status</span><strong>${client.username ? 'Configured' : 'Pending'}</strong><small>${client.username || 'No portal username yet'}</small></div>
+    <div><span>Portal Account</span><strong>${client.username ? 'Configured' : 'Not configured'}</strong><small>${client.username || 'No portal username returned'}</small></div>
+    <div><span>Account Manager</span><strong>${clientDetailEditableValue(client.account) || '—'}</strong><small>accountManager</small></div>
+    <div><span>Created</span><strong>${clientDetailEscape(clientDetailDisplayDate(client.createdAtUtc))}</strong><small>createdAtUtc</small></div>
+    <div><span>Last Updated</span><strong>${clientDetailEscape(clientDetailDisplayDate(client.updatedAtUtc || client.lastSyncAt))}</strong><small>updatedAtUtc</small></div>
+    <div><span>Activated</span><strong>${clientDetailEscape(clientDetailDisplayDate(client.activationAt))}</strong><small>tenantLink.activationAt</small></div>
   </div>
   <div class="section-title-v17 mini"><div><h3>Operational Snapshot</h3><p class="muted">Only high-value information is shown here, not every internal admin field.</p></div></div>
   <div class="placeholder-grid compact-cards client-ops-grid-v40">
@@ -2437,7 +2535,7 @@ function clientIdentityTab(client: ZentridClientRecord): string {
       ['Personal / Passport ID', registrationValue, 'Identity / passport number from Client API'],
       ['Tax / Personal ID', taxValue, 'Tax or personal number from Client API'],
       ['Verification', client.verification, 'Identity verification state'],
-      ['User Role', client.assignmentRole, 'Initial role from create form']
+      ['Identity Role', client.identityRole || '—', 'Identity role returned by the Client API']
     ]
     : [
       ['Legal Name', client.name, 'Company / legal entity name'],
@@ -2445,7 +2543,7 @@ function clientIdentityTab(client: ZentridClientRecord): string {
       ['Registration Number', registrationValue, 'Company registration reference'],
       ['Tax ID', taxValue, 'VAT / tax identification'],
       ['Verification', client.verification, 'KYC / legal verification state'],
-      ['User Role', client.assignmentRole, 'Initial role from create form']
+      ['Identity Role', client.identityRole || '—', 'Identity role returned by the Client API']
     ];
   return `<div class="section-title-v17"><div><h2>Identity</h2><p class="muted">Identity data collected during Client creation. This section stays focused on legal/person data only.</p></div></div>
   <div class="info-grid">${rows.map(([k,v,h]) => `<div><span>${k}</span><strong>${v || 'Not provided'}</strong><small>${h}</small></div>`).join('')}</div>`;
@@ -2459,16 +2557,16 @@ function clientLocationPreferencesTab(client: ZentridClientRecord): string {
     <div><span>City</span><strong>${client.city || 'Not provided'}</strong><small>Library value</small></div>
     <div><span>Address</span><strong>${client.address || 'Not provided'}</strong><small>Client address</small></div>
     <div><span>Time Zone</span><strong>${client.timezone || 'Not provided'}</strong><small>Used for portal dates and reporting</small></div>
-    <div><span>Language</span><strong>${client.language || 'English'}</strong><small>End-user portal preference</small></div>
-    <div><span>Temperature Format</span><strong>${client.temperature || '°C'}</strong><small>End-user portal preference</small></div>
-    <div><span>Currency Unit</span><strong>${client.currency || 'AMD'}</strong><small>End-user portal preference</small></div>
-    <div><span>Irradiation</span><strong>${client.irradiation || 'kWh/m2'}</strong><small>Library value for solar metrics</small></div>
+    <div><span>Language</span><strong>${clientDetailEditableValue(client.language) || '—'}</strong><small>End-user portal preference</small></div>
+    <div><span>Temperature Format</span><strong>${clientDetailEditableValue(client.temperature) || '—'}</strong><small>End-user portal preference</small></div>
+    <div><span>Currency Unit</span><strong>${clientDetailEditableValue(client.currency) || '—'}</strong><small>End-user portal preference</small></div>
+    <div><span>Irradiation</span><strong>${clientDetailEditableValue(client.irradiation) || '—'}</strong><small>Library value for solar metrics</small></div>
   </div>`;
 }
 
 
 function clientPlantAssignments(client: ZentridClientRecord, plants: ZentridPlantRecord[]) {
-  const fallbackRole = client.assignmentRole || (client.type === 'Individual' ? 'Owner' : 'Owner / Investor');
+  const fallbackRole = client.portalRole || client.identityRole || client.assignmentRole || '—';
   const roleByIndex = ['Owner', 'Energy Beneficiary', 'O&M Observer', 'Energy Consumer'];
   return plants.map((plant, index) => ({
     plant,
@@ -2497,85 +2595,76 @@ function clientPortalScalar(value: unknown, fallback = ''): string {
 function clientPortalUsers(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
   if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(rawUser => {
     const user = rawUser as unknown as Record<string, unknown>;
+    const rawModules = user.modules ?? user.allowedModules;
+    const modules = Array.isArray(rawModules)
+      ? rawModules.map(item => clientPortalScalar(item)).filter(Boolean).join(', ')
+      : clientPortalScalar(rawModules, '');
+    const authUserId = clientPortalScalar(user.authUserId ?? user.id, '');
     return {
+      ...(authUserId ? { authUserId } : {}),
       name: clientPortalScalar(user.name ?? user.fullName ?? user.user, 'Portal User'),
-      email: clientPortalScalar(user.email ?? user.emailAddress, 'Not provided'),
-      role: clientPortalScalar(user.role ?? user.portalRole, 'End User'),
-      scope: clientPortalScalar(user.scope ?? user.accessScope ?? user.plantScope, 'No plant scope yet'),
-      modules: clientPortalScalar(user.modules ?? user.allowedModules, 'Overview, Energy, Reports, Documents'),
-      status: clientPortalScalar(user.status ?? user.accountStatus, 'Pending'),
-      lastLogin: clientPortalScalar(user.lastLogin ?? user.lastLoginAt, 'No login yet'),
-      mfa: clientPortalScalar(user.mfa ?? user.mfaStatus, 'Recommended')
+      email: clientPortalScalar(user.email ?? user.emailAddress, '—'),
+      role: clientPortalScalar(user.role ?? user.portalRole, '—'),
+      scope: clientPortalScalar(user.scope ?? user.accessScope ?? user.plantScope, '—'),
+      modules: modules || '—',
+      status: clientPortalScalar(user.status ?? user.accountStatus, '—'),
+      lastLogin: clientPortalScalar(user.lastLogin ?? user.lastLoginAt, '—'),
+      mfa: clientPortalScalar(user.mfa ?? user.mfaStatus, '—')
     };
   });
-  const firstPlant = plants[0]?.name || 'No plant assigned';
-  const secondPlant = plants[1]?.name || firstPlant;
-  const base = [
-    {
-      name: clientPortalScalar(client.primaryContact, client.name),
-      email: client.contactEmail || 'not-configured@example.com',
-      role: client.type === 'Individual' ? 'Owner User' : 'Client Admin',
-      scope: plants.length ? 'All assigned plants' : 'No plant scope yet',
-      modules: 'Overview, Energy, Reports, Documents',
-      status: client.username ? 'Active' : client.status === 'Active' ? 'Invited' : 'Pending',
-      lastLogin: client.username ? '2 days ago' : 'No login yet',
-      mfa: 'Recommended'
-    }
-  ];
-  if (client.type !== 'Individual') {
-    base.push(
-      { name: 'Narek Grigoryan', email: 'finance@' + (client.code || 'client').toLowerCase().replace(/[^a-z0-9]/g, '') + '.example', role: 'Finance Contact', scope: 'Commercial + invoices', modules: 'Finance, Reports, Documents', status: 'Active', lastLogin: '5 days ago', mfa: 'Enabled' },
-      { name: 'Lilit Avagyan', email: 'technical@' + (client.code || 'client').toLowerCase().replace(/[^a-z0-9]/g, '') + '.example', role: 'Technical Viewer', scope: firstPlant, modules: 'Overview, Devices, Alerts', status: 'Active', lastLogin: 'Yesterday', mfa: 'Enabled' },
-      { name: 'External Auditor', email: 'audit@' + (client.code || 'client').toLowerCase().replace(/[^a-z0-9]/g, '') + '.example', role: 'Read-only Auditor', scope: secondPlant, modules: 'Reports, Documents, Audit', status: 'Suspended', lastLogin: '31 days ago', mfa: 'Required' }
-    );
-  }
-  return base;
+  if (clientDetailBackendManaged(client)) return [];
+  return [];
 }
 
 function clientUsersAccessTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const users = clientPortalUsers(client, plants);
   const active = users.filter(u => u.status === 'Active').length;
-  const pending = users.filter(u => u.status !== 'Active').length;
-  return `<div class="section-title-v17"><div><h2>Users & Access</h2><p class="muted">People from this client who can enter the End User portal. This is client-facing access, not Tenant Admin staff management.</p></div><span class="badge warning">Prototype access data</span></div>
+  const pending = users.filter(u => u.status && u.status !== 'Active' && u.status !== '—').length;
+  const sourceBadge = clientDetailBackendManaged(client) ? '<span class="badge success">Live API</span>' : '<span class="badge warning">Local data</span>';
+  return `<div class="section-title-v17"><div><h2>Users & Access</h2><p class="muted">Portal users returned for this client. Empty backend arrays stay empty; the UI does not create placeholder users.</p></div>${sourceBadge}</div>
   <div class="info-grid">
-    <div><span>Total Portal Users</span><strong>${users.length}</strong><small>Visible in client workspace</small></div>
-    <div><span>Active Users</span><strong>${active}</strong><small>Can access portal now</small></div>
-    <div><span>Pending / Restricted</span><strong>${pending}</strong><small>Invited, suspended or waiting verification</small></div>
-    <div><span>Default Plant Scope</span><strong>${plants.length ? 'Assigned plants only' : 'No plant scope'}</strong><small>Client users never see tenant-wide operations</small></div>
-    <div><span>Default Role Template</span><strong>${client.type === 'Individual' ? 'Owner User' : 'Client Admin'}</strong><small>End User portal role family</small></div>
-    <div><span>Export Control</span><strong>${client.exportPolicy || 'Not configured'}</strong><small>Reports and document download policy</small></div>
+    <div><span>Total Portal Users</span><strong>${users.length}</strong><small>Returned by the Client API</small></div>
+    <div><span>Active Users</span><strong>${active}</strong><small>Portal user status = Active</small></div>
+    <div><span>Pending / Restricted</span><strong>${pending}</strong><small>Non-active portal users returned by API</small></div>
+    <div><span>Default Plant Scope</span><strong>${clientDetailEditableValue(client.accessScope) || '—'}</strong><small>Client accessScope</small></div>
+    <div><span>Portal Role</span><strong>${clientDetailEditableValue(client.portalRole) || '—'}</strong><small>Portal account role</small></div>
+    <div><span>Export Control</span><strong>${clientDetailEditableValue(client.exportPolicy) || '—'}</strong><small>Client exportPolicy</small></div>
   </div>
-  <div class="data-table compact-table client-users-access-table-v89">
+  ${users.length ? `<div class="data-table compact-table client-users-access-table-v89">
     <div class="data-head"><span>User</span><span>Portal Role</span><span>Plant / Data Scope</span><span>Allowed Modules</span><span>Status</span><span>Security</span></div>
-    ${users.map(u => `<div class="data-row"><div><strong>${u.name}</strong><small>${u.email}</small></div><div><strong>${u.role}</strong><small>Client-facing role</small></div><div><strong>${u.scope}</strong><small>Object-level access scope</small></div><div><strong>${u.modules}</strong><small>No admin/system configuration</small></div><div><span class="badge ${u.status === 'Active' ? 'success' : u.status === 'Suspended' ? 'danger' : 'warning'}">${u.status}</span><small>Last login: ${u.lastLogin}</small></div><div><strong>MFA: ${u.mfa}</strong><small>Audit required for access changes</small></div></div>`).join('')}
-  </div>
-  <div class="section-title-v17 mini"><div><h3>Access Rules Snapshot</h3><p class="muted">These rules explain the boundary between Client Portal and Tenant/Admin workspaces.</p></div></div>
+    ${users.map(u => `<div class="data-row"><div><strong>${clientDetailEscape(u.name)}</strong><small>${clientDetailEscape(u.email)}</small></div><div><strong>${clientDetailEscape(u.role)}</strong><small>Client-facing role</small></div><div><strong>${clientDetailEscape(u.scope)}</strong><small>Object-level access scope</small></div><div><strong>${clientDetailEscape(u.modules)}</strong><small>${u.modules === '—' ? 'No modules returned by API' : 'Allowed modules returned by API'}</small></div><div><span class="badge ${u.status === 'Active' ? 'success' : u.status === 'Suspended' ? 'danger' : 'warning'}">${clientDetailEscape(u.status)}</span><small>Last login: ${clientDetailEscape(u.lastLogin)}</small></div><div><strong>MFA: ${clientDetailEscape(u.mfa)}</strong><small>Security state returned by API</small></div></div>`).join('')}
+  </div>` : `<div class="empty-state"><strong>No portal users</strong><small>The Client API returned an empty portalUsers array for this client.</small></div>`}
+  <div class="section-title-v17 mini"><div><h3>Access Boundary</h3><p class="muted">Static workspace guidance; this is not a per-user permission payload.</p></div></div>
   <div class="placeholder-grid compact-cards client-ops-grid-v40 client-access-rules-v89">
-    <article><span>Allowed</span><strong>View own plants</strong><small>Overview, My Plant, simplified devices and alerts.</small></article>
-    <article><span>Allowed</span><strong>Download approved reports</strong><small>Only when export policy allows it.</small></article>
-    <article><span>Blocked</span><strong>No tenant operations</strong><small>No integrations, registry management, mapping or billing setup.</small></article>
-    <article><span>Audit</span><strong>Access changes logged</strong><small>Every role/scope update belongs to Global Admin audit.</small></article>
+    <article><span>Boundary</span><strong>Client-scoped access</strong><small>Client users must not inherit tenant-wide administration by default.</small></article>
+    <article><span>Source</span><strong>Portal user payload</strong><small>Role, scope, modules, status and MFA are shown only when returned by API.</small></article>
   </div>`;
 }
 
 function clientContactsPortalTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
-  return `<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact data. Detailed portal users and permissions are separated into Users & Access.</p></div><span class="badge ${client.username ? 'success' : 'warning'}">${client.username ? 'Portal configured' : 'Portal pending'}</span></div>
+  const portalUsers = clientPortalUsers(client, plants);
+  const primaryPortalUser = portalUsers[0];
+  const portalAccountState = client.username ? 'Configured' : 'Not configured';
+  const portalUserState = primaryPortalUser?.status || '—';
+  return `<div class="section-title-v17"><div><h2>Contacts & Portal</h2><p class="muted">Primary contact, portal account and portal-user state are shown as separate backend concepts.</p></div><span class="badge ${client.username ? 'success' : 'warning'}">Portal ${client.username ? 'configured' : 'pending'}</span></div>
   <div class="info-grid">
-    <div><span>Primary Contact</span><strong>${clientPortalScalar(client.primaryContact, 'Not provided')}</strong><small>Contact person / client owner</small></div>
-    <div><span>E-mail</span><strong>${client.contactEmail || 'Not provided'}</strong><small>Primary portal and notification address</small></div>
-    <div><span>Phone Number 1</span><strong>${client.contactPhone || 'Not provided'}</strong><small>Main contact phone</small></div>
-    <div><span>Phone Number 2</span><strong>${client.phone2 || 'Not provided'}</strong><small>Optional contact phone</small></div>
-    <div><span>Username</span><strong>${client.username || 'Not configured'}</strong><small>Portal account username</small></div>
-    <div><span>Portal Role</span><strong>${client.assignmentRole || 'End User'}</strong><small>Client-facing role template</small></div>
-    <div><span>Portal Users</span><strong>${clientPortalUsers(client, plants).length}</strong><small>Open Users & Access for role and scope</small></div>
-    <div><span>Plant Scope</span><strong>${plants.length} assigned plant${plants.length === 1 ? '' : 's'}</strong><small>${client.accessScope}</small></div>
+    <div><span>Primary Contact</span><strong>${clientPortalScalar(client.primaryContact, '—')}</strong><small>primaryContact.fullName</small></div>
+    <div><span>E-mail</span><strong>${clientDetailEditableValue(client.contactEmail) || '—'}</strong><small>primaryContact.email</small></div>
+    <div><span>Phone Number 1</span><strong>${clientDetailEditableValue(client.contactPhone) || '—'}</strong><small>primaryContact.phoneNumber1</small></div>
+    <div><span>Phone Number 2</span><strong>${clientDetailEditableValue(client.phone2) || '—'}</strong><small>primaryContact.phoneNumber2</small></div>
+    <div><span>Username</span><strong>${clientDetailEditableValue(client.username) || '—'}</strong><small>portalAccount.username</small></div>
+    <div><span>Portal Role</span><strong>${clientDetailEditableValue(client.portalRole) || '—'}</strong><small>portalAccount.role</small></div>
+    <div><span>Portal Users</span><strong>${portalUsers.length}</strong><small>portalUsers returned by API</small></div>
+    <div><span>Plant Scope</span><strong>${plants.length} assigned plant${plants.length === 1 ? '' : 's'}</strong><small>${clientDetailEditableValue(client.accessScope) || '—'}</small></div>
   </div>
-  <div class="section-title-v17 mini"><div><h3>Portal Usage</h3><p class="muted">Useful support indicators without exposing the full RBAC matrix here.</p></div></div>
+  <div class="section-title-v17 mini"><div><h3>Portal Usage</h3><p class="muted">No last-login or security value is invented when the Client API does not provide it.</p></div></div>
   <div class="placeholder-grid compact-cards client-ops-grid-v40">
-    <article><span>Portal Status</span><strong>${client.username ? 'Active' : 'Pending'}</strong><small>${client.activationAt || 'Activation date unavailable'}</small></article>
-    <article><span>Last Login</span><strong>${client.username ? '2 days ago' : 'No login yet'}</strong><small>Backend support signal unavailable</small></article>
-    <article><span>MFA</span><strong>${client.username ? 'Recommended' : 'Not configured'}</strong><small>Security policy snapshot</small></article>
-    <article><span>Export Policy</span><strong>${client.exportPolicy || 'Not configured'}</strong><small>Reports and document exports</small></article>
+    <article><span>Client Status</span><strong>${clientDetailEditableValue(client.status) || '—'}</strong><small>tenantLink.status</small></article>
+    <article><span>Portal Account</span><strong>${portalAccountState}</strong><small>${clientDetailEditableValue(client.username) || 'No username returned'}</small></article>
+    <article><span>Portal User Status</span><strong>${portalUserState}</strong><small>${primaryPortalUser ? 'First portal user returned by API' : 'No portal user returned'}</small></article>
+    <article><span>Last Login</span><strong>${primaryPortalUser?.lastLogin || '—'}</strong><small>Not available unless returned by API</small></article>
+    <article><span>MFA</span><strong>${primaryPortalUser?.mfa || '—'}</strong><small>portalUsers[].mfa</small></article>
+    <article><span>Export Policy</span><strong>${clientDetailEditableValue(client.exportPolicy) || '—'}</strong><small>exportPolicy</small></article>
   </div>`;
 }
 
@@ -2583,6 +2672,9 @@ function clientPlantsTab(client: ZentridClientRecord, plants: ZentridPlantRecord
   const counts = ZentridClientModel.countsForClient(client.id);
   const createUrl = `plants.html?view=solar&create=1&client=${encodeURIComponent(client.id)}&clientName=${encodeURIComponent(client.name)}&tenant=${encodeURIComponent(client.tenant)}&country=${encodeURIComponent(client.country || '')}&region=${encodeURIComponent(client.region || '')}&city=${encodeURIComponent(client.city || '')}&timezone=${encodeURIComponent(client.timezone || 'Asia/Yerevan')}&contact=${encodeURIComponent(client.primaryContact || client.contactEmail || '')}`;
   if (!plants.length) return `<div class="section-title-v17"><div><h2>Assigned Plants</h2><p class="muted">Plants linked to this client will appear here with role, access and commercial scope.</p></div><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div><div class="empty-state"><strong>No plants assigned</strong><small>No End User portal plant scope will be available until at least one plant is assigned.</small></div>`;
+  if (clientDetailBackendManaged(client)) return `<div class="section-title-v17"><div><h2>Assigned Plants</h2><p class="muted">Linked Plant API records. Assignment role, commercial scope and assignment dates are not invented when the backend does not provide them.</p></div><div class="section-actions-v28"><span class="badge success">${plants.length} assigned</span><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div></div>
+  <div class="info-grid"><div><span>Total Plants</span><strong>${plants.length}</strong><small>Linked to this client</small></div><div><span>Total Capacity</span><strong>${counts.capacity}</strong><small>Installed DC capacity</small></div><div><span>Device Records</span><strong>${counts.devices}</strong><small>Linked plant devices</small></div><div><span>Open Alerts</span><strong>${counts.alerts}</strong><small>Across linked plants</small></div></div>
+  <div class="data-table compact-table client-plant-table-v40"><div class="data-head"><span>Plant</span><span>Status</span><span>Location</span><span>Capacity</span><span>Actions</span></div>${plants.map(plant => `<div class="data-row" data-plant="${clientDetailAttr(plant.id)}"><div><strong>${clientDetailEscape(plant.name)}</strong><small>${clientDetailEscape(plant.code)}<br>${clientDetailEscape(plant.id)}</small></div><div><span class="badge ${ZentridClientModel.badge(plant.health)}">${clientDetailEscape(plant.health)}</span><small>${clientDetailEscape(plant.status)}</small></div><div><strong>${clientDetailEscape(plant.country || '—')}, ${clientDetailEscape(plant.city || '—')}</strong><small>${clientDetailEscape(plant.region || '—')}</small></div><div><strong>${clientDetailEscape(plant.capacityDc || '—')}</strong><small>DC capacity</small></div><div class="row-actions"><button type="button">Open</button></div></div>`).join('')}</div>`;
   return `<div class="section-title-v17"><div><h2>Assigned Plants</h2><p class="muted">Client plant portfolio with assignment role, portal visibility and commercial scope.</p></div><div class="section-actions-v28"><span class="badge success">${plants.length} assigned</span><button class="small-btn primary" type="button" onclick="location.href='${createUrl}'">Create Plant</button></div></div>
   <div class="info-grid">
     <div><span>Total Plants</span><strong>${plants.length}</strong><small>Assigned to this client</small></div>
@@ -2600,23 +2692,14 @@ function clientPlantsTab(client: ZentridClientRecord, plants: ZentridPlantRecord
 function clientBankAccounts(client: ZentridClientRecord): ZentridBankAccount[] {
   const saved = Array.isArray(client.bankAccounts) ? client.bankAccounts : [];
   const normalized = saved.map((b, i) => ({
+    ...(b.id ? { id:b.id } : {}),
     bankName: b.bankName || b.bank || 'Not provided',
     bankCode: b.bankCode || 'Not provided',
     accountNumber: b.accountNumber || b.account || 'Not provided',
     accountCurrency: b.accountCurrency || b.currency || client.currency || 'AMD',
     primary: !!b.primary || i === 0
   })).filter(b => b.bankName !== 'Not provided' || b.accountNumber !== 'Not provided');
-  if (normalized.length) return normalized;
-  if (client.billing && client.billing !== 'Not configured') {
-    return [{
-      bankName: client.country === 'Armenia' ? 'ACBA Bank' : 'Primary Operating Bank',
-      bankCode: 'Not provided',
-      accountNumber: client.country === 'Armenia' ? 'AM110001234567890' : 'EU00 1000 2000 3000 4000',
-      accountCurrency: client.currency || (client.country === 'Armenia' ? 'AMD' : 'EUR'),
-      primary: true
-    }];
-  }
-  return [];
+  return normalized;
 }
 
 function clientBankingSection(client: ZentridClientRecord): string {
@@ -2630,8 +2713,8 @@ function clientCommercialProfile(client: ZentridClientRecord, plants: ZentridPla
   const currency = client.currency || (client.country === 'Armenia' ? 'AMD' : 'EUR');
   const bankAccounts = clientBankAccounts(client);
   const primaryBank = bankAccounts.find(b => b.primary) || bankAccounts[0];
-  const firstBank = primaryBank?.bankName || (client.country === 'Armenia' ? 'ACBA Bank' : 'Primary Operating Bank');
-  const iban = primaryBank?.accountNumber || (client.country === 'Armenia' ? 'AM110001234567890' : 'EU00 1000 2000 3000 4000');
+  const firstBank = primaryBank?.bankName || '—';
+  const iban = primaryBank?.accountNumber || '—';
   const monthlyEnergy = plants.reduce((sum, p) => sum + (parseFloat(String(p.energyToday || '0').replace(/[^0-9.]/g, '')) || 0) * 30, 0);
   const saleRate = client.id === 'CL-00042' ? 0.104 : client.id === 'CL-00043' ? 0.118 : 0.092;
   const estimatedRevenue = Math.round(monthlyEnergy * 1000 * saleRate);
@@ -2668,7 +2751,8 @@ function clientCommercialRows(client: ZentridClientRecord, plants: ZentridPlantR
 function clientCommercialPaymentsTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
   const profile = clientCommercialProfile(client, plants);
   const rows = clientCommercialRows(client, plants, profile);
-  if (!plants.length) return `<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Commercial logic appears after at least one plant is assigned to this client.</p></div><span class="badge warning">No plant scope</span></div><div class="empty-state"><strong>No commercial chain yet</strong><small>Assign a plant first, then connect commercial model, energy sale, payment destination and settlement audit.</small></div>`;
+  if (!plants.length) return `<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Client banking is available independently of plant assignment. The energy-sale chain appears after a plant is linked.</p></div><span class="badge warning">No plant scope</span></div>${clientBankingSection(client)}<div class="empty-state"><strong>No plant commercial chain yet</strong><small>Assign a plant to connect commercial model, energy sale and settlement context.</small></div>`;
+  if (clientDetailBackendManaged(client)) return `<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Bank accounts are Client API data. Commercial model, buyer, rates and settlement rules stay empty until a backend contract provides them.</p></div><span class="badge neutral">Live API</span></div>${clientBankingSection(client)}<div class="info-grid"><div><span>Assigned Plants</span><strong>${plants.length}</strong><small>Linked operational scope</small></div><div><span>Access Scope</span><strong>${clientDetailEditableValue(client.accessScope) || '—'}</strong><small>accessScope</small></div><div><span>Export Policy</span><strong>${clientDetailEditableValue(client.exportPolicy) || '—'}</strong><small>exportPolicy</small></div><div><span>Commercial Model</span><strong>—</strong><small>Not returned by Client API</small></div><div><span>Energy Buyer / Rate</span><strong>—</strong><small>Not returned by Client API</small></div><div><span>Settlement Rule</span><strong>—</strong><small>Not returned by Client API</small></div></div>`;
   return `<div class="section-title-v17"><div><h2>Commercial & Payments</h2><p class="muted">Full client chain: Client → Assigned Plant → Commercial Model → Energy Sale → Payment Destination → Settlement / Audit.</p></div><span class="badge ${profile.contract === 'Active' ? 'success' : 'warning'}">${profile.contract}</span></div>
   <div class="commercial-flow-v90">
     <article><span>1</span><strong>Client</strong><small>${client.name}<br>${client.code}</small></article>
@@ -2702,6 +2786,11 @@ function clientCommercialPaymentsTab(client: ZentridClientRecord, plants: Zentri
 }
 
 function clientAlertsTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
+  if (clientDetailBackendManaged(client)) {
+    const counts = ZentridClientModel.countsForClient(client.id);
+    const impactedPlants = plants.filter(plant => Number(plant.alerts || 0) > 0).length;
+    return `<div class="section-title-v17"><div><h2>Alerts</h2><p class="muted">Client-level alert totals are derived from linked Plant records. Alert titles and event times are not synthesized.</p></div><span class="badge ${counts.alerts ? 'warning' : 'success'}">${counts.alerts ? `${counts.alerts} active` : 'Clear'}</span></div><div class="info-grid"><div><span>Open Alerts</span><strong>${counts.alerts}</strong><small>Across linked plants</small></div><div><span>Impacted Plants</span><strong>${impactedPlants}</strong><small>Plants with alert count &gt; 0</small></div><div><span>Detailed Events</span><strong>—</strong><small>Open the Alerts workspace for event-level records</small></div></div>${counts.alerts ? `<div class="empty-state"><strong>Active alerts exist</strong><small>Event-level Client alert details are not invented here. Use the Alerts workspace for backend alert records.</small></div>` : `<div class="empty-state"><strong>No active alerts</strong><small>Linked plants currently report zero open alerts.</small></div>`}`;
+  }
   const alerts = plants.flatMap(p => {
     const count = Number(p.alerts || 0);
     if (!count) return [];
@@ -2729,14 +2818,12 @@ function clientAlertsTab(client: ZentridClientRecord, plants: ZentridPlantRecord
 }
 
 function clientActivityTab(client: ZentridClientRecord, plants: ZentridPlantRecord[]): string {
-  const firstPlant = plants[0];
-  return `<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Client-level timeline with only useful governance and support events.</p></div></div>
+  return `<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Until a Client activity/audit endpoint is available, this section shows only lifecycle timestamps returned by the backend.</p></div><span class="badge neutral">Timestamp view</span></div>
   <div class="timeline-v17 client-activity-v40">
-    <div><b>Today</b><span>Client profile reviewed by Global Admin</span></div>
-    <div><b>${client.activationAt || 'Recently'}</b><span>Client account activation generated</span></div>
-    <div><b>This week</b><span>${plants.length ? `${plants.length} plant${plants.length === 1 ? '' : 's'} visible in client context` : 'No plants assigned yet'}</span></div>
-    <div><b>This month</b><span>Portal access policy checked: ${client.accessScope || 'No scope configured'}</span></div>
-    ${firstPlant ? `<div><b>Plant event</b><span>${firstPlant.name} reported ${firstPlant.alerts} active alert${firstPlant.alerts === 1 ? '' : 's'}</span></div>` : ''}
+    <div><b>Created</b><span>${clientDetailEscape(clientDetailDisplayDate(client.createdAtUtc))}</span></div>
+    <div><b>Last Updated</b><span>${clientDetailEscape(clientDetailDisplayDate(client.updatedAtUtc || client.lastSyncAt))}</span></div>
+    <div><b>Activated</b><span>${clientDetailEscape(clientDetailDisplayDate(client.activationAt))}</span></div>
+    <div><b>Linked Plants</b><span>${plants.length}</span></div>
   </div>`;
 }
 

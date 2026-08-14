@@ -1,5 +1,6 @@
 interface ZentridTenantContact {
   [key: string]: unknown;
+  id?: string;
   first?: string;
   last?: string;
   full?: string;
@@ -36,12 +37,16 @@ interface ZentridTenantRecord {
   code?: string;
   name: string;
   legal?: string;
+  profileCountry?: string;
   country?: string;
+  legalCountry?: string;
   region?: string;
   city?: string;
   status?: string;
   health?: string;
   setup?: number;
+  created?: string;
+  updated?: string;
   contacts?: ZentridTenantContact[];
   documents?: ZentridTenantDocument[];
   notes?: Record<string, string>;
@@ -163,6 +168,31 @@ function defaultTenantCountryRule(): ZentridTenantCountryRule {
   if (!rule) throw new Error('Default tenant country rule is missing.');
   return rule;
 }
+
+const TENANT_ENTITY_TYPE_OPTIONS = ['Legal Entity','Individual'] as const;
+const TENANT_STATUS_OPTIONS = ['Inactive','Active','Suspended','Archived'] as const;
+const TENANT_TYPE_OPTIONS = ['Owner','Operator','Investor','EPC','O&M','Utility'] as const;
+const TENANT_INDUSTRY_OPTIONS = ['Solar Energy','Renewable Energy','Energy Services','O&M Services','Commercial Real Estate','Industrial','Government / Municipality','Utility'] as const;
+const TENANT_BUSINESS_CATEGORY_OPTIONS = ['Enterprise','SME','Government'] as const;
+const TENANT_PARENT_COMPANY_OPTIONS = ['None','Parent Company A','Parent Company B'] as const;
+const TENANT_ANNUAL_REVENUE_OPTIONS = ['Less than $1M','$1M–$5M','$5M–$10M','$10M–$50M','$50M+'] as const;
+const TENANT_CONTACT_DEPARTMENT_OPTIONS = ['Executive','Finance','Legal','Technical','Operations'] as const;
+const TENANT_CONTACT_ROLE_OPTIONS = ['Primary','Billing','Legal','Technical','Commercial'] as const;
+const TENANT_LANGUAGE_OPTIONS = ['English','Armenian'] as const;
+const TENANT_CONTACT_METHOD_OPTIONS = ['Email','Phone','Portal'] as const;
+const TENANT_CATEGORY_OPTIONS = ['Strategic','Standard','Partner'] as const;
+const TENANT_ACCOUNT_TIER_OPTIONS = ['Bronze','Silver','Gold','Platinum'] as const;
+const TENANT_PRIORITY_OPTIONS = ['Low','Medium','High'] as const;
+const TENANT_RISK_OPTIONS = ['Low','Medium','High'] as const;
+const TENANT_ACQUISITION_SOURCE_OPTIONS = ['Referral','Direct','Partner','Event'] as const;
+const TENANT_COMMUNICATION_CHANNEL_OPTIONS = ['Email','Phone','Portal'] as const;
+const TENANT_DPA_OPTIONS = ['Signed','Not Signed'] as const;
+const TENANT_NDA_OPTIONS = ['Signed','Not Signed'] as const;
+const TENANT_COMPLIANCE_OPTIONS = ['Approved','Pending'] as const;
+const TENANT_CONFIDENTIALITY_OPTIONS = ['Standard','Restricted','Critical'] as const;
+const TENANT_CONTROLLER_TYPE_OPTIONS = ['Controller','Processor'] as const;
+const TENANT_CONSENT_OPTIONS = ['Active','Expired'] as const;
+const TENANT_YES_NO_OPTIONS = ['Yes','No'] as const;
 function cls(v: unknown): string { const text=String(v).toLowerCase(); if(text.includes('risk')||text.includes('critical')||text.includes('suspend')||text.includes('non')||text.includes('expired')) return 'danger'; if(text.includes('attention')||text.includes('review')||text.includes('medium')||text.includes('inactive')||text.includes('pending')) return 'warning'; return 'success'; }
 function getTenants(): ZentridTenantRecord[] { const liveRows = window.ZentridLiveTenants as ZentridTenantRecord[] | undefined; return Array.isArray(liveRows) ? liveRows : []; }
 
@@ -265,7 +295,7 @@ function tenantApiNotificationRecipients(value: unknown, contacts: ZentridTenant
 }
 
 function tenantApiContact(contact: ZentridTenantContact): Record<string, unknown> {
-  return {
+  const payload: Record<string, unknown> = {
     firstName: tenantApiNullable(contact.first),
     lastName: tenantApiNullable(contact.last),
     position: tenantApiNullable(contact.position),
@@ -278,6 +308,9 @@ function tenantApiContact(contact: ZentridTenantContact): Record<string, unknown
     preferredContactMethod: tenantApiNullable(contact.method),
     active: tenantBoolean(contact.active, true)
   };
+  const id = String(contact.id || '').trim();
+  if (id) payload.id = id;
+  return payload;
 }
 
 function tenantSectionedApiPayload(source: {
@@ -471,7 +504,7 @@ function tenantFullUpdateApiPayload(record: ZentridTenantRecord): Record<string,
       notes: tenantApiNullable(notes.general)
     },
     legalAddress: {
-      country: tenantApiCountryCode(record.profileCountry || record.country),
+      country: tenantApiCountryCode(record.legalCountry || record.country),
       stateRegion: tenantApiNullable(record.region),
       city: tenantApiNullable(record.city),
       streetAddress: tenantApiNullable(record.address),
@@ -905,8 +938,8 @@ function tenantDetailModeCopy(record: ZentridTenantRecord): { title: string; mes
     status:tenantStatusValue(record),
     backendTitle:'Live tenant · backend editing available',
     backendMessage:'Edit saves tenant metadata through PUT /api/admin/tenants/{id}. Lifecycle commands remain separate.',
-    archivedTitle:'Archived tenant is read-only',
-    archivedMessage:'Archived tenant identity, contacts and compliance data cannot be edited from this workspace.'
+    archivedTitle:'Archived tenant · read-only',
+    archivedMessage:'Archived tenants cannot be modified by the backend. Tenant metadata and lifecycle are read-only.'
   });
 }
 function tenantProfileCompleteness(c: ZentridTenantRecord): number {
@@ -940,38 +973,101 @@ function setTenantDetailFeedback(tone: TenantDetailFeedbackTone, title: string, 
 function clearTenantDetailFeedback(): void {
   ZentridEntityDetailUX.clearFeedback('tenantDetailFeedback', 'tenant-detail-feedback-v117');
 }
+function tenantEditableValue(value: unknown): string {
+  const text = String(value ?? '').trim();
+  return text === '—' || text.toLowerCase() === 'not set' ? '' : text;
+}
+function tenantOptionTags(values: readonly string[], selected = '', includeEmpty = false): string {
+  const current = tenantEditableValue(selected);
+  const unique = Array.from(new Set(values.map(value => String(value)).filter(Boolean)));
+  if (current && !unique.includes(current)) unique.unshift(current);
+  const options = includeEmpty ? ['', ...unique] : unique;
+  return options.map(option => {
+    const label = option || 'Not set';
+    return `<option value="${tenantEscapeAttr(option)}" ${current === option ? 'selected' : ''}>${tenantEscapeHtml(label)}</option>`;
+  }).join('');
+}
+function tenantEditRecordContext(): ZentridTenantRecord {
+  return tenantDetailDraft || selectedTenant();
+}
+function tenantEditCountryRule(countryValue: unknown): ZentridTenantCountryRule {
+  const country = tenantEditableValue(countryValue);
+  return tenantCountryRules[country] || defaultTenantCountryRule();
+}
+function tenantEditableOptions(key: string, label: string): readonly string[] | null {
+  const record = tenantEditRecordContext();
+  if (key.startsWith('contacts::')) {
+    const field = key.split('::')[2] || '';
+    if (field === 'department') return TENANT_CONTACT_DEPARTMENT_OPTIONS;
+    if (field === 'role') return TENANT_CONTACT_ROLE_OPTIONS;
+    if (field === 'language') return TENANT_LANGUAGE_OPTIONS;
+    if (field === 'method') return TENANT_CONTACT_METHOD_OPTIONS;
+    if (field === 'active') return TENANT_YES_NO_OPTIONS;
+  }
+  switch (key) {
+    case 'entityType': return TENANT_ENTITY_TYPE_OPTIONS;
+    case 'profileCountry':
+    case 'legalCountry':
+    case 'businessCountry': return Object.keys(tenantCountryRules);
+    case 'types': return TENANT_TYPE_OPTIONS;
+    case 'industry': return TENANT_INDUSTRY_OPTIONS;
+    case 'businessCategory': return TENANT_BUSINESS_CATEGORY_OPTIONS;
+    case 'parentCompany': return TENANT_PARENT_COMPANY_OPTIONS;
+    case 'annualRevenue': return TENANT_ANNUAL_REVENUE_OPTIONS;
+    case 'region': return Object.keys(tenantEditCountryRule(record.legalCountry || record.profileCountry || record.country).regions);
+    case 'city': {
+      const rule = tenantEditCountryRule(record.legalCountry || record.profileCountry || record.country);
+      return rule.regions[String(record.region || '')] || [];
+    }
+    case 'businessRegion': return Object.keys(tenantEditCountryRule(record.businessCountry || record.legalCountry || record.profileCountry || record.country).regions);
+    case 'businessCity': {
+      const rule = tenantEditCountryRule(record.businessCountry || record.legalCountry || record.profileCountry || record.country);
+      return rule.regions[String(record.businessRegion || '')] || [];
+    }
+    case 'businessSame': return TENANT_YES_NO_OPTIONS;
+    case 'category': return TENANT_CATEGORY_OPTIONS;
+    case 'tier': return TENANT_ACCOUNT_TIER_OPTIONS;
+    case 'priority': return TENANT_PRIORITY_OPTIONS;
+    case 'risk': return TENANT_RISK_OPTIONS;
+    case 'acquisitionSource': return TENANT_ACQUISITION_SOURCE_OPTIONS;
+    case 'language': return TENANT_LANGUAGE_OPTIONS;
+    case 'timezone': return Array.from(new Set(Object.values(tenantCountryRules).map(rule => rule.timezone)));
+    case 'channel': return TENANT_COMMUNICATION_CHANNEL_OPTIONS;
+    case 'platformNotifications':
+    case 'serviceNotifications':
+    case 'invoiceNotifications':
+    case 'securityNotifications': return TENANT_YES_NO_OPTIONS;
+    case 'dpa': return TENANT_DPA_OPTIONS;
+    case 'nda': return TENANT_NDA_OPTIONS;
+    case 'compliance': return TENANT_COMPLIANCE_OPTIONS;
+    case 'confidentiality': return TENANT_CONFIDENTIALITY_OPTIONS;
+    case 'controllerType': return TENANT_CONTROLLER_TYPE_OPTIONS;
+    case 'consent': return TENANT_CONSENT_OPTIONS;
+    default: return null;
+  }
+}
 function tenantEditableControl(key: string, value: unknown, label: string): string {
-  const safe = tenantEscapeAttr(value ?? '');
+  const normalizedValue = tenantEditableValue(value);
+  const safe = tenantEscapeAttr(normalizedValue);
   const controlName = `tenant-edit-${key.replace(/[^a-z0-9]+/gi, '-')}`;
-  const optionsByLabel: Record<string, string[]> = {
-    'Entity Type':['Legal Entity','Individual'],
-    'Legal Country':['Armenia','United States','Germany','Spain'],
-    'Business Address Country':['Armenia','United States','Germany','Spain'],
-    'Contact Role':['Primary','Billing','Technical','Legal','Operations'],
-    'Active':['Yes','No'],
-    'Preferred Language':['English','Armenian','German','Spanish'],
-    'Preferred Contact Method':['Email','Portal','Phone'],
-    'Preferred Communication Channel':['Email','Portal','Phone'],
-    'Tenant Category':['Standard','Strategic','Partner'],
-    'Account Tier':['Bronze','Silver','Gold','Platinum'],
-    'Tenant Priority':['Low','Medium','High','Critical'],
-    'Risk Category':['Low','Medium','High','Critical'],
-    'Data Processing Agreement':['Signed','Not Signed','Pending'],
-    'NDA Status':['Signed','Not Signed','Pending'],
-    'Compliance Status':['Approved','Pending','Rejected','Review Required'],
-    'Consent Status':['Active','Expired','Revoked'],
-    'Business Address Same as Legal':['Yes','No'],
-    'Receive Platform Notifications':['Yes','No'],
-    'Receive Service Notifications':['Yes','No'],
-    'Receive Invoice Notifications':['Yes','No'],
-    'Receive Security Notifications':['Yes','No']
-  };
-  const options = optionsByLabel[label];
-  if (options) return `<select name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}">${options.map(option=>`<option ${safe===option?'selected':''}>${tenantEscapeHtml(option)}</option>`).join('')}</select>`;
-  const type = label === 'Email' ? 'email' : label === 'Website' ? 'url' : ['Consent Expiry Date','Expiry Date'].includes(label) ? 'date' : 'text';
-  const textarea = String(value ?? '').length > 80 || ['Notification Recipients','Legal Street Address','Business Address Street Address','Notes for General Information','Notes for Address Information','Notes for Contact Person','Notes for Tenant Classification','Notes for Communication Preferences','Notes for Legal & Compliance'].includes(label);
-  if (textarea) return `<textarea name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}">${tenantEscapeHtml(value ?? '')}</textarea>`;
-  return `<input type="${type}" name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" value="${safe}">`;
+  const configuredOptions = tenantEditableOptions(key, label);
+  const record = tenantEditRecordContext();
+  const businessAddressKey = ['businessCountry','businessRegion','businessCity','businessAddress','businessBuilding','businessPostal'].includes(key);
+  const disabled = businessAddressKey && tenantBusinessSameEnabled(record) ? ' disabled aria-disabled="true"' : '';
+  if (configuredOptions) {
+    return `<select name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}"${disabled}>${tenantOptionTags(configuredOptions, normalizedValue, true)}</select>`;
+  }
+  const type = label === 'Email' ? 'email'
+    : label === 'Website' ? 'url'
+      : ['Consent Expiry Date','Expiry Date'].includes(label) ? 'date'
+        : label === 'Number of Employees' ? 'number'
+          : ['Mobile Phone','Office Phone'].includes(label) ? 'tel'
+            : 'text';
+  const textarea = normalizedValue.length > 80 || ['Notification Recipients','Legal Street Address','Business Address Street Address','Notes for General Information','Notes for Address Information','Notes for Contact Person','Notes for Tenant Classification','Notes for Communication Preferences','Notes for Legal & Compliance'].includes(label);
+  if (textarea) return `<textarea name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" placeholder="Not set"${disabled}>${tenantEscapeHtml(normalizedValue)}</textarea>`;
+  const numberAttrs = type === 'number' ? ' min="0" step="1" inputmode="numeric"' : '';
+  const hoursAttrs = label === 'Business Hours' ? ' pattern="([01]\\d|2[0-3]):[0-5]\\d[–-]([01]\\d|2[0-3]):[0-5]\\d" title="Use 24-hour format, for example 09:00–18:00"' : '';
+  return `<input type="${type}" name="${controlName}" aria-label="${tenantEscapeAttr(label)}" data-tenant-edit-key="${tenantEscapeAttr(key)}" value="${safe}" placeholder="Not set"${numberAttrs}${hoursAttrs}${disabled}>`;
 }
 function tenantInfo(items: ZentridTenantInfoItem[], editable = tenantDetailEditMode): string { return `<div class="info-grid ${editable ? 'editing-grid' : ''}">${items.map(([a,b,k]: ZentridTenantInfoItem)=>`<div><span>${tenantEscapeHtml(a)}</span>${editable && k ? tenantEditableControl(k,b,a) : `<strong>${tenantEscapeHtml(tenantDisplayValue(b))}</strong>`}</div>`).join('')}</div>`; }
 function tenantNotesValue(c: ZentridTenantRecord, section: string): unknown { return (c.notes && c.notes[section]) || c[section + 'Notes'] || ''; }
@@ -988,13 +1084,20 @@ function updateSelectedTenant(mutator: (tenant: ZentridTenantRecord) => void): v
   if (Array.isArray(window.ZentridLiveTenants) && window.ZentridLiveTenants === rows) window.ZentridLiveTenants = rows;
   else saveTenants(rows);
 }
+function tenantDetailDraftFingerprint(record: ZentridTenantRecord): string {
+  const localFiles = (record.documents || []).map(documentRecord => {
+    const file = documentRecord.localFile;
+    return file instanceof File ? `${file.name}:${file.size}:${file.type}:${file.lastModified}` : '';
+  });
+  return JSON.stringify({ record, localFiles });
+}
 function tenantDetailCurrentEditSnapshot(): string {
-  return Array.from(document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('#detailContent [data-tenant-edit-key]'))
-    .map(control => `${control.dataset.tenantEditKey || ''}:${control.value}`)
-    .join('\n');
+  if (!tenantDetailDraft) return '';
+  syncTenantDetailInputs(tenantDetailDraft);
+  return tenantDetailDraftFingerprint(tenantDetailDraft);
 }
 function tenantDetailHasUnsavedEdits(): boolean {
-  return tenantDetailEditMode && tenantDetailEditSnapshot !== tenantDetailCurrentEditSnapshot();
+  return Boolean(tenantDetailEditMode && tenantDetailDraft && tenantDetailEditSnapshot !== tenantDetailCurrentEditSnapshot());
 }
 function tenantDetailConfirmDiscard(message = 'Discard unsaved tenant changes?'): boolean {
   return ZentridEntityDetailUX.confirmDiscard(tenantDetailHasUnsavedEdits(), message);
@@ -1039,6 +1142,85 @@ function syncTenantDetailInputs(record: ZentridTenantRecord): void {
     }
   });
 }
+function tenantBusinessSameEnabled(record: ZentridTenantRecord): boolean {
+  return record.businessSame === true || ['yes','true'].includes(String(record.businessSame ?? '').toLowerCase());
+}
+function tenantSetEditSelectOptions(select: HTMLSelectElement | null, values: readonly string[], preferred = ''): void {
+  if (!select) return;
+  select.innerHTML = tenantOptionTags(values, preferred, true);
+  select.value = tenantEditableValue(preferred);
+}
+function tenantRefreshEditAddress(prefix: 'legal' | 'business', resetRegion = false, resetCity = false): void {
+  if (!tenantDetailDraft) return;
+  const countryKey = prefix === 'legal' ? 'legalCountry' : 'businessCountry';
+  const regionKey = prefix === 'legal' ? 'region' : 'businessRegion';
+  const cityKey = prefix === 'legal' ? 'city' : 'businessCity';
+  const postalKey = prefix === 'legal' ? 'postal' : 'businessPostal';
+  const country = tenantDetailControl(countryKey) as HTMLSelectElement | null;
+  const region = tenantDetailControl(regionKey) as HTMLSelectElement | null;
+  const city = tenantDetailControl(cityKey) as HTMLSelectElement | null;
+  const postal = tenantDetailControl(postalKey) as HTMLInputElement | null;
+  const countryValue = country?.value || tenantEditableValue(prefix === 'legal' ? tenantDetailDraft.legalCountry : tenantDetailDraft.businessCountry);
+  const rule = tenantEditCountryRule(countryValue);
+  const previousRegion = resetRegion ? '' : region?.value || tenantEditableValue(prefix === 'legal' ? tenantDetailDraft.region : tenantDetailDraft.businessRegion);
+  tenantSetEditSelectOptions(region, Object.keys(rule.regions), previousRegion);
+  const selectedRegion = region?.value || '';
+  const previousCity = resetCity ? '' : city?.value || tenantEditableValue(prefix === 'legal' ? tenantDetailDraft.city : tenantDetailDraft.businessCity);
+  tenantSetEditSelectOptions(city, rule.regions[selectedRegion] || [], previousCity);
+  if (postal) {
+    postal.placeholder = rule.postalPlaceholder;
+    if (countryValue === 'Armenia') {
+      postal.pattern = '\\d{4}';
+      postal.title = 'Use a 4-digit Armenian postal code.';
+    } else if (countryValue === 'United States') {
+      postal.pattern = '\\d{5}(-\\d{4})?';
+      postal.title = 'Use ZIP format 12345 or 12345-6789.';
+    } else {
+      postal.removeAttribute('pattern');
+      postal.removeAttribute('title');
+    }
+  }
+}
+function tenantToggleEditBusinessAddress(): void {
+  if (!tenantDetailDraft) return;
+  const sameControl = tenantDetailControl('businessSame') as HTMLSelectElement | null;
+  const same = ['yes','true'].includes(String(sameControl?.value || tenantDetailDraft.businessSame || '').toLowerCase());
+  ['businessCountry','businessRegion','businessCity','businessAddress','businessBuilding','businessPostal'].forEach(key => {
+    const control = tenantDetailControl(key);
+    if (!control) return;
+    control.disabled = same;
+    control.setAttribute('aria-disabled', same ? 'true' : 'false');
+  });
+}
+function tenantWireDetailEditControls(): void {
+  if (!tenantDetailEditMode || !tenantDetailDraft) return;
+  const legalCountry = tenantDetailControl('legalCountry') as HTMLSelectElement | null;
+  const legalRegion = tenantDetailControl('region') as HTMLSelectElement | null;
+  const businessCountry = tenantDetailControl('businessCountry') as HTMLSelectElement | null;
+  const businessRegion = tenantDetailControl('businessRegion') as HTMLSelectElement | null;
+  const businessSame = tenantDetailControl('businessSame') as HTMLSelectElement | null;
+  legalCountry?.addEventListener('change', () => {
+    tenantRefreshEditAddress('legal', true, true);
+    syncTenantDetailInputs(tenantDetailDraft!);
+  });
+  legalRegion?.addEventListener('change', () => {
+    tenantRefreshEditAddress('legal', false, true);
+    syncTenantDetailInputs(tenantDetailDraft!);
+  });
+  businessCountry?.addEventListener('change', () => {
+    tenantRefreshEditAddress('business', true, true);
+    syncTenantDetailInputs(tenantDetailDraft!);
+  });
+  businessRegion?.addEventListener('change', () => {
+    tenantRefreshEditAddress('business', false, true);
+    syncTenantDetailInputs(tenantDetailDraft!);
+  });
+  businessSame?.addEventListener('change', () => {
+    syncTenantDetailInputs(tenantDetailDraft!);
+    tenantToggleEditBusinessAddress();
+  });
+  tenantToggleEditBusinessAddress();
+}
 function renderTenantDetailCurrentTab(): void {
   const tab = tenantActiveDetailTab();
   const record = tenantDetailEditMode && tenantDetailDraft ? tenantDetailDraft : selectedTenant();
@@ -1046,6 +1228,7 @@ function renderTenantDetailCurrentTab(): void {
   if (content) content.innerHTML = detailTab(record, tab, tenantDetailEditMode);
   const title = document.getElementById('tenantDetailTitle');
   if (title) title.textContent = tenantTabLabel(tab);
+  tenantWireDetailEditControls();
 }
 function updateTenantDetailEditButtons(): void {
   const record = selectedTenant();
@@ -1067,9 +1250,7 @@ function setTenantDetailEditMode(enabled: boolean, force = false): void {
   if (enabled && !tenantDetailCanEdit(record)) {
     setTenantDetailFeedback('warning', 'Tenant section is read-only', tenantDetailBackendManaged(record)
       ? 'This tenant is editable through PUT /api/admin/tenants/{id}.'
-      : tenantDetailIsArchived(record)
-        ? 'Archived tenant data cannot be changed.'
-        : 'Managed Plants are edited from the Plant workspace.');
+      : 'Managed Plants are edited from the Plant workspace.');
     return;
   }
   if (!enabled && !force && !tenantDetailConfirmDiscard()) return;
@@ -1078,7 +1259,7 @@ function setTenantDetailEditMode(enabled: boolean, force = false): void {
   renderTenantDetailCurrentTab();
   const summary = document.getElementById('tenantDetailEditSummary');
   if (summary) { summary.hidden = true; summary.innerHTML = ''; }
-  tenantDetailEditSnapshot = enabled ? tenantDetailCurrentEditSnapshot() : '';
+  tenantDetailEditSnapshot = enabled && tenantDetailDraft ? tenantDetailDraftFingerprint(tenantDetailDraft) : '';
   updateTenantDetailEditButtons();
   if (enabled) clearTenantDetailFeedback();
 }
@@ -1116,11 +1297,11 @@ function validateTenantDetailEdits(): ZentridFormValidationResult {
     }
   }
   if (tab === 'address') {
-    ['country','region','city','address'].forEach((key, index) => required(key, ['Legal Country','Legal State / Region','Legal City','Legal Street Address'][index] || key));
+    ['legalCountry','region','city','address'].forEach((key, index) => required(key, ['Legal Country','Legal State / Region','Legal City','Legal Street Address'][index] || key));
     const businessSame = String(draft.businessSame ?? '').toLowerCase() === 'true' || draft.businessSame === true;
     if (!businessSame) ['businessCountry','businessRegion','businessCity','businessAddress'].forEach((key, index) => required(key, ['Business Address Country','Business Address State / Region','Business Address City','Business Address Street Address'][index] || key));
     const postal = tenantDetailControl('postal');
-    const country = String(draft.country || '');
+    const country = String(draft.legalCountry || draft.country || '');
     if (postal?.value.trim() && country === 'Armenia' && !/^\d{4}$/.test(postal.value.trim())) issues.push({ control:postal, message:'Armenian postal code must contain 4 digits.' });
     if (postal?.value.trim() && country === 'United States' && !/^\d{5}(?:-\d{4})?$/.test(postal.value.trim())) issues.push({ control:postal, message:'US ZIP code must use 12345 or 12345-6789 format.' });
   }
@@ -1229,7 +1410,7 @@ async function saveTenantDetailEdits(): Promise<void> {
   const record = selectedTenant();
   if (!ZentridActionPermissions.guard({ action:'edit', resource:'tenant', record, status:tenantStatusValue(record), origin:tenantDetailOrigin(record), updateAvailable:true, localOverride:false })) return;
   if (!tenantDetailCanEdit(record)) {
-    setTenantDetailFeedback('warning', 'Tenant section is read-only', 'Archived tenants and Managed Plants cannot be edited here.');
+    setTenantDetailFeedback('warning', 'Tenant section is read-only', 'Managed Plants are edited from the Plant workspace.');
     return;
   }
   const validation = validateTenantDetailEdits();
@@ -1263,7 +1444,10 @@ async function saveTenantDetailEdits(): Promise<void> {
     ZentridLayout.toast(documentUpload.uploaded ? 'Tenant updated and documents uploaded' : 'Tenant updated successfully');
     window.setTimeout(() => location.reload(), 350);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Review the tenant values and try again.';
+    let message = error instanceof Error ? error.message : 'Review the tenant values and try again.';
+    if (/legal city is required/i.test(message)) {
+      message += ' Open Address Information and fill Legal City. Your edits in the other tenant sections are preserved until Save or Cancel.';
+    }
     setTenantDetailFeedback('danger', 'Unable to update tenant', message);
   } finally {
     tenantDetailBusy = false;
@@ -1364,43 +1548,43 @@ function newestTenantRows(rows: ZentridTenantRecord[]): ZentridTenantRecord[] {
     .map(entry => entry.record);
 }
 
-function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status} · Setup ${c.setup || 0}%</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false">Edit</button></div></div>`; }).join('')}</div>`; }
+function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); const setupText = Number.isFinite(Number(c.setup)) ? ` · Setup ${Number(c.setup)}%` : ''; return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status}${setupText}</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false">Edit</button></div></div>`; }).join('')}</div>`; }
 function renderTenantRegistry(){
   const rows=newestTenantRows(getTenants());
   const statuses=Array.from(new Set(['Active','Inactive','Suspended','Archived',...rows.map(row=>String(row.status||'').trim()).filter(Boolean)]));
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>x.compliance!=='Approved').length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option>${statuses.map(value=>`<option>${tenantEscapeHtml(value)}</option>`).join('')}</select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`;
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>!['Approved','Compliant'].includes(String(x.compliance || ''))).length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option>${statuses.map(value=>`<option>${tenantEscapeHtml(value)}</option>`).join('')}</select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`;
 }
 
 function stepIntro(name: string, text: string): string { return `<div class="wizard-description full"><strong>${name}</strong><p>${text}</p><textarea name="${name.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_notes" placeholder="Notes for ${name}..."></textarea></div>`; }
-function yesNo(name: string, label: string, yes='Yes'): string { return `<label>${label}<select name="${name}"><option>${yes}</option><option>${yes==='Yes'?'No':'Yes'}</option></select></label>`; }
+function yesNo(name: string, label: string, yes='Yes'): string { const options = yes === 'Yes' ? TENANT_YES_NO_OPTIONS : ['Yes','No'] as const; return `<label>${label}<select name="${name}">${tenantOptionTags(options, yes)}</select></label>`; }
 function tenantWizard(){ const steps=['General Information','Address Information','Contact Persons','Tenant Classification','Communication Preferences','Legal & Compliance']; return `<aside class="modal" id="tenantModal" role="dialog" aria-modal="true" aria-labelledby="tenantWizardTitle" aria-hidden="true"><div class="modal-card wide-modal"><button class="modal-close" id="closeTenantModal" type="button" aria-label="Close tenant wizard">x</button><p class="eyebrow">Tenant Provisioning Wizard</p><h2 id="tenantWizardTitle">Create Tenant</h2><div class="setup-layout"><div class="setup-rail" aria-label="Tenant creation steps">${steps.map((s,i)=>`<button class="${i===0?'active':''}" data-step="${i}"><b>${i+1}</b><span>${s}</span></button>`).join('')}</div><form id="tenantForm" class="form-grid setup-form" novalidate data-zentrid-form-readiness="api" data-zentrid-form-contract="TenantCreateDraft" data-zentrid-form-endpoint="/api/admin/tenants" data-zentrid-form-method="POST" data-zentrid-form-api-note="Create Tenant is connected to the confirmed backend mutation. Uploaded document files remain local metadata until a document upload API is available.">
 <div class="form-validation-summary full" id="tenantValidationSummary" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
 <div class="wizard-step active" data-tenant-step="0">
   <label>Tenant ID <input disabled value="Auto-generated after save"></label>
   <label>Tenant Code <input disabled value="Auto-generated unique code"></label>
-  <label class="full entity-type-field">Entity Type <select name="entityType" id="tenantEntityType"><option>Legal Entity</option><option>Individual</option></select><small class="field-help">Switching entity type changes labels, placeholders and visible organization-only fields. It does not add extra fields.</small></label>
+  <label class="full entity-type-field">Entity Type <select name="entityType" id="tenantEntityType">${tenantOptionTags(TENANT_ENTITY_TYPE_OPTIONS)}</select><small class="field-help">Switching entity type changes labels, placeholders and visible organization-only fields. It does not add extra fields.</small></label>
   <label><span id="tenantNameLabel">Tenant Name *</span><input name="name" required minlength="2" maxlength="120" autocomplete="organization" placeholder="ABC Solar Energy"></label>
   <label><span id="legalNameLabel">Legal Name *</span><input name="legal" required minlength="2" maxlength="180" autocomplete="organization" placeholder="ABC Solar Energy LLC"></label>
   <label><span id="tradeNameLabel">Trade Name</span><input name="trade" placeholder="Public / commercial name"></label>
   <label>Display Name <input name="displayName" placeholder="Name shown across Zentrid UI"></label>
-  <label>Country * <select name="country" id="tenantCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
+  <label>Country * <select name="country" id="tenantCountry">${tenantOptionTags(Object.keys(tenantCountryRules))}</select></label>
   <label><span id="registrationLabel">Registration Number</span><input name="registration" id="registrationNumber" maxlength="64" autocomplete="off" placeholder="Example: 286.110.123456"><small class="field-help" id="registrationHelp">State registration number issued in Armenia.</small></label>
   <label><span id="taxLabel">Tax ID / VAT Number *</span><input name="tax" id="taxNumber" required maxlength="32" autocomplete="off" placeholder="Example: 01234567"><small class="field-help" id="taxHelp">Armenian Taxpayer Identification Number (TIN).</small></label>
-  <label>Tenant Status * <select name="status"><option>Inactive</option><option>Active</option><option>Suspended</option><option>Archived</option></select></label>
-  <label>Tenant Type * <select name="type"><option>Owner</option><option>Operator</option><option>Investor</option><option>EPC</option><option>O&M</option><option>Utility</option></select></label>
+  <label>Tenant Status * <select name="status">${tenantOptionTags(TENANT_STATUS_OPTIONS)}</select></label>
+  <label>Tenant Type * <select name="type">${tenantOptionTags(TENANT_TYPE_OPTIONS)}</select></label>
   <label>Account Manager <input name="account" placeholder="John Smith"></label>
-  <label class="org-only">Industry Sector <select name="industry"><option>Solar Energy</option><option>Renewable Energy</option><option>Energy Services</option><option>O&M Services</option><option>Commercial Real Estate</option><option>Industrial</option><option>Government / Municipality</option><option>Utility</option></select></label>
-  <label class="org-only">Business Category <select name="businessCategory"><option>Enterprise</option><option>SME</option><option>Government</option></select></label>
-  <label class="org-only">Parent Company <select name="parentCompany"><option>None</option><option>Parent Company A</option><option>Parent Company B</option></select></label>
+  <label class="org-only">Industry Sector <select name="industry">${tenantOptionTags(TENANT_INDUSTRY_OPTIONS)}</select></label>
+  <label class="org-only">Business Category <select name="businessCategory">${tenantOptionTags(TENANT_BUSINESS_CATEGORY_OPTIONS)}</select></label>
+  <label class="org-only">Parent Company <select name="parentCompany">${tenantOptionTags(TENANT_PARENT_COMPANY_OPTIONS)}</select></label>
   <label class="org-only">Number of Employees <input type="number" name="employees" min="0" step="1" inputmode="numeric" placeholder="Example: 120"></label>
-  <label class="org-only">Annual Revenue Range <select name="annualRevenue"><option>Less than $1M</option><option>$1M–$5M</option><option>$5M–$10M</option><option>$10M–$50M</option><option>$50M+</option></select></label>
+  <label class="org-only">Annual Revenue Range <select name="annualRevenue">${tenantOptionTags(TENANT_ANNUAL_REVENUE_OPTIONS)}</select></label>
   <label class="full org-only">Website <input type="url" name="webplant" placeholder="https://company.example"></label>
   <div class="country-rules full" id="countryRules"><strong>Country rules: Armenia</strong><p>Registration Number: 286.110.123456 · Tax ID / VAT Number: 01234567 · Phone: +374 XX XXX XXX</p></div>
   ${stepIntro('General Information','Legal identity and organization information for the tenant. Country changes only format hints, validation guidance and placeholders; field names stay the same.')}
 </div>
 <div class="wizard-step" data-tenant-step="1">
   <h3 class="full">Legal Address</h3>
-  <label>Country <select name="legalCountry" id="legalCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
+  <label>Country <select name="legalCountry" id="legalCountry">${tenantOptionTags(Object.keys(tenantCountryRules))}</select></label>
   <label>State / Region <select name="region" id="legalRegion"></select></label>
   <label>City * <select name="city" id="legalCity" required autocomplete="address-level2"></select></label>
   <label>Street Address * <input name="address" required minlength="4" maxlength="500" autocomplete="street-address" placeholder="24 Energy Avenue"></label>
@@ -1410,7 +1594,7 @@ function tenantWizard(){ const steps=['General Information','Address Information
   <div class="full business-address-fields" id="businessAddressFields">
     <h3>Business Address</h3>
     <div class="form-grid nested-grid">
-      <label>Country <select name="businessCountry" id="businessCountry">${Object.keys(tenantCountryRules).map(country=>`<option>${country}</option>`).join('')}</select></label>
+      <label>Country <select name="businessCountry" id="businessCountry">${tenantOptionTags(Object.keys(tenantCountryRules))}</select></label>
       <label>Region <select name="businessRegion" id="businessRegion"></select></label>
       <label>City <select name="businessCity" id="businessCity"></select></label>
       <label>Street Address <input name="businessAddress" placeholder="Street Address"></label>
@@ -1428,13 +1612,13 @@ function tenantWizard(){ const steps=['General Information','Address Information
       <label>First Name * <input id="contactFirst" required minlength="2" maxlength="80" autocomplete="given-name" placeholder="First name"></label>
       <label>Last Name * <input id="contactLast" required minlength="2" maxlength="80" autocomplete="family-name" placeholder="Last name"></label>
       <label>Position <input id="contactPosition" placeholder="Operations Lead"></label>
-      <label>Department <select id="contactDepartment"><option>Executive</option><option>Finance</option><option>Legal</option><option>Technical</option><option>Operations</option></select></label>
-      <label>Contact Role <select id="contactRole"><option>Primary</option><option>Billing</option><option>Legal</option><option>Technical</option><option>Commercial</option></select></label>
+      <label>Department <select id="contactDepartment">${tenantOptionTags(TENANT_CONTACT_DEPARTMENT_OPTIONS)}</select></label>
+      <label>Contact Role <select id="contactRole">${tenantOptionTags(TENANT_CONTACT_ROLE_OPTIONS)}</select></label>
       <label>Email * <input id="contactEmail" type="email" required maxlength="160" autocomplete="email" placeholder="contact@company.example"></label>
       <label>Mobile Phone <input id="contactPhone" type="tel" maxlength="40" autocomplete="tel" placeholder="+374 XX XXX XXX"></label>
       <label>Office Phone <input id="contactOfficePhone" type="tel" maxlength="40" autocomplete="tel" placeholder="+374 XX XXX XXX"></label>
-      <label>Preferred Language <select id="contactLanguage"><option>English</option><option>Armenian</option></select></label>
-      <label>Preferred Contact Method <select id="contactMethod"><option>Email</option><option>Phone</option><option>Portal</option></select></label>
+      <label>Preferred Language <select id="contactLanguage">${tenantOptionTags(TENANT_LANGUAGE_OPTIONS)}</select></label>
+      <label>Preferred Contact Method <select id="contactMethod">${tenantOptionTags(TENANT_CONTACT_METHOD_OPTIONS)}</select></label>
       <label class="check"><input type="checkbox" id="contactActive" checked> Active</label>
       <div class="inline-form-actions"><button type="button" class="primary-action" id="saveInlineContact">Save Contact</button><button type="button" class="secondary-action" id="cancelInlineContact">Cancel</button></div>
     </div>
@@ -1443,17 +1627,17 @@ function tenantWizard(){ const steps=['General Information','Address Information
   ${stepIntro('Contact Persons','Contact records are people related to this tenant. They do not create platform users automatically.')}
 </div>
 <div class="wizard-step" data-tenant-step="3">
-  <label>Tenant Category <select name="category"><option>Strategic</option><option>Standard</option><option>Partner</option></select></label>
-  <label>Account Tier <select name="tier"><option>Bronze</option><option>Silver</option><option>Gold</option><option>Platinum</option></select></label>
-  <label>Tenant Priority <select name="priority"><option>Low</option><option>Medium</option><option>High</option></select></label>
-  <label>Risk Category <select name="risk"><option>Low</option><option>Medium</option><option>High</option></select></label>
-  <label class="full">Acquisition Source <select name="source"><option>Referral</option><option>Direct</option><option>Partner</option><option>Event</option></select></label>
+  <label>Tenant Category <select name="category">${tenantOptionTags(TENANT_CATEGORY_OPTIONS)}</select></label>
+  <label>Account Tier <select name="tier">${tenantOptionTags(TENANT_ACCOUNT_TIER_OPTIONS)}</select></label>
+  <label>Tenant Priority <select name="priority">${tenantOptionTags(TENANT_PRIORITY_OPTIONS)}</select></label>
+  <label>Risk Category <select name="risk">${tenantOptionTags(TENANT_RISK_OPTIONS)}</select></label>
+  <label class="full">Acquisition Source <select name="source">${tenantOptionTags(TENANT_ACQUISITION_SOURCE_OPTIONS)}</select></label>
   ${stepIntro('Tenant Classification','Business classification fields help Global Admin segment tenants without mixing in plants, devices, billing or integrations.')}
 </div>
 <div class="wizard-step" data-tenant-step="4">
-  <label>Preferred Language <select name="language"><option>English</option><option>Armenian</option></select></label>
-  <label>Preferred Time Zone <select name="timezone" id="preferredTimezone">${Array.from(new Set(Object.values(tenantCountryRules).map(rule=>rule.timezone))).map(value=>`<option>${value}</option>`).join('')}</select></label>
-  <label>Preferred Communication Channel <select name="channel"><option>Email</option><option>Phone</option><option>Portal</option></select></label>
+  <label>Preferred Language <select name="language">${tenantOptionTags(TENANT_LANGUAGE_OPTIONS)}</select></label>
+  <label>Preferred Time Zone <select name="timezone" id="preferredTimezone">${tenantOptionTags(Array.from(new Set(Object.values(tenantCountryRules).map(rule=>rule.timezone))))}</select></label>
+  <label>Preferred Communication Channel <select name="channel">${tenantOptionTags(TENANT_COMMUNICATION_CHANNEL_OPTIONS)}</select></label>
   <label>Business Hours <input name="businessHours" pattern="([01]\d|2[0-3]):[0-5]\d[–-]([01]\d|2[0-3]):[0-5]\d" title="Use 24-hour format, for example 09:00–18:00" placeholder="09:00–18:00"></label>
   ${yesNo('platformNotifications','Receive Platform Notifications')}
   ${yesNo('serviceNotifications','Receive Service Notifications')}
@@ -1463,12 +1647,12 @@ function tenantWizard(){ const steps=['General Information','Address Information
   ${stepIntro('Communication Preferences','Communication and notification preferences for the tenant organization. Portal access is intentionally not configured here.')}
 </div>
 <div class="wizard-step" data-tenant-step="5">
-  <label>Data Processing Agreement <select name="dpa"><option>Signed</option><option>Not Signed</option></select></label>
-  <label>NDA Status <select name="nda"><option>Signed</option><option>Not Signed</option></select></label>
-  <label>Compliance Status <select name="compliance"><option>Approved</option><option>Pending</option></select></label>
-  <label>Confidentiality Level <select name="confidentiality"><option>Standard</option><option>Restricted</option><option>Critical</option></select></label>
-  <label>Data Controller Type <select name="controllerType"><option>Controller</option><option>Processor</option></select></label>
-  <label>Consent Status <select name="consent"><option>Active</option><option>Expired</option></select></label>
+  <label>Data Processing Agreement <select name="dpa">${tenantOptionTags(TENANT_DPA_OPTIONS)}</select></label>
+  <label>NDA Status <select name="nda">${tenantOptionTags(TENANT_NDA_OPTIONS)}</select></label>
+  <label>Compliance Status <select name="compliance">${tenantOptionTags(TENANT_COMPLIANCE_OPTIONS)}</select></label>
+  <label>Confidentiality Level <select name="confidentiality">${tenantOptionTags(TENANT_CONFIDENTIALITY_OPTIONS)}</select></label>
+  <label>Data Controller Type <select name="controllerType">${tenantOptionTags(TENANT_CONTROLLER_TYPE_OPTIONS)}</select></label>
+  <label>Consent Status <select name="consent">${tenantOptionTags(TENANT_CONSENT_OPTIONS)}</select></label>
   <label>Consent Expiry Date <input type="date" name="consentExpiry"></label>
   <input type="file" id="tenantDocUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple hidden>
   <div class="document-table-toolbar full"><button type="button" class="small-btn primary document-add-btn" id="tenantDocUploadAction" data-trigger-tenant-doc-upload title="Add documents">+ Add Documents</button></div>
@@ -2158,7 +2342,7 @@ function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, 
 }
 function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const context = tenantSectionContext(c, t, editable);
-  if(t==='address') return `${context}${tenantInfo([['Legal Country',c.country,'country'],['Legal State / Region',c.region,'region'],['Legal City',c.city,'city'],['Legal Street Address',c.address,'address'],['Legal Building Number',c.building,'building'],['Legal Postal Code',c.postal,'postal'],['Business Address Same as Legal',c.businessSame?'Yes':'No','businessSame'],['Business Address Country',c.businessSame?c.country:c.businessCountry,'businessCountry'],['Business Address State / Region',c.businessSame?c.region:c.businessRegion,'businessRegion'],['Business Address City',c.businessSame?c.city:c.businessCity,'businessCity'],['Business Address Street Address',c.businessSame?c.address:c.businessAddress,'businessAddress'],['Business Address Building Number',c.businessSame?c.building:c.businessBuilding,'businessBuilding'],['Business Address Postal Code',c.businessSame?c.postal:c.businessPostal,'businessPostal']], editable)}${tenantNotesBlock(c,'address','Notes for Address Information', editable)}`;
+  if(t==='address') return `${context}${tenantInfo([['Legal Country',c.legalCountry || '—','legalCountry'],['Legal State / Region',c.region,'region'],['Legal City',c.city,'city'],['Legal Street Address',c.address,'address'],['Legal Building Number',c.building,'building'],['Legal Postal Code',c.postal,'postal'],['Business Address Same as Legal',c.businessSame?'Yes':'No','businessSame'],['Business Address Country',c.businessSame?(c.legalCountry || '—'):c.businessCountry,'businessCountry'],['Business Address State / Region',c.businessSame?c.region:c.businessRegion,'businessRegion'],['Business Address City',c.businessSame?c.city:c.businessCity,'businessCity'],['Business Address Street Address',c.businessSame?c.address:c.businessAddress,'businessAddress'],['Business Address Building Number',c.businessSame?c.building:c.businessBuilding,'businessBuilding'],['Business Address Postal Code',c.businessSame?c.postal:c.businessPostal,'businessPostal']], editable)}${tenantNotesBlock(c,'address','Notes for Address Information', editable)}`;
   if(t==='contacts') return `${context}${tenantContactTable(c, editable)}`;
   if(t==='plants') {
     const preferredClient = tenantClientRecord(c);
@@ -2169,9 +2353,9 @@ function detailTab(c: ZentridTenantRecord, t: ZentridTenantTabKey, editable = te
   if(t==='communication') return `${context}${tenantInfo([['Preferred Language',c.language,'language'],['Preferred Time Zone',c.timezone,'timezone'],['Preferred Communication Channel',c.channel,'channel'],['Business Hours',c.businessHours,'businessHours'],['Receive Platform Notifications',c.platformNotifications,'platformNotifications'],['Receive Service Notifications',c.serviceNotifications,'serviceNotifications'],['Receive Invoice Notifications',c.invoiceNotifications,'invoiceNotifications'],['Receive Security Notifications',c.securityNotifications,'securityNotifications'],['Notification Recipients',c.notificationRecipients,'notificationRecipients']], editable)}${tenantNotesBlock(c,'communication','Notes for Communication Preferences', editable)}`;
   if(t==='legal') return `${context}${tenantInfo([['Data Processing Agreement',c.dpa,'dpa'],['NDA Status',c.nda,'nda'],['Compliance Status',tenantComplianceValue(c),'compliance'],['Confidentiality Level',c.confidentiality,'confidentiality'],['Data Controller Type',c.controllerType,'controllerType'],['Consent Status',c.consent,'consent'],['Consent Expiry Date',c.consentExpiry,'consentExpiry']], editable)}${tenantNotesBlock(c,'legal','Notes for Legal & Compliance', editable)}${tenantDocumentsTable(c, editable)}`;
   const isIndividual=(c.entityType||'Legal Entity')==='Individual';
-  const base: ZentridTenantInfoItem[]=[['Tenant ID',c.id],['Tenant Code',c.code],['Entity Type',c.entityType||'Legal Entity','entityType'],[isIndividual?'Tenant Display Name':'Tenant Name',c.name,'name'],[isIndividual?'Full Legal Name':'Legal Name',c.legal,'legal'],[isIndividual?'Individual Display Name / Alias':'Trade Name',c.trade,'trade'],['Display Name',c.displayName || c.trade || c.name,'displayName'],[isIndividual?'Personal ID / Passport Number':'Registration Number',c.registration,'registration'],[isIndividual?'Tax ID / SSN / ITIN':'Tax ID / VAT Number',c.tax,'tax'],['Tenant Status',tenantStatusValue(c)],['Tenant Type',(Array.isArray(c.types) ? c.types : []).join(', '),'types'],['Account Manager',c.account,'account']];
-  const org: ZentridTenantInfoItem[]=[['Industry Sector',c.industry,'industry'],['Business Category',c.businessCategory,'businessCategory'],['Parent Company',c.parentCompany,'parentCompany'],['Number of Employees',c.employees,'employees'],['Annual Revenue Range',c.annualRevenue,'annualRevenue'],['Website',c.webplant,'webplant'],['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']];
-  return `${context}${tenantInfo(isIndividual?base.concat([['Creation Date',c.created,'created'],['Modification Date',c.updated,'updated']] as ZentridTenantInfoItem[]):base.concat(org), editable)}${tenantNotesBlock(c,'general','Notes for General Information', editable)}`;
+  const base: ZentridTenantInfoItem[]=[['Tenant ID',c.id],['Tenant Code',c.code],['Entity Type',c.entityType||'Legal Entity','entityType'],[isIndividual?'Tenant Display Name':'Tenant Name',c.name,'name'],[isIndividual?'Full Legal Name':'Legal Name',c.legal,'legal'],[isIndividual?'Individual Display Name / Alias':'Trade Name',c.trade,'trade'],['Display Name',c.displayName || c.trade || c.name,'displayName'],['Country',c.profileCountry || c.country,'profileCountry'],[isIndividual?'Personal ID / Passport Number':'Registration Number',c.registration,'registration'],[isIndividual?'Tax ID / SSN / ITIN':'Tax ID / VAT Number',c.tax,'tax'],['Tenant Status',tenantStatusValue(c)],['Tenant Type',(Array.isArray(c.types) ? c.types : []).join(', '),'types'],['Account Manager',c.account,'account']];
+  const org: ZentridTenantInfoItem[]=[['Industry Sector',c.industry,'industry'],['Business Category',c.businessCategory,'businessCategory'],['Parent Company',c.parentCompany,'parentCompany'],['Number of Employees',c.employees,'employees'],['Annual Revenue Range',c.annualRevenue,'annualRevenue'],['Website',c.webplant,'webplant'],['Creation Date',c.created],['Modification Date',c.updated]];
+  return `${context}${tenantInfo(isIndividual?base.concat([['Creation Date',c.created],['Modification Date',c.updated]] as ZentridTenantInfoItem[]):base.concat(org), editable)}${tenantNotesBlock(c,'general','Notes for General Information', editable)}`;
 }
 function wireTenantDetail(): void {
   const tenant = selectedTenant();
@@ -2186,10 +2370,13 @@ function wireTenantDetail(): void {
   });
   document.querySelectorAll<HTMLElement>('[data-tenant-tab]').forEach(button => button.addEventListener('click', () => {
     const nextTab = button.dataset.tenantTab || 'general';
-    if (tenantDetailEditMode && !tenantDetailConfirmDiscard('Discard unsaved changes and open another tenant section?')) return;
-    tenantDetailEditMode = false;
-    tenantDetailDraft = null;
-    tenantDetailEditSnapshot = '';
+    if (tenantDetailEditMode && tenantDetailDraft) {
+      syncTenantDetailInputs(tenantDetailDraft);
+      if (!tenantDetailTabEditable(nextTab)) {
+        setTenantDetailFeedback('warning', 'Save or cancel the tenant draft first', 'Managed Plants is a separate read-only workspace. Your current tenant edits are still preserved.');
+        return;
+      }
+    }
     document.querySelectorAll<HTMLElement>('[data-tenant-tab]').forEach(item => {
       const active = item.dataset.tenantTab === nextTab;
       item.classList.toggle('active', active);
@@ -2200,7 +2387,7 @@ function wireTenantDetail(): void {
     updateTenantDetailEditButtons();
     const summary = document.getElementById('tenantDetailEditSummary');
     if (summary) { summary.hidden = true; summary.innerHTML = ''; }
-    clearTenantDetailFeedback();
+    if (!tenantDetailEditMode) clearTenantDetailFeedback();
   }));
   document.getElementById('editTenantTab')?.addEventListener('click', () => setTenantDetailEditMode(true));
   document.getElementById('cancelTenantEdit')?.addEventListener('click', () => setTenantDetailEditMode(false));
