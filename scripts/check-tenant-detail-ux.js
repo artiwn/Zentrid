@@ -16,7 +16,8 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'renderTenantDetailControls', 'tenantDetailBackendManaged', 'tenantDetailCanEdit',
   'Live tenant · backend editing available',
   'Edit saves tenant metadata through PUT /api/admin/tenants/{id}',
-  'tenantDetailConfirmDiscard', 'Discard unsaved changes and open another tenant section?',
+  'tenantDetailConfirmDiscard', 'syncTenantDetailInputs(tenantDetailDraft)',
+  'Your edits in the other tenant sections are preserved until Save or Cancel.',
   'validateTenantDetailEdits', 'At least one active contact must have the Primary role',
   'Email duplicates another contact', 'A tenant named',
   'addTenantDetailContact', 'removeTenantDetailContact',
@@ -28,6 +29,10 @@ const pkg = JSON.parse(read('package.json') || '{}');
 ].forEach(token => expect(detailSource.includes(token), `Tenant Detail UX token is missing: ${token}`));
 expect(!tenants.includes("['Tenant Status',tenantStatusValue(c),'status']"), 'Tenant lifecycle status must not be editable as a regular detail field.');
 expect(!tenants.includes("tenant.status = value"), 'Tenant Detail must not write lifecycle status through generic edit controls.');
+
+expect(!tenants.includes('Discard unsaved changes and open another tenant section?'), 'Tenant Detail must preserve the edit draft when moving between editable tenant sections.');
+expect(tenants.includes("if (!tenantDetailEditMode) clearTenantDetailFeedback();"), 'Tenant Detail should keep backend validation feedback visible while switching sections in edit mode.');
+expect(tenants.includes("['legalCountry','region','city','address']"), 'Address validation must use the dedicated Legal Country field.');
 expect(liveBridge.includes("ZentridAPIRepositories.tenants.get(selectedId"), 'Tenant Detail must load the selected tenant through GET by ID.');
 expect(liveBridge.includes("localStorage.getItem('zentrid_selected_tenant')"), 'Tenant Detail must resolve the existing selected tenant id.');
 expect(repositories.includes("ZentridPlatformAPI.tenants.get(id, requestOptions)"), 'Tenant repository does not use the backend detail endpoint.');

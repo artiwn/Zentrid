@@ -43,17 +43,17 @@ expect(!registry.includes('<label class="registry-page-size"><span>Rows</span><s
 
 expect(hierarchy.includes('return !clientDetailIsArchived(record) && clientDetailEditableTab(tab);'), 'Client live records must permit local override editing on editable tabs.');
 expect(hierarchy.includes('return !plantDetailArchived(record) && plantDetailEditableTab(tab);'), 'Plant live records must permit local override editing on editable tabs.');
-expect(tenants.includes('return !tenantDetailIsArchived(record) && tenantDetailTabEditable(tab);'), 'Tenant live records must permit local override editing on editable tabs.');
+expect(tenants.includes('return !tenantDetailIsArchived(record) && tenantDetailTabEditable(tab);'), 'Tenant detail editing must be available on editable tabs while archived tenants remain read-only.');
 expect(integrations.includes('return !integrationDetailIsArchived(record);'), 'Integration live records must permit local override editing.');
 
 [
   [hierarchy, "resource:'client'", 'localOverride:true'],
   [hierarchy, "resource:'plant'", 'localOverride:true'],
-  [tenants, "resource:'tenant'", 'localOverride:true'],
   [integrations, "resource:'integration'", 'localOverride:true']
 ].forEach(([source, resource, override]) => {
   expect(source.includes(resource) && source.includes(override), `Handler guard is missing local override support for ${resource}.`);
 });
+expect(tenants.includes("resource:'tenant'") && tenants.includes('updateAvailable:true') && tenants.includes('localOverride:false'), 'Tenant handler must use the live backend PUT endpoint rather than a local override.');
 
 
 [

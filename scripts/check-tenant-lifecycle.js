@@ -155,7 +155,7 @@ expect(Boolean(lifecycle), 'ZentridTenantLifecycle did not initialize.');
 
     const archivedHtml = lifecycle.render({ id: 'T-3', name: 'Archived', status: 'Archived', dataOrigin: 'live' });
     expect(!archivedHtml.includes('data-tenant-lifecycle-action='), 'Archived tenant must not expose lifecycle buttons.');
-    expect(archivedHtml.includes('read-only'), 'Archived tenant does not explain its read-only state.');
+    expect(archivedHtml.includes('lifecycle is closed') && archivedHtml.includes('read-only'), 'Archived tenant does not explain that lifecycle and metadata are read-only.');
 
     const unavailableHtml = lifecycle.render({ id: 'T-UNAVAILABLE', name: 'Unavailable', status: 'Active', dataOrigin: 'unavailable' });
     expect(unavailableHtml.includes('Live API required'), 'Unavailable tenant does not show Live API requirement.');
