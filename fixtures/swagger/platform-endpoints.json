@@ -1,14 +1,86 @@
 {
-  "snapshot": "device-registry-swagger-2026-08-03",
-  "operationCount": 61,
+  "snapshot": "platform-swagger-2026-08-19-provider-assignments-excluded",
+  "operationCount": 97,
+  "excludedOperations": [
+    {
+      "method": "GET",
+      "path": "/api/admin/provider-plant-assignments",
+      "reason": "Backend unfinished; explicitly excluded by product owner."
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/provider-plant-assignments",
+      "reason": "Backend unfinished; explicitly excluded by product owner."
+    }
+  ],
   "operations": [
     {
       "method": "GET",
-      "path": "/api/admin/clients",
+      "path": "/api/admin/alerts",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/export",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/{id}/timeline",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/{id}/related",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/{id}/telemetry-curve",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alerts/{id}/sop",
       "expectedUsed": true
     },
     {
       "method": "POST",
+      "path": "/api/admin/alerts/{id}/acknowledge",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/{id}/assign",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/{id}/escalate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/{id}/resolve",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alerts/{id}/tasks",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/alerts/{id}/sop",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/clients",
       "expectedUsed": true
     },
@@ -19,11 +91,136 @@
     },
     {
       "method": "GET",
-      "path": "/api/admin/plants",
+      "path": "/api/admin/clients/{id}/documents/{documentId}",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients",
       "expectedUsed": true
     },
     {
       "method": "POST",
+      "path": "/api/admin/clients/{id}/activate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/deactivate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/suspend",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/archive",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/clients/{id}/documents",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/clients/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/clients/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/audit",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/linked-devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/connectivity",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/network",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/warranty",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/telemetry/latest",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/devices/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/commands",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/activate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/deactivate",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/archive",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/devices/{id}/documents",
+      "expectedUsed": true
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/devices/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/devices/{id}/documents/{documentId}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/plants",
       "expectedUsed": true
     },
@@ -33,9 +230,19 @@
       "expectedUsed": true
     },
     {
-      "method": "PUT",
-      "path": "/api/admin/plants/{id}",
+      "method": "GET",
+      "path": "/api/admin/plants/{id}/documents/{documentId}",
       "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants",
+      "expectedUsed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/plants/{plantId}/devices",
+      "expectedUsed": false
     },
     {
       "method": "POST",
@@ -58,8 +265,8 @@
       "expectedUsed": true
     },
     {
-      "method": "GET",
-      "path": "/api/admin/plants/{id}/documents/{documentId}",
+      "method": "PUT",
+      "path": "/api/admin/plants/{id}",
       "expectedUsed": true
     },
     {
@@ -70,11 +277,66 @@
     {
       "method": "GET",
       "path": "/api/alerts",
+      "expectedUsed": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/export",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/{id}/timeline",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/{id}/related",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/{id}/telemetry-curve",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/{id}/sop",
       "expectedUsed": true
     },
     {
       "method": "GET",
       "path": "/api/devices",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{id}",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{id}/connectivity",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{id}/network",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{id}/warranty",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/{id}/telemetry/latest",
       "expectedUsed": true
     },
     {
@@ -98,6 +360,36 @@
       "expectedUsed": true
     },
     {
+      "method": "POST",
+      "path": "/api/alerts/{id}/acknowledge",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/alerts/{id}/assign",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/alerts/{id}/escalate",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/alerts/{id}/resolve",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/alerts/{id}/tasks",
+      "expectedUsed": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/alerts/{id}/sop",
+      "expectedUsed": false
+    },
+    {
       "method": "GET",
       "path": "/api/admin/provider-integrations/templates",
       "expectedUsed": true
@@ -113,13 +405,13 @@
       "expectedUsed": true
     },
     {
-      "method": "POST",
-      "path": "/api/admin/provider-integrations",
+      "method": "GET",
+      "path": "/api/admin/provider-integrations/{id}",
       "expectedUsed": true
     },
     {
-      "method": "GET",
-      "path": "/api/admin/provider-integrations/{id}",
+      "method": "POST",
+      "path": "/api/admin/provider-integrations",
       "expectedUsed": true
     },
     {
@@ -163,18 +455,18 @@
       "expectedUsed": true
     },
     {
-      "method": "POST",
-      "path": "/api/admin/tenants",
-      "expectedUsed": true
-    },
-    {
       "method": "GET",
       "path": "/api/admin/tenants/{id}",
       "expectedUsed": true
     },
     {
-      "method": "PUT",
-      "path": "/api/admin/tenants/{id}",
+      "method": "GET",
+      "path": "/api/admin/tenants/{id}/documents/{documentId}",
+      "expectedUsed": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tenants",
       "expectedUsed": true
     },
     {
@@ -193,118 +485,18 @@
       "expectedUsed": true
     },
     {
-      "method": "PUT",
-      "path": "/api/admin/clients/{id}",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/clients/{id}/activate",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/clients/{id}/deactivate",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/clients/{id}/suspend",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/clients/{id}/archive",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/clients/{id}/documents",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/clients/{id}/documents/{documentId}",
-      "expectedUsed": false
-    },
-    {
-      "method": "DELETE",
-      "path": "/api/admin/clients/{id}/documents/{documentId}",
-      "expectedUsed": true
-    },
-    {
       "method": "POST",
       "path": "/api/admin/tenants/{id}/documents",
       "expectedUsed": true
     },
     {
-      "method": "GET",
-      "path": "/api/admin/tenants/{id}/documents/{documentId}",
-      "expectedUsed": false
-    },
-    {
-      "method": "DELETE",
-      "path": "/api/admin/tenants/{id}/documents/{documentId}",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/devices",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/devices/{id}",
-      "expectedUsed": true
-    },
-    {
       "method": "PUT",
-      "path": "/api/admin/devices/{id}",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/devices/{id}/audit",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices/{id}/commands",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices/{id}/activate",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices/{id}/deactivate",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices/{id}/archive",
-      "expectedUsed": true
-    },
-    {
-      "method": "POST",
-      "path": "/api/admin/devices/{id}/documents",
-      "expectedUsed": true
-    },
-    {
-      "method": "GET",
-      "path": "/api/admin/devices/{id}/documents/{documentId}",
+      "path": "/api/admin/tenants/{id}",
       "expectedUsed": true
     },
     {
       "method": "DELETE",
-      "path": "/api/admin/devices/{id}/documents/{documentId}",
+      "path": "/api/admin/tenants/{id}/documents/{documentId}",
       "expectedUsed": true
     }
   ]
