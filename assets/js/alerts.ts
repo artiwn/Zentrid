@@ -48,6 +48,22 @@ interface ZentridAlertRecord {
   description: string;
   probableCause: string;
   recommendation: string;
+  sourceAlertId?: string;
+  sourcePlantId?: string;
+  sourceDeviceId?: string;
+  mappingStatus?: string;
+  mappingVersion?: string;
+  rawPayloadRef?: string;
+  lastSyncAtUtc?: string;
+  canonical?: Record<string, unknown>;
+  mapping?: Record<string, unknown>;
+  workflow?: Record<string, unknown>;
+  assignment?: Record<string, unknown>;
+  guidance?: Record<string, unknown>;
+  audit?: Record<string, unknown>;
+  vendorExtensions?: Record<string, unknown>;
+  liveOperational?: Record<string, unknown>;
+  adminSnapshot?: Record<string, unknown>;
   timeline: string[];
   related: {
     telemetryMetric: string;
@@ -176,7 +192,7 @@ const ZentridAlertDictionary: ZentridAlertDictionaryModel = {
 };
 function alertCodeMeta(a?: Partial<ZentridAlertRecord>): ZentridAlertMeta { const code=a?.zentridCode; return (code ? ZentridAlertDictionary.codes[code] : undefined) || { category:a?.category || 'Unmapped', name:a?.title || 'Unknown alert', severity:a?.severity || 'Unknown', deviceScope:a?.deviceType || '—', policy:'No canonical policy configured yet.', meaning:a?.description || 'No unified explanation configured.', vendorMappings:[] }; }
 function vendorCodeLabel(a?: Partial<ZentridAlertRecord>): string { return `${a?.vendor || 'Vendor'} ${a?.vendorRawCode || a?.vendorCode || '—'}`; }
-function vendorMappingStatus(a?: Partial<ZentridAlertRecord>): string { const meta = alertCodeMeta(a); const raw = `${a?.vendor || ''} ${a?.vendorRawCode || a?.vendorCode || ''}`.toLowerCase(); return (meta.vendorMappings || []).some(x => raw && x.toLowerCase().includes(String(a?.vendorRawCode || a?.vendorCode || '').toLowerCase())) ? 'Mapped' : 'Mapped by policy'; }
+function vendorMappingStatus(a?: Partial<ZentridAlertRecord>): string { const backend=String(a?.mappingStatus || a?.mapping?.mappingStatus || '').trim(); if (backend) return backend; const meta = alertCodeMeta(a); const raw = `${a?.vendor || ''} ${a?.vendorRawCode || a?.vendorCode || ''}`.toLowerCase(); return (meta.vendorMappings || []).some(x => raw && x.toLowerCase().includes(String(a?.vendorRawCode || a?.vendorCode || '').toLowerCase())) ? 'Mapped' : 'Unmapped'; }
 
 function checkStatusClass(status?: string): AlertCheckTone {
   const v = String(status || '').toLowerCase();
@@ -377,7 +393,7 @@ function renderAlertDetailContentLegacy(a: ZentridAlertRecord): string {
 
 function alertDetailTabLegacy(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
   if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
+  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div><div><span>Raw Payload Ref</span><strong>${a.rawPayloadRef || '—'}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
   if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
   return `<div class="split-grid"><div class="panel-lite"><h3>What happened?</h3><p class="detail-copy">${a.description}</p><div class="timeline-mini"><p><strong>Probable cause:</strong> ${a.probableCause}</p><p><strong>Recommended action:</strong> ${a.recommendation}</p></div></div><div class="panel-lite"><h3>Current Context</h3><div class="info-grid"><div><span>Status</span><strong>${a.status}</strong></div><div><span>Priority</span><strong>${a.priority}</strong></div><div><span>Category</span><strong>${a.category}</strong></div><div><span>Age</span><strong>${a.age}</strong></div><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div></div></div></div>`;
 }
@@ -467,7 +483,7 @@ async function exportAlertsCsv(): Promise<void> {
   query.pageSize = Number(params.get('pageSize') || 20);
   try {
     ZentridLayout.toast('Preparing filtered alert export…');
-    const result = await ZentridPlatformAPI.adminAlerts.exportCsv(query);
+    const result = await ZentridPlatformAPI.liveAlerts.exportCsv(query);
     const url = URL.createObjectURL(result.blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -829,50 +845,28 @@ function alertSopChecklistBlock(a: ZentridAlertRecord): string {
 }
 // v68 — richer Alert Detail based on GoodWe-style alert detail structure
 function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
-  const isGoodWeGrid = a.vendor === 'GoodWe' || /grid|voltage|inverter/i.test(`${a.title} ${a.category}`);
-  const isRecovered = String(a.status || '').toLowerCase().includes('resolved') || a.id === 'ALT-2074';
-  const reasonGridVoltage = [
-    "The inverter's safety parameters are not set correctly.",
-    'The grid voltage is not stable.',
-    'The AC cable is too small or too long, increasing resistance and voltage drop.',
-    'The AC cable is not connected correctly, causing abnormal voltage on the AC side.'
-  ];
-  const suggestionGridVoltage = [
-    "Check if the inverter's safety parameters are set correctly; if not, turn off AC, correct the settings and turn AC on again.",
-    'Use a multimeter to check whether live-to-neutral voltage deviation exceeds the normal range.',
-    'Check whether the local grid voltage is stable.',
-    'Inspect AC cable length, section and connection quality.'
-  ];
-  const reasonGridOutage = [
-    'The grid is unavailable or unstable.',
-    'The AC connection is not working correctly.',
-    'The AC switch or breaker connection is damaged.',
-    'The inverter AC side is not connected.'
-  ];
-  const suggestionGridOutage = [
-    'Check whether the grid is down.',
-    "Use a multimeter to check if the inverter's AC side has voltage.",
-    'Check whether the AC breaker is damaged.',
-    'Verify live and neutral wires are connected correctly.',
-    'Make sure the AC breaker is ON and the system is connected to grid.',
-    'If everything is normal, turn off the DC/AC breaker and turn it on again after 5 minutes.'
-  ];
-  const isOutage = /offline|outage|no telemetry|communication/i.test(`${a.title} ${a.category} ${a.description}`);
+  const workflow = a.workflow && typeof a.workflow === 'object' ? a.workflow : {};
+  const vendorExtensions = a.vendorExtensions && typeof a.vendorExtensions === 'object' ? a.vendorExtensions : {};
+  const occurrenceStatus = String(a.occurrenceStatus || workflow.occurrenceStatus || 'Unknown');
+  const acknowledged = Boolean(workflow.acknowledgedAtUtc || workflow.acknowledgedBy) || String(a.status || '').toLowerCase().includes('acknowledged');
+  const recoveredAt = workflow.recoveredAtUtc || workflow.resolvedAtUtc || null;
+  const reason = String(a.probableCause || vendorExtensions.reason || '').trim();
+  const suggestion = String(a.recommendation || vendorExtensions.suggestion || '').trim();
   return {
     levelLabel: a.severity === 'Critical' ? 'Fault' : 'Alert',
-    occurrenceStatus: a.occurrenceStatus || (isRecovered ? 'Recovered' : 'Occurring'),
-    confirmStatus: a.status === 'Acknowledged' ? 'Confirmed' : 'Unconfirmed',
-    recoveryTime: isRecovered ? '12/06/2026 09:54:50' : '',
-    duration: a.age || '2m 15s',
-    alertType: /communication|telemetry|data/i.test(a.category) ? 'Communication / Data Events' : 'Protection Events',
-    plantName: a.plant,
-    alertTime: `12/06/2026 ${a.created}:40`,
+    occurrenceStatus,
+    confirmStatus: acknowledged ? 'Confirmed' : 'Unconfirmed',
+    recoveryTime: recoveredAt ? String(recoveredAt) : '',
+    duration: a.age && a.age !== '—' ? a.age : '—',
+    alertType: a.category || '—',
+    plantName: a.plant || '—',
+    alertTime: a.created || '—',
     component: a.deviceType || 'Device',
-    deviceLabel: `${a.device}${a.deviceId ? ` (${a.deviceId})` : ''}`,
-    reason: isOutage ? reasonGridOutage : (isGoodWeGrid ? reasonGridVoltage : [a.probableCause]),
-    suggestion: isOutage ? suggestionGridOutage : (isGoodWeGrid ? suggestionGridVoltage : [a.recommendation]),
-    curveMetric: isOutage ? 'AC Voltage / Connectivity' : (a.related?.telemetryMetric || 'Current Power'),
-    samples: isOutage ? ['0 V','0 V','0 V','Recovered'] : ['232 V','246 V','259 V','241 V']
+    deviceLabel: `${a.device || '—'}${a.deviceId ? ` (${a.deviceId})` : ''}`,
+    reason: reason ? [reason] : ['No probable cause was returned by the API.'],
+    suggestion: suggestion ? [suggestion] : ['No recommendation was returned by the API.'],
+    curveMetric: a.telemetryCurve?.metricCode || a.related?.telemetryMetric || '—',
+    samples: []
   };
 }
 
@@ -947,13 +941,13 @@ function renderAlertDetailContent(a: ZentridAlertRecord): string {
 
 function alertDetailTab(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
   const m = alertDetailModel(a);
-  if (tab === 'classification') { const meta = alertCodeMeta(a); return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Zentrid Unified Code</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Unified Name</span><strong>${meta.name}</strong></div><div><span>Category</span><strong>${meta.category}</strong></div><div><span>Severity</span><strong>${meta.severity}</strong></div><div><span>Device Scope</span><strong>${meta.deviceScope}</strong></div><div><span>Meaning</span><strong>${meta.meaning}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor}</strong></div><div><span>Source Platform</span><strong>${a.source}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || a.title}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Known Mapping</span><strong>${(meta.vendorMappings || []).join(' · ') || '—'}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Policy</span><strong>${meta.policy}</strong></div></div><div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button><button id="actionTask">Create Case from Policy</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`; }
+  if (tab === 'classification') { const meta = alertCodeMeta(a); return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Zentrid Unified Code</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Unified Name</span><strong>${meta.name}</strong></div><div><span>Category</span><strong>${meta.category}</strong></div><div><span>Severity</span><strong>${meta.severity}</strong></div><div><span>Device Scope</span><strong>${meta.deviceScope}</strong></div><div><span>Meaning</span><strong>${meta.meaning}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor}</strong></div><div><span>Source Platform</span><strong>${a.source}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || a.title}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div><div><span>Source Alert ID</span><strong>${a.sourceAlertId || '—'}</strong></div><div><span>Source Plant ID</span><strong>${a.sourcePlantId || '—'}</strong></div><div><span>Source Device ID</span><strong>${a.sourceDeviceId || '—'}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Policy</span><strong>${meta.policy}</strong></div></div><div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button><button id="actionTask">Create Case from Policy</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`; }
   if (tab === 'case') return `<div class="split-grid incident-case-tab"><div class="panel-lite"><h3>Case Timeline</h3>${alertCaseTimeline(a)}</div><div class="panel-lite"><h3>Case Context</h3><div class="info-grid"><div><span>Case ID</span><strong>${alertIncidentModel(a).caseId}</strong></div><div><span>Status</span><strong>${alertIncidentModel(a).caseStatus}</strong></div><div><span>Responsible</span><strong>${alertIncidentModel(a).assignee}</strong></div><div><span>Due</span><strong>${alertIncidentModel(a).due}</strong></div><div><span>Task</span><strong>${alertIncidentModel(a).taskId}</strong></div><div><span>Work Order</span><strong>${alertIncidentModel(a).workOrder}</strong></div></div><div class="vertical-actions incident-tab-actions"><button id="actionAssign">Assign Responsible</button><button id="actionTask">Create Task / Work Order</button><button id="openAlertCase">Open Case Workspace</button></div></div></div>`;
   if (tab === 'sop') return alertSopChecklistBlock(a);
   if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
+  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div><div><span>Raw Payload Ref</span><strong>${a.rawPayloadRef || '—'}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
   if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
-  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${alertCodeMeta(a).category}</strong></div><div><span>Canonical Severity</span><strong>${alertCodeMeta(a).severity}</strong></div><div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Case</span><strong>${a.related.caseId}</strong></div><div><span>Task</span><strong>${a.related.taskId}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Workflow Policy</span><strong>${alertCodeMeta(a).policy}</strong></div></div></section></div>`;
+  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${alertCodeMeta(a).category}</strong></div><div><span>Canonical Severity</span><strong>${alertCodeMeta(a).severity}</strong></div><div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Case</span><strong>${a.related.caseId}</strong></div><div><span>Task</span><strong>${a.related.taskId}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Workflow Policy</span><strong>${alertCodeMeta(a).policy}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div></div></section></div>`;
 }
 
 if (location.pathname.endsWith('alert-detail.html')) {

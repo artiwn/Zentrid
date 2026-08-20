@@ -42,6 +42,12 @@ interface ZentridDeviceRecord {
   networkDetail?: unknown;
   warrantyDetail?: unknown;
   telemetryLatest?: unknown;
+  liveId?: string;
+  liveDetail?: unknown;
+  liveConnectivityDetail?: unknown;
+  liveNetworkDetail?: unknown;
+  liveWarrantyDetail?: unknown;
+  liveTelemetryLatest?: unknown;
   auditDetail?: unknown;
   documents?: ZentridDeviceDocument[];
   raw?: Record<string, unknown>;
@@ -88,6 +94,13 @@ function saveDevices(_list: ZentridDeviceRecord[]): void { /* API-only: use a co
 function optionText(value: unknown): string { return String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character] || character)); }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
 function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${optionText(d.status || 'Unknown')}</span>`; }
+function deviceLiveRecord(d: ZentridDeviceRecord): Record<string, unknown> { return deviceRawRecord(d.liveDetail); }
+function deviceLiveId(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(d.liveId || live.deviceId || live.id || '').trim(); }
+function deviceLiveStatus(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); const summary=deviceRawRecord(live.technicalSummary); return String(live.normalizedStatus || live.status || summary.connectivityStatus || d.status || 'Unknown'); }
+function deviceLiveLastSeen(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(live.lastSeenText || live.lastSeenAtUtc || d.lastSeen || '—'); }
+function deviceLiveLastSync(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(live.lastSyncText || live.lastSyncAtUtc || '—'); }
+function deviceLiveSourcePlantId(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); const source=deviceRawRecord(live.sourceReference); return String(live.sourcePlantId || source.sourcePlantId || '—'); }
+function deviceLiveDataQuality(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(live.dataQualityStatus || d.sourceStatus || '—'); }
 function deviceLifecycleTone(value: unknown): ZentridDeviceStatusTone { const text=String(value||'').toLowerCase(); if(text.includes('inactive')||text.includes('archived')||text.includes('retired')) return 'neutral'; if(text.includes('draft')||text.includes('pending')) return 'warning'; if(text.includes('active')||text.includes('commissioned')) return 'success'; return 'info'; }
 function deviceLifecyclePill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceLifecycleTone(d.lifecycle)}">${optionText(d.lifecycle || 'Unknown')}</span>`; }
 function deviceApiValueRows(payload: unknown, prefix = '', depth = 0): Array<[string, string]> {
@@ -619,14 +632,15 @@ function deviceConnectivityFullPanelV92(d: ZentridDeviceRecord): string {
 }
 function telemetrySummaryPanelV92(d: ZentridDeviceRecord): string {
   const key=deviceTypeKey(d);
-  const rows = key==='battery' ? [['SOC',deviceMetricValue(d,'soc')],['Charge Power','18 kW'],['Discharge Power',deviceMetricValue(d,'activePower')],['Battery Temperature',deviceMetricValue(d,'temperature')],['SOH',deviceMetricValue(d,'soh')],['Cycle Count','1,284']] :
+  const rows = key==='battery' ? [['SOC',deviceMetricValue(d,'soc')],['Active Power',deviceMetricValue(d,'activePower')],['Battery Voltage',deviceMetricValue(d,'voltage')],['Battery Current',deviceMetricValue(d,'current')],['Battery Temperature',deviceMetricValue(d,'temperature')],['SOH',deviceMetricValue(d,'soh')]] :
     key==='meter' ? [['Import Today',deviceMetricValue(d,'todayImport')],['Export Today',deviceMetricValue(d,'todayExport')],['Total Import',deviceMetricValue(d,'import')],['Total Export',deviceMetricValue(d,'export')],['Voltage',deviceMetricValue(d,'voltage')],['Frequency',deviceMetricValue(d,'frequency')]] :
-    key==='logger' ? [['Signal',deviceMetricValue(d,'signal')],['Data Lag',deviceMetricValue(d,'dataLag')],['Linked Devices',deviceMetricValue(d,'linked')],['WLAN',deviceMetricValue(d,'wlan')],['LAN IP',deviceMetricValue(d,'lanIp')],['Last Seen',d.lastSeen]] :
-    [['Current Power',deviceMetricValue(d,'activePower')],['Daily Yield',deviceMetricValue(d,'dailyEnergy')],['Monthly Yield',d.monthlyYield || '4.82 MWh'],['Total Yield',deviceMetricValue(d,'totalYield')],['Temperature',deviceMetricValue(d,'temperature')],['Voltage / Current',`${deviceMetricValue(d,'lineVoltage')} · ${deviceMetricValue(d,'phaseCurrent')}`]];
-  return `<div class="section-title-v17"><div><h2>Telemetry Summary</h2><p class="muted">Values returned by the telemetry API. Unavailable metrics remain blank.</p></div></div>
-  <div class="device-monitoring-grid-v58">${deviceMiniChart(key==='battery'?'Storage Power':'Power Trend')}${deviceMiniChart(key==='meter'?'Import / Export':'Energy Trend')}</div>
+    key==='logger' ? [['Signal',deviceMetricValue(d,'signal')],['Data Lag',deviceMetricValue(d,'dataLag')],['Linked Devices',deviceMetricValue(d,'linked')],['WLAN',deviceMetricValue(d,'wlan')],['LAN IP',deviceMetricValue(d,'lanIp')],['Last Seen',deviceLiveLastSeen(d)]] :
+    [['Current Power',deviceMetricValue(d,'activePower')],['Daily Yield',deviceMetricValue(d,'dailyEnergy')],['Total Yield',deviceMetricValue(d,'totalYield')],['Temperature',deviceMetricValue(d,'temperature')],['Voltage',deviceMetricValue(d,'lineVoltage')],['Current',deviceMetricValue(d,'phaseCurrent')]];
+  return `<div class="section-title-v17"><div><h2>Telemetry Summary</h2><p class="muted">Only values returned by API sources are displayed; unavailable metrics remain blank.</p></div></div>
+  ${deviceTelemetryCharts(d)}
   ${cardGrid(rows, 'device-param-grid-v58')}`;
 }
+
 function lifecyclePanelV92(d: ZentridDeviceRecord): string {
   return `<div class="section-title-v17"><div><h2>Lifecycle / Replacement History</h2><p class="muted">Lifecycle status comes from DeviceRegistry; warranty and audit data load from their dedicated endpoints.</p></div></div>
   <div class="device-lifecycle-summary-v92">
@@ -635,27 +649,28 @@ function lifecyclePanelV92(d: ZentridDeviceRecord): string {
     <article><span>Commissioning Date</span><strong>${optionText(d.installation || '—')}</strong><small>First operational binding</small></article>
     <article><span>Warranty Until</span><strong>${optionText(d.warranty || '—')}</strong><small>Warranty and service tracking</small></article>
   </div>
-  ${deviceApiPanel('Warranty API', d.warrantyDetail, 'No warranty record returned')}
+  ${deviceApiPanel('Device Registry Warranty', d.warrantyDetail, 'No Device Registry warranty returned')}${deviceApiPanel('Platform Live Warranty', d.liveWarrantyDetail, 'No Platform Live warranty returned')}
   <div class="section-title-v17 mini"><div><h3>Lifecycle Audit</h3><p class="muted">Server-recorded create, update and lifecycle actions.</p></div></div>${deviceAuditPanel(d.auditDetail)}`;
 }
 function relatedObjectsPanelV92(d: ZentridDeviceRecord): string {
-  return `<div class="section-title-v17"><div><h2>Related Objects</h2><p class="muted">Shows where the device belongs in Zentrid and who is responsible for it.</p></div></div>
+  return `<div class="section-title-v17"><div><h2>Related Objects</h2><p class="muted">Relations shown here come from Device Registry and Platform Live data only.</p></div></div>
   <div class="device-related-flow-v92">
-    <article><span>Tenant</span><strong>${d.tenant}</strong><small>Operational scope</small></article>
+    <article><span>Tenant</span><strong>${optionText(d.tenant || '—')}</strong><small>Administrative plant relation</small></article>
     <i></i>
-    <article><span>Client</span><strong>Arpi Solar Group</strong><small>Portal visibility: ${devicePortalStatusTextV92(d)}</small></article>
+    <article><span>Plant</span><strong>${optionText(d.plant || '—')}</strong><small>${optionText(d.plantId || '—')}</small></article>
     <i></i>
-    <article><span>Plant</span><strong>${d.plant}</strong><small>${d.plantId}</small></article>
+    <article><span>Device</span><strong>${optionText(d.name || '—')}</strong><small>${optionText(d.type || '—')} · ${optionText(d.serial || '—')}</small></article>
     <i></i>
-    <article><span>Device</span><strong>${d.name}</strong><small>${d.type} · ${d.serial}</small></article>
+    <article><span>Vendor Source</span><strong>${optionText(d.vendor || '—')}</strong><small>${optionText(d.externalId || '—')}</small></article>
   </div>
-  <div class="data-table compact-table device-related-table-v92"><div class="data-head"><span>Relation</span><span>Object / Party</span><span>Responsibility</span><span>Action</span></div>
-    <div class="data-row"><div><strong>Owner / Client</strong></div><div><span>Arpi Solar Group</span></div><div><small>Receives portal view, reports and commercial summary</small></div><div><button class="small-btn" type="button" onclick="location.href='client-detail.html'">Open</button></div></div>
-    <div class="data-row"><div><strong>Parent Plant</strong></div><div><span>${d.plant}</span></div><div><small>Operational workspace and alerts context</small></div><div><button class="small-btn" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${d.plantId}');location.href='plant-detail.html'">Open</button></div></div>
-    <div class="data-row"><div><strong>Integration</strong></div><div><span>${d.integration}</span></div><div><small>Vendor source and sync traceability</small></div><div><button class="small-btn" type="button" onclick="location.href='integration-detail.html'">Open</button></div></div>
-    <div class="data-row"><div><strong>Service Team</strong></div><div><span>Tenant Operations Team</span></div><div><small>Device support, replacement and field checks</small></div><div><button class="small-btn" type="button" onclick="location.href='tasks-work-orders.html'">Tasks</button></div></div>
+  <div class="data-table compact-table device-related-table-v92"><div class="data-head"><span>Relation</span><span>Object / Party</span><span>Source</span><span>Action</span></div>
+    <div class="data-row"><div><strong>Parent Plant</strong></div><div><span>${optionText(d.plant || '—')}</span></div><div><small>DeviceRegistry plantRelation</small></div><div><button class="small-btn" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${optionText(d.plantId || '')}');location.href='plant-detail.html'">Open</button></div></div>
+    <div class="data-row"><div><strong>Managing Tenant</strong></div><div><span>${optionText(d.tenant || '—')}</span></div><div><small>DeviceRegistry plantRelation</small></div><div><span>—</span></div></div>
+    <div class="data-row"><div><strong>Integration</strong></div><div><span>${optionText(d.integration || '—')}</span></div><div><small>DeviceRegistry source</small></div><div><button class="small-btn" type="button" onclick="location.href='integrations.html'">Open Integrations</button></div></div>
+    <div class="data-row"><div><strong>Platform Live Device</strong></div><div><span>${optionText(deviceLiveId(d) || '—')}</span></div><div><small>Matched by provider + sourceDeviceId</small></div><div><span>${deviceLiveId(d) ? 'Linked' : 'Not matched'}</span></div></div>
   </div>`;
 }
+
 const DEVICE_DOCUMENT_TYPES = ['Technical','Commercial','Legal','Compliance','Warranty','Manual','Other'];
 function deviceDocumentCacheKey(deviceId: string): string { return `zentrid_device_documents_${deviceId}`; }
 function readDeviceDocumentCache(deviceId: string): ZentridDeviceDocument[] {
@@ -769,25 +784,31 @@ function renderDevices(): string {
 }
 function devicePrimaryMetric(d: ZentridDeviceRecord): ZentridDevicePrimaryMetric {
   const k=deviceTypeKey(d);
-  if(k==='battery') return {label:'SOC / SOH', value:`${d.soc||'68%'} · ${d.soh||'94%'}`, hint:'Battery health'};
-  if(k==='logger') return {label:'Signal / Data Lag', value:`${d.signal||'Good'} · ${d.dataLag||d.lastSeen}`, hint:'Communication health'};
-  if(k==='meter') return {label:'Grid Power', value:d.power||'31.2 MW', hint:'Accounting point'};
-  if(k==='weather') return {label:'Irradiance', value:d.irradiance||'0 W/m2', hint:'Weather telemetry'};
-  if(k==='module') return {label:'Module Power', value:d.power||'549 W', hint:'Module-level output'};
-  return {label:'Active Power', value:d.power||'83.4 kW', hint:'Realtime output'};
+  if(k==='battery') return {label:'SOC / SOH', value:`${deviceMetricValue(d,'soc')} · ${deviceMetricValue(d,'soh')}`, hint:'Battery health from API telemetry'};
+  if(k==='logger') return {label:'Signal / Data Lag', value:`${deviceMetricValue(d,'signal')} · ${deviceMetricValue(d,'dataLag')}`, hint:'Communication health from API'};
+  if(k==='meter') return {label:'Grid Power', value:deviceMetricValue(d,'activePower'), hint:'Accounting point telemetry'};
+  if(k==='weather') return {label:'Irradiance', value:deviceMetricValue(d,'irradiance'), hint:'Weather telemetry'};
+  if(k==='module') return {label:'Module Power', value:deviceMetricValue(d,'activePower'), hint:'Module-level telemetry'};
+  return {label:'Active Power', value:deviceMetricValue(d,'activePower'), hint:'Latest API telemetry'};
 }
+
 function deviceHeroActions(d: ZentridDeviceRecord): string {
-  return `<button class="secondary-action" type="button" onclick="location.href='devices.html'">Back to Device List</button><button class="secondary-action" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${d.plantId}');location.href='plant-detail.html'">Open Plant</button><button class="secondary-action" type="button" id="openDeviceEdit">Edit Device</button><button class="primary-action" type="button" id="refreshDeviceV59">Refresh</button>`;
+  const lifecycle=String(d.lifecycle || '').trim().toLowerCase();
+  const lifecycleActions = lifecycle === 'archived'
+    ? ''
+    : `${lifecycle === 'active' ? '<button class="secondary-action" type="button" data-device-lifecycle-action="deactivate">Deactivate</button>' : '<button class="secondary-action" type="button" data-device-lifecycle-action="activate">Activate</button>'}<button class="secondary-action danger-action" type="button" data-device-lifecycle-action="archive">Archive</button>`;
+  return `<button class="secondary-action" type="button" onclick="location.href='devices.html'">Back to Device List</button><button class="secondary-action" type="button" onclick="localStorage.setItem('zentrid_selected_plant','${d.plantId}');location.href='plant-detail.html'">Open Plant</button><button class="secondary-action" type="button" id="openDeviceEdit">Edit Device</button>${lifecycleActions}<button class="primary-action" type="button" id="refreshDeviceV59">Refresh</button>`;
 }
 function deviceKpis(d: ZentridDeviceRecord): string {
   const primary=devicePrimaryMetric(d);
+  const liveId=deviceLiveId(d);
   return `<section class="kpi-grid detail-kpis device-kpi-grid-v58 device-kpi-grid-v59">
-    <article class="kpi-card"><span>Status</span><strong>${d.status}</strong><small>${d.alerts} active alerts · ${d.lastSeen}</small></article>
+    <article class="kpi-card"><span>Operational Status</span><strong>${optionText(deviceLiveStatus(d))}</strong><small>${optionText(deviceLiveLastSeen(d))} · Live API${liveId ? ` · ${optionText(liveId)}` : ''}</small></article>
     <article class="kpi-card"><span>${primary.label}</span><strong>${primary.value}</strong><small>${primary.hint}</small></article>
-    <article class="kpi-card"><span>Type</span><strong>${deviceTypeLabel(d)}</strong><small>${d.subtype}</small></article>
+    <article class="kpi-card"><span>Lifecycle</span><strong>${optionText(d.lifecycle || '—')}</strong><small>Device Registry administrative state</small></article>
     <article class="kpi-card"><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article>
-    <article class="kpi-card"><span>Serial Number</span><strong>${d.serial}</strong><small>${d.externalId}</small></article>
-    <article class="kpi-card"><span>Parent Relation</span><strong>${d.parent}</strong><small>${d.children}</small></article>
+    <article class="kpi-card"><span>Serial / Source ID</span><strong>${d.serial}</strong><small>${d.externalId}</small></article>
+    <article class="kpi-card"><span>Data Quality</span><strong>${optionText(deviceLiveDataQuality(d))}</strong><small>${optionText(deviceLiveLastSync(d))}</small></article>
   </section>`;
 }
 function universalDeviceSidebar(d: ZentridDeviceRecord, activeTab: ZentridDeviceTab = deviceDetailActiveTab): string {
@@ -903,17 +924,34 @@ function deviceTelemetryLatestTimestamp(d: ZentridDeviceRecord): string {
 function deviceMetricValue(d: ZentridDeviceRecord, key: string): string {
   const telemetryValue = deviceTelemetryMetricValue(d, key);
   if (telemetryValue) return telemetryValue;
-  if (deviceTelemetryLoaded(d)) return '—';
-  const k=deviceTypeKey(d);
-  const base: Record<string, string | number | boolean | null | undefined> = {activePower:d.power||'83.4 kW', reactivePower:'0.002 kvar', powerFactor:'1.000', frequency:d.frequency||'50.00 Hz', dailyEnergy:d.dailyEnergy||'156.91 kWh', totalYield:d.totalYield||'149,933.20 kWh', temperature:d.temperature||'42 °C', insulation:'4.359 MOhm', phaseCurrent:'22.552 / 22.468 / 22.438 A', lineVoltage:d.voltage||'379.2 / 378.6 / 382.4 V', startup:'2026-06-11 05:49:24', shutdown:'N/A'};
-  const pick = (source: Record<string, string | number | boolean | null | undefined>): string => String(source[key] || base[key] || '—');
-  if(k==='battery') return pick({activePower:d.power||'-42 kW', soc:d.soc||'68%', soh:d.soh||'94%', voltage:d.voltage||'53.60 V', current:d.current||'0.00 A', temperature:d.temperature||'25.00 °C', rated:'5.000 kWh', backup:'— min', charged:'0.14 kWh', discharged:'0.07 kWh', packages:'4', chargeVoltage:'58.40 V', dischargeVoltage:'0.00 V', chargeCurrent:'0 A', dischargeCurrent:'250 A'});
-  if(k==='logger') return pick({signal:d.signal||'Good', wlan:d.wlan||'82%', dataLag:d.dataLag||d.lastSeen, linked:d.children||'8 inverters · 2 meters', lanIp:d.lanIp||d.ip, cybersecurity:d.cybersecurity||'CS1.0.0'});
-  if(k==='meter') return pick({activePower:d.power||'31.2 MW', voltage:d.voltage||'20 kV', current:d.current||'901 A', frequency:d.frequency||'50.01 Hz', import:'1.82 MWh', export:'7.44 MWh', todayImport:'0.12 MWh', todayExport:'1.09 MWh'});
-  if(k==='weather') return pick({irradiance:d.irradiance||'0 W/m2', ambient:d.ambient||'27 °C', moduleTemp:d.moduleTemp||'41 °C', wind:'3.2 m/s', humidity:'42%', rainfall:'0 mm'});
-  if(k==='module') return pick({activePower:d.power||'549 W', voltage:d.voltage||'42.6 V', current:d.current||'12.9 A', temperature:d.temperature||'44 °C', string:'String A-2', mppt:'MPPT 1', position:'R2-C4'});
-  return String(base[key] || '—');
+  const direct: Record<string, unknown> = {
+    activePower: d.power,
+    frequency: d.frequency,
+    temperature: d.temperature,
+    voltage: d.voltage,
+    lineVoltage: d.voltage,
+    current: d.current,
+    soc: d.soc,
+    soh: d.soh,
+    signal: d.signal,
+    wlan: d.wlan,
+    dataLag: d.dataLag || d.lastSeen,
+    lanIp: d.lanIp || d.ip,
+    linked: d.children,
+    irradiance: d.irradiance,
+    ambient: d.ambient,
+    moduleTemp: d.moduleTemp,
+    dailyEnergy: d.dailyEnergy,
+    totalYield: d.totalYield,
+    todayImport: d.todayImport,
+    todayExport: d.todayExport,
+    import: d.import,
+    export: d.export
+  };
+  const value=direct[key];
+  return value === undefined || value === null || value === '' ? '—' : String(value);
 }
+
 function cardGrid(items: ZentridDeviceCardItem[], cls: string = 'device-param-grid-v58'): string {
   return `<div class="${cls}">${items.map(([k,v,h])=>`<article><span>${k}</span><strong>${v}</strong>${h?`<small>${h}</small>`:''}</article>`).join('')}</div>`;
 }
@@ -927,8 +965,9 @@ function operatingDataGrid(d: ZentridDeviceRecord): string {
   return cardGrid([['Active Power',deviceMetricValue(d,'activePower')],['Reactive Power',deviceMetricValue(d,'reactivePower')],['Power Factor',deviceMetricValue(d,'powerFactor')],['Grid Frequency',deviceMetricValue(d,'frequency')],['Daily Energy',deviceMetricValue(d,'dailyEnergy')],['Total Yield',deviceMetricValue(d,'totalYield')],['Phase Current',deviceMetricValue(d,'phaseCurrent')],['Line Voltage',deviceMetricValue(d,'lineVoltage')],['Internal Temperature',deviceMetricValue(d,'temperature')],['Insulation Resistance',deviceMetricValue(d,'insulation')],['Startup Time',deviceMetricValue(d,'startup')],['Shutdown Time',deviceMetricValue(d,'shutdown')]]);
 }
 function deviceMiniChart(label: string): string {
-  return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${label}</strong><small>Telemetry unavailable</small></div><div class="mini-bar-chart-v20"><span style="height:25%"></span><span style="height:42%"></span><span style="height:66%"></span><span style="height:78%"></span><span style="height:92%"></span><span style="height:74%"></span><span style="height:54%"></span><span style="height:35%"></span></div></div>`;
+  return `<div class="device-chart-card-v58"><div class="chart-card-head-v20"><strong>${optionText(label)}</strong><small>API telemetry</small></div><div class="empty-state"><strong>No chart samples returned</strong><small>No synthetic values are displayed.</small></div></div>`;
 }
+
 
 function deviceTelemetryCharts(d: ZentridDeviceRecord): string {
   const groups = new Map<string, ZentridDeviceTelemetryRecord[]>();
@@ -969,19 +1008,24 @@ function architectureRelations(d: ZentridDeviceRecord): string {
   return `<div class="split-grid device-relations-v59"><div class="panel-lite"><h3>Hierarchy</h3><div class="asset-tree"><p>${d.plant}\n└── ${d.parent}\n    └── ${d.name}\n        └── ${d.children}</p></div></div><div class="panel-lite"><h3>Connected Objects</h3>${cardGrid([['Plant',d.plant],['Tenant',d.tenant],['Parent',d.parent],['Children',d.children],['Vendor Source',d.vendor],['Mapping',d.sourceStatus]],'device-param-grid-v58 compact-v59')}</div></div>`;
 }
 function stringRows(d: ZentridDeviceRecord): string {
-  const count=deviceTypeKey(d)==='microinverter'?4:8;
-  const rows=Array.from({length:count},(_,i)=>{ const n=i+1; const volt=[256.2,5.5,0,0,547.3,547.3,560,560][i]||612.4; const cur=[3.1,0,0,0,6.87,0,6.78,0][i]||5.1; return `<div class="data-row"><div><strong>PV${n}</strong><small>MPPT ${Math.ceil(n/2)}</small></div><div><span>${volt} V</span></div><div><span>${cur} A</span></div><div><span>${cur ? (volt*cur/1000).toFixed(2) : '0.00'} kW</span></div><div><span>${cur ? '8,640.00 Wp' : '0.00 Wp'}</span></div></div>`; }).join('');
-  return `<div class="data-table compact-table device-string-table-v58"><div class="data-head"><span>Input</span><span>Voltage</span><span>Current</span><span>Power</span><span>String Capacity</span></div>${rows}</div>`;
+  const live=deviceLiveRecord(d);
+  const payload={ mpptChannels: live.mpptChannels ?? null, pvStrings: live.pvStrings ?? null, inputChannels: live.inputChannels ?? null };
+  const hasData=[payload.mpptChannels,payload.pvStrings,payload.inputChannels].some(value => Array.isArray(value) ? value.length > 0 : Boolean(value));
+  if (!hasData) return `<div class="empty-state"><strong>No PV string / MPPT data returned</strong><small>Platform Live did not return mpptChannels, pvStrings or inputChannels for this device.</small></div>`;
+  return deviceApiPanel('Platform Live PV / MPPT Data', payload, 'No PV input data returned');
 }
+
 function batteryDetail(d: ZentridDeviceRecord): string {
-  return `<div class="device-battery-visual-v59"><div class="battery-gauge-v59"><strong>${deviceMetricValue(d,'soc')}</strong><span>SOC</span></div><div>${cardGrid([['Battery Voltage',deviceMetricValue(d,'voltage')],['Battery Current',deviceMetricValue(d,'current')],['Battery Health',deviceMetricValue(d,'soh')],['Temp',deviceMetricValue(d,'temperature')],['Package Quantity',deviceMetricValue(d,'packages')]],'device-param-grid-v58 compact-v59')}</div></div><div class="section-title-v17 mini"><div><h3>Charge / Discharge Limits</h3><p class="muted">Limits and flags inspired by battery detail screens.</p></div></div>${cardGrid([['Charge End Voltage',deviceMetricValue(d,'chargeVoltage')],['Discharge End Voltage',deviceMetricValue(d,'dischargeVoltage')],['Charge Limit Current',deviceMetricValue(d,'chargeCurrent')],['Discharge Limit Current',deviceMetricValue(d,'dischargeCurrent')],['Force Charge Flag','0000'],['Check SOC Flag','0000']], 'device-param-grid-v58')}`;
+  const live=deviceLiveRecord(d);
+  return `<div class="section-title-v17"><div><h2>Battery State</h2><p class="muted">Battery values are rendered only from telemetry and Platform Live battery modules.</p></div></div>${cardGrid([['SOC',deviceMetricValue(d,'soc')],['SOH',deviceMetricValue(d,'soh')],['Voltage',deviceMetricValue(d,'voltage')],['Current',deviceMetricValue(d,'current')],['Temperature',deviceMetricValue(d,'temperature')]],'device-param-grid-v58 compact-v59')}${deviceApiPanel('Platform Live Battery Modules', live.batteryModules, 'No battery modules returned')}${deviceApiPanel('Platform Live Specification', live.specification, 'No live battery specification returned')}`;
 }
+
 function configurationPanel(d: ZentridDeviceRecord): string {
-  const key=deviceTypeKey(d);
-  const common=[['Firmware',d.firmware],['Configuration Version', key==='logger'?'Communication Profile v2':'Parameter Set v1'],['Task History','Available'],['Audit Required','Yes']];
-  const specific= key==='inverter'||key==='microinverter' ? [['Active Power Adjustment','Supported'],['Reactive Power Adjustment','Supported'],['Power Factor Adjustment','Supported'],['Firmware Upgrade','Supported']] : key==='battery' ? [['Charge / Discharge Mode','Supported'],['SOC Reserve','Supported'],['Manual Health Check','Supported'],['Emergency Stop','Restricted']] : key==='logger' ? [['Search for Devices','Supported'],['Restart Communication','Supported'],['Network Settings','Read-only'],['WLAN Signal','Supported']] : [['Read Parameters','Supported'],['Remote Command','Capability gated'],['Repair','Available'],['Refresh','Supported']];
-  return `<div class="section-title-v17"><div><h2>Configuration</h2><p class="muted">Capability-aware settings and command entry points.</p></div></div>${cardGrid([...common,...specific])}<div class="drawer-actions device-config-actions-v59"><button class="primary-action">View Task History</button><button class="secondary-action">Read Parameters</button><button class="secondary-action">Open Command Center</button></div>`;
+  const live=deviceLiveRecord(d);
+  const admin=deviceRawObject(d);
+  return `<div class="section-title-v17"><div><h2>Configuration</h2><p class="muted">Capability, communication and security data are read from backend contracts. Write commands remain capability-gated.</p></div></div>${deviceApiPanel('Admin Specification', admin.specification, 'No administrative specification returned')}${deviceApiPanel('Platform Live Capabilities', live.capabilities, 'No live capabilities returned')}${deviceApiPanel('Platform Live Communication', live.communication, 'No live communication profile returned')}${deviceApiPanel('Platform Live Security', live.security, 'No live security profile returned')}${deviceApiPanel('Platform Live Position', live.position, 'No live position returned')}`;
 }
+
 function remoteControlPanel(d: ZentridDeviceRecord): string {
   const key=deviceTypeKey(d);
   const actions = key==='logger' ? ['Restart Communication','Search for Devices','Run Connectivity Test','Refresh Linked Devices'] : key==='battery' ? ['Manual Battery Health Check','Charge / Discharge Mode','Set SOC Reserve','Emergency Stop'] : key==='meter' ? ['Refresh Measurements','Verify Accounting Point','Sync Meter Clock'] : key==='weather' ? ['Refresh Sensors','Run Sensor Check','Calibrate Sensor'] : key==='module' ? ['Refresh Module Data','Locate Module','Open Parent Microinverter'] : ['Device Start / Stop','Active Power Adjustment','Reactive Power Adjustment','Power Factor Adjustment','Firmware Upgrade'];
@@ -992,11 +1036,11 @@ function deviceLazyPanel(tab: ZentridDeviceTab, content: string): string {
 }
 function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): string {
   if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Operational Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Lifecycle</span><strong>${deviceLifecyclePill(d)}</strong><small>Device Registry state</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${operatingDataGrid(d)}`;
-  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Latest type-specific snapshot from DeviceRegistry.</p></div></div>${deviceTelemetryPanel(d.telemetryLatest)}`);
+  if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Administrative and live operational telemetry remain separate and are mapped into the same workspace.</p></div></div>${deviceApiPanel('Device Registry Telemetry', d.telemetryLatest, 'No Device Registry telemetry returned')}${deviceApiPanel('Platform Live Telemetry', d.liveTelemetryLatest, 'No Platform Live telemetry returned')}`);
   if(tab==='architecture') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Architecture</h2><p class="muted">Visual relationship between plant, device and connected objects.</p></div></div>${architectureFlow(d)}${architectureRelations(d)}`);
   if(tab==='strings') return `<div class="section-title-v17"><div><h2>PV Strings / Inputs</h2><p class="muted">MPPT and PV input values for inverter and microinverter devices.</p></div></div>${stringRows(d)}`;
   if(tab==='battery') return `<div class="section-title-v17"><div><h2>Battery State</h2><p class="muted">Storage-specific information: SOC, health, voltage/current, packages and limits.</p></div></div>${batteryDetail(d)}`;
-  if(tab==='connectivity') return `<div class="section-title-v17"><div><h2>Connectivity</h2><p class="muted">Logger / communication module status and subordinate devices.</p></div></div>${deviceApiPanel('Connectivity', d.connectivityDetail, 'No connectivity record returned')}${deviceApiPanel('Network', d.networkDetail, 'No network record returned')}<div class="section-title-v17 mini"><div><h3>Subordinate Devices</h3><p class="muted">Devices managed through this logger.</p></div></div>${linkedDevicesPanel(d.linkedDevices)}`;
+  if(tab==='connectivity') return `<div class="section-title-v17"><div><h2>Connectivity</h2><p class="muted">Registry connectivity and Platform Live operational connectivity are shown separately.</p></div></div>${deviceApiPanel('Device Registry Connectivity', d.connectivityDetail, 'No Device Registry connectivity returned')}${deviceApiPanel('Platform Live Connectivity', d.liveConnectivityDetail, 'No Platform Live connectivity returned')}${deviceApiPanel('Device Registry Network', d.networkDetail, 'No Device Registry network returned')}${deviceApiPanel('Platform Live Network', d.liveNetworkDetail, 'No Platform Live network returned')}<div class="section-title-v17 mini"><div><h3>Subordinate Devices</h3><p class="muted">Devices managed through this logger.</p></div></div>${linkedDevicesPanel(d.linkedDevices)}`;
   if(tab==='measurements') return `<div class="section-title-v17"><div><h2>Measurements</h2><p class="muted">Meter measurements for import/export and accounting context.</p></div></div>${operatingDataGrid(d)}${cardGrid([['Total Import',deviceMetricValue(d,'import')],['Total Export',deviceMetricValue(d,'export')],['Accounting Source','Smart Meter'],['Data Status','Confirmed']])}`;
   if(tab==='weather') return `<div class="section-title-v17"><div><h2>Weather Data</h2><p class="muted">Weather plant values used for performance analytics.</p></div></div>${operatingDataGrid(d)}`;
   if(tab==='module') return `<div class="section-title-v17"><div><h2>Module Data</h2><p class="muted">Module-level values are shown inside the device topology without turning the whole registry into module-only UI.</p></div></div>${operatingDataGrid(d)}`;
@@ -1004,9 +1048,9 @@ function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): strin
   if(tab==='alerts') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Alerts / Faults</h2><p class="muted">Device-level active and historical events.</p></div></div><div class="data-table compact-table device-alert-table-v58"><div class="data-head"><span>Alert</span><span>Severity</span><span>Source</span><span>Time</span><span>Status</span></div>${d.alerts ? `<div class="data-row"><div><strong>${d.type} communication / performance warning</strong><small>${d.name}</small></div><div><span class="badge warning">Warning</span></div><div><span>${d.vendor}</span></div><div><span>${d.lastSeen}</span></div><div><span>Open</span></div></div>` : `<div class="data-row"><div><strong>No active issues</strong><small>${d.name}</small></div><div><span class="badge success">Normal</span></div><div><span>Zentrid</span></div><div><span>Now</span></div><div><span>Clear</span></div></div>`}</div><div class="drawer-actions"><button class="primary-action" onclick='localStorage.setItem("zentrid_alert_context", JSON.stringify({deviceId:"${d.id}", plantId:"${d.plantId}", tenant:"${d.tenant}"})); location.href="alerts.html"'>Open Alerts Center</button></div>`);
   if(tab==='configuration') return configurationPanel(d) + `<div class="section-title-v17 mini"><div><h3>Remote Actions</h3><p class="muted">Common actions are shown below the config blocks.</p></div></div>${remoteControlPanel(d)}`;
   if(tab==='activity') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Activity Log</h2><p class="muted">Server-recorded device activity from DeviceRegistry.</p></div></div>${deviceAuditPanel(d.auditDetail)}`);
-  if(tab==='source') return `<div class="section-title-v17"><div><h2>Source & Sync</h2><p class="muted">Vendor traceability and canonical mapping state.</p></div></div><div class="info-grid"><div><span>Integration</span><strong>${d.integration}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>External ID</span><strong>${d.externalId}</strong></div><div><span>Zentrid ID</span><strong>${d.id}</strong></div><div><span>Mapping Status</span><strong>${d.sourceStatus}</strong></div><div><span>Last Seen</span><strong>${d.lastSeen}</strong></div><div><span>Raw Payload</span><strong>Available in Data Governance</strong></div><div><span>Capability Flags</span><strong>Telemetry · Alerts · Architecture · ${deviceTypeLabel(d)} controls</strong></div></div>`;
-  if(tab==='passport') return deviceLazyPanel(tab, devicePassportPanelV92(d) + deviceApiPanel('Warranty', d.warrantyDetail, 'No warranty record returned'));
-  if(tab==='connectivity-full') return deviceLazyPanel(tab, deviceConnectivityFullPanelV92(d) + deviceApiPanel('Connectivity API', d.connectivityDetail, 'No connectivity record returned') + deviceApiPanel('Network API', d.networkDetail, 'No network record returned'));
+  if(tab==='source') { const live=deviceLiveRecord(d); const sourceRef=deviceRawRecord(live.sourceReference); return `<div class="section-title-v17"><div><h2>Source & Sync</h2><p class="muted">Administrative identity and Platform Live vendor-normalized identity are intentionally kept separate.</p></div></div><div class="info-grid"><div><span>Integration</span><strong>${d.integration}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>Source Device ID</span><strong>${d.externalId}</strong></div><div><span>Admin Registry ID</span><strong>${d.id}</strong></div><div><span>Platform Live ID</span><strong>${optionText(deviceLiveId(d) || '—')}</strong></div><div><span>Source Plant ID</span><strong>${optionText(deviceLiveSourcePlantId(d))}</strong></div><div><span>Data Quality</span><strong>${optionText(deviceLiveDataQuality(d))}</strong></div><div><span>Operational Status</span><strong>${optionText(deviceLiveStatus(d))}</strong></div><div><span>Last Seen</span><strong>${optionText(deviceLiveLastSeen(d))}</strong></div><div><span>Last Sync</span><strong>${optionText(deviceLiveLastSync(d))}</strong></div><div><span>Data Updated</span><strong>${optionText(live.dataUpdatedAtUtc || '—')}</strong></div><div><span>Raw Payload Ref</span><strong>${optionText(sourceRef.rawPayloadRef || '—')}</strong></div></div>${deviceApiPanel('Platform Live Technical Summary', live.technicalSummary, 'No Platform Live technical summary returned')}${deviceApiPanel('Platform Live Source Reference', live.sourceReference, 'No Platform Live source reference returned')}${deviceApiPanel('Vendor Extensions', live.vendorExtensions, 'No vendor extensions returned')}`; }
+  if(tab==='passport') return deviceLazyPanel(tab, devicePassportPanelV92(d) + deviceApiPanel('Device Registry Warranty', d.warrantyDetail, 'No Device Registry warranty returned') + deviceApiPanel('Platform Live Warranty', d.liveWarrantyDetail, 'No Platform Live warranty returned'));
+  if(tab==='connectivity-full') return deviceLazyPanel(tab, deviceConnectivityFullPanelV92(d) + deviceApiPanel('Device Registry Connectivity', d.connectivityDetail, 'No Device Registry connectivity returned') + deviceApiPanel('Platform Live Connectivity', d.liveConnectivityDetail, 'No Platform Live connectivity returned') + deviceApiPanel('Device Registry Network', d.networkDetail, 'No Device Registry network returned') + deviceApiPanel('Platform Live Network', d.liveNetworkDetail, 'No Platform Live network returned'));
   if(tab==='lifecycle') return deviceLazyPanel(tab, lifecyclePanelV92(d));
   if(tab==='related') return deviceLazyPanel(tab, relatedObjectsPanelV92(d));
   if(tab==='documents') return deviceDocumentsPanelV92(d);
@@ -1126,14 +1170,8 @@ function deviceDocumentFeedback(tone: string, title: string, message: string): v
   box.innerHTML=`<strong>${optionText(title)}</strong><small>${optionText(message)}</small>`;
 }
 async function downloadDeviceDocument(deviceId: string, deviceDocument: ZentridDeviceDocument): Promise<void> {
-  const path=`/api/admin/devices/${encodeURIComponent(deviceId)}/documents/${encodeURIComponent(deviceDocument.id)}`;
-  const base=window.ZentridConfig?.apiBaseUrl || '';
-  const headers=new Headers({ Accept:'*/*' });
-  const token=window.ZentridAuth?.getAccessToken?.();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  const response=await fetch(`${base}${path}`, { headers });
-  if (!response.ok) { let message=`Document download failed (${response.status}).`; try { const body=await response.json(); message=String(body?.message || message); } catch (_error) {} throw new Error(message); }
-  const blob=await response.blob();
+  const payload=await window.ZentridPlatformAPI.deviceRegistry.getDocument(deviceId, deviceDocument.id);
+  const blob=payload instanceof Blob ? payload : new Blob([typeof payload === 'string' ? payload : JSON.stringify(payload ?? {})], { type:'application/octet-stream' });
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
   link.href=url; link.download=deviceDocument.fileName || deviceDocument.name || 'device-document';
@@ -1178,10 +1216,34 @@ function wireDeviceDocuments(d: ZentridDeviceRecord): void {
   }));
 }
 
+async function runDeviceLifecycleAction(d: ZentridDeviceRecord, action: 'activate' | 'deactivate' | 'archive'): Promise<void> {
+  const api=window.ZentridPlatformAPI?.deviceRegistry;
+  if (!api || !d.id) return;
+  const label=action === 'activate' ? 'Activate' : action === 'deactivate' ? 'Deactivate' : 'Archive';
+  if (action === 'archive' && !window.confirm(`Archive ${d.name}? The device will remain in Device Registry with lifecycle status Archived.`)) return;
+  try {
+    const button=document.querySelector<HTMLElement>(`[data-device-lifecycle-action="${action}"]`);
+    button?.setAttribute('disabled','true');
+    const payload=await api[action](d.id) as Record<string, unknown>;
+    const status=(payload?.status && typeof payload.status === 'object') ? payload.status as Record<string,unknown> : {};
+    const next=String(status.lifecycleStatus || status.deviceStatus || label);
+    window.ZentridAPIRepositories?.cache.invalidate('devices');
+    ZentridLayout.toast(`${d.name}: lifecycle changed to ${next}`);
+    window.setTimeout(()=>location.reload(), 120);
+  } catch (error) {
+    ZentridLayout.toast(error instanceof Error ? error.message : `${label} failed`);
+    document.querySelector<HTMLElement>(`[data-device-lifecycle-action="${action}"]`)?.removeAttribute('disabled');
+  }
+}
+
 function wireDeviceDetail(): void {
   const d=selectedDevice();
   if (!d.id) return;
-  document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>ZentridLayout.toast(`Device data refresh requested for ${d.name}`));
+  document.getElementById('refreshDeviceV59')?.addEventListener('click',()=>location.reload());
+  document.querySelectorAll<HTMLElement>('[data-device-lifecycle-action]').forEach(button=>button.addEventListener('click',()=>{
+    const action=button.dataset.deviceLifecycleAction;
+    if (action === 'activate' || action === 'deactivate' || action === 'archive') void runDeviceLifecycleAction(d, action);
+  }));
   wireDeviceEdit(d);
   window.ZentridDetailLazyTabs?.observe('device', 'device-detail-content', () => {
     const content=document.getElementById('deviceDetailContent');

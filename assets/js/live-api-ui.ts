@@ -1702,6 +1702,38 @@
   }
 
 
+  function normalizedSourceKey(value: unknown): string {
+    return String(value ?? '').trim().toLowerCase();
+  }
+
+  function liveDeviceMatchesAdmin(candidate: AnyRecord, device: AnyRecord): boolean {
+    const sourceDeviceId = normalizedSourceKey(firstOf(candidate, ['sourceDeviceId', 'sourceReference.sourceEntityId', 'vendorExtensions.sourceDeviceId', 'vendorExtensions.deviceId', 'deviceId'], ''));
+    const adminSourceDeviceId = normalizedSourceKey(firstOf(device, ['externalId', 'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'serial'], ''));
+    if (!sourceDeviceId || !adminSourceDeviceId || sourceDeviceId !== adminSourceDeviceId) return false;
+    const publicProvider = normalizedSourceKey(firstOf(candidate, ['provider', 'sourceReference.sourceSystem', 'vendorExtensions.sourceSystem'], ''));
+    const adminProvider = normalizedSourceKey(firstOf(device, ['vendor', 'raw.source.provider'], ''));
+    return !publicProvider || !adminProvider || publicProvider === adminProvider;
+  }
+
+  async function loadLiveDeviceDetail(device: AnyRecord, forceRefresh: boolean): Promise<{ id: string; detail: AnyRecord } | null> {
+    const sourceDeviceId = String(firstOf(device, ['externalId', 'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'serial'], '') || '').trim();
+    if (!sourceDeviceId || sourceDeviceId === '—') return null;
+    const requestOptions = detailReadOptions('device-detail:live-match', 50, forceRefresh);
+    const listPayload = await window.ZentridPlatformAPI?.liveDevices?.list({ page: 1, pageSize: 50, search: sourceDeviceId }, requestOptions);
+    const candidates = asArray(listPayload);
+    const match = candidates.find(candidate => liveDeviceMatchesAdmin(candidate, device));
+    if (!match) return null;
+    const liveId = String(firstOf(match, ['deviceId', 'id'], '') || '').trim();
+    if (!liveId) return null;
+    try {
+      const detail = await window.ZentridPlatformAPI?.liveDevices?.get(liveId, detailReadOptions('device-detail:live-core', 20, forceRefresh));
+      return { id: liveId, detail: (detail && typeof detail === 'object' ? detail as AnyRecord : match) };
+    } catch {
+      return { id: liveId, detail: match };
+    }
+  }
+
+
   async function applyDeviceDetail(forceRefresh = false): Promise<void> {
     if (!/device-detail\.html$/.test(location.pathname)) return;
     const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device');
@@ -1748,8 +1780,9 @@
         }
         return device;
       };
-      const device = sync();
+      let device = sync();
       const selectedAdminDeviceId = String(device?.adminId || device?.id || selectedId || '').trim();
+      let selectedLiveDeviceId = '';
       const applyDeviceResource = (field: string, payload: unknown): AnyRecord | undefined => {
         const target = selectedId
           ? deviceRows.find(record => detailSelectionMatches(record, selectedId))
@@ -1757,6 +1790,17 @@
         if (target) target[field] = payload;
         return sync();
       };
+
+      try {
+        const liveMatch = device ? await loadLiveDeviceDetail(device, forceRefresh) : null;
+        if (liveMatch) {
+          selectedLiveDeviceId = liveMatch.id;
+          applyDeviceResource('liveId', liveMatch.id);
+          device = applyDeviceResource('liveDetail', liveMatch.detail);
+        }
+      } catch (error) {
+        relationErrors.push(error);
+      }
 
       window.ZentridDetailLazyTabs?.register('device', [
         {
@@ -1799,9 +1843,13 @@
           label: 'Latest device telemetry',
           loader: async () => {
             if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for latest telemetry.');
-            const payload = await window.ZentridPlatformAPI?.deviceRegistry?.telemetryLatest(selectedAdminDeviceId, detailReadOptions('device-detail:telemetry-latest', 20, forceRefresh));
-            applyDeviceResource('telemetryLatest', payload);
-            setLiveDataState('live', 'Latest type-specific telemetry was loaded from DeviceRegistry.', { source: `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest`, recordCount: deviceResult.pagination.totalCount });
+            const [adminTelemetry, liveTelemetry] = await Promise.all([
+              window.ZentridPlatformAPI?.deviceRegistry?.telemetryLatest(selectedAdminDeviceId, detailReadOptions('device-detail:telemetry-latest', 20, forceRefresh)),
+              selectedLiveDeviceId ? window.ZentridPlatformAPI?.liveDevices?.telemetryLatest(selectedLiveDeviceId, detailReadOptions('device-detail:live-telemetry-latest', 20, forceRefresh)).catch((error: unknown) => { relationErrors.push(error); return null; }) : Promise.resolve(null)
+            ]);
+            applyDeviceResource('telemetryLatest', adminTelemetry);
+            applyDeviceResource('liveTelemetryLatest', liveTelemetry);
+            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Administrative and Platform Live telemetry were mapped into Device Detail.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}/telemetry/latest` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest`, recordCount: deviceResult.pagination.totalCount });
           }
         },
         {
@@ -1810,15 +1858,19 @@
           label: 'Connectivity and network',
           loader: async () => {
             if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for connectivity.');
-            const [connectivity, network, linked] = await Promise.all([
+            const [connectivity, network, linked, liveConnectivity, liveNetwork] = await Promise.all([
               window.ZentridPlatformAPI?.deviceRegistry?.connectivity(selectedAdminDeviceId, detailReadOptions('device-detail:connectivity', 20, forceRefresh)),
               window.ZentridPlatformAPI?.deviceRegistry?.network(selectedAdminDeviceId, detailReadOptions('device-detail:network', 20, forceRefresh)),
-              window.ZentridPlatformAPI?.deviceRegistry?.linkedDevices(selectedAdminDeviceId, detailReadOptions('device-detail:linked-devices', 100, forceRefresh))
+              window.ZentridPlatformAPI?.deviceRegistry?.linkedDevices(selectedAdminDeviceId, detailReadOptions('device-detail:linked-devices', 100, forceRefresh)),
+              selectedLiveDeviceId ? window.ZentridPlatformAPI?.liveDevices?.connectivity(selectedLiveDeviceId, detailReadOptions('device-detail:live-connectivity', 20, forceRefresh)).catch((error: unknown) => { relationErrors.push(error); return null; }) : Promise.resolve(null),
+              selectedLiveDeviceId ? window.ZentridPlatformAPI?.liveDevices?.network(selectedLiveDeviceId, detailReadOptions('device-detail:live-network', 20, forceRefresh)).catch((error: unknown) => { relationErrors.push(error); return null; }) : Promise.resolve(null)
             ]);
             applyDeviceResource('connectivityDetail', connectivity);
             applyDeviceResource('networkDetail', network);
             applyDeviceResource('linkedDevices', linked);
-            setLiveDataState('live', 'Connectivity, network and linked devices were loaded from DeviceRegistry.', { source: `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}`, recordCount: deviceResult.pagination.totalCount });
+            applyDeviceResource('liveConnectivityDetail', liveConnectivity);
+            applyDeviceResource('liveNetworkDetail', liveNetwork);
+            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Device Registry and Platform Live connectivity were mapped into the same Device Detail workspace.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)} + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}`, recordCount: deviceResult.pagination.totalCount });
           }
         },
         {
@@ -1827,8 +1879,12 @@
           label: 'Warranty',
           loader: async () => {
             if (!selectedAdminDeviceId) throw new Error('A Device Registry id is required for warranty.');
-            const payload = await window.ZentridPlatformAPI?.deviceRegistry?.warranty(selectedAdminDeviceId, detailReadOptions('device-detail:warranty', 20, forceRefresh));
-            applyDeviceResource('warrantyDetail', payload);
+            const [adminWarranty, liveWarranty] = await Promise.all([
+              window.ZentridPlatformAPI?.deviceRegistry?.warranty(selectedAdminDeviceId, detailReadOptions('device-detail:warranty', 20, forceRefresh)),
+              selectedLiveDeviceId ? window.ZentridPlatformAPI?.liveDevices?.warranty(selectedLiveDeviceId, detailReadOptions('device-detail:live-warranty', 20, forceRefresh)).catch((error: unknown) => { relationErrors.push(error); return null; }) : Promise.resolve(null)
+            ]);
+            applyDeviceResource('warrantyDetail', adminWarranty);
+            applyDeviceResource('liveWarrantyDetail', liveWarranty);
           }
         },
         {
@@ -1849,9 +1905,9 @@
       const usingSnapshot = Boolean(selectedSnapshot && !selectedDeviceFromNetwork);
       setLiveDataState(deviceResult.errors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
         ? 'The exact selected device was restored from this browser session because it is not present on API page 1. Lazy relations remain available.'
-        : 'The device overview is ready. Parent plant, alerts and telemetry remain idle until their tabs are opened.', {
+        : selectedLiveDeviceId ? 'The Device Registry record and matching Platform Live device are mapped. Lazy relation and operational subresources load when their tabs are opened.' : 'The Device Registry record is ready. No matching Platform Live device was found by provider + sourceDeviceId; admin sections remain available.', {
         source: usingSnapshot ? `${deviceResult.source} + selected session record` : deviceResult.source,
-        details: usingSnapshot ? 'Selected record preserved · detail endpoint checked' : 'Lazy sections: parent plant · alerts · telemetry',
+        details: usingSnapshot ? 'Selected record preserved · detail endpoint checked' : `Live device: ${selectedLiveDeviceId || 'not matched'} · Lazy sections: parent plant · alerts · telemetry · connectivity · warranty`,
         recordCount: deviceResult.pagination.totalCount
       });
     } catch (error) {
@@ -2080,7 +2136,8 @@
         : await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       const data = result.items;
       const selectedAlertFromNetwork = selectedId && 'item' in result ? result.item : data[0];
-      const selectedRecord = (selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined)) as AnyRecord | undefined;
+      let selectedRecord = (selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined)) as AnyRecord | undefined;
+      const uiErrors: unknown[] = [...result.errors];
       if (!selectedRecord) {
         const message = selectedId
           ? 'The selected alert is not present on the loaded API page and no preserved selection snapshot is available.'
@@ -2089,22 +2146,61 @@
         setLiveDataState('empty', message, { source: '/api/admin/alerts', recordCount: result.pagination.totalCount });
         return;
       }
+
+      if (selectedId && selectedRecord && window.ZentridPlatformAPI?.liveAlerts) {
+        const liveErrors: unknown[] = [];
+        const safeLive = async <T>(promise: Promise<T>, fallback: T): Promise<T> => {
+          try { return await promise; } catch (error) { liveErrors.push(error); return fallback; }
+        };
+        const requestOptions = { ...detailReadOptions('alert-detail:live', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS };
+        const [liveDetail, liveTimeline, liveRelated, liveSop, liveTelemetryCurve] = await Promise.all([
+          safeLive(window.ZentridPlatformAPI.liveAlerts.get(selectedId, requestOptions), null as unknown),
+          safeLive(window.ZentridPlatformAPI.liveAlerts.timeline(selectedId, requestOptions), [] as unknown),
+          safeLive(window.ZentridPlatformAPI.liveAlerts.related(selectedId, requestOptions), {} as unknown),
+          safeLive(window.ZentridPlatformAPI.liveAlerts.sop(selectedId, requestOptions), null as unknown),
+          safeLive(window.ZentridPlatformAPI.liveAlerts.telemetryCurve(selectedId, { windowMinutes: 60 }, requestOptions), null as unknown)
+        ]);
+        if (liveDetail && typeof liveDetail === 'object') {
+          const liveRaw = {
+            ...(liveDetail as AnyRecord),
+            __timeline: liveTimeline,
+            __related: liveRelated,
+            __sop: liveSop,
+            __telemetryCurve: liveTelemetryCurve
+          } as AnyRecord;
+          const liveMapped = ZentridAPIContracts.alerts.map(liveRaw, 0, contractMapperContext) as AnyRecord;
+          selectedRecord = {
+            ...selectedRecord,
+            ...liveMapped,
+            adminSnapshot: { ...selectedRecord },
+            liveOperational: {
+              detail: liveDetail,
+              timeline: liveTimeline,
+              related: liveRelated,
+              sop: liveSop,
+              telemetryCurve: liveTelemetryCurve
+            }
+          };
+        }
+        uiErrors.push(...liveErrors);
+      }
+
       if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
         const target = window.ZentridAlerts || ZentridAlerts;
-        const detailRows = selectedAlertFromNetwork
-          ? data
-          : [selectedRecord, ...data.filter(record => !detailSelectionMatches(record, selectedId))];
+        const detailRows = selectedRecord
+          ? [selectedRecord, ...data.filter(record => !detailSelectionMatches(record, selectedId))]
+          : data;
         target.splice(0, target.length, ...detailRows);
         localStorage.setItem('zentrid_selected_alert', selectedRecord.id);
         saveDetailSelection('alert', selectedRecord);
         ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
         const usingSnapshot = Boolean(selectedSnapshot && !selectedAlertFromNetwork);
-        setLiveDataState(result.errors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
+        setLiveDataState(uiErrors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
           ? 'The exact selected alert was restored from this browser session because it is not present on API page 1.'
-          : 'The selected live alert record was loaded for this detail page.', {
-          source: usingSnapshot ? `${result.source} + selected session record` : result.source,
-          details: usingSnapshot ? `Selected record preserved · API page ${result.pagination.page} checked` : `API page ${result.pagination.page} of ${result.pagination.totalPages}`,
+          : 'Admin Alert Registry and Platform Live Alert data are mapped into this detail page.', {
+          source: usingSnapshot ? `${result.source} + selected session record` : `${result.source} + /api/alerts/${encodeURIComponent(selectedId || selectedRecord.id)}`,
+          details: usingSnapshot ? `Selected record preserved · API page ${result.pagination.page} checked` : `Admin + live operational detail · ${uiErrors.length} non-blocking enrichment error(s)`,
           recordCount: result.pagination.totalCount
         });
       }
