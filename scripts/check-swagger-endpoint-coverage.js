@@ -13,8 +13,9 @@ const platformSource = read('assets/js/platform-api.ts');
 const diagnosticsSource = read('assets/js/api-diagnostics.ts');
 const packageJson = JSON.parse(read('package.json'));
 
-expect(manifest.operationCount === 49, `Swagger manifest must contain 49 operations, received ${manifest.operationCount}.`);
+expect(manifest.operationCount === 97, `Active Swagger manifest must contain 97 operations (99 total minus 2 unfinished ProviderPlantAssignments), received ${manifest.operationCount}.`);
 expect(Array.isArray(manifest.operations) && manifest.operations.length === manifest.operationCount, 'Swagger operation manifest count is inconsistent.');
+expect(Array.isArray(manifest.excludedOperations) && manifest.excludedOperations.length === 2, 'Swagger manifest must explicitly document the 2 unfinished ProviderPlantAssignments operations.');
 
 const storage = new Map();
 const sandbox = {
@@ -62,13 +63,21 @@ if (api) {
     expect(Boolean(catalog), `Swagger operation missing from endpoint catalog: ${key}.`);
     if (!catalog) return;
     expect(catalog.used === item.expectedUsed, `Incorrect runtime usage flag for ${key}: expected ${item.expectedUsed}, received ${catalog.used}.`);
-    const concretePath = item.path.replaceAll('{id}', 'audit-id').replaceAll('{providerType}', 'DeyeCloud');
+    const concretePath = item.path.replaceAll('{id}', 'audit-id').replaceAll('{plantId}', 'audit-plant-id').replaceAll('{documentId}', 'audit-document-id').replaceAll('{providerType}', 'DeyeCloud');
     expect(api.isAllowedPath(concretePath), `Allowed endpoint patterns reject Swagger operation: ${key}.`);
     expect(api.isAllowedPath(`${concretePath}?page=1&size=20`), `Allowed endpoint patterns reject query string for: ${key}.`);
   });
   actual.forEach((_item, key) => expect(expected.has(key), `Endpoint catalog contains operation outside active Swagger: ${key}.`));
   expect(!api.isAllowedPath('/api/not-in-swagger'), 'Unsupported endpoint passed the active Swagger allow-list.');
   expect(!api.isAllowedPath('/api/admin/clients/a/b'), 'Over-broad client endpoint allow-list accepted an invalid path.');
+  expect(typeof api.plantRegistry?.createDevice === 'function', 'Plant-scoped createDevice API method is missing.');
+  expect(typeof api.liveDevices?.list === 'function' && typeof api.liveDevices?.get === 'function', 'Live Device API module is missing list/get methods.');
+  expect(typeof api.liveDevices?.connectivity === 'function' && typeof api.liveDevices?.network === 'function' && typeof api.liveDevices?.warranty === 'function' && typeof api.liveDevices?.telemetryLatest === 'function', 'Live Device detail resource methods are incomplete.');
+  expect(typeof api.liveAlerts?.list === 'function' && typeof api.liveAlerts?.get === 'function' && typeof api.liveAlerts?.exportCsv === 'function', 'Live Alert read/export API module is incomplete.');
+  expect(typeof api.liveAlerts?.acknowledge === 'function' && typeof api.liveAlerts?.assign === 'function' && typeof api.liveAlerts?.escalate === 'function' && typeof api.liveAlerts?.resolve === 'function', 'Live Alert workflow mutation methods are incomplete.');
+  expect(typeof api.liveAlerts?.timeline === 'function' && typeof api.liveAlerts?.related === 'function' && typeof api.liveAlerts?.telemetryCurve === 'function' && typeof api.liveAlerts?.sop === 'function', 'Live Alert related read methods are incomplete.');
+  expect(typeof api.liveAlerts?.updateSop === 'function' && typeof api.liveAlerts?.createTask === 'function', 'Live Alert SOP/task mutation methods are incomplete.');
+  expect(!api.isAllowedPath('/api/admin/provider-plant-assignments'), 'Unfinished ProviderPlantAssignments must remain outside the active allow-list.');
 
   Promise.resolve(api.rawRequest('/api/telemetry', { method: 'GET' })).then(result => {
     expect(result.ok === true, 'Nested telemetry diagnostic request did not succeed.');
@@ -93,5 +102,5 @@ function finish() {
     process.exitCode = 1;
     return;
   }
-  console.log('Swagger endpoint coverage OK: 49 current platform/admin operations, exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified. Auth endpoints are validated separately.');
+  console.log('Swagger endpoint coverage OK: 97 active platform/admin operations covered; 2 unfinished ProviderPlantAssignments are explicitly excluded. Exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified. Auth endpoints are validated separately.');
 }
