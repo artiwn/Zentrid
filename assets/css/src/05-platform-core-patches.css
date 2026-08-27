@@ -171,12 +171,42 @@ h3.full { margin: 0; color: var(--text); }
 .plant-table .data-head,
 .plant-table .data-row { grid-template-columns: minmax(220px,1.35fr) minmax(210px,1.25fr) .9fr .9fr .85fr 180px; }
 .plant-device-preview .data-row { grid-template-columns: minmax(180px,1fr) 180px; }
+.plant-operational-table { overflow-x:auto; }
+.plant-operational-table .data-head,
+.plant-operational-table .data-row {
+  grid-template-columns: minmax(250px,1.45fr) minmax(120px,.7fr) minmax(120px,.68fr) minmax(145px,.78fr) minmax(170px,.92fr) minmax(170px,.92fr);
+  min-width: 1040px;
+}
 .asset-tree { border:1px solid rgba(34,211,238,.14); border-radius:18px; background:rgba(34,211,238,.045); padding:16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cbd8e7; line-height:1.7; }
 .asset-tree p { margin: 0; white-space: pre-wrap; }
 .plant-map { min-height: 220px; border-radius:18px; overflow:hidden; }
 .mini-trend { min-height: 170px; padding: 18px; align-items: end; }
 .mini-trend button { min-width: 34px; border-radius: 12px 12px 6px 6px; }
 @media (max-width:1180px){ .plant-table .data-head, .plant-table .data-row, .plant-device-preview .data-row { grid-template-columns:1fr; } }
+
+
+.device-operational-table { overflow-x:auto; }
+.device-operational-table .data-head,
+.device-operational-table .data-row {
+  grid-template-columns: minmax(220px,1.35fr) minmax(190px,1.05fr) minmax(135px,.75fr) minmax(130px,.72fr) minmax(130px,.72fr) minmax(175px,.95fr);
+  min-width: 1050px;
+}
+@media (max-width: 900px) {
+  .device-operational-table .data-head { display:none; }
+  .device-operational-table .data-row { grid-template-columns:1fr; min-width:0; }
+}
+
+/* Alert Registry v1: keep the operational snapshot aligned without reusing registry row semantics. */
+.alert-operational-table { overflow-x:auto; }
+.alert-operational-table .data-head,
+.alert-operational-table .data-row {
+  grid-template-columns: minmax(230px,1.35fr) minmax(190px,1.05fr) minmax(125px,.7fr) minmax(125px,.68fr) minmax(125px,.68fr) minmax(185px,.95fr);
+  min-width: 1080px;
+}
+@media (max-width: 900px) {
+  .alert-operational-table .data-head { display:none; }
+  .alert-operational-table .data-row { grid-template-columns:1fr; min-width:0; }
+}
 
 /* v4.5 preserve Overview visuals + Device Registry */
 .bar-chart > span,
@@ -2051,4 +2081,9 @@ button.data-row {
   .device-document-upload-v141 .form-grid > label.full {
     grid-column: auto;
   }
+}
+
+@media (max-width: 760px) {
+  .plant-operational-table .data-head { display:none; }
+  .plant-operational-table .data-row { grid-template-columns:1fr; min-width:0; }
 }

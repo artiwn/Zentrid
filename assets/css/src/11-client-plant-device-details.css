@@ -1823,3 +1823,14 @@
 .info-grid + .plant-card-grid-v17 {
   margin-top: 16px;
 }
+
+/* v142 Plant operational + topology table alignment */
+.plant-structure-table-v142 .data-head,
+.plant-structure-table-v142 .data-row {
+  grid-template-columns: minmax(220px,1.25fr) minmax(160px,.85fr) minmax(260px,1.35fr) minmax(120px,.6fr);
+  min-width: 820px;
+}
+@media (max-width: 768px) {
+  .plant-structure-table-v142 .data-head { display:none; }
+  .plant-structure-table-v142 .data-row { grid-template-columns:1fr; min-width:0; }
+}
