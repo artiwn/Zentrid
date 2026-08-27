@@ -17,7 +17,8 @@ const css = read('assets/css/src/20-governance-and-client-flows.css');
 const pkg = JSON.parse(read('package.json') || '{}');
 [
   'renderPlantDetailControl', 'plantDetailBackendManaged', 'plantDetailCanEdit',
-  'Live plant · backend editing available',
+  'Plant Registry record · backend editing available',
+  'Operational plant · read-only',
   'Supported master-data edits are saved through PUT /api/admin/plants/{id}',
   'plantDetailConfirmDiscard', 'Discard unsaved changes and open another plant section?',
   'plantDetailValidationIssues', 'Installed AC capacity cannot exceed installed DC capacity',
@@ -30,6 +31,8 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'data-plant-lifecycle', 'plantDocumentUploadForm', 'data-plant-document-delete',
   'plantDetailFreshness', 'Last backend sync', 'plantTelemetryState',
   'No telemetry available', 'No device records',
+  'A zero is shown only after a plant-scoped relation request confirms zero records.',
+  'No synthetic Area / MPPT / String hierarchy is generated.',
   'role="status"', 'aria-live="polite"', 'aria-busy="false"', 'beforeunload'
 ].forEach(token => expect(detailSource.includes(token), `Plant Detail UX token is missing: ${token}`));
 expect(!hierarchy.includes('<span>Last Data</span><strong>2 min ago</strong>'), 'Plant Detail must not show fixed 2 min freshness.');

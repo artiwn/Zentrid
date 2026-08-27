@@ -470,6 +470,7 @@ interface ZentridRepositoryListResult {
   source: string;
   errors: unknown[];
   pagination: ZentridRepositoryPagination;
+  kpi?: Record<string, ZentridLegacyCompat>;
   cache?: ZentridRepositoryCacheMeta;
 }
 interface ZentridRepositoryItemResult extends ZentridRepositoryListResult {
@@ -493,6 +494,16 @@ interface ZentridRepositoryReadOptions {
   deviceType?: string;
   deviceStatus?: string;
   plantId?: string;
+  deviceId?: string;
+  tenantId?: string;
+  severity?: string;
+  alertStatus?: string;
+  status?: string;
+  tenant?: string;
+  plant?: string;
+  vendor?: string;
+  cursor?: string;
+  format?: string;
   signal?: AbortSignal;
 }
 interface ZentridRepositoryCacheSnapshotEntry {

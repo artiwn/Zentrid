@@ -30,7 +30,7 @@ const css = read('assets/css/src/80-auth-and-api-console.css');
 [
   'page?: number;', 'pageSize?: number;', 'pagination: ZentridRepositoryPagination;',
   'requestCacheKey', 'fetchCollectionPage', 'paginationFromPayload',
-  '?page=${page}&size=${pageSize}'
+  '?page=${page}&pageSize=${pageSize}'
 ].forEach(token => expect(repositories.includes(token), `Repository pagination token missing: ${token}`));
 expect(repositories.includes("new Map<string, RepositoryCacheEntry>()"), 'Repository cache is not keyed per server page.');
 
