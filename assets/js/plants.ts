@@ -10,6 +10,8 @@ interface ZentridPlant {
   portfolio?: string | number;
   integration?: string | number;
   vendor?: string | number;
+  sourceScheme?: string | number;
+  creationMode?: string | number;
   status?: string | number;
   type?: string | number;
   country?: string | number;
@@ -142,11 +144,10 @@ function rememberPlantSelection(plant: ZentridPlant | undefined, selectedId: unk
   const normalizedSelectedId = selectedId === undefined || selectedId === null ? '' : String(selectedId).trim();
   if (!normalizedSelectedId) return;
   localStorage.setItem('zentrid_selected_plant', normalizedSelectedId);
-  const adminId = plantAdministrativeId(plant);
-  if (!adminId) {
-    localStorage.removeItem('zentrid_selected_plant_context');
-    return;
-  }
+  // Rows rendered by Plant Registry come from /api/admin/plants, so the row id itself
+  // is the administrative plant id even when the normalized contract has no nested adminRecord.
+  // Preserve it explicitly so Plant Detail does not mistake an admin UUID for a live /api/plants id.
+  const adminId = plantAdministrativeId(plant) || normalizedSelectedId;
   localStorage.setItem('zentrid_selected_plant_context', JSON.stringify({ selectedId: normalizedSelectedId, adminId }));
 }
 
@@ -330,14 +331,53 @@ function plantPagerHtml(state: ZentridPlantPageSlice): string {
   if (state.total <= ZentridPlantPager.size) return `<div class="pagination-bar"><span>Showing ${state.total} row(s)</span></div>`;
   return `<div class="pagination-bar"><span>Showing ${state.start + 1}-${state.end} of ${state.total}</span><div class="row-actions"><button data-plant-page="prev" ${state.page<=1?'disabled':''}>Prev</button><strong>Page ${state.page} / ${state.pages}</strong><button data-plant-page="next" ${state.page>=state.pages?'disabled':''}>Next</button></div></div>`;
 }
+function plantDisplay(value: unknown, fallback = '—'): string {
+  const text = value === undefined || value === null || String(value).trim() === '' ? fallback : String(value);
+  return text.replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character] || character));
+}
+function plantNumber(value: unknown): number | null {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 function plantRows(list: ZentridPlant[]): string {
   const serverPagination = window.ZentridRegistryQuery?.pagination('plants');
   const state = serverPagination
     ? { total: serverPagination.totalCount, pages: serverPagination.totalPages, page: serverPagination.page, start: (serverPagination.page - 1) * serverPagination.pageSize, end: Math.min(serverPagination.page * serverPagination.pageSize, serverPagination.totalCount), rows: list }
     : plantPageSlice(list);
   const pager = serverPagination ? window.ZentridRegistryQuery?.pagerHtml('plants', list.length) || '' : plantPagerHtml(state);
-  return `${pager}<div class="data-table plant-table"><div class="data-head"><span>Plant</span><span>Tenant / Source</span><span>Location</span><span>Capacity</span><span>Status</span><span>Actions</span></div>${state.rows.map(p => `<div class="data-row" data-id="${p.id}"><div>${ZentridDataSource.badge(p, 'plant')}<strong>${p.name}</strong><small>${p.code}<br>${p.id}</small></div><div><strong>${p.tenant}</strong><small>${p.vendor} · ${p.integration}</small></div><div><strong>${p.country}</strong><small>${p.region} · ${p.city}</small></div><div><strong>${p.capacityDc} MWp DC</strong><small>${p.capacityAc} MW AC · ${p.devices} devices</small></div><div><span class="badge ${plantStatusCls(p.status)}">${p.status}</span><small>${p.alerts} alerts · ${p.lastData}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}">Open</button><button data-action="edit" data-permission-action="edit" data-permission-resource="plant" data-permission-status="${p.status}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}" data-permission-update-available="false" data-permission-local-override="true">Edit</button><button data-action="devices" data-permission-action="view" data-permission-resource="plant">Devices</button><button data-action="telemetry" data-permission-action="view" data-permission-resource="plant">Telemetry</button><button data-action="alerts" data-permission-action="view" data-permission-resource="plant">Alerts</button></div></div>`).join('')}</div>${pager}`;
+  return `${pager}<div class="data-table plant-table"><div class="data-head"><span>Plant</span><span>Client / Tenant</span><span>Provisioning</span><span>Timezone / Devices</span><span>Lifecycle</span><span>Actions</span></div>${state.rows.map(p => {
+    const raw = p.raw && typeof p.raw === 'object' ? p.raw as Record<string, unknown> : {};
+    const vendorPlatform = raw.vendorPlatform && typeof raw.vendorPlatform === 'object' ? raw.vendorPlatform as Record<string, unknown> : {};
+    const sourceScheme = p.sourceScheme || raw.sourceScheme || vendorPlatform.sourceScheme || p.sourceSystem || '—';
+    const creationMode = p.creationMode || raw.creationMode || '—';
+    const client = p.owner || raw.client || raw.Client || '—';
+    const created = raw.createdAtUtc || p.createdAtUtc || '—';
+    const updated = raw.updatedAtUtc || p.updatedAtUtc || p.updated || '—';
+    return `<div class="data-row" data-id="${plantDisplay(p.id, '')}"><div>${ZentridDataSource.badge(p, 'plant')}<strong>${plantDisplay(p.name)}</strong><small>${plantDisplay(p.code)}<br>${plantDisplay(p.id)}</small></div><div><strong>${plantDisplay(client)}</strong><small>${plantDisplay(p.tenant)}</small></div><div><strong>${plantDisplay(sourceScheme)}</strong><small>${plantDisplay(creationMode)}</small></div><div><strong>${plantDisplay(p.timezone)}</strong><small>${plantDisplay(p.devices, '0')} devices</small></div><div><span class="badge ${plantStatusCls(p.status)}">${plantDisplay(p.status)}</span><small>Updated ${plantDisplay(updated)}<br>Created ${plantDisplay(created)}</small></div><div class="row-actions"><button data-action="open" data-permission-action="view" data-permission-resource="plant" data-permission-status="${plantDisplay(p.status, '')}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}">Open</button><button data-action="edit" data-permission-action="edit" data-permission-resource="plant" data-permission-status="${plantDisplay(p.status, '')}" data-permission-origin="${ZentridDataSource.origin(p, 'plant')}" data-permission-update-available="true">Edit</button><button data-action="devices" data-permission-action="view" data-permission-resource="plant">Devices</button><button data-action="alerts" data-permission-action="view" data-permission-resource="plant">Alerts</button></div></div>`;
+  }).join('')}</div>${pager}`;
 }
+function operationalPlants(): ZentridPlant[] { return Array.isArray(window.ZentridOperationalPlants) ? window.ZentridOperationalPlants : []; }
+function operationalPlantSnapshotHtml(): string {
+  const rows = operationalPlants();
+  const state = String(window.ZentridOperationalPlantsState || 'pending');
+  const pagination = window.ZentridOperationalPlantPagination as ZentridRepositoryPagination | undefined;
+  if (state === 'pending') return `<div class="empty-state"><strong>Loading operational plant data…</strong><small>/api/plants is loading separately from the administrative registry.</small></div>`;
+  if (state === 'error') return `<div class="empty-state"><strong>Operational plant data unavailable</strong><small>The administrative registry remains usable. Live status, power and energy were not substituted with registry values.</small></div>`;
+  if (!rows.length) return `<div class="empty-state"><strong>No operational plant records</strong><small>/api/plants returned no records for the snapshot page.</small></div>`;
+  const online = rows.filter(row => String(row.status || '').toLowerCase() === 'normal').length;
+  const offline = rows.filter(row => String(row.status || '').toLowerCase() === 'offline').length;
+  const other = rows.length - online - offline;
+  const total = pagination?.totalCount || rows.length;
+  return `<div class="integration-live-summary-grid plant-operational-kpis"><article><span>Operational plants</span><strong>${Number(total).toLocaleString()}</strong><small>/api/plants totalCount</small></article><article><span>Page status sample</span><strong>${online} / ${offline} / ${other}</strong><small>Online · Offline · Other/Unknown</small></article><article><span>Rows loaded</span><strong>${rows.length}</strong><small>Operational snapshot only</small></article></div><div class="data-table plant-operational-table"><div class="data-head"><span>Plant</span><span>Provider</span><span>Status</span><span>Installed Power</span><span>Energy</span><span>Freshness</span></div>${rows.map(row => {
+    const raw = row.raw && typeof row.raw === 'object' ? row.raw as Record<string, unknown> : {};
+    const vendorExtensions = raw.vendorExtensions && typeof raw.vendorExtensions === 'object' ? raw.vendorExtensions as Record<string, unknown> : {};
+    const installedKw = plantNumber(raw.installedPowerKw ?? ((row.capacityDc !== null && row.capacityDc !== undefined) ? Number(row.capacityDc) * 1000 : null));
+    const totalEnergy = plantNumber(row.totalEnergy);
+    return `<div class="data-row"><div><strong>${plantDisplay(row.name)}</strong><small>${plantDisplay(row.externalId)}</small></div><div><strong>${plantDisplay(row.vendor)}</strong><small>${plantDisplay(vendorExtensions.sourceSystem || row.sourceSystem)}</small></div><div><span class="badge ${plantStatusCls(row.status)}">${plantDisplay(row.status)}</span><small>${plantDisplay(row.livePower)} current</small></div><div><strong>${installedKw === null ? '—' : `${installedKw.toLocaleString()} kW`}</strong><small>Backend installedPowerKw</small></div><div><strong>${plantDisplay(row.today)}</strong><small>${totalEnergy === null ? '—' : `${totalEnergy.toLocaleString()} kWh lifetime`}</small></div><div><strong>${plantDisplay(row.freshness)}</strong><small>${plantDisplay(row.lastData)}</small></div></div>`;
+  }).join('')}</div>`;
+}
+
 const fallbackAssetClients: ZentridAssetClient[] = [];
 function assetClientRecords(): ZentridAssetClient[] {
   const stored = window.ZentridLocalStore
@@ -1117,20 +1157,24 @@ function renderPlants(): string {
   const totalPlantCount = serverPagination?.totalCount || list.length;
   const initialSearch = queryState?.search || '';
   const initialStatus = queryState?.params.plantStatus || 'All Statuses';
-  const initialVendor = queryState?.params.plantVendor || 'All Vendors';
-  const warnings = list.filter(p => p.status !== 'Normal').length;
-  const totalMw = list.reduce((a,p)=>a + Number(p.capacityDc || 0),0).toFixed(1);
-  const plantStatuses = Array.from(new Set(['Normal','Warning','Fault','Offline','Pending Review','Draft','Inactive','Archived',...list.map(plant => String(plant.status || '').trim()).filter(Boolean)]));
-  const plantVendors = Array.from(new Set(list.map(plant => String(plant.vendor || '').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const initialVendor = queryState?.params.plantVendor || 'All Sources';
+  const pageDevices = list.reduce((sum, plant) => sum + (plantNumber(plant.devices) || 0), 0);
+  const pageDraft = list.filter(plant => String(plant.status || '').toLowerCase() === 'draft').length;
+  const pageClients = new Set(list.map(plant => String(plant.owner || '').trim()).filter(Boolean)).size;
+  const plantStatuses = Array.from(new Set(['Active','Draft','Inactive','Archived','Pending Review','Normal','Warning','Fault','Offline',...list.map(plant => String(plant.status || '').trim()).filter(Boolean)]));
+  const plantSources = Array.from(new Set(list.map(plant => String(plant.sourceScheme || plant.sourceSystem || '').trim()).filter(value => value && value !== '—'))).sort((a,b)=>a.localeCompare(b));
   const optionText = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character] || character));
-  const groups = getSidebarGroups().map(g => g.key === 'plants' ? {...g, objects:list.length, status:'Active'} : g);
+  const groups = getSidebarGroups().map(g => g.key === 'plants' ? {...g, objects:totalPlantCount, status:'Active'} : g);
   const openSolar = new URLSearchParams(window.location.search).get('view') === 'solar';
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>${openSolar ? 'Plant Registry' : 'Groups'}</h1><p class="muted">Groups control which typed registries appear in the main sidebar. Each group keeps its own table, filters, detail page and create form.</p></div>${openSolar ? `<button class="create-action" id="openPlantCreate" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button>` : `<button class="create-action" id="openGroupCreate" type="button"><span class="pulse"></span><div><strong>+ Create Group</strong><small>Show/hide in sidebar</small></div></button>`}</section>
-  <section class="context-bar glass-card"><button class="ctx-item"><span>Visible Groups</span><strong>${groups.filter(g => g.show).length}</strong></button><button class="ctx-item"><span>Total Groups</span><strong>${groups.length}</strong></button><button class="ctx-item"><span>Plants</span><strong>${totalPlantCount.toLocaleString()}</strong></button><button class="ctx-item"><span>Attention</span><strong>${warnings}</strong></button><button class="ctx-item"><span>Installed Capacity DC</span><strong>${totalMw} MWp</strong></button></section>
+  const registryPage = serverPagination ? `${serverPagination.page} / ${serverPagination.totalPages}` : '1 / 1';
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>${openSolar ? 'Plant Registry' : 'Groups'}</h1><p class="muted">${openSolar ? 'Administrative master records come from /api/admin/plants. Operational status and energy are loaded separately from /api/plants.' : 'Groups control which typed registries appear in the main sidebar. Each group keeps its own table, filters, detail page and create form.'}</p></div>${openSolar ? `<button class="create-action" id="openPlantCreate" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button>` : `<button class="create-action" id="openGroupCreate" type="button"><span class="pulse"></span><div><strong>+ Create Group</strong><small>Show/hide in sidebar</small></div></button>`}</section>
+  <section class="context-bar glass-card">${openSolar ? `<div class="ctx-item"><span>Registry Records</span><strong>${totalPlantCount.toLocaleString()}</strong></div><div class="ctx-item"><span>Registry Page</span><strong>${registryPage}</strong></div><div class="ctx-item"><span>Rows Loaded</span><strong>${list.length}</strong></div><div class="ctx-item"><span>Clients on Page</span><strong>${pageClients}</strong></div><div class="ctx-item"><span>Devices on Page</span><strong>${pageDevices.toLocaleString()}</strong></div><div class="ctx-item"><span>Draft on Page</span><strong>${pageDraft}</strong></div>` : `<button class="ctx-item"><span>Visible Groups</span><strong>${groups.filter(g => g.show).length}</strong></button><button class="ctx-item"><span>Total Groups</span><strong>${groups.length}</strong></button><button class="ctx-item"><span>Plants</span><strong>${totalPlantCount.toLocaleString()}</strong></button>`}</section>
   <section class="panel glass-card ${openSolar ? 'hidden' : ''}" id="groupsCatalogView"><div class="panel-head"><div><h2>Group Management</h2><p>Create groups and decide which ones appear in the main sidebar. This page does not mix Plants, Smart Homes, Chargers and BESS into one table.</p></div><div class="hero-actions"><button class="secondary-btn" id="openSolarPlantsFromGroups" type="button">Open Plants</button><button class="primary-btn" id="openGroupCreateInline" type="button">Create Group</button></div></div><div id="groupsTableHost">${groupRows(groups)}</div></section>
-  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Groups · Plants</p><h2>Plant Registry</h2><p>Plants have their own columns, filters, detail page and Create Plant wizard.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by plants, tenants, vendors..."/><select id="plantStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${plantStatuses.map(value => `<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select><select id="plantVendorFilter"><option ${initialVendor === 'All Vendors' ? 'selected' : ''}>All Vendors</option>${plantVendors.map(value => `<option ${value === initialVendor ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
+  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Master data · /api/admin/plants</p><h2>Plant Registry</h2><p>Client, tenant, provisioning, lifecycle and device-count fields are administrative registry data. Missing operational metrics are not fabricated.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current registry page by plant, client, tenant, source..."/><select id="plantStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${plantStatuses.map(value => `<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select><select id="plantVendorFilter"><option ${initialVendor === 'All Sources' ? 'selected' : ''}>All Sources</option>${plantSources.map(value => `<option ${value === initialVendor ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
+  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="plantOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/plants</p><h2>Operational Plant Snapshot</h2><p>This is a separate live view. It is not joined to registry rows by page position, because the two endpoints may sort independently.</p></div><button class="go" type="button" data-live-refresh="plants">Refresh</button></div>${operationalPlantSnapshotHtml()}</section>
   ${plantCreateModal()}${groupCreateModal()}`;
 }
+
 function plantEventTarget(event: Event): HTMLElement | null {
   return event.target instanceof HTMLElement ? event.target : null;
 }
@@ -1145,11 +1189,11 @@ function wirePlants(){
     const q = (search.value || '').toLowerCase();
     const s = status.value;
     const v = vendor.value;
-    let list = plants().filter(p => [p.name,p.tenant,p.vendor,p.country,p.region,p.code,p.status].join(' ').toLowerCase().includes(q));
+    let list = plants().filter(p => [p.name,p.owner,p.tenant,p.sourceScheme,p.sourceSystem,p.code,p.status].join(' ').toLowerCase().includes(q));
     if (s !== 'All Statuses') list = list.filter(p => p.status === s);
-    if (v !== 'All Vendors') list = list.filter(p => p.vendor === v);
+    if (v !== 'All Sources') list = list.filter(p => String(p.sourceScheme || p.sourceSystem || '') === v);
     ZentridRuntimeStability.replaceHtml(table, plantRows(list));
-    window.ZentridRegistryQuery?.update('plants', { search: q || null, plantStatus: s === 'All Statuses' ? null : s, plantVendor: v === 'All Vendors' ? null : v }, { replace: true, emit: false });
+    window.ZentridRegistryQuery?.update('plants', { search: q || null, plantStatus: s === 'All Statuses' ? null : s, plantVendor: v === 'All Sources' ? null : v }, { replace: true, emit: false });
     const scope = document.getElementById('plantFilterScopeV126');
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('plants') || '';
   }

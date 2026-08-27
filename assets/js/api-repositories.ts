@@ -39,6 +39,7 @@
     source: string;
     errors: unknown[];
     pagination: ZentridRepositoryPagination;
+    kpi?: RepositoryRecord;
     cache?: ZentridRepositoryCacheMeta;
   }
 
@@ -210,6 +211,7 @@
       source: result.source,
       errors: result.errors.slice(),
       pagination: { ...result.pagination },
+      ...(result.kpi ? { kpi: cloneValue(result.kpi) } : {}),
       ...(result.cache ? { cache: { ...result.cache } } : {})
     };
   }
@@ -736,7 +738,8 @@
     let lastError: unknown = null;
 
     try {
-      const query = new URLSearchParams({ page: String(page), size: String(pageSize) });
+      // Server pagination contract: ?page=${page}&pageSize=${pageSize}
+      const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       const sortBy = String(options.sortBy || '').trim();
       const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
       if (sortBy) query.set('sortBy', sortBy);
@@ -759,12 +762,22 @@
     return { rows, pagination: paginationFromPayload(payload, rows.length, options), payload };
   }
 
+  function kpiFromPayload(payload: unknown): RepositoryRecord | undefined {
+    if (!payload || typeof payload !== 'object') return undefined;
+    const record = payload as RepositoryRecord;
+    const candidate = record.kpi;
+    return candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+      ? candidate as RepositoryRecord
+      : undefined;
+  }
+
   function mappedResult(
     entity: RepositoryEntity,
     rawItems: RepositoryRecord[],
     source: string,
     errors: unknown[] = [],
-    pagination: ZentridRepositoryPagination = fallbackPagination(rawItems.length)
+    pagination: ZentridRepositoryPagination = fallbackPagination(rawItems.length),
+    kpi?: RepositoryRecord
   ): ZentridRepositoryListResult {
     const contract = ZentridAPIContracts[entity];
     return {
@@ -773,7 +786,8 @@
       rawItems,
       source,
       errors,
-      pagination
+      pagination,
+      ...(kpi ? { kpi } : {})
     };
   }
 
@@ -940,6 +954,16 @@
       return mappedResult('plants', adminPage.rows, '/api/admin/plants', [], adminPage.pagination);
     }
 
+    if (options?.cacheVariant === 'live') {
+      const livePage = await fetchCollectionPage(
+        '/api/plants',
+        requestOptions => ZentridPlatformAPI.live.plants(requestOptions),
+        'plant',
+        options
+      );
+      return mappedResult('plants', livePage.rows, '/api/plants', [], livePage.pagination);
+    }
+
     const [liveResult, adminResult] = await Promise.allSettled([
       fetchCollectionPage('/api/plants', requestOptions => ZentridPlatformAPI.live.plants(requestOptions), 'plant', options),
       fetchCollectionPage('/api/admin/plants', requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions), 'plant', options)
@@ -1017,6 +1041,16 @@
   });
 
   const devices = withGet('devices', async options => {
+    if (options?.cacheVariant === 'live') {
+      const livePage = await fetchCollectionPage(
+        '/api/devices',
+        requestOptions => ZentridPlatformAPI.live.devices(requestOptions),
+        'device',
+        options
+      );
+      return mappedResult('devices', livePage.rows, '/api/devices', [], livePage.pagination, kpiFromPayload(livePage.payload));
+    }
+
     const { page, pageSize } = normalizedPageOptions(options);
     // Keep the shared pagination marker used by repository diagnostics: ?page=${page}&size=${pageSize}
     const queryParts = [
@@ -1038,7 +1072,7 @@
     };
     const payload = await ZentridAPI.request(`/api/admin/devices?${query}`, requestOptions);
     const rows = uniqueByIdentity(asArray(payload), 'device');
-    return mappedResult('devices', rows, '/api/admin/devices', [], paginationFromPayload(payload, rows.length, options));
+    return mappedResult('devices', rows, '/api/admin/devices', [], paginationFromPayload(payload, rows.length, options), kpiFromPayload(payload));
   }, async (id, options = {}) => {
     const requestOptions: ZentridRequestOptions = {
       ...(options?.timeoutMs ? { timeoutMs: options?.timeoutMs } : {}),
@@ -1057,6 +1091,16 @@
   });
 
   const alerts = withGet('alerts', async options => {
+    if (options?.cacheVariant === 'live') {
+      const livePage = await fetchCollectionPage(
+        '/api/alerts',
+        requestOptions => ZentridPlatformAPI.live.alerts(requestOptions),
+        'alert',
+        options
+      );
+      return mappedResult('alerts', livePage.rows, '/api/alerts', [], livePage.pagination, kpiFromPayload(livePage.payload));
+    }
+
     const { page, pageSize } = normalizedPageOptions(options);
     const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     const keys: Array<keyof ZentridRepositoryReadOptions> = ['severity','alertStatus','status','tenant','plant','vendor','plantId','deviceId','tenantId','format','cursor','search'];
@@ -1070,7 +1114,7 @@
     };
     const payload = await ZentridAPI.request(`/api/admin/alerts?${query.toString()}`, requestOptions);
     const rows = uniqueByIdentity(asArray(payload), 'alert');
-    return mappedResult('alerts', rows, '/api/admin/alerts', [], paginationFromPayload(payload, rows.length, options));
+    return mappedResult('alerts', rows, '/api/admin/alerts', [], paginationFromPayload(payload, rows.length, options), kpiFromPayload(payload));
   }, async (id, options = {}) => {
     const requestOptions: ZentridRequestOptions = {
       ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
@@ -1090,8 +1134,21 @@
   });
 
   const telemetry = withGet('telemetry', async options => {
-    const page = await fetchCollectionPage('/api/telemetry', requestOptions => ZentridPlatformAPI.live.telemetry(requestOptions), 'telemetry', options);
-    return mappedResult('telemetry', page.rows, '/api/telemetry', [], page.pagination);
+    const query = new URLSearchParams({
+      page: String(Math.max(1, Number(options?.page || 1))),
+      pageSize: String(Math.max(1, Number(options?.pageSize || 100)))
+    });
+    if (options?.plantId) query.set('plantId', options.plantId);
+    if (options?.deviceId) query.set('deviceId', options.deviceId);
+    if (options?.search) query.set('search', options.search);
+    const requestOptions: ZentridRequestOptions = {
+      ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      ...(options?.signal ? { signal: options.signal } : {})
+    };
+    const source = `/api/telemetry?${query.toString()}`;
+    const payload = await ZentridAPI.request(source, requestOptions);
+    const rows = uniqueByIdentity(asArray(payload), 'telemetry');
+    return mappedResult('telemetry', rows, source, [], paginationFromPayload(payload, rows.length, options));
   });
 
   const integrationRegistry = withGet('integrations', async options => {
@@ -1114,6 +1171,58 @@
     );
   });
 
+  async function fetchIntegrationSummaryPageOneByOne(options: ZentridRepositoryReadOptions, signal: AbortSignal): Promise<ZentridRepositoryListResult> {
+    const requestOptions: ZentridRequestOptions = {
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+      signal
+    };
+    const firstPayload = await ZentridAPI.request('/api/integrations?page=1&pageSize=1', requestOptions);
+    const firstRows = uniqueByIdentity(asArray(firstPayload), 'generic');
+    const firstPagination = paginationFromPayload(firstPayload, firstRows.length, { ...options, page: 1, pageSize: 1 });
+    const totalPages = Math.max(1, firstPagination.totalPages);
+
+    // The backend integration-summary query is currently much more reliable with a tiny page.
+    // For the small integration registry used by Platform Overview, collect all rows this way.
+    // If the registry grows beyond 10 pages, fall back to the normal paged endpoint instead of
+    // issuing an unbounded number of requests.
+    if (totalPages > 10) {
+      const normalPage = await fetchCollectionPage(
+        '/api/integrations',
+        directOptions => ZentridPlatformAPI.live.integrations(directOptions),
+        'generic',
+        { ...options, page: 1, pageSize: 20, signal }
+      );
+      return mappedResult('integrations', normalPage.rows, '/api/integrations', [], normalPage.pagination);
+    }
+
+    const pageNumbers = Array.from({ length: Math.max(0, totalPages - 1) }, (_value, index) => index + 2);
+    const settled = await Promise.allSettled(pageNumbers.map(page =>
+      ZentridAPI.request(`/api/integrations?page=${page}&pageSize=1`, requestOptions)
+    ));
+    const rows = [...firstRows];
+    const errors: unknown[] = [];
+    settled.forEach(result => {
+      if (result.status === 'fulfilled') rows.push(...asArray(result.value));
+      else errors.push(result.reason);
+    });
+
+    const uniqueRows = uniqueByIdentity(rows, 'generic');
+    return mappedResult(
+      'integrations',
+      uniqueRows,
+      '/api/integrations?pageSize=1',
+      errors,
+      {
+        page: 1,
+        pageSize: 1,
+        totalCount: firstPagination.totalCount,
+        totalPages: firstPagination.totalPages,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
+    );
+  }
+
   const integrations: ZentridIntegrationReadRepository = {
     ...integrationRegistry,
     async summary(options: ZentridRepositoryReadOptions = {}): Promise<ZentridRepositoryListResult> {
@@ -1126,13 +1235,7 @@
         supersede: options.supersede !== false
       };
       return readThroughCache('integrations', async signal => {
-        const page = await fetchCollectionPage(
-          '/api/integrations',
-          requestOptions => ZentridPlatformAPI.live.integrations(requestOptions),
-          'generic',
-          { ...readOptions, signal }
-        );
-        return mappedResult('integrations', page.rows, '/api/integrations', [], page.pagination);
+        return fetchIntegrationSummaryPageOneByOne(readOptions, signal);
       }, readOptions);
     }
   };

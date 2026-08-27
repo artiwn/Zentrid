@@ -29,7 +29,7 @@ type ZentridOverviewIntegrationData = {
   name: string;
   status: string;
   sync: string;
-  errors: number;
+  errors: number | string;
 };
 
 type ZentridOverviewTenantData = {
@@ -45,6 +45,8 @@ type ZentridOverviewRuntimeStore = {
   quality: ZentridOverviewQualityData[];
   alerts: ZentridOverviewAlertData[];
   integrations: ZentridOverviewIntegrationData[];
+  alertState: 'pending' | 'ready' | 'error';
+  integrationState: 'pending' | 'ready' | 'error';
   tenants: ZentridOverviewTenantData[];
   activity: string[];
 };
@@ -192,6 +194,8 @@ window.ZentridOverviewData = {
   quality: [],
   alerts: [],
   integrations: [],
+  alertState: 'pending',
+  integrationState: 'pending',
   tenants: [],
   activity: []
 } satisfies ZentridOverviewRuntimeStore;

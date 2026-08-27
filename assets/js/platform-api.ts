@@ -115,6 +115,7 @@ type ZentridPlatformAPIShape = {
   };
   plantRegistry: ZentridPlatformModule & {
     update(id: string, payload: unknown): Promise<unknown>;
+    devices(plantId: string, options?: ZentridRequestOptions): Promise<unknown>;
     createDevice(plantId: string, payload: unknown): Promise<unknown>;
     activate(id: string): Promise<unknown>;
     deactivate(id: string): Promise<unknown>;
@@ -451,6 +452,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/plants', jsonOptions('POST', payload), ['plants'], 'plant.create'),
     update: (id: string, payload: unknown) => mutationRequest(`/api/admin/plants/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['plants'], 'plant.update'),
+    devices: (plantId: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(plantId)}/devices`, options),
     createDevice: (plantId: string, payload: unknown) => mutationRequest(`/api/admin/plants/${encodeURIComponent(plantId)}/devices`, jsonOptions('POST', payload), ['plants', 'devices'], 'plant.device.create'),
     activate: (id: string) => mutationRequest(`/api/admin/plants/${encodeURIComponent(id)}/activate`, { method: 'POST' }, ['plants'], 'plant.activate'),
     deactivate: (id: string) => mutationRequest(`/api/admin/plants/${encodeURIComponent(id)}/deactivate`, { method: 'POST' }, ['plants'], 'plant.deactivate'),
@@ -633,8 +635,13 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
         results.push({ ...endpoint, ok: false, skipped: true, status: 'Skipped', statusText: 'Skipped', ms: 0, count: null, data: null, error: 'Manual endpoint. Use Manual Request Runner with concrete id/body.', path: endpoint.path, method: String(endpoint.method), source: sourceLabel() });
         continue;
       }
-      const result = await rawRequest(endpoint.path, { method: endpoint.method });
-      results.push({ ...endpoint, ...result });
+      const diagnosticPath = endpoint.path === '/api/integrations'
+        ? '/api/integrations?page=1&pageSize=1'
+        : endpoint.path;
+      const result = await rawRequest(diagnosticPath, { method: endpoint.method });
+      results.push({ ...endpoint, ...result, notes: endpoint.path === '/api/integrations'
+        ? `${endpoint.notes} Health check uses pageSize=1 because the current backend summary query times out on larger/unpaged reads.`
+        : endpoint.notes });
     }
     return results;
   }

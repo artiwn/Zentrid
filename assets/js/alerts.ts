@@ -64,6 +64,15 @@ interface ZentridAlertRecord {
   vendorExtensions?: Record<string, unknown>;
   liveOperational?: Record<string, unknown>;
   adminSnapshot?: Record<string, unknown>;
+  linkedDevice?: Record<string, unknown>;
+  linkedLiveDevice?: Record<string, unknown>;
+  linkedDeviceResolution?: { source?: string; adminId?: string; liveId?: string };
+  subresourceSources?: {
+    timeline?: 'admin' | 'live' | 'none';
+    related?: 'admin' | 'live' | 'none';
+    sop?: 'admin' | 'live' | 'none';
+    telemetryCurve?: 'admin' | 'live' | 'none';
+  };
   timeline: string[];
   related: {
     telemetryMetric: string;
@@ -149,9 +158,11 @@ interface AlertSopModel {
   total: number;
   progress: number;
   outcome: string;
+  backendOutcome: string;
   escalationTarget: string;
   evidence: string[];
   items: AlertSopStep[];
+  hasDraft: boolean;
 }
 
 interface AlertDetailModel {
@@ -161,6 +172,7 @@ interface AlertDetailModel {
   plantName: string;
   alertTime: string;
   component: string;
+  componentDetail: string;
   duration: string;
   alertType: string;
   confirmStatus: string;
@@ -192,7 +204,7 @@ const ZentridAlertDictionary: ZentridAlertDictionaryModel = {
 };
 function alertCodeMeta(a?: Partial<ZentridAlertRecord>): ZentridAlertMeta { const code=a?.zentridCode; return (code ? ZentridAlertDictionary.codes[code] : undefined) || { category:a?.category || 'Unmapped', name:a?.title || 'Unknown alert', severity:a?.severity || 'Unknown', deviceScope:a?.deviceType || '—', policy:'No canonical policy configured yet.', meaning:a?.description || 'No unified explanation configured.', vendorMappings:[] }; }
 function vendorCodeLabel(a?: Partial<ZentridAlertRecord>): string { return `${a?.vendor || 'Vendor'} ${a?.vendorRawCode || a?.vendorCode || '—'}`; }
-function vendorMappingStatus(a?: Partial<ZentridAlertRecord>): string { const backend=String(a?.mappingStatus || a?.mapping?.mappingStatus || '').trim(); if (backend) return backend; const meta = alertCodeMeta(a); const raw = `${a?.vendor || ''} ${a?.vendorRawCode || a?.vendorCode || ''}`.toLowerCase(); return (meta.vendorMappings || []).some(x => raw && x.toLowerCase().includes(String(a?.vendorRawCode || a?.vendorCode || '').toLowerCase())) ? 'Mapped' : 'Unmapped'; }
+function vendorMappingStatus(a?: Partial<ZentridAlertRecord>): string { const backend=String(a?.mappingStatus || a?.mapping?.mappingStatus || '').trim(); return backend || 'Not returned'; }
 
 function checkStatusClass(status?: string): AlertCheckTone {
   const v = String(status || '').toLowerCase();
@@ -210,18 +222,18 @@ function renderCheckRow({ label, hint = '', status = 'Pending', checked = false,
   return `<label class="check-row ${cls} ${checked ? 'checked' : ''}">${control}<div><strong>${label}</strong><small>${hint}</small></div><span class="check-status ${cls}">${status}</span>${req}</label>`;
 }
 function renderMappingValidation(a: ZentridAlertRecord): string {
-  const meta = alertCodeMeta(a);
-  const mapped = vendorMappingStatus(a);
+  const localMeta = a.zentridCode ? ZentridAlertDictionary.codes[a.zentridCode] : undefined;
+  const mappingStatus = vendorMappingStatus(a);
   const items = [
     { label:'Vendor code received', hint: vendorCodeLabel(a), status: a.vendorRawCode || a.vendorCode ? 'Done' : 'Missing', checked: !!(a.vendorRawCode || a.vendorCode), required:true },
-    { label:'Zentrid code assigned', hint: a.zentridCode || 'No canonical code', status: a.zentridCode ? 'Done' : 'Missing', checked: !!a.zentridCode, required:true },
-    { label:'Mapping found in dictionary', hint: (meta.vendorMappings || []).slice(0,3).join(' · ') || 'No known mapping', status: mapped, checked: true, required:true },
-    { label:'Policy available', hint: meta.policy || 'No policy configured', status: meta.policy ? 'Done' : 'Missing', checked: !!meta.policy, required:true },
-    { label:'SLA / case workflow', hint: `${a.priority || 'P?'} · ${a.sla || 'No SLA'}`, status: a.sla ? 'Done' : 'Pending', checked: !!a.sla }
+    { label:'Zentrid code assigned', hint: a.zentridCode || 'No canonical code returned', status: a.zentridCode ? 'Done' : 'Missing', checked: !!a.zentridCode, required:true },
+    { label:'Backend mapping status', hint: mappingStatus, status: mappingStatus === 'Mapped' ? 'Done' : mappingStatus === 'Not returned' ? 'Pending' : mappingStatus, checked: mappingStatus === 'Mapped', required:true },
+    { label:'Backend severity / category', hint: `${a.severity || '—'} · ${a.category || '—'}`, status: a.severity && a.category ? 'Done' : 'Missing', checked: !!(a.severity && a.category), required:true },
+    { label:'Local dictionary reference', hint: localMeta ? `${localMeta.name} · UI reference only` : 'No local dictionary entry', status: localMeta ? 'Done' : 'Skipped', checked: !!localMeta },
+    { label:'SLA', hint: a.sla || 'Not returned', status: a.sla && a.sla !== '—' ? 'Done' : 'Pending', checked: !!(a.sla && a.sla !== '—') }
   ];
   return `<div class="check-list validation-check-list-v86">${items.map(renderCheckRow).join('')}</div>`;
 }
-
 const ZentridAlerts: ZentridAlertRecord[] = [];
 
 function alertTone(value?: string): AlertTone {
@@ -229,6 +241,65 @@ function alertTone(value?: string): AlertTone {
   if (v.includes('critical') || v.includes('p1') || v.includes('open') || v.includes('escalated')) return 'danger';
   if (v.includes('high') || v.includes('warning') || v.includes('acknowledged') || v.includes('p2') || v.includes('medium')) return 'warning';
   return 'success';
+}
+
+function alertRegistryBadge(compact = false): string {
+  return `<span class="record-origin-chip live${compact ? ' compact' : ''}" data-record-origin="live" title="Data source: Alert Registry API · /api/admin/alerts">Alert Registry</span>`;
+}
+function alertDetailSourceBadge(a: ZentridAlertRecord, compact = true): string {
+  if (a.liveOperational) return `<span class="record-origin-chip mixed${compact ? ' compact' : ''}" data-record-origin="mixed" title="Data source: Alert Registry + Platform Live">Registry + Live</span>`;
+  return `<span class="record-origin-chip live${compact ? ' compact' : ''}" data-record-origin="live" title="Data source: Alert Registry API">Alert Registry API</span>`;
+}
+function alertDisplayValue(value: unknown): string {
+  const text = String(value ?? '').trim();
+  return text && text !== 'Unassigned' && text !== 'Unknown' ? text : '—';
+}
+
+function alertLinkedDeviceType(a: ZentridAlertRecord): { value: string; source: 'registry' | 'live' | 'none' } {
+  const linked = a.linkedDevice && typeof a.linkedDevice === 'object' ? a.linkedDevice : {};
+  const registryType = alertDisplayValue(linked.type || linked.deviceType || linked.subtype);
+  if (registryType !== '—') return { value: registryType, source: 'registry' };
+  const live = a.linkedLiveDevice && typeof a.linkedLiveDevice === 'object' ? a.linkedLiveDevice : {};
+  const liveType = alertDisplayValue(live.type || live.deviceType || live.subtype || live.rawDeviceType);
+  if (liveType !== '—') return { value: liveType, source: 'live' };
+  return { value: '—', source: 'none' };
+}
+
+function alertResolvedAdminDeviceId(a: ZentridAlertRecord): string {
+  const linked = a.linkedDevice && typeof a.linkedDevice === 'object' ? a.linkedDevice : {};
+  return alertDisplayValue(linked.id || linked.adminId || linked.deviceId) === '—' ? '' : String(linked.id || linked.adminId || linked.deviceId || '').trim();
+}
+
+function alertDeviceResolutionLabel(a: ZentridAlertRecord): string {
+  const source = String(a.linkedDeviceResolution?.source || '').trim();
+  if (source === 'admin-id') return 'Direct Device Registry ID';
+  if (source === 'admin-source-search') return 'Matched by sourceDeviceId + provider';
+  if (source === 'plant-device-relation') return 'Matched in parent plant device relation';
+  return alertResolvedAdminDeviceId(a) ? 'Device Registry identity resolved' : 'Not resolved';
+}
+
+function alertDeviceTypePresentation(a: ZentridAlertRecord): { label: string; detail: string; rawCode: string } {
+  const rawCode = alertDisplayValue(a.deviceType);
+  const linkedType = alertLinkedDeviceType(a);
+  if (linkedType.value !== '—') {
+    const sourceLabel = linkedType.source === 'registry' ? 'Device Registry classification' : 'Platform Live device classification';
+    return {
+      label: linkedType.value,
+      detail: rawCode !== '—' && rawCode !== linkedType.value ? `${sourceLabel} · Alert source device-type value: ${rawCode}` : sourceLabel,
+      rawCode
+    };
+  }
+  if (rawCode !== '—' && /^\d+$/.test(rawCode)) {
+    return { label: `Source code ${rawCode}`, detail: 'No canonical Device Registry or Platform Live device type was resolved for this alert.', rawCode };
+  }
+  return { label: rawCode, detail: rawCode === '—' ? 'Device type not returned by backend.' : 'Alert backend device-type value', rawCode };
+}
+
+function alertSubresourceSourceLabel(a: ZentridAlertRecord, resource: 'timeline' | 'related' | 'sop' | 'telemetryCurve'): string {
+  const source = a.subresourceSources?.[resource] || 'none';
+  if (source === 'admin') return `Alert Registry API · /api/admin/alerts/{id}/${resource === 'telemetryCurve' ? 'telemetry-curve' : resource}`;
+  if (source === 'live') return `Platform Live API · /api/alerts/{id}/${resource === 'telemetryCurve' ? 'telemetry-curve' : resource}`;
+  return 'Backend subresource not returned';
 }
 
 function getAlertContext(): AlertContextState {
@@ -256,7 +327,7 @@ function filteredAlerts(): ZentridAlertRecord[] {
   return ZentridAlerts.filter(a =>
     (!ctx.plantId || a.plantId === ctx.plantId) &&
     (!ctx.deviceId || a.deviceId === ctx.deviceId) &&
-    (severity === 'All' || alertCodeMeta(a).severity === severity) &&
+    (severity === 'All' || a.severity === severity) &&
     (status === 'All' || a.status === status) &&
     (tenant === 'All' || a.tenant === tenant) &&
     (plant === 'All' || a.plant === plant || a.plantId === plant) &&
@@ -266,21 +337,18 @@ function filteredAlerts(): ZentridAlertRecord[] {
 }
 
 function alertKpis(items: ZentridAlertRecord[] = filteredAlerts()): string {
-  const critical = items.filter(a => alertCodeMeta(a).severity === 'Critical').length;
-  const fault = items.filter(a => alertCodeMeta(a).severity === 'Fault').length;
-  const warning = items.filter(a => alertCodeMeta(a).severity === 'Warning').length;
+  const critical = items.filter(a => a.severity === 'Critical').length;
+  const fault = items.filter(a => a.severity === 'Fault').length;
+  const warning = items.filter(a => a.severity === 'Warning').length;
   const open = items.filter(a => a.status === 'Open').length;
-  const acknowledged = items.filter(a => a.status === 'Acknowledged').length;
-  const escalated = items.filter(a => a.status === 'Escalated').length;
   return `
     <section class="kpi-grid compact-kpis alert-kpis">
-      <article class="kpi-card red"><div class="kpi-label">Critical</div><div class="kpi-value">${critical}</div><div class="kpi-delta">Immediate escalation</div></article>
-      <article class="kpi-card yellow"><div class="kpi-label">Fault</div><div class="kpi-value">${fault}</div><div class="kpi-delta">Operational incident</div></article>
-      <article class="kpi-card cyan"><div class="kpi-label">Warning</div><div class="kpi-value">${warning}</div><div class="kpi-delta">Monitor / validate</div></article>
-      <article class="kpi-card violet"><div class="kpi-label">Escalated</div><div class="kpi-value">${escalated}</div><div class="kpi-delta">Management visible</div></article>
+      <article class="kpi-card red"><div class="kpi-label">Critical on Page</div><div class="kpi-value">${critical}</div><div class="kpi-delta">Current registry page only</div></article>
+      <article class="kpi-card yellow"><div class="kpi-label">Fault on Page</div><div class="kpi-value">${fault}</div><div class="kpi-delta">Current registry page only</div></article>
+      <article class="kpi-card cyan"><div class="kpi-label">Warning on Page</div><div class="kpi-value">${warning}</div><div class="kpi-delta">Current registry page only</div></article>
+      <article class="kpi-card violet"><div class="kpi-label">Open on Page</div><div class="kpi-value">${open}</div><div class="kpi-delta">Current registry page only</div></article>
     </section>`;
 }
-
 function renderAlertContextBanner(): string {
   const ctx = getAlertContext();
   if (!ctx.plantId && !ctx.deviceId && !ctx.tenant) return '';
@@ -317,20 +385,18 @@ function renderAlertFilters(): string {
 }
 
 function alertRow(a: ZentridAlertRecord): string {
-  const meta = alertCodeMeta(a);
   return `
     <div class="data-row alert-row" data-alert-id="${a.id}">
-      <div>${ZentridDataSource.badge(a, 'alert')}<strong>${a.zentridCode || '—'}</strong><small>Vendor: ${vendorCodeLabel(a)}</small></div>
-      <div><strong>${meta.name || a.title}</strong><small>${a.id} · ${meta.category || a.category} · ${a.priority}</small></div>
-      <div><strong>${a.plant}</strong><small>${a.tenant} · ${a.device}</small></div>
-      <div><strong>${a.vendor}</strong><small>${a.source}</small></div>
-      <span class="badge ${alertTone(meta.severity)}">${meta.severity}</span>
-      <span class="badge ${alertTone(a.status)}">${a.status}</span>
-      <div><strong>${a.created}</strong><small>${a.sla}</small></div>
-      <div class="row-actions kebabified"><div class="kebab-wrap global-action-wrap"><button type="button" class="kebab-btn" data-action="menu" aria-label="Open actions" title="Actions">⋮</button><div class="kebab-menu global-action-menu"><button data-action="open-alert" data-id="${a.id}" type="button">Open</button><button data-action="ack" data-id="${a.id}" type="button">Ack</button></div></div></div>
+      <div>${alertRegistryBadge()}<strong>${a.zentridCode || '—'}</strong><small>Vendor: ${vendorCodeLabel(a)}</small></div>
+      <div><strong>${a.title || '—'}</strong><small>${a.id} · ${a.category || '—'} · Mapping ${vendorMappingStatus(a)}</small></div>
+      <div><strong>${a.plant || '—'}</strong><small>${a.tenant || '—'} · ${a.device || '—'}</small></div>
+      <div><strong>${a.vendor || '—'}</strong><small>${a.source || '—'}</small></div>
+      <span class="badge ${alertTone(a.severity)}">${a.severity || '—'}</span>
+      <span class="badge ${alertTone(a.status)}">${a.status || '—'}</span>
+      <div><strong>${a.created || '—'}</strong><small>${a.sla || '—'}</small></div>
+      <div class="row-actions kebabified"><div class="kebab-wrap global-action-wrap"><button type="button" class="kebab-btn" data-action="menu" aria-label="Open actions" title="Actions">⋮</button><div class="kebab-menu global-action-menu"><button data-action="open-alert" data-id="${a.id}" type="button">Open</button><button data-action="ack" data-id="${a.id}" type="button" ${String(a.status).toLowerCase().includes('acknowledged') || String(a.status).toLowerCase().includes('resolved') ? 'disabled aria-disabled="true" title="Already acknowledged or resolved"' : ''}>Acknowledge</button></div></div></div>
     </div>`;
 }
-
 var ZentridAlertPager: AlertPagerState = window.ZentridAlertPager || (window.ZentridAlertPager = { page: 1, size: 50 });
 function alertPageSlice(items: ZentridAlertRecord[]): AlertPageSliceState {
   const serverPagination = window.ZentridRegistryQuery?.pagination('alerts');
@@ -364,40 +430,12 @@ function renderAlertsTable(items: ZentridAlertRecord[] = filteredAlerts()): stri
   return `
     <section class="panel glass-card">
       <div class="panel-head">
-        <div><h2>Operational Alert Inbox</h2><p>Normalized alerts linked to tenant, plant, device, telemetry source and SLA state.</p></div>
-        <div class="inline-actions"><button class="secondary-action" id="resetAlertFilters">Reset Filters</button><button class="primary-action" id="exportAlerts">Export</button></div>
+        <div><p class="eyebrow">Master data · /api/admin/alerts</p><h2>Alert Registry</h2><p>Administrative alert records, canonical mapping fields and workflow state. KPI cards above describe the currently loaded registry page only.</p></div>
+        <div class="inline-actions"><button class="secondary-action" id="resetAlertFilters">Reset Filters</button><button class="primary-action" id="exportAlerts">Export Registry</button></div>
       </div>
       <div id="alertsTableHost">${renderAlertRowsPage(items)}</div>
     </section>`;
 }
-
-function renderAlertDetailContentLegacy(a: ZentridAlertRecord): string {
-  return `
-    <section class="page-hero">
-      <div><p class="eyebrow">Alert Detail ${ZentridDataSource.badge(a, 'alert', true)}</p><h1>${a.title}</h1><p class="muted">${a.id} · ${a.tenant} · ${a.plant} · ${a.device}</p></div>
-      <div class="hero-actions"><button class="freshness-card" id="detailAck"><span class="pulse"></span><div><strong>Acknowledge</strong><small>${a.status}</small></div></button><button class="freshness-card" onclick="location.href='alerts.html'"><span class="pulse"></span><div><strong>Back to Alerts</strong><small>Operational inbox</small></div></button></div>
-    </section>
-    <section class="kpi-grid detail-kpis alert-detail-kpis">
-      <article class="kpi-card red"><span>Severity</span><strong>${a.severity}</strong><small>${a.priority}</small></article>
-      <article class="kpi-card"><span>Status</span><strong>${a.status}</strong><small>${a.sla}</small></article>
-      <article class="kpi-card"><span>Owner</span><strong>${a.owner}</strong><small>Current assignment</small></article>
-      <article class="kpi-card"><span>Source</span><strong>${a.vendor}</strong><small>${a.source}</small></article>
-      <article class="kpi-card"><span>Plant</span><strong>${a.plant}</strong><small>${a.tenant}</small></article>
-      <article class="kpi-card"><span>Device</span><strong>${a.device}</strong><small>${a.deviceType}</small></article>
-    </section>
-    <section class="glass-card tabs-shell">
-      <div class="detail-tabs"><button class="active" data-tab="summary">Summary</button><button data-tab="case">Incident Case</button><button data-tab="sop">SOP Checklist</button><button data-tab="timeline">Timeline</button><button data-tab="related">Related Objects</button><button data-tab="actions">Actions</button></div>
-      <div id="alertDetailContent">${alertDetailTab(a, 'summary')}</div>
-    </section>`;
-}
-
-function alertDetailTabLegacy(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
-  if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div><div><span>Raw Payload Ref</span><strong>${a.rawPayloadRef || '—'}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
-  if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
-  return `<div class="split-grid"><div class="panel-lite"><h3>What happened?</h3><p class="detail-copy">${a.description}</p><div class="timeline-mini"><p><strong>Probable cause:</strong> ${a.probableCause}</p><p><strong>Recommended action:</strong> ${a.recommendation}</p></div></div><div class="panel-lite"><h3>Current Context</h3><div class="info-grid"><div><span>Status</span><strong>${a.status}</strong></div><div><span>Priority</span><strong>${a.priority}</strong></div><div><span>Category</span><strong>${a.category}</strong></div><div><span>Age</span><strong>${a.age}</strong></div><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div></div></div></div>`;
-}
-
 function selectedAlert(): ZentridAlertRecord {
   const firstAlert = ZentridAlerts[0];
   const params = new URLSearchParams(location.search);
@@ -431,25 +469,66 @@ function applyAlertFilters(resetPage = true): void {
   if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('alerts') || '';
 }
 
+function renderAlertRegistryContext(): string {
+  const pagination = window.ZentridRegistryQuery?.pagination('alerts');
+  const rows = ZentridAlerts;
+  const total = pagination?.totalCount ?? rows.length;
+  const page = pagination?.page ?? 1;
+  const totalPages = pagination?.totalPages ?? 1;
+  const mapped = rows.filter(a => vendorMappingStatus(a) === 'Mapped').length;
+  const open = rows.filter(a => a.status === 'Open').length;
+  const providers = new Set(rows.map(a => String(a.vendor || '').trim()).filter(Boolean)).size;
+  return `<section class="context-bar glass-card"><div class="ctx-item"><span>Registry Records</span><strong>${total.toLocaleString()}</strong></div><div class="ctx-item"><span>Registry Page</span><strong>${page} / ${totalPages}</strong></div><div class="ctx-item"><span>Rows Loaded</span><strong>${rows.length}</strong></div><div class="ctx-item"><span>Mapped on Page</span><strong>${mapped}</strong></div><div class="ctx-item"><span>Open on Page</span><strong>${open}</strong></div><div class="ctx-item"><span>Providers on Page</span><strong>${providers}</strong></div></section>`;
+}
+
+function renderOperationalAlertSnapshot(): string {
+  const state = String(window.ZentridOperationalAlertsState || 'pending');
+  const rows = Array.isArray(window.ZentridOperationalAlerts) ? window.ZentridOperationalAlerts as ZentridAlertRecord[] : [];
+  const pagination = window.ZentridOperationalAlertPagination as { totalCount?: number; page?: number; totalPages?: number } | undefined;
+  const total = Number(pagination?.totalCount ?? 0);
+  if (state === 'pending') return `<section class="panel glass-card" id="alertOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/alerts</p><h2>Operational Alert Snapshot</h2><p>Operational alerts load separately from the administrative Alert Registry.</p></div></div><div class="empty-state"><strong>Loading operational alert data…</strong><small>/api/alerts is loading independently from /api/admin/alerts.</small></div></section>`;
+  if (state === 'error') return `<section class="panel glass-card" id="alertOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/alerts</p><h2>Operational Alert Snapshot</h2><p>The administrative Alert Registry remains available.</p></div><button class="go" type="button" data-live-refresh="alerts">Retry</button></div><div class="empty-state"><strong>Operational alert data unavailable</strong><small>No operational counts are inferred from the current registry page.</small></div></section>`;
+  const open = rows.filter(a => a.status === 'Open').length;
+  const acknowledged = rows.filter(a => a.status === 'Acknowledged').length;
+  const critical = rows.filter(a => a.severity === 'Critical').length;
+  const fault = rows.filter(a => a.severity === 'Fault').length;
+  const warning = rows.filter(a => a.severity === 'Warning').length;
+  const otherSeverity = Math.max(0, rows.length - critical - fault - warning);
+  const tableRows = rows.map(a => `<div class="data-row"><div><strong>${a.title || '—'}</strong><small>${a.zentridCode || '—'} · ${a.sourceAlertId || a.id}</small></div><div><strong>${a.plant || '—'}</strong><small>${a.device || '—'}</small></div><div><strong>${a.vendor || '—'}</strong><small>${vendorCodeLabel(a)}</small></div><div><span class="badge ${alertTone(a.severity)}">${a.severity || '—'}</span><small>${a.category || '—'}</small></div><div><span class="badge ${alertTone(a.status)}">${a.status || '—'}</span><small>${a.occurrenceStatus || '—'}</small></div><div><strong>${a.created || '—'}</strong><small>Sync ${a.lastSyncAtUtc || a.updated || '—'}</small></div></div>`).join('');
+  return `<section class="panel glass-card" id="alertOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/alerts</p><h2>Operational Alert Snapshot</h2><p>Separate live view. Registry rows are not joined to this snapshot by page position.</p></div><button class="go" type="button" data-live-refresh="alerts">Refresh</button></div><div class="integration-live-summary-grid"><article><span>Operational alerts</span><strong>${total.toLocaleString()}</strong><small>/api/alerts totalCount</small></article><article><span>Rows loaded</span><strong>${rows.length}</strong><small>Operational snapshot only</small></article><article><span>Open / Acknowledged</span><strong>${open} / ${acknowledged}</strong><small>Current snapshot page</small></article><article><span>Severity sample</span><strong>${critical} / ${fault} / ${warning} / ${otherSeverity}</strong><small>Critical · Fault · Warning · Other</small></article></div><div class="data-table alert-operational-table zentrid-responsive-table" aria-label="Operational Alert Snapshot"><div class="data-head"><span>Alert</span><span>Plant / Device</span><span>Provider</span><span>Severity</span><span>Status</span><span>Occurred / Sync</span></div>${tableRows || '<div class="empty-state"><strong>No operational alerts on this page</strong><small>The /api/alerts snapshot returned no rows.</small></div>'}</div></section>`;
+}
+
 function renderAlertsPage(): string {
   setAlertContextFromQuery();
   return `
     <section class="page-hero">
-      <div><p class="eyebrow">Global Admin · Tenant Management</p><h1>Alerts</h1><p class="muted">Normalized alert list across plants, devices, vendors and tenants. Filter by plant, status, severity, tenant or source.</p></div>
-      <button class="freshness-card" type="button" data-live-refresh="alerts"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Waiting for API response</small></div></button>
+      <div><p class="eyebrow">Global Admin · Alerts</p><h1>Alerts</h1><p class="muted">Administrative Alert Registry and a separate operational snapshot. Backend severity, category and workflow fields remain authoritative.</p></div>
+      <button class="freshness-card" type="button" data-live-refresh="alerts"><span class="pulse"></span><div><strong>Alert freshness</strong><small>Registry + operational API</small></div></button>
     </section>
     ${renderAlertContextBanner()}
+    ${renderAlertRegistryContext()}
     <div id="alertKpiWrap">${alertKpis()}</div>
     ${renderAlertFilters()}
-    ${renderAlertsTable()}`;
+    ${renderAlertsTable()}
+    ${renderOperationalAlertSnapshot()}`;
 }
-
 function wireAlertsPage(): void {
   document.querySelector('.main-content')?.addEventListener('click', (e: Event) => {
     const target = e.target instanceof Element ? e.target : null;
     if (!target) return;
     const ack = target.closest('[data-action="ack"]');
-    if (ack) { e.stopPropagation(); ZentridLayout.toast(`Alert ${ack.dataset.id} acknowledged`); return; }
+    if (ack) {
+      e.stopPropagation();
+      const id = ack.dataset.id || '';
+      const record = ZentridAlerts.find(alert => alert.id === id);
+      if (record) void runAlertMutation(record, 'acknowledge').then(() => {
+        record.status = 'Acknowledged';
+        saveAlertRuntimeState(record, { acknowledged: true });
+        ZentridLayout.toast(`Alert ${id} acknowledged by backend`);
+        applyAlertFilters(false);
+      }).catch(error => ZentridLayout.toast(error instanceof Error ? error.message : `Unable to acknowledge ${id}`));
+      return;
+    }
     const open = target.closest('[data-action="open-alert"]') || target.closest('.alerts-table .data-row');
     if (open) {
       const id = open.dataset.id || open.dataset.alertId || open.closest('[data-alert-id]')?.dataset.alertId;
@@ -483,7 +562,7 @@ async function exportAlertsCsv(): Promise<void> {
   query.pageSize = Number(params.get('pageSize') || 20);
   try {
     ZentridLayout.toast('Preparing filtered alert export…');
-    const result = await ZentridPlatformAPI.liveAlerts.exportCsv(query);
+    const result = await ZentridPlatformAPI.adminAlerts.exportCsv(query);
     const url = URL.createObjectURL(result.blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -507,38 +586,28 @@ async function runAlertMutation(a: ZentridAlertRecord, action: 'acknowledge' | '
   const actor = currentAlertActor();
   if (action === 'acknowledge') {
     await ZentridPlatformAPI.adminAlerts.acknowledge(a.id, { actor, comment: 'Acknowledged from Zentrid Alert Detail' });
-  } else if (action === 'assign') {
-    await ZentridPlatformAPI.adminAlerts.assign(a.id, { assigneeId: '', assigneeName: 'Operations Team', teamId: '', actor });
-  } else if (action === 'escalate') {
-    await ZentridPlatformAPI.adminAlerts.escalate(a.id, { target: 'L2 Support / Vendor', reason: 'Operator escalation', comment: 'Escalated from Zentrid Alert Detail', actor });
-  } else if (action === 'resolve') {
-    await ZentridPlatformAPI.adminAlerts.resolve(a.id, { resolutionCode: 'Resolved', notes: 'Resolved from Zentrid Alert Detail', evidenceIds: [], actor });
-  } else if (action === 'task') {
-    await ZentridPlatformAPI.adminAlerts.createTask(a.id, {});
-  } else {
+  } else if (action === 'sop') {
     const sop = alertSopModel(a);
+    if (a.subresourceSources?.sop !== 'admin') throw new Error('Global Admin can only update an SOP returned by the Alert Registry API.');
+    if (!a.sop || !Array.isArray(a.sop.steps) || !a.sop.steps.length || !sop.total) throw new Error('No backend SOP is available for this alert.');
     await ZentridPlatformAPI.adminAlerts.updateSop(a.id, {
-      procedureId: sop.procedure,
-      procedureVersion: '1',
-      title: sop.title,
-      steps: sop.items.map((item, index) => ({ id: String(index + 1), title: item.label, completed: item.done, owner: item.owner })),
-      notes: String(document.getElementById('sopResolutionNotes')?.value || ''),
-      outcome: String((document.getElementById('sopOutcome') as HTMLSelectElement | null)?.value || sop.outcome),
-      escalationTarget: String((document.getElementById('sopEscalationTarget') as HTMLSelectElement | null)?.value || sop.escalationTarget),
-      evidence: alertRuntimeState(a).evidence || []
+      procedureId: a.sop.procedureId || '',
+      procedureVersion: a.sop.procedureVersion || '',
+      title: a.sop.title || sop.title,
+      steps: sop.items.map((item, index) => ({ id: a.sop?.steps?.[index]?.id || String(index + 1), title: item.label, completed: item.done, owner: item.owner === '—' ? null : item.owner })),
+      notes: String(document.getElementById('sopResolutionNotes')?.value || a.sop.notes || ''),
+      outcome: String((document.getElementById('sopOutcome') as HTMLSelectElement | null)?.value || a.sop.outcome || ''),
+      escalationTarget: String((document.getElementById('sopEscalationTarget') as HTMLSelectElement | null)?.value || a.sop.escalationTarget || ''),
+      evidence: Array.isArray(a.sop.evidence) ? a.sop.evidence : []
     });
+  } else {
+    throw new Error('This action requires explicit operator input. No default backend payload is sent.');
   }
   window.ZentridAPIRepositories?.cache.invalidate('alerts');
 }
-
 function wireAlertDetailPage(): void {
   const a = selectedAlert();
   if (!a.id) return;
-  document.getElementById('detailAck')?.addEventListener('click', () => {
-    saveAlertRuntimeState(a, { acknowledged: true });
-    ZentridLayout.toast(`${a.id} acknowledged`);
-    rerenderActiveAlertTab(a);
-  });
   document.querySelectorAll('.alert-detail-nav-v71 button').forEach(btn => btn.onclick = () => {
     document.querySelectorAll('.alert-detail-nav-v71 button').forEach(x => x.classList.remove('active'));
     btn.classList.add('active');
@@ -548,91 +617,70 @@ function wireAlertDetailPage(): void {
   });
   bindAlertDetailActions(a);
 }
-
 function bindAlertDetailActions(a: ZentridAlertRecord): void {
   const plant = document.getElementById('openAlertPlant');
-  if (plant) plant.onclick = () => { localStorage.setItem('zentrid_selected_plant', a.plantId); location.href = 'plant-detail.html'; };
+  if (plant && a.plantId) plant.onclick = () => { localStorage.setItem('zentrid_selected_plant', a.plantId); location.href = 'plant-detail.html'; };
+  const resolvedAdminDeviceId = alertResolvedAdminDeviceId(a);
   const device = document.getElementById('openAlertDevice');
-  if (device) device.onclick = () => { localStorage.setItem('zentrid_selected_device', a.deviceId); location.href = 'device-detail.html'; };
+  if (device && resolvedAdminDeviceId) device.onclick = () => { localStorage.setItem('zentrid_selected_device', resolvedAdminDeviceId); location.href = `device-detail.html?id=${encodeURIComponent(resolvedAdminDeviceId)}`; };
   const heroDevice = document.getElementById('openAlertDeviceFromHero');
-  if (heroDevice) heroDevice.onclick = () => { localStorage.setItem('zentrid_selected_device', a.deviceId); location.href = 'device-detail.html'; };
+  if (heroDevice && resolvedAdminDeviceId) heroDevice.onclick = () => { localStorage.setItem('zentrid_selected_device', resolvedAdminDeviceId); location.href = `device-detail.html?id=${encodeURIComponent(resolvedAdminDeviceId)}`; };
   const tel = document.getElementById('openAlertTelemetry');
-  if (tel) tel.onclick = () => { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({ tenant: a.tenant, plant: a.plant, device: a.device, metric: a.related.telemetryMetric, range: localStorage.getItem('zentrid_time') || 'Last 24h', layer: 'Normalized' })); location.href = 'telemetry.html'; };
+  if (tel) tel.onclick = () => { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({ tenant: a.tenant, plant: a.plant, device: a.device, metric: a.related?.telemetryMetric || '', range: localStorage.getItem('zentrid_time') || 'Last 24h', layer: 'Normalized' })); location.href = 'telemetry.html'; };
 
-  const handlers: Record<string, () => false | void | AlertRuntimeState> = {
-    detailAck: () => saveAlertRuntimeState(a, { acknowledged: true }),
-    actionAck: () => saveAlertRuntimeState(a, { acknowledged: true }),
-    actionAssign: () => saveAlertRuntimeState(a, { assignee: 'Operations Team', acknowledged: true }),
-    actionTask: () => {
-      const suffix = a.id.replace(/\D/g,'').slice(-4) || '0000';
-      saveAlertRuntimeState(a, { acknowledged: true, taskId: `TASK-${suffix}`, workOrder: `WO-${suffix}` });
-      localStorage.setItem('zentrid_task_context', JSON.stringify({ alertId: a.id, plant: a.plant, device: a.device, source: 'Alert Detail' }));
-    },
-    actionEscalate: () => saveAlertRuntimeState(a, { escalated: true, assignee: 'L2 Support / Vendor' }),
-    actionResolve: () => saveAlertRuntimeState(a, { resolved: true, acknowledged: true }),
-    actionSopSave: () => {
-      const notes = document.getElementById('sopResolutionNotes')?.value || '';
-      const outcome = document.getElementById('sopOutcome')?.value || 'In Progress';
-      const escalationTarget = document.getElementById('sopEscalationTarget')?.value || '';
-      saveAlertRuntimeState(a, { notes, outcome, escalationTarget });
-    },
-    actionSopComplete: () => {
-      const total = document.querySelectorAll('.sop-check-input').length || alertSopModel(a).total;
-      saveAlertRuntimeState(a, { sopDone: Array.from({ length: total }, () => true), outcome: 'Pass' });
-    },
-    openAlertCase: () => {
-      localStorage.setItem('zentrid_incident_context', JSON.stringify({ alertId: a.id, caseId: alertIncidentModel(a).caseId, plant: a.plant, device: a.device }));
-      ZentridLayout.toast(`Case context saved for ${a.id}`);
-      return false;
+  const acknowledge = async (button: HTMLElement): Promise<void> => {
+    try {
+      await runAlertMutation(a, 'acknowledge');
+      saveAlertRuntimeState(a, { acknowledged: true });
+      a.status = 'Acknowledged';
+      ZentridLayout.toast(`Alert ${a.id} acknowledged by backend`);
+      const hero = document.querySelector<HTMLElement>('.alert-detail-hero');
+      if (hero) hero.outerHTML = alertDetailHero(a, alertDetailModel(a));
+      const kpis = document.querySelector<HTMLElement>('.alert-detail-kpis');
+      if (kpis) kpis.outerHTML = alertDetailKpis(a);
+      rerenderActiveAlertTab(a);
+      bindAlertDetailActions(a);
+    } catch (error) {
+      ZentridLayout.toast(error instanceof Error ? error.message : `Unable to acknowledge ${a.id}`);
     }
   };
-  Object.entries(handlers).forEach(([id, fn]) => {
-    document.querySelectorAll(`#${id}`).forEach(btn => btn.onclick = async () => {
-      const actionMap: Record<string, 'acknowledge' | 'assign' | 'escalate' | 'resolve' | 'task' | 'sop' | undefined> = {
-        detailAck: 'acknowledge', actionAck: 'acknowledge', actionAssign: 'assign', actionTask: 'task',
-        actionEscalate: 'escalate', actionResolve: 'resolve', actionSopSave: 'sop', actionSopComplete: 'sop'
-      };
+  ['detailAck','actionAck'].forEach(id => document.querySelectorAll<HTMLElement>(`#${id}`).forEach(button => button.onclick = () => { void acknowledge(button); }));
+
+  if (a.sop && Array.isArray(a.sop.steps) && a.sop.steps.length) {
+    document.querySelectorAll<HTMLElement>('#actionSopSave').forEach(button => button.onclick = async () => {
+      if (button.hasAttribute('disabled')) return;
       try {
-        const backendAction = actionMap[id];
-        if (backendAction) await runAlertMutation(a, backendAction);
-        const result = fn();
-        if (result !== false) ZentridLayout.toast(`${btn.textContent?.trim() || 'Action'} updated for ${a.id}`);
+        const draft = alertSopModel(a);
+        const runtime = alertRuntimeState(a);
+        const notes = String((document.getElementById('sopResolutionNotes') as HTMLTextAreaElement | null)?.value || runtime.notes || a.sop?.notes || '');
+        await runAlertMutation(a, 'sop');
+        if (a.sop) {
+          a.sop.steps = (a.sop.steps || []).map((step, index) => ({ ...step, completed: Boolean(draft.items[index]?.done) }));
+          if (runtime.outcome !== undefined) a.sop.outcome = runtime.outcome;
+          a.sop.notes = notes;
+        }
+        localStorage.removeItem(`zentrid_alert_runtime_${a.id}`);
+        ZentridLayout.toast(`SOP progress saved for ${a.id}`);
         rerenderActiveAlertTab(a);
-      } catch (error) {
-        ZentridLayout.toast(error instanceof Error ? error.message : `Unable to update ${a.id}`);
-      }
+      } catch (error) { ZentridLayout.toast(error instanceof Error ? error.message : `Unable to save SOP for ${a.id}`); }
     });
-  });
-
-  document.querySelectorAll('.sop-check-input').forEach(input => {
-    (input as HTMLInputElement).onchange = () => {
-      const current = alertRuntimeState(a);
-      const total = document.querySelectorAll('.sop-check-input').length;
-      const done = current.sopDone || Array.from({ length: total }, (_, i) => i < alertSopModel(a).completed);
-      done[Number((input as HTMLInputElement).dataset.index)] = (input as HTMLInputElement).checked;
-      saveAlertRuntimeState(a, { sopDone: done });
-      rerenderActiveAlertTab(a);
-    };
-  });
-  document.querySelectorAll('.sop-evidence button').forEach(btn => {
-    btn.onclick = () => {
-      const current = alertRuntimeState(a);
-      const ev = new Set(current.evidence || []);
-      const key = btn.dataset.evidence;
-      ev.has(key) ? ev.delete(key) : ev.add(key);
-      saveAlertRuntimeState(a, { evidence: Array.from(ev) });
-      ZentridLayout.toast(`${key} evidence updated`);
-      rerenderActiveAlertTab(a);
-    };
-  });
-  const outcome = document.getElementById('sopOutcome');
-  if (outcome) (outcome as HTMLSelectElement).onchange = () => {
-    saveAlertRuntimeState(a, { outcome: (outcome as HTMLSelectElement).value });
-    rerenderActiveAlertTab(a);
-  };
+    document.querySelectorAll('.sop-check-input').forEach(input => {
+      (input as HTMLInputElement).onchange = () => {
+        const current = alertRuntimeState(a);
+        const total = a.sop?.steps?.length || 0;
+        const done = Array.isArray(current.sopDone) ? [...current.sopDone] : (a.sop?.steps || []).map(step => Boolean(step.completed));
+        while (done.length < total) done.push(false);
+        done[Number((input as HTMLInputElement).dataset.index)] = (input as HTMLInputElement).checked;
+        saveAlertRuntimeState(a, { sopDone: done });
+        rerenderActiveAlertTab(a);
+      };
+    });
+    const outcome = document.getElementById('sopOutcome');
+    if (outcome) (outcome as HTMLSelectElement).onchange = () => saveAlertRuntimeState(a, { outcome: (outcome as HTMLSelectElement).value });
+    const notes = document.getElementById('sopResolutionNotes');
+    if (notes) (notes as HTMLTextAreaElement).oninput = () => saveAlertRuntimeState(a, { notes: (notes as HTMLTextAreaElement).value });
+  }
 }
-
-
 function alertRuntimeState(a: ZentridAlertRecord): AlertRuntimeState {
   try { return JSON.parse(localStorage.getItem(`zentrid_alert_runtime_${a.id}`) || '{}'); }
   catch { return {}; }
@@ -648,202 +696,84 @@ function rerenderActiveAlertTab(a: ZentridAlertRecord): void {
   if (host) host.innerHTML = alertDetailTab(a, active);
   bindAlertDetailActions(a);
 }
-function alertDisplayStatus(a: ZentridAlertRecord): string {
-  const st = alertRuntimeState(a);
-  if (st.resolved) return 'Resolved';
-  if (st.escalated) return 'Escalated';
-  if (st.acknowledged) return 'Acknowledged';
-  return a.status;
-}
-
 function alertIncidentModel(a: ZentridAlertRecord): AlertIncidentModel {
-  const hasCase = a.related?.caseId && a.related.caseId !== '—';
-  const hasTask = a.related?.taskId && a.related.taskId !== '—';
-  const openLike = ['Open','Escalated'].includes(a.status);
-  const runtime = alertRuntimeState(a);
-  const displayStatus = alertDisplayStatus(a);
-  const owner = runtime.assignee || (a.owner && a.owner !== 'Unassigned' ? a.owner : 'Needs assignment');
-  const runtimeTask = runtime.taskId;
-  const runtimeOrder = runtime.workOrder;
+  const workflow = a.workflow && typeof a.workflow === 'object' ? a.workflow as Record<string, unknown> : {};
+  const assignment = a.assignment && typeof a.assignment === 'object' ? a.assignment as Record<string, unknown> : {};
+  const guidance = a.guidance && typeof a.guidance === 'object' ? a.guidance as Record<string, unknown> : {};
+  const caseId = alertDisplayValue(a.related?.caseId);
   return {
-    caseId: hasCase ? a.related.caseId : `CASE-${a.id.replace(/\D/g,'').slice(-4) || '0000'}`,
-    caseStatus: a.status === 'Escalated' ? 'Escalated' : (a.status === 'Acknowledged' ? 'Assigned' : (a.status === 'Resolved' ? 'Resolved' : 'New')),
-    assignee: owner,
-    priority: a.priority,
-    sla: a.sla,
-    due: a.priority === 'P1' ? 'Today · 10:30' : a.priority === 'P2' ? 'Today · 14:00' : 'Next business day',
-    taskId: runtimeTask || (hasTask ? a.related.taskId : 'Not created yet'),
-    workOrder: runtimeOrder || (hasTask ? 'WO-00418' : 'Create after triage'),
-    linkedClient: a.tenant.includes('Alpha') ? 'Arpi Solar Group' : a.tenant.replace('Tenant ', '') + ' Client',
-    impact: /offline|fault|outage/i.test(`${a.title} ${a.category}`) ? 'Production risk / service interruption' : 'Monitoring required',
-    nextStep: openLike ? 'Acknowledge, assign responsible owner and start SOP checklist.' : 'Continue monitoring and attach resolution evidence.'
+    caseId,
+    caseStatus: caseId !== '—' ? alertDisplayValue(workflow.caseStatus || workflow.incidentStatus) : '—',
+    assignee: alertDisplayValue(assignment.assigneeName || a.owner),
+    priority: alertDisplayValue(a.priority),
+    sla: alertDisplayValue(a.sla),
+    due: alertDisplayValue(workflow.dueAtUtc || workflow.slaDueAtUtc || workflow.dueAt),
+    taskId: alertDisplayValue(a.related?.taskId),
+    workOrder: alertDisplayValue(a.related?.workOrderId),
+    linkedClient: alertDisplayValue(a.tenant),
+    impact: alertDisplayValue(guidance.impact || guidance.businessImpact),
+    nextStep: alertDisplayValue(a.recommendation)
   };
 }
-
-function alertIncidentCaseBlock(a: ZentridAlertRecord): string {
-  const c = alertIncidentModel(a);
-  return `
-    <section class="alert-incident-case glass-card">
-      <div class="incident-head">
-        <div><span class="eyebrow">Incident Case</span><h2>${c.caseId}</h2><p class="muted">Alert → Case → Task → Work Order → Resolution</p></div>
-        <span class="badge ${alertTone(c.caseStatus)}">${c.caseStatus}</span>
-      </div>
-      <div class="incident-grid">
-        <article><span>Responsible</span><strong>${c.assignee}</strong><small>Current owner</small></article>
-        <article><span>Priority / SLA</span><strong>${c.priority}</strong><small>${c.sla}</small></article>
-        <article><span>Due Date</span><strong>${c.due}</strong><small>Operational target</small></article>
-        <article><span>Task</span><strong>${c.taskId}</strong><small>${c.workOrder}</small></article>
-        <article><span>Linked Client</span><strong>${c.linkedClient}</strong><small>${a.plant}</small></article>
-        <article><span>Impact</span><strong>${c.impact}</strong><small>${c.nextStep}</small></article>
-      </div>
-      <div class="incident-actions">
-        <button id="actionAck" type="button">Acknowledge</button>
-        <button id="actionAssign" type="button">Assign Responsible</button>
-        <button id="actionTask" type="button">Create Task</button>
-        <button id="actionResolve" type="button" class="danger-action">Resolve</button>
-      </div>
-    </section>`;
-}
-
 function alertCaseTimeline(a: ZentridAlertRecord): string {
-  const c = alertIncidentModel(a);
-  const rows = [
-    ['Detected', a.created, 'Alert normalized from source platform'],
-    ['Acknowledged', a.status === 'Open' ? 'Pending' : a.updated, a.status === 'Open' ? 'Waiting for operator confirmation' : `Confirmed by ${c.assignee}`],
-    ['Assigned', c.assignee === 'Needs assignment' ? 'Pending' : a.updated, c.assignee],
-    ['In Progress', c.taskId === 'Not created yet' ? 'Pending' : 'Started', c.taskId],
-    ['Resolved', a.status === 'Resolved' ? a.updated : 'Pending', 'Resolution evidence required']
-  ];
-  return `<div class="incident-timeline">${rows.map(([step,time,desc],i)=>`<div class="incident-step ${time==='Pending'?'pending':'done'}"><b>${i+1}</b><div><strong>${step}</strong><span>${time}</span><small>${desc}</small></div></div>`).join('')}</div>`;
+  const rows = Array.isArray(a.timeline) ? a.timeline.filter(Boolean) : [];
+  if (!rows.length) return `<div class="empty-state"><strong>No incident timeline returned</strong><small>The alert timeline endpoint returned no events for this record.</small></div>`;
+  return `<div class="incident-timeline">${rows.map((row, i)=>`<div class="incident-step done"><b>${i+1}</b><div><strong>Backend event</strong><span>${row}</span></div></div>`).join('')}</div>`;
 }
-
-
 function alertSopModel(a: ZentridAlertRecord): AlertSopModel {
   const liveSop = a.sop;
   if (liveSop && Array.isArray(liveSop.steps) && liveSop.steps.length) {
     const runtime = alertRuntimeState(a);
+    const hasDraft = Array.isArray(runtime.sopDone)
+      || Object.prototype.hasOwnProperty.call(runtime, 'outcome')
+      || Object.prototype.hasOwnProperty.call(runtime, 'notes')
+      || Object.prototype.hasOwnProperty.call(runtime, 'escalationTarget');
     const doneState = Array.isArray(runtime.sopDone) ? runtime.sopDone : liveSop.steps.map(step => Boolean(step.completed));
     const completed = doneState.filter(Boolean).length;
     return {
-      title: liveSop.title || 'Recommended Resolution Procedure',
-      procedure: [liveSop.procedureId, liveSop.procedureVersion].filter(Boolean).join(' · ') || 'Alert SOP',
+      title: liveSop.title || 'Alert SOP',
+      procedure: [liveSop.procedureId, liveSop.procedureVersion].filter(Boolean).join(' · ') || '—',
       completed,
       total: liveSop.steps.length,
       progress: Math.round((completed / liveSop.steps.length) * 100),
-      outcome: runtime.outcome || liveSop.outcome || 'In Progress',
-      escalationTarget: runtime.escalationTarget || liveSop.escalationTarget || 'Not set',
+      outcome: runtime.outcome || liveSop.outcome || '—',
+      backendOutcome: liveSop.outcome || '—',
+      escalationTarget: runtime.escalationTarget || liveSop.escalationTarget || '—',
       evidence: Array.isArray(liveSop.evidence) ? liveSop.evidence : [],
       items: liveSop.steps.map((step, i) => ({
         label: step.title || step.id || `Step ${i + 1}`,
         done: Boolean(doneState[i]),
-        owner: step.owner || (doneState[i] ? (a.owner || 'Operations Team') : 'Pending owner'),
-        time: doneState[i] ? a.updated : 'Pending'
-      }))
+        owner: alertDisplayValue(step.owner),
+        time: doneState[i] ? 'Completed · timestamp not returned' : 'Pending'
+      })),
+      hasDraft
     };
   }
-  const hay = `${a.title} ${a.category} ${a.description}`.toLowerCase();
-  const outage = hay.includes('outage') || hay.includes('offline') || hay.includes('communication') || hay.includes('no telemetry');
-  const voltage = hay.includes('voltage') || hay.includes('fault') || hay.includes('electrical');
-  const temperature = hay.includes('temperature') || hay.includes('bess') || hay.includes('battery');
-  let title = 'Recommended Resolution Procedure';
-  let procedure = 'Generic Alert Investigation';
-  let items = [
-    'Acknowledge alert and confirm current status.',
-    'Check latest telemetry and source platform state.',
-    'Inspect linked plant and device context.',
-    'Attach evidence or operator note.',
-    'Escalate if the issue remains active after SLA threshold.',
-    'Resolve incident after verification.'
-  ];
-  if (outage) {
-    procedure = 'Grid / Communication Outage SOP';
-    items = [
-      'Verify utility grid or communication availability.',
-      'Measure AC voltage or confirm gateway connectivity.',
-      'Inspect AC breaker, router, logger or communication module.',
-      'Verify wiring and live/neutral connection state.',
-      'Restart inverter, logger or breaker after inspection window.',
-      'Confirm telemetry recovery and close incident.'
-    ];
-  } else if (voltage) {
-    procedure = 'Grid Voltage Investigation SOP';
-    items = [
-      'Verify inverter safety parameters.',
-      'Measure grid voltage with a multimeter.',
-      'Verify AC cable sizing and route length.',
-      'Check AC terminal connections.',
-      'Verify local grid stability.',
-      'Restart inverter after inspection and record evidence.'
-    ];
-  } else if (temperature) {
-    procedure = 'Battery Temperature SOP';
-    items = [
-      'Confirm battery rack temperature trend.',
-      'Check cooling state and ambient conditions.',
-      'Inspect BESS ventilation and cabinet alerts.',
-      'Verify charge/discharge mode and current load.',
-      'Escalate to BESS specialist if temperature keeps rising.',
-      'Attach thermal evidence and monitoring notes.'
-    ];
-  }
-  const runtime = alertRuntimeState(a);
-  const baseCompleted = alertDisplayStatus(a) === 'Open' ? 2 : alertDisplayStatus(a) === 'Escalated' ? 4 : alertDisplayStatus(a) === 'Acknowledged' ? 3 : 5;
-  const doneState = Array.isArray(runtime.sopDone) ? runtime.sopDone : items.map((_, i) => i < baseCompleted);
-  const completed = doneState.filter(Boolean).length;
-  return {
-    title,
-    procedure,
-    completed,
-    total: items.length,
-    progress: Math.round((completed / items.length) * 100),
-    outcome: runtime.outcome || (alertDisplayStatus(a) === 'Escalated' ? 'Needs Escalation' : alertDisplayStatus(a) === 'Open' ? 'In Progress' : 'Pass'),
-    escalationTarget: runtime.escalationTarget || (alertDisplayStatus(a) === 'Escalated' ? 'L2 Support / Vendor' : 'Field Technician if not resolved'),
-    evidence: ['Photo evidence', 'Voltage measurement', 'Operator note'],
-    items: items.map((label, i) => ({
-      label,
-      done: !!doneState[i],
-      owner: doneState[i] ? (runtime.assignee || (a.owner === 'Unassigned' ? 'Operations Team' : a.owner)) : 'Pending owner',
-      time: doneState[i] ? `12 Jun 2026 · 09:${String(30 + i * 4).padStart(2, '0')}` : 'Pending'
-    }))
-  };
+  return { title:'No SOP returned', procedure:'—', completed:0, total:0, progress:0, outcome:'—', backendOutcome:'—', escalationTarget:'—', evidence:[], items:[], hasDraft:false };
 }
-
 function alertSopChecklistBlock(a: ZentridAlertRecord): string {
   const sop = alertSopModel(a);
+  const source = a.subresourceSources?.sop || 'none';
+  if (!sop.total) return `<section class="alert-sop-card glass-card"><div class="sop-head"><div><span class="eyebrow">SOP Checklist</span><h2>No SOP returned</h2><p class="muted">${alertSubresourceSourceLabel(a, 'sop')}</p></div></div><div class="empty-state"><strong>No resolution procedure is available from backend</strong><small>The alert SOP endpoint returned no procedure steps. Zentrid does not generate a synthetic checklist.</small></div></section>`;
   const runtime = alertRuntimeState(a);
-  const evidenceDone = new Set(runtime.evidence || []);
+  const editable = source === 'admin';
+  const sourceName = source === 'admin' ? 'Alert Registry' : source === 'live' ? 'Platform Live' : 'Backend';
   return `
     <section class="alert-sop-card glass-card">
       <div class="sop-head">
-        <div><span class="eyebrow">SOP Checklist</span><h2>${sop.title}</h2><p class="muted">${sop.procedure} · ${sop.completed} / ${sop.total} completed</p></div>
-        <div class="sop-progress"><strong>${sop.progress}%</strong><span>Completion</span></div>
+        <div><span class="eyebrow">SOP Checklist · ${sourceName}${sop.hasDraft ? ' · Draft changes' : ''}</span><h2>${sop.title}</h2><p class="muted">${sop.procedure} · ${sop.completed} / ${sop.total} completed · ${alertSubresourceSourceLabel(a, 'sop')}</p></div>
+        <div class="sop-progress"><strong>${sop.progress}%</strong><span>${sop.hasDraft ? 'Draft completion' : 'Completion'}</span></div>
       </div>
       <div class="sop-progress-bar"><i style="width:${sop.progress}%"></i></div>
-      <div class="sop-checklist sop-checklist-interactive">
-        ${sop.items.map((item, idx) => renderCheckRow({
-            label: item.label,
-            hint: `${item.done ? 'Completed by' : 'Assigned to'}: ${item.owner} · ${item.time}`,
-            status: item.done ? 'Done' : 'Pending',
-            checked: item.done,
-            input: true,
-            index: idx,
-            required: idx < 2
-          })).join('')}
-      </div>
+      <div class="sop-checklist sop-checklist-interactive">${sop.items.map((item, idx) => renderCheckRow({ label:item.label, hint:`Owner: ${item.owner} · ${item.time}`, status:item.done ? 'Done' : 'Pending', checked:item.done, input:editable, index:idx })).join('')}</div>
       <div class="sop-bottom-grid">
-        <div class="sop-evidence"><h3>Required Evidence</h3><div>${sop.evidence.map(x => `<button type="button" data-evidence="${x}" class="${evidenceDone.has(x) ? 'active' : ''}">${evidenceDone.has(x) ? '✓ ' : '+ '}${x}</button>`).join('')}</div></div>
-        <label class="sop-notes"><span>Resolution Notes</span><textarea id="sopResolutionNotes" placeholder="Operator findings, measurements and next action...">${runtime.notes || (a.status === 'Escalated' ? 'Escalated after remote validation. Field inspection required.' : '')}</textarea></label>
-        <div class="sop-outcome"><span>Outcome</span><select id="sopOutcome"><option ${sop.outcome === 'In Progress' ? 'selected' : ''}>In Progress</option><option ${sop.outcome === 'Pass' ? 'selected' : ''}>Pass</option><option ${sop.outcome === 'Fail' ? 'selected' : ''}>Fail</option><option ${sop.outcome === 'Needs Escalation' ? 'selected' : ''}>Needs Escalation</option></select>${sop.outcome === 'Needs Escalation' ? `<label><span>Escalate To</span><select id="sopEscalationTarget"><option ${sop.escalationTarget.includes('Field') ? 'selected' : ''}>Field Technician</option><option ${sop.escalationTarget.includes('L2') ? 'selected' : ''}>L2 Support / Vendor</option><option ${sop.escalationTarget.includes('Grid') ? 'selected' : ''}>Grid Operator</option></select></label>` : `<small>Escalation: ${sop.escalationTarget}</small>`}</div>
+        <div class="sop-evidence"><h3>Backend Evidence Requirements</h3><div>${sop.evidence.length ? sop.evidence.map(x => `<span class="badge neutral">${x}</span>`).join('') : '<small>No evidence requirements returned.</small>'}</div></div>
+        <label class="sop-notes"><span>Resolution Notes</span><textarea id="sopResolutionNotes" placeholder="Operator findings and evidence notes..." ${editable ? '' : 'disabled aria-disabled="true"'}>${runtime.notes || a.sop?.notes || ''}</textarea></label>
+        <div class="sop-outcome"><span>Outcome</span><select id="sopOutcome" ${editable ? '' : 'disabled aria-disabled="true"'}><option value="">Not set</option><option ${sop.outcome === 'In Progress' ? 'selected' : ''}>In Progress</option><option ${sop.outcome === 'Pass' ? 'selected' : ''}>Pass</option><option ${sop.outcome === 'Fail' ? 'selected' : ''}>Fail</option><option ${sop.outcome === 'Needs Escalation' ? 'selected' : ''}>Needs Escalation</option></select><small>Backend current value: ${sop.backendOutcome}${sop.hasDraft ? ' · unsaved browser draft shown above' : ''}</small></div>
       </div>
-      <div class="incident-actions sop-actions">
-        <button id="actionSopSave" type="button">Save Progress</button>
-        <button id="actionSopComplete" type="button">Complete Checklist</button>
-        <button id="actionTask" type="button">Create Work Order</button>
-        <button id="actionResolve" type="button" class="danger-action">Resolve Incident</button>
-      </div>
+      <div class="incident-actions sop-actions"><button id="actionSopSave" type="button" ${editable ? '' : 'disabled aria-disabled="true" title="Platform Live SOP is read-only in Global Admin until an Alert Registry SOP is returned"'}>Save SOP Progress</button></div>
     </section>`;
 }
-// v68 — richer Alert Detail based on GoodWe-style alert detail structure
 function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
   const workflow = a.workflow && typeof a.workflow === 'object' ? a.workflow : {};
   const vendorExtensions = a.vendorExtensions && typeof a.vendorExtensions === 'object' ? a.vendorExtensions : {};
@@ -852,17 +782,19 @@ function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
   const recoveredAt = workflow.recoveredAtUtc || workflow.resolvedAtUtc || null;
   const reason = String(a.probableCause || vendorExtensions.reason || '').trim();
   const suggestion = String(a.recommendation || vendorExtensions.suggestion || '').trim();
+  const deviceType = alertDeviceTypePresentation(a);
   return {
-    levelLabel: a.severity === 'Critical' ? 'Fault' : 'Alert',
+    levelLabel: a.severity || '—',
     occurrenceStatus,
-    confirmStatus: acknowledged ? 'Confirmed' : 'Unconfirmed',
+    confirmStatus: acknowledged ? 'Acknowledged' : 'Not acknowledged',
     recoveryTime: recoveredAt ? String(recoveredAt) : '',
     duration: a.age && a.age !== '—' ? a.age : '—',
     alertType: a.category || '—',
     plantName: a.plant || '—',
     alertTime: a.created || '—',
-    component: a.deviceType || 'Device',
-    deviceLabel: `${a.device || '—'}${a.deviceId ? ` (${a.deviceId})` : ''}`,
+    component: deviceType.label,
+    componentDetail: deviceType.detail,
+    deviceLabel: `${a.device || '—'}${alertResolvedAdminDeviceId(a) ? ` (${alertResolvedAdminDeviceId(a)})` : a.deviceId ? ` (${a.deviceId})` : ''}`,
     reason: reason ? [reason] : ['No probable cause was returned by the API.'],
     suggestion: suggestion ? [suggestion] : ['No recommendation was returned by the API.'],
     curveMetric: a.telemetryCurve?.metricCode || a.related?.telemetryMetric || '—',
@@ -871,33 +803,33 @@ function alertDetailModel(a: ZentridAlertRecord): AlertDetailModel {
 }
 
 function alertDetailHero(a: ZentridAlertRecord, m: AlertDetailModel): string {
-  const levelClass = m.levelLabel === 'Fault' ? 'danger' : 'warning';
+  const levelClass = ['Critical','Fault'].includes(m.levelLabel) ? 'danger' : 'warning';
   const statusClass = m.occurrenceStatus === 'Recovered' ? 'success' : 'danger';
+  const canConfirm = !/acknowledged|resolved/i.test(String(a.status || ''));
   return `
     <section class="alert-detail-hero glass-card">
       <div class="alert-detail-title-row">
         <div class="alert-title-stack">
           <div class="alert-title-line"><span class="alert-level-pill ${levelClass}">${m.levelLabel}</span><h1>${a.title}</h1><span class="alert-status-pill ${statusClass}"><i></i>${m.occurrenceStatus}</span></div>
-          <button class="alert-device-link" id="openAlertDeviceFromHero" type="button">▣ ${m.deviceLabel}</button>
+          ${alertResolvedAdminDeviceId(a) ? `<button class="alert-device-link" id="openAlertDeviceFromHero" type="button">▣ ${m.deviceLabel}</button>` : `<span class="alert-device-link" title="Device Registry identity not resolved">▣ ${m.deviceLabel}</span>`}
         </div>
         <button class="secondary-action" onclick="location.href='alerts.html'">Back to Alerts</button>
       </div>
       <div class="alert-detail-meta-grid">
         <div><span>Plant Name</span><strong>${m.plantName}</strong></div>
         <div><span>Alert Time</span><strong>${m.alertTime}</strong></div>
-        <div><span>Devices / Components</span><strong>${m.component}</strong></div>
+        <div><span>Device Type</span><strong>${m.component}</strong><small>${m.componentDetail}</small></div>
         <div><span>Duration</span><strong>${m.duration}</strong></div>
-        <div><span>Alert Type</span><strong>${m.alertType}</strong></div>
+        <div><span>Backend Category</span><strong>${m.alertType}</strong></div>
         <div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div>
-        <div><span>Unified Category</span><strong>${alertCodeMeta(a).category}</strong></div>
-        <div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div>
+        <div><span>Backend Severity</span><strong>${a.severity || '—'}</strong></div>
+        <div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div>
         <div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div>
-        <div><span>Confirm Status</span><strong class="${m.confirmStatus === 'Confirmed' ? 'text-success' : 'text-warning'}">${m.confirmStatus}</strong><button class="mini-inline-action" id="detailAck" type="button">Confirm</button></div>
+        <div><span>Acknowledgement</span><strong class="${m.confirmStatus === 'Acknowledged' ? 'text-success' : 'text-warning'}">${m.confirmStatus}</strong>${canConfirm ? '<button class="mini-inline-action" id="detailAck" type="button">Acknowledge</button>' : ''}</div>
         ${m.recoveryTime ? `<div><span>Recovery Time</span><strong>${m.recoveryTime}</strong></div>` : ''}
       </div>
     </section>`;
 }
-
 function alertReasonBlock(title: string, icon: string, items: string[]): string {
   return `<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>${icon}</span><h3>${title}</h3></div><ol class="alert-numbered-list">${items.map(x => `<li>${x}</li>`).join('')}</ol></section>`;
 }
@@ -905,9 +837,18 @@ function alertReasonBlock(title: string, icon: string, items: string[]): string 
 function alertCurveBlock(a: ZentridAlertRecord, m: AlertDetailModel): string {
   const liveSamples = Array.isArray(a.telemetryCurve?.samples) ? a.telemetryCurve.samples : [];
   const metric = a.telemetryCurve?.metricCode || m.curveMetric;
-  if (!liveSamples.length) return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time</small></div><div class="empty-state"><strong>No telemetry samples returned</strong><small>The API returned a valid telemetry window without sample points.</small></div></section>`;
+  if (!liveSamples.length) return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time · ${alertSubresourceSourceLabel(a, 'telemetryCurve')}</small></div><div class="empty-state"><strong>No telemetry samples returned</strong><small>The selected backend telemetry-curve source returned a valid window without sample points.</small></div></section>`;
   const labels = liveSamples.slice(0, 8).map(sample => `${sample.value ?? '—'}${sample.unit ? ` ${sample.unit}` : ''}`);
-  return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time</small></div><div class="alert-curve-visual"><div class="curve-line"></div>${labels.map((x,i)=>`<div class="curve-point" style="left:${10+i*(80/Math.max(labels.length-1,1))}%; bottom:${28+(i%3)*16}%"><span>${x}</span></div>`).join('')}</div></section>`;
+  return `<section class="alert-curve-card glass-card"><div class="alert-section-title"><span>⌁</span><h3>Curve</h3><small>${metric} around alert time · ${alertSubresourceSourceLabel(a, 'telemetryCurve')}</small></div><div class="alert-curve-visual"><div class="curve-line"></div>${labels.map((x,i)=>`<div class="curve-point" style="left:${10+i*(80/Math.max(labels.length-1,1))}%; bottom:${28+(i%3)*16}%"><span>${x}</span></div>`).join('')}</div></section>`;
+}
+
+function alertDetailKpis(a: ZentridAlertRecord): string {
+  return `<section class="kpi-grid detail-kpis alert-detail-kpis">
+      <article class="kpi-card ${a.severity === 'Critical' ? 'red' : 'yellow'}"><span>Backend Severity</span><strong>${a.severity || '—'}</strong><small>${alertDisplayValue(a.priority)}</small></article>
+      <article class="kpi-card"><span>Status</span><strong>${a.status || '—'}</strong><small>${alertDisplayValue(a.sla)}</small></article>
+      <article class="kpi-card"><span>Owner</span><strong>${alertDisplayValue(a.owner)}</strong><small>Backend assignment</small></article>
+      <article class="kpi-card"><span>Source</span><strong>${a.vendor || '—'}</strong><small>${a.source || '—'}</small></article>
+    </section>`;
 }
 
 function renderAlertDetailContent(a: ZentridAlertRecord): string {
@@ -915,16 +856,11 @@ function renderAlertDetailContent(a: ZentridAlertRecord): string {
   const m = alertDetailModel(a);
   return `
     <section class="page-hero alert-detail-page-hero">
-      <div><p class="eyebrow">Global Admin · Alerts ${ZentridDataSource.badge(a, 'alert', true)}</p><h1>Alert Details</h1><p class="muted">Source-normalized alert workspace with incident, SOP, timeline and related objects.</p></div>
-      <button class="freshness-card" onclick="ZentridLayout.toast('Alert detail refreshed')"><span class="pulse"></span><div><strong>Refresh</strong><small>${a.updated} · ${a.source}</small></div></button>
+      <div><p class="eyebrow">Global Admin · Alerts ${alertDetailSourceBadge(a)}</p><h1>Alert Details</h1><p class="muted">Alert Registry is authoritative for administrative classification and workflow; Platform Live enrichment is shown only when returned.</p></div>
+      <button class="freshness-card" type="button" data-live-refresh="alert-detail"><span class="pulse"></span><div><strong>Refresh</strong><small>${a.updated} · ${a.source}</small></div></button>
     </section>
     ${alertDetailHero(a, m)}
-    <section class="kpi-grid detail-kpis alert-detail-kpis">
-      <article class="kpi-card ${a.severity === 'Critical' ? 'red' : 'yellow'}"><span>Severity</span><strong>${a.severity}</strong><small>${a.priority}</small></article>
-      <article class="kpi-card"><span>Status</span><strong>${a.status}</strong><small>${a.sla}</small></article>
-      <article class="kpi-card"><span>Owner</span><strong>${a.owner}</strong><small>Current assignment</small></article>
-      <article class="kpi-card"><span>Source</span><strong>${a.vendor}</strong><small>${a.source}</small></article>
-    </section>
+    ${alertDetailKpis(a)}
     <section class="alert-detail-layout-v71 detail-layout-v58 detail-layout-standard">
       <aside class="setup-rail alert-detail-nav-v71" aria-label="Alert detail sections">
         <button class="active" type="button" data-tab="summary"><span>Overview</span></button>
@@ -938,18 +874,20 @@ function renderAlertDetailContent(a: ZentridAlertRecord): string {
       <div class="glass-card detail-main-v58 alert-detail-main-v71" id="alertDetailContent">${alertDetailTab(a, 'summary')}</div>
     </section>`;
 }
-
 function alertDetailTab(a: ZentridAlertRecord, tab: AlertDetailTabId | string): string {
   const m = alertDetailModel(a);
-  if (tab === 'classification') { const meta = alertCodeMeta(a); return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Zentrid Unified Code</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Unified Name</span><strong>${meta.name}</strong></div><div><span>Category</span><strong>${meta.category}</strong></div><div><span>Severity</span><strong>${meta.severity}</strong></div><div><span>Device Scope</span><strong>${meta.deviceScope}</strong></div><div><span>Meaning</span><strong>${meta.meaning}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor}</strong></div><div><span>Source Platform</span><strong>${a.source}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || a.title}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div><div><span>Source Alert ID</span><strong>${a.sourceAlertId || '—'}</strong></div><div><span>Source Plant ID</span><strong>${a.sourcePlantId || '—'}</strong></div><div><span>Source Device ID</span><strong>${a.sourceDeviceId || '—'}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Policy</span><strong>${meta.policy}</strong></div></div><div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button><button id="actionTask">Create Case from Policy</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`; }
-  if (tab === 'case') return `<div class="split-grid incident-case-tab"><div class="panel-lite"><h3>Case Timeline</h3>${alertCaseTimeline(a)}</div><div class="panel-lite"><h3>Case Context</h3><div class="info-grid"><div><span>Case ID</span><strong>${alertIncidentModel(a).caseId}</strong></div><div><span>Status</span><strong>${alertIncidentModel(a).caseStatus}</strong></div><div><span>Responsible</span><strong>${alertIncidentModel(a).assignee}</strong></div><div><span>Due</span><strong>${alertIncidentModel(a).due}</strong></div><div><span>Task</span><strong>${alertIncidentModel(a).taskId}</strong></div><div><span>Work Order</span><strong>${alertIncidentModel(a).workOrder}</strong></div></div><div class="vertical-actions incident-tab-actions"><button id="actionAssign">Assign Responsible</button><button id="actionTask">Create Task / Work Order</button><button id="openAlertCase">Open Case Workspace</button></div></div></div>`;
+  const localMeta = a.zentridCode ? ZentridAlertDictionary.codes[a.zentridCode] : undefined;
+  const disabledAction = (label: string): string => `<button type="button" disabled aria-disabled="true" title="Requires explicit operator input; no default backend payload is sent">${label}</button>`;
+  const timelineRows = Array.isArray(a.timeline) ? a.timeline.filter(Boolean) : [];
+  const timelineHtml = timelineRows.length ? `<div class="timeline-mini">${timelineRows.map(x => `<p>${x}</p>`).join('')}</div>` : `<div class="empty-state"><strong>No timeline events returned</strong><small>The alert timeline endpoint returned an empty collection.</small></div>`;
+  if (tab === 'classification') return `<div class="split-grid alert-classification-tab"><div class="panel-lite"><h3>Backend Classification</h3><div class="info-grid"><div><span>Zentrid Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Title</span><strong>${a.title || '—'}</strong></div><div><span>Category</span><strong>${a.category || '—'}</strong></div><div><span>Severity</span><strong>${a.severity || '—'}</strong></div><div><span>Status</span><strong>${a.status || '—'}</strong></div><div><span>Occurrence</span><strong>${a.occurrenceStatus || '—'}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div></div></div><div class="panel-lite"><h3>Vendor Source Mapping</h3><div class="info-grid"><div><span>Vendor</span><strong>${a.vendor || '—'}</strong></div><div><span>Source Platform</span><strong>${a.source || '—'}</strong></div><div><span>Received Vendor Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Vendor Message</span><strong>${a.vendorMessage || '—'}</strong></div><div><span>Source Alert ID</span><strong>${a.sourceAlertId || '—'}</strong></div><div><span>Source Plant ID</span><strong>${a.sourcePlantId || '—'}</strong></div><div><span>Source Device ID</span><strong>${a.sourceDeviceId || '—'}</strong></div><div><span>Alert Device Type Value</span><strong>${alertDisplayValue(a.deviceType)}</strong></div><div><span>Resolved Device Type</span><strong>${alertDeviceTypePresentation(a).label}</strong></div><div><span>Device Registry ID</span><strong>${alertResolvedAdminDeviceId(a) || '—'}</strong></div><div><span>Device Identity Resolution</span><strong>${alertDeviceResolutionLabel(a)}</strong></div><div><span>Integration</span><strong>${a.integration || '—'}</strong></div></div></div><div class="panel-lite full-span-v86"><h3>Local Alert Dictionary Reference</h3>${localMeta ? `<div class="info-grid"><div><span>Name</span><strong>${localMeta.name}</strong></div><div><span>Category</span><strong>${localMeta.category}</strong></div><div><span>Reference Severity</span><strong>${localMeta.severity}</strong></div><div><span>Device Scope</span><strong>${localMeta.deviceScope}</strong></div><div><span>Meaning</span><strong>${localMeta.meaning}</strong></div><div><span>Policy Reference</span><strong>${localMeta.policy}</strong></div></div><p class="muted">Local dictionary metadata is a UI/reference layer only. It does not override backend severity, category or mapping status.</p>` : `<div class="empty-state"><strong>No local dictionary entry</strong><small>Backend classification above remains authoritative.</small></div>`}<div class="vertical-actions"><button onclick="location.href='alert-dictionary.html'">Open Alert Dictionary</button></div></div><div class="panel-lite full-span-v86"><h3>Mapping Validation Checklist</h3>${renderMappingValidation(a)}</div></div>`;
+  if (tab === 'case') { const c = alertIncidentModel(a); const hasCase = c.caseId !== '—'; return `<div class="split-grid incident-case-tab"><div class="panel-lite"><h3>${hasCase ? 'Case Timeline' : 'Alert Event Timeline'}</h3>${!hasCase ? '<p class="muted">No incident case is linked. The events below belong to the alert workflow itself.</p>' : ''}${alertCaseTimeline(a)}<p class="muted">${alertSubresourceSourceLabel(a, 'timeline')}</p></div><div class="panel-lite"><h3>Backend Case Context</h3>${!hasCase ? '<div class="empty-state"><strong>No incident case returned</strong><small>The backend returned alert workflow events but no case identifier for this record.</small></div>' : ''}<div class="info-grid"><div><span>Case ID</span><strong>${c.caseId}</strong></div><div><span>Case Status</span><strong>${c.caseStatus}</strong></div><div><span>Responsible</span><strong>${c.assignee}</strong></div><div><span>Due</span><strong>${c.due}</strong></div><div><span>Task</span><strong>${c.taskId}</strong></div><div><span>Work Order</span><strong>${c.workOrder}</strong></div><div><span>Client / Tenant</span><strong>${c.linkedClient}</strong></div><div><span>Impact</span><strong>${c.impact}</strong></div></div><div class="vertical-actions incident-tab-actions">${disabledAction('Assign Responsible')}${disabledAction('Create Task / Work Order')}</div><p class="muted">No CASE, TASK, work-order ID or due date is generated in the browser. Missing values remain unavailable until backend returns them.</p></div></div>`; }
   if (tab === 'sop') return alertSopChecklistBlock(a);
-  if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Event Timeline</h3><div class="timeline-mini">${a.timeline.map(x => `<p>${x}</p>`).join('')}</div></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${a.sla}</strong></div><div><span>Owner</span><strong>${a.owner}</strong></div><div><span>Created</span><strong>${a.created}</strong></div><div><span>Updated</span><strong>${a.updated}</strong></div></div></div></div>`;
-  if (tab === 'related') return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant}</strong></div><div><span>Plant</span><strong>${a.plant}</strong></div><div><span>Device</span><strong>${a.device}</strong></div><div><span>Integration</span><strong>${a.integration}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Metric</span><strong>${a.related.telemetryMetric}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div><div><span>Raw Payload Ref</span><strong>${a.rawPayloadRef || '—'}</strong></div></div></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions"><button id="openAlertPlant">Open Plant</button><button id="openAlertDevice">Open Device</button><button id="openAlertTelemetry">Open Telemetry</button><button id="openAlertCase">Open Case / Task</button></div></div></div>`;
-  if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Operational Actions</h3><div class="vertical-actions"><button id="actionAck">Acknowledge Alert</button><button id="actionAssign">Assign Owner</button><button id="actionTask">Create Task</button><button id="actionEscalate">Escalate</button><button id="actionResolve" class="danger-action">Resolve Alert</button></div></div><div class="panel-lite"><h3>Activity Log</h3><div class="timeline-mini"><p><strong>09:53</strong> Alert detected from ${a.source}</p><p><strong>09:55</strong> Case context prepared by Zentrid</p><p><strong>Now</strong> Waiting for operator acknowledgement</p></div></div></div>`;
-  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${alertCodeMeta(a).category}</strong></div><div><span>Canonical Severity</span><strong>${alertCodeMeta(a).severity}</strong></div><div><span>Device Scope</span><strong>${alertCodeMeta(a).deviceScope}</strong></div><div><span>Telemetry</span><strong>${a.telemetry}</strong></div><div><span>Case</span><strong>${a.related.caseId}</strong></div><div><span>Task</span><strong>${a.related.taskId}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Workflow Policy</span><strong>${alertCodeMeta(a).policy}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated}</strong></div></div></section></div>`;
+  if (tab === 'timeline') return `<div class="split-grid"><div class="panel-lite"><h3>Backend Event Timeline</h3>${timelineHtml}<p class="muted">${alertSubresourceSourceLabel(a, 'timeline')}</p></div><div class="panel-lite"><h3>SLA & Ownership</h3><div class="info-grid"><div><span>SLA</span><strong>${alertDisplayValue(a.sla)}</strong></div><div><span>Owner</span><strong>${alertDisplayValue(a.owner)}</strong></div><div><span>Occurred</span><strong>${a.created || '—'}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated || '—'}</strong></div></div></div></div>`;
+  if (tab === 'related') { const hasCase = alertDisplayValue(a.related?.caseId) !== '—' || alertDisplayValue(a.related?.taskId) !== '—'; return `<div class="split-grid"><div class="panel-lite"><h3>Source Context</h3><div class="info-grid"><div><span>Tenant</span><strong>${a.tenant || '—'}</strong></div><div><span>Plant</span><strong>${a.plant || '—'}</strong></div><div><span>Device</span><strong>${a.device || '—'}</strong></div><div><span>Integration</span><strong>${a.integration || '—'}</strong></div><div><span>Telemetry Metric</span><strong>${a.related?.telemetryMetric || '—'}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated || '—'}</strong></div><div><span>Raw Payload Ref</span><strong>${a.rawPayloadRef || '—'}</strong></div><div><span>Case / Task</span><strong>${alertDisplayValue(a.related?.caseId)} / ${alertDisplayValue(a.related?.taskId)}</strong></div></div><p class="muted">${alertSubresourceSourceLabel(a, 'related')}</p></div><div class="panel-lite"><h3>Open Related</h3><div class="vertical-actions">${a.plantId ? '<button id="openAlertPlant">Open Plant</button>' : disabledAction('Open Plant')}${alertResolvedAdminDeviceId(a) ? '<button id="openAlertDevice">Open Device</button>' : disabledAction('Open Device')}<button id="openAlertTelemetry">Open Telemetry</button>${hasCase ? '<button id="openAlertCase" disabled aria-disabled="true" title="No case workspace route is confirmed by backend contract">Open Case / Task</button>' : disabledAction('Open Case / Task')}</div></div></div>`; }
+  if (tab === 'activity') return `<div class="split-grid"><div class="panel-lite"><h3>Backend Actions</h3><div class="vertical-actions">${/acknowledged|resolved/i.test(String(a.status || '')) ? disabledAction('Acknowledge Alert') : '<button id="actionAck">Acknowledge Alert</button>'}${disabledAction('Assign Owner')}${disabledAction('Create Task')}${disabledAction('Escalate')}${disabledAction('Resolve Alert')}</div><p class="muted">Only Acknowledge is sent without additional operator fields. Other mutations stay disabled instead of submitting fabricated default values.</p></div><div class="panel-lite"><h3>Backend Activity Log</h3>${timelineHtml}<p class="muted">${alertSubresourceSourceLabel(a, 'timeline')}</p></div></div>`;
+  return `<div class="alert-summary-layout">${alertReasonBlock('Reason', '!', m.reason)}${alertReasonBlock('Suggestion', '✓', m.suggestion)}${alertCurveBlock(a, m)}<section class="alert-explain-card glass-card"><div class="alert-section-title"><span>i</span><h3>Backend Operational Context</h3></div><div class="info-grid"><div><span>Category</span><strong>${a.category || '—'}</strong></div><div><span>Severity</span><strong>${a.severity || '—'}</strong></div><div><span>Device Type</span><strong>${m.component}</strong><small>${m.componentDetail}</small></div><div><span>Alert Device Type Value</span><strong>${alertDisplayValue(a.deviceType)}</strong></div><div><span>Telemetry</span><strong>${a.telemetry || '—'}</strong></div><div><span>Case</span><strong>${alertDisplayValue(a.related?.caseId)}</strong></div><div><span>Task</span><strong>${alertDisplayValue(a.related?.taskId)}</strong></div><div><span>Zentrid Alert Code</span><strong>${a.zentridCode || '—'}</strong></div><div><span>Vendor Error Code</span><strong>${vendorCodeLabel(a)}</strong></div><div><span>Mapping Status</span><strong>${vendorMappingStatus(a)}</strong></div><div><span>Mapping Version</span><strong>${a.mappingVersion || String(a.mapping?.mappingVersion || '—')}</strong></div><div><span>Last Sync</span><strong>${a.lastSyncAtUtc || a.updated || '—'}</strong></div></div></section></div>`;
 }
-
 if (location.pathname.endsWith('alert-detail.html')) {
   ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
   wireAlertDetailPage();

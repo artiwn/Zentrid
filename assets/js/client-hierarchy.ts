@@ -2860,11 +2860,17 @@ function plantDetailEscape(value: unknown): string {
 function plantDetailAttr(value: unknown): string { return plantDetailEscape(value).replace(/`/g, '&#096;'); }
 function plantDetailClone(record: ZentridPlantRecord): ZentridPlantRecord { return JSON.parse(JSON.stringify(record)) as ZentridPlantRecord; }
 function plantDetailOrigin(record: ZentridPlantRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'plant'); }
-function plantDetailBackendManaged(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.backendManaged(record, 'plant'); }
+function plantDetailAdminId(record: ZentridPlantRecord): string {
+  const raw = record.raw || {};
+  const adminRecord = raw.adminRecord && typeof raw.adminRecord === 'object' && !Array.isArray(raw.adminRecord) ? raw.adminRecord as Record<string, unknown> : {};
+  return String(record.adminId || adminRecord.id || adminRecord.plantId || '').trim();
+}
+function plantDetailBackendManaged(record: ZentridPlantRecord): boolean { return Boolean(plantDetailAdminId(record)); }
 function plantDetailArchived(record: ZentridPlantRecord): boolean { return ZentridEntityDetailUX.archived(record.status); }
 function plantDetailEditableTab(tab: PlantDetailTabKey = plantDetailActiveTab): boolean { return tab === 'overview'; }
 function plantDetailCanEdit(record: ZentridPlantRecord, tab: PlantDetailTabKey = plantDetailActiveTab): boolean {
-  return !plantDetailArchived(record) && plantDetailEditableTab(tab);
+  const writableRecord = plantDetailOrigin(record) === 'local' || plantDetailBackendManaged(record);
+  return writableRecord && !plantDetailArchived(record) && plantDetailEditableTab(tab);
 }
 function plantDetailSourceSystem(record: ZentridPlantRecord): string {
   if (record.sourceSystem) return String(record.sourceSystem);
@@ -2885,9 +2891,12 @@ function plantDetailFreshness(record: ZentridPlantRecord): string {
   });
 }
 function plantDetailModeCopy(record: ZentridPlantRecord): { tone: PlantDetailFeedbackTone; title: string; message: string } {
+  if (plantDetailOrigin(record) !== 'local' && !plantDetailBackendManaged(record)) {
+    return { tone:'info', title:'Operational plant · read-only', message:'This record comes from /api/plants. Master-data editing, lifecycle actions and documents require a linked /api/admin/plants record.' };
+  }
   return ZentridEntityDetailUX.modeCopy(record, 'plant', {
     status:record.status,
-    backendTitle:'Live plant · backend editing available',
+    backendTitle:'Plant Registry record · backend editing available',
     backendMessage:'Supported master-data edits are saved through PUT /api/admin/plants/{id}. Lifecycle changes use dedicated backend actions.',
     backendTone:'info',
     archivedTitle:'Archived plant',
@@ -3255,7 +3264,7 @@ async function savePlantDetailEdits(baseRecord: ZentridPlantRecord, devices: Zen
   try {
     const normalized = plantDetailNormalizeForSave(plantDetailDraft);
     if (plantDetailBackendManaged(baseRecord)) {
-      const result = await ZentridAPIMutations.plants.update(baseRecord.id, plantDetailUpdatePayload(normalized));
+      const result = await ZentridAPIMutations.plants.update(plantDetailAdminId(baseRecord) || baseRecord.id, plantDetailUpdatePayload(normalized));
       if (!result.ok) throw new Error(result.message);
       plantDetailEditMode = false;
       plantDetailDraft = null;
@@ -3358,7 +3367,64 @@ function plantTelemetryState(record: ZentridPlantRecord): { kind: 'ready' | 'emp
 }
 function deviceRows(items: ZentridDeviceRecord[], record?: ZentridPlantRecord): string {
   if (!items.length) return `<div class="empty-state plant-empty-state-v119"><strong>No device records</strong><small>${record && plantDetailOrigin(record) === 'local' ? 'This local plant has no device onboarding records yet.' : 'No devices were returned for this plant in the current hierarchy model.'}</small></div>`;
-  return `<div class="data-table plant-device-table-v17"><div class="data-head"><span>Object</span><span>Type / Vendor</span><span>Capacity / Model</span><span>Status</span><span>Traceability</span><span>Actions</span></div>${items.map(d => `<div class="data-row" data-device-id="${plantDetailAttr(d.id)}"><div><strong>${plantDetailEscape(d.name)}</strong><small>${plantDetailEscape(d.id)}<br>${plantDetailEscape(d.serial)}</small></div><div><strong>${plantDetailEscape(d.type)}</strong><small>${plantDetailEscape(d.vendor)}</small></div><div><strong>${plantDetailEscape(d.capacity)}</strong><small>${plantDetailEscape(d.model)}</small></div><div><span class="badge ${ZentridClientModel.badge(d.status)}">${plantDetailEscape(d.status)}</span><small>Last seen ${plantDetailEscape(d.lastSeen)}</small></div><div><strong>${plantDetailEscape(d.location)}</strong><small>${plantDetailEscape(d.children)}</small></div><div class="row-actions"><button type="button" data-open-device="${plantDetailAttr(d.id)}">View Device</button><button type="button" data-device-history="${plantDetailAttr(d.id)}">Open History</button></div></div>`).join('')}</div>`;
+  return `<div class="data-table plant-device-table-v17"><div class="data-head"><span>Object</span><span>Type / Vendor</span><span>Capacity / Model</span><span>Status</span><span>Traceability</span><span>Actions</span></div>${items.map(d => `<div class="data-row" data-device-id="${plantDetailAttr(d.id)}"><div><strong>${plantDetailEscape(d.name)}</strong><small>${plantDetailEscape(d.id)}<br>${plantDetailEscape(d.serial)}</small></div><div><strong>${plantDetailEscape(d.type)}</strong><small>${plantDetailEscape(d.vendor)}</small></div><div><strong>${plantDetailEscape(d.capacity)}</strong><small>${plantDetailEscape(d.model)}</small></div><div><span class="badge ${ZentridClientModel.badge(d.status)}">${plantDetailEscape(d.status)}</span><small>Last seen ${plantDetailEscape(d.lastSeen)}</small></div><div><strong>${plantDetailEscape(d.location)}</strong><small>${plantDetailEscape(d.children)}</small></div><div class="row-actions"><button type="button" data-action="open-device" data-open-device="${plantDetailAttr(d.id)}">View Device</button><button type="button" data-action="device-history" data-device-history="${plantDetailAttr(d.id)}">Open History</button></div></div>`).join('')}</div>`;
+}
+function plantDevicesLoaded(record: ZentridPlantRecord): boolean { return Boolean(record.devicesLoaded); }
+function plantAlertsLoaded(record: ZentridPlantRecord): boolean { return Boolean(record.alertsLoaded); }
+function plantHasOperationalMatch(record: ZentridPlantRecord): boolean { return Boolean(String(record.operationalId || '').trim()); }
+function plantPowerSourceHint(record: ZentridPlantRecord, kind: 'power' | 'energy'): string {
+  const value = kind === 'power' ? String(record.powerNow || '').trim() : String(record.energyToday || '').trim();
+  if (value && value !== '—') return kind === 'power' ? 'Instant power from backend' : 'Energy accumulated today';
+  if (record.telemetryLoaded) return 'Not returned by /api/plants or plant telemetry';
+  if (plantHasOperationalMatch(record)) return kind === 'power' ? '/api/plants returned no current power' : '/api/plants returned no today energy';
+  return 'Operational /api/plants record not matched yet';
+}
+function plantRelationCount(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && (!value.trim() || value.trim() === '—')) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+function plantDeviceCountLabel(record: ZentridPlantRecord, devices: ZentridDeviceRecord[]): string {
+  // Detail counts are authoritative only after the plant-scoped relation request completes.
+  // Registry counters may be stale or come from a different projection, so do not present them
+  // as an exact zero before the relation has actually been loaded.
+  if (!plantDevicesLoaded(record)) return 'On demand';
+  return String(devices.length);
+}
+function plantAlertCountLabel(record: ZentridPlantRecord): string {
+  if (!plantAlertsLoaded(record)) return 'On demand';
+  return String(Array.isArray(record.relatedAlerts) ? record.relatedAlerts.length : (plantRelationCount(record.alerts) ?? 0));
+}
+function plantDeviceTypeToken(device: ZentridDeviceRecord): string {
+  const raw = device.raw && typeof device.raw === 'object' ? device.raw as Record<string, unknown> : {};
+  return `${String(device.type || '')} ${String(device.subtype || '')} ${String(raw.deviceType || '')}`.trim().toLowerCase();
+}
+function plantDevicesMatching(devices: ZentridDeviceRecord[], pattern: RegExp): ZentridDeviceRecord[] {
+  return devices.filter(device => pattern.test(plantDeviceTypeToken(device)));
+}
+function plantStructureHtml(record: ZentridPlantRecord, devices: ZentridDeviceRecord[]): string {
+  if (!plantDevicesLoaded(record)) return '<div class="plant-data-state-v119 empty"><strong>Device topology not loaded yet</strong><small>Open this section to query device relations for the selected plant.</small></div>';
+  if (!devices.length) return '<div class="empty-state plant-empty-state-v119"><strong>Topology not available</strong><small>The plant-scoped device requests completed without returning device records.</small></div>';
+  const rows = devices.map(device => {
+    const parent = String(device.parentDeviceName || device.parentDeviceId || device.location || '').trim();
+    return `<div class="data-row"><div><strong>${plantDetailEscape(device.name)}</strong><small>${plantDetailEscape(device.id)}</small></div><div><strong>${plantDetailEscape(device.type)}</strong><small>${plantDetailEscape(device.vendor)}</small></div><div><strong>${plantDetailEscape(parent && parent !== '—' ? parent : 'Plant root / parent not returned')}</strong><small>${plantDetailEscape(device.children === '—' ? 'Child count not returned' : `${device.children} child record(s)`)}</small></div><div><span class="badge ${ZentridClientModel.badge(device.status)}">${plantDetailEscape(device.status)}</span></div></div>`;
+  }).join('');
+  return `<div class="data-table compact-table plant-structure-table-v142"><div class="data-head"><span>Device</span><span>Type / Provider</span><span>Parent relation</span><span>Status</span></div>${rows}</div>`;
+}
+function plantAlertsHtml(record: ZentridPlantRecord): string {
+  if (!plantAlertsLoaded(record)) return '<div class="plant-data-state-v119 empty"><strong>Alerts not loaded yet</strong><small>Open this section to query alerts for the selected plant.</small></div>';
+  const alerts = Array.isArray(record.relatedAlerts) ? record.relatedAlerts as Array<Record<string, unknown>> : [];
+  if (!alerts.length) return '<div class="empty-state plant-empty-state-v119"><strong>No related alerts</strong><small>The plant-scoped alert request completed without returning records for this plant.</small></div>';
+  const rows = alerts.map(alert => {
+    const title = String(alert.title || alert.name || alert.message || 'Alert');
+    const severity = String(alert.severity || 'Unknown');
+    const source = String(alert.device || alert.deviceName || alert.sourceSystem || alert.vendor || 'Plant');
+    const status = String(alert.status || alert.occurrenceStatus || 'Unknown');
+    const occurred = String(alert.occurredAt || alert.occurredAtUtc || '—');
+    return `<div class="data-row"><div><strong>${plantDetailEscape(title)}</strong><small>${plantDetailEscape(occurred)}</small></div><div><span class="badge ${ZentridClientModel.badge(severity)}">${plantDetailEscape(severity)}</span></div><div><span>${plantDetailEscape(source)}</span></div><div><span>${plantDetailEscape(status)}</span></div></div>`;
+  }).join('');
+  return `<div class="data-table compact-table plant-alert-table-v17"><div class="data-head"><span>Alert</span><span>Severity</span><span>Source</span><span>Status</span></div>${rows}</div>`;
 }
 function plantLazyTab(tab: PlantDetailTabKey, content: string): string {
   return window.ZentridDetailLazyTabs?.panel('plant', tab, content) || content;
@@ -3366,8 +3432,7 @@ function plantLazyTab(tab: PlantDetailTabKey, content: string): string {
 function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab: PlantDetailTabKey | string | undefined): string {
   const activeTab = (tab || 'overview') as PlantDetailTabKey;
   const context = plantDetailSectionContext(plant, activeTab, false);
-  const by = (type: string) => devices.filter(d => d.type === type || (type === 'Grid Device' && (d.type === 'Grid Device' || d.type === 'Switchgear')) || (type === 'Battery' && (d.type === 'Battery' || d.type === 'PCS')));
-  if (activeTab === 'structure') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Plant Structure</h2><p class="muted">Hierarchical plant tree. This is the bridge between the plant and physical devices.</p></div></div>${devices.length ? `<div class="asset-tree-v17"><div>Plant · ${plantDetailEscape(plant.name)}</div><ul><li>Area A<ul><li>Inverter Group A<ul><li>MPPT 1–12</li><li>Strings 1–24</li></ul></li></ul></li><li>Area B<ul><li>Inverter Group B</li><li>Solar Array B</li></ul></li><li>Subplant<ul><li>Transformer</li><li>Metering point</li></ul></li>${plant.battery === 'Yes' ? '<li>Battery System<ul><li>BESS Container</li><li>BMS / PCS / HVAC</li></ul></li>' : ''}</ul></div>` : `<div class="empty-state plant-empty-state-v119"><strong>Topology not available</strong><small>No devices were returned for this plant.</small></div>`}`);
+  if (activeTab === 'structure') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Plant Structure</h2><p class="muted">Actual device relations returned for this plant. No synthetic Area / MPPT / String hierarchy is generated.</p></div></div>${plantStructureHtml(plant, devices)}`);
   if (activeTab === 'energy') {
     const state = plantTelemetryState(plant);
     const telemetry = plantTelemetrySummary(plant);
@@ -3376,19 +3441,29 @@ function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab
     const freshness = telemetry.freshness || plantDetailFreshness(plant);
     const quality = telemetry.quality || (state.kind === 'ready' ? 'Available' : state.kind === 'partial' ? 'Partial / delayed' : 'No data');
     const telemetryNote = telemetry.count ? `Live telemetry records: ${telemetry.count} · Metrics: ${telemetry.metrics}` : '';
-    return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Energy & Telemetry</h2><p class="muted">Plant-level live production, period energy and data freshness summary.</p></div><span class="badge ${state.kind === 'ready' ? 'success' : state.kind === 'partial' ? 'warning' : 'neutral'}">${plantDetailEscape(state.kind)}</span></div><div class="plant-data-state-v119 ${state.kind}"><strong>${plantDetailEscape(state.title)}</strong><small>${plantDetailEscape(state.message)}</small></div><div class="info-grid"><div><span>Current Power</span><strong>${plantDetailEscape(currentPower)}</strong><small>Instant power</small></div><div><span>Today Energy</span><strong>${plantDetailEscape(todayEnergy)}</strong><small>Energy accumulated today</small></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(freshness)}</strong></div><div><span>Telemetry Quality</span><strong>${plantDetailEscape(quality)}</strong></div></div>${state.kind === 'empty' ? '' : `<div class="chart-placeholder">${plantDetailEscape(telemetryNote || 'Telemetry snapshot from the plant API record')}</div>`}`);
+    const lifetime = plantRelationCount(plant.totalEnergy);
+    return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Energy & Telemetry</h2><p class="muted">Plant-level live production, period energy and data freshness summary.</p></div><span class="badge ${state.kind === 'ready' ? 'success' : state.kind === 'partial' ? 'warning' : 'neutral'}">${plantDetailEscape(state.kind)}</span></div><div class="plant-data-state-v119 ${state.kind}"><strong>${plantDetailEscape(state.title)}</strong><small>${plantDetailEscape(state.message)}</small></div><div class="info-grid"><div><span>Current Power</span><strong>${plantDetailEscape(currentPower)}</strong><small>${plantDetailEscape(plantPowerSourceHint(plant, 'power'))}</small></div><div><span>Today Energy</span><strong>${plantDetailEscape(todayEnergy)}</strong><small>${plantDetailEscape(plantPowerSourceHint(plant, 'energy'))}</small></div><div><span>Lifetime Energy</span><strong>${lifetime === null ? '—' : `${lifetime.toLocaleString()} kWh`}</strong><small>/api/plants totalEnergyKwh</small></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Last Data Timestamp</span><strong>${plantDetailEscape(plant.lastDataAt || '—')}</strong></div><div><span>Last Backend Sync</span><strong>${plantDetailEscape(plant.lastSyncAt || '—')}</strong></div><div><span>Plant Data Quality</span><strong>${plantDetailEscape(plant.dataQualityStatus || '—')}</strong></div><div><span>Telemetry Query</span><strong>${plant.telemetryLoaded ? plantDetailEscape(quality) : 'On demand'}</strong></div></div>${state.kind === 'empty' ? '' : `<div class="chart-placeholder">${plantDetailEscape(telemetryNote || 'Telemetry snapshot from the plant API record')}</div>`}`);
   }
-  if (activeTab === 'alerts') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Alerts & Events</h2><p class="muted">Plant-level incident entry point with severity and affected device context.</p></div></div><div class="info-grid"><div><span>Open Alerts</span><strong>${plant.alerts}</strong></div><div><span>Health</span><strong>${plantDetailEscape(plant.health)}</strong></div><div><span>Primary Scope</span><strong>Plant / Device</strong></div><div><span>Workflow</span><strong>Alert → SOP → Task</strong></div></div><div class="data-table compact-table plant-alert-table-v17"><div class="data-head"><span>Alert</span><span>Severity</span><span>Source</span><span>Status</span></div><div class="data-row"><div><strong>${plant.alerts ? 'Related backend alerts loaded' : 'No active issues'}</strong><small>${plantDetailEscape(plant.name)}</small></div><div><span class="badge ${plant.alerts ? 'warning' : 'success'}">${plant.alerts ? 'Attention' : 'Normal'}</span></div><div><span>${plant.alerts ? 'Device / Integration' : 'System'}</span></div><div><span>${plant.alerts ? 'Open' : 'Clear'}</span></div></div></div>`);
-  if (activeTab === 'device') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Devices & Device</h2><p class="muted">Full device registry for this plant. Use specific tabs for focused views.</p></div><span class="badge neutral">${devices.length} records</span></div>${deviceRows(devices, plant)}`);
-  if (activeTab === 'arrays') return `${context}<div class="section-title-v17"><div><h2>Arrays & Strings</h2><p class="muted">PV module and string hierarchy linked to inverter / MPPT structure.</p></div></div><div class="info-grid"><div><span>Panels</span><strong>${Number(plant.panels || 0).toLocaleString()}</strong></div><div><span>Strings</span><strong>${plant.strings}</strong></div><div><span>Associated Inverters</span><strong>${plant.inverters}</strong></div><div><span>Traceability</span><strong>Plant → Area → Inverter → MPPT → String</strong></div></div>`;
-  if (activeTab === 'metering') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Metering & Grid</h2><p class="muted">Metering points, transformers, switchgear, grid interface and weather context.</p></div></div>${deviceRows(devices.filter(d => d.type === 'Meter' || d.type === 'Grid Device' || d.type === 'Switchgear' || d.type === 'Weather Station'), plant)}`);
+  if (activeTab === 'alerts') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Alerts & Events</h2><p class="muted">Plant-level incident entry point with severity and affected device context.</p></div></div><div class="info-grid"><div><span>Open / Related Alerts</span><strong>${plantAlertCountLabel(plant)}</strong></div><div><span>Operational Health</span><strong>${plantDetailEscape(plant.health)}</strong></div><div><span>Primary Scope</span><strong>Plant / Device</strong></div><div><span>Workflow</span><strong>Alert → SOP → Task</strong></div></div>${plantAlertsHtml(plant)}`);
+  if (activeTab === 'device') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Devices & Device</h2><p class="muted">Device records returned specifically for this plant.</p></div><span class="badge neutral">${plantDeviceCountLabel(plant, devices)} records</span></div>${plantDevicesLoaded(plant) ? deviceRows(devices, plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>The plant-scoped device relation query runs when this tab opens.</small></div>'}`);
+  if (activeTab === 'arrays') {
+    const loaded = plantDevicesLoaded(plant);
+    const panels = loaded ? plantDevicesMatching(devices, /module|panel/).length : plantRelationCount(plant.panels);
+    const strings = loaded ? plantDevicesMatching(devices, /string/).length : plantRelationCount(plant.strings);
+    const inverters = loaded ? plantDevicesMatching(devices, /invert/).length : plantRelationCount(plant.inverters);
+    return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Arrays & Strings</h2><p class="muted">Counts are derived only from device records actually returned by the backend.</p></div></div><div class="info-grid"><div><span>PV Modules / Panels</span><strong>${panels === null ? 'On demand' : panels.toLocaleString()}</strong></div><div><span>String Records</span><strong>${strings === null ? 'On demand' : strings.toLocaleString()}</strong></div><div><span>Associated Inverters</span><strong>${inverters === null ? 'On demand' : inverters.toLocaleString()}</strong></div><div><span>Traceability</span><strong>${loaded ? 'Uses returned parent-device relations' : 'Load device relations first'}</strong></div></div>`);
+  }
+  if (activeTab === 'metering') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Metering & Grid</h2><p class="muted">Metering, transformer, switchgear, grid and weather devices returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /meter|grid|switch|transform|weather/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
   if (activeTab === 'reportsdocs') return `${context}<div class="section-title-v17"><div><h2>Reports & Documents</h2><p class="muted">Plant documents are persisted through the Plant Registry document API. Reporting remains a separate domain.</p></div></div>${plantDetailBackendManaged(plant) ? plantDetailDocumentsHtml(plant) : '<div class="empty-state plant-empty-state-v119"><strong>Live Plant Registry record required</strong><small>Document upload, open and delete actions require a backend-managed plant.</small></div>'}`;
-  if (activeTab === 'adminsync') return `${context}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Plant assignment, source traceability and lifecycle-safe configuration context.</p></div></div><div class="info-grid"><div><span>Portfolio</span><strong>${plantDetailEscape(plant.portfolio)}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Service / O&M Provider</span><strong>${plantDetailEscape(plant.om)}</strong></div><div><span>Source System</span><strong>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))}</strong></div><div><span>Integration</span><strong>${plantDetailEscape(plant.integration || plantDetailSourceSystem(plant))}</strong></div><div><span>Zentrid Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Freshness</span><strong>${plantDetailEscape(plantDetailFreshness(plant))}</strong></div><div><span>Lifecycle Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Changed only through dedicated lifecycle actions</small></div></div>${plantDetailBackendConfigurationHtml(plant)}<div class="section-title-v17 mini"><div><h3>Lifecycle Actions</h3><p class="muted">These actions write directly to the Plant Registry backend.</p></div></div>${plantDetailLifecycleHtml(plant)}`;
-  if (activeTab === 'inverters') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Inverters</h2><p class="muted">Inverter registry with MPPT and string traceability.</p></div></div>${deviceRows(by('Inverter'), plant)}`);
-  if (activeTab === 'batteries') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>BESS / PCS</h2><p class="muted">Storage devices are separated because they have SOC, SOH, cycle and safety logic.</p></div></div>${deviceRows(by('Battery'), plant)}`);
-  if (activeTab === 'gateways') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Loggers & Gateways</h2><p class="muted">Communication devices that collect child-device telemetry and forward it through vendor connectors.</p></div></div>${deviceRows(devices.filter(d => d.type === 'Logger' || d.type === 'Gateway'), plant)}`);
-  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(ZentridDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Source mapping</b><span>${plantDetailEscape(plant.sourceSystem || plantDetailSourceSystem(plant))} · ${plantDetailEscape(plant.externalId)}</span></div></div>`;
-  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Canonical identity, location and technical characteristics for this plant.</p></div><span class="badge ${ZentridClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Plant Status</span><strong>${plantDetailEscape(plant.status)}</strong><small>Lifecycle value · read-only</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type)}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Location</span><strong>${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.region)}, ${plantDetailEscape(plant.city)}</strong></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">Device, alert and telemetry requests are deferred until their tabs are opened.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${Number(plant.devices || devices.length || 0)}</strong><small>Open Devices & Device to load records</small></div><div><span>Alert count</span><strong>${Number(plant.alerts || 0)}</strong><small>Open Alerts & Events to load records</small></div><div><span>Telemetry</span><strong>On demand</strong><small>Open Energy & Telemetry</small></div></div>`;
+  if (activeTab === 'adminsync') return `${context}<div class="section-title-v17"><div><h2>Settings & Source</h2><p class="muted">Plant assignment, source traceability and lifecycle-safe configuration context.</p></div></div><div class="info-grid"><div><span>Portfolio</span><strong>${plantDetailEscape(plant.portfolio)}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator)}</strong></div><div><span>Service / O&M Provider</span><strong>${plantDetailEscape(plant.om)}</strong></div><div><span>Operational Provider</span><strong>${plantDetailEscape(plant.sourceSystem || '—')}</strong><small>Provider returned by operational/device relations when available</small></div><div><span>Provisioning Source</span><strong>${plantDetailEscape(plant.sourceScheme || '—')}</strong><small>Plant Registry source scheme</small></div><div><span>Integration</span><strong>${plantDetailEscape(plant.integration || '—')}</strong></div><div><span>Zentrid Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Last Data</span><strong>${plantDetailEscape(plant.lastDataAt || '—')}</strong></div><div><span>Last Backend Sync</span><strong>${plantDetailEscape(plant.lastSyncAt || '—')}</strong></div><div><span>Lifecycle Status</span><strong>${plantDetailEscape(plant.status || '—')}</strong><small>${plantDetailBackendManaged(plant) ? 'Changed only through dedicated lifecycle actions' : 'No linked Plant Registry lifecycle record'}</small></div></div>${plantDetailBackendManaged(plant) ? plantDetailBackendConfigurationHtml(plant) : ''}<div class="section-title-v17 mini"><div><h3>Lifecycle Actions</h3><p class="muted">Available only when this operational plant is linked to /api/admin/plants.</p></div></div>${plantDetailLifecycleHtml(plant)}`;
+  if (activeTab === 'inverters') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Inverters</h2><p class="muted">Inverter records returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /invert/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
+  if (activeTab === 'batteries') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>BESS / PCS</h2><p class="muted">Storage devices returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /battery|bess|pcs|storage/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
+  if (activeTab === 'gateways') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Loggers & Gateways</h2><p class="muted">Logger, gateway and collector devices returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /logger|gateway|collector/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
+  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(ZentridDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Operational provider</b><span>${plantDetailEscape(plant.sourceSystem || '—')}</span></div><div><b>Provisioning source</b><span>${plantDetailEscape(plant.sourceScheme || '—')}</span></div><div><b>External mapping</b><span>${plantDetailEscape(plant.externalId)}</span></div></div>`;
+  const locationParts = [plant.country, plant.region, plant.city].map(value => String(value || '').trim()).filter(value => value && value !== '—');
+  const coordinates = [String(plant.latitude || '').trim(), String(plant.longitude || '').trim()].filter(Boolean).join(', ');
+  const lifecycle = plantDetailBackendManaged(plant) ? (plant.status || '—') : 'Not linked';
+  return `${context}<div class="section-title-v17"><div><h2>Plant Overview & Master Data</h2><p class="muted">Operational identity plus linked Plant Registry master data when available.</p></div><span class="badge ${ZentridClientModel.badge(plant.health)}">${plantDetailEscape(plant.health)}</span></div><div class="info-grid"><div><span>Plant ID</span><strong>${plantDetailEscape(plant.id)}</strong></div><div><span>External Plant ID</span><strong>${plantDetailEscape(plant.externalId)}</strong></div><div><span>Operational Health</span><strong>${plantDetailEscape(plant.health || 'Unknown')}</strong><small>/api/plants operational status</small></div><div><span>Lifecycle Status</span><strong>${plantDetailEscape(lifecycle)}</strong><small>${plantDetailBackendManaged(plant) ? 'Plant Registry lifecycle' : 'No /api/admin/plants record linked to this detail context'}</small></div><div><span>Plant Type</span><strong>${plantDetailEscape(plant.type || '—')}</strong></div><div><span>Client / Owner</span>${plantDetailClientDisplay(plant.clientId)}</div><div><span>Managing Tenant</span><strong>${plantDetailEscape(plant.operator || '—')}</strong></div><div><span>Location</span><strong>${plantDetailEscape(locationParts.length ? locationParts.join(', ') : '—')}</strong><small>${coordinates ? `Coordinates: ${plantDetailEscape(coordinates)}` : 'Region/city not returned'}</small></div><div><span>Address</span><strong>${plantDetailEscape(plant.address)}</strong></div><div><span>Time Zone</span><strong>${plantDetailEscape(plant.timezone)}</strong></div><div><span>Commissioning Date</span><strong>${plantDetailEscape(plant.commissioning)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDetailEscape(plant.capacityDc)}</strong></div><div><span>Installed Capacity AC</span><strong>${plantDetailEscape(plant.capacityAc)}</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDetailEscape(plant.gridCapacity)}</strong></div><div><span>Battery Installed</span><strong>${plantDetailEscape(plant.battery)}</strong></div><div><span>Last Data Timestamp</span><strong>${plantDetailEscape(plant.lastDataAt || '—')}</strong></div><div><span>Last Backend Sync</span><strong>${plantDetailEscape(plant.lastSyncAt || '—')}</strong></div></div><div class="section-title-v17 mini"><div><h3>Related data</h3><p class="muted">A zero is shown only after a plant-scoped relation request confirms zero records.</p></div></div><div class="info-grid"><div><span>Device count</span><strong>${plantDetailEscape(plantDeviceCountLabel(plant, devices))}</strong><small>${plantDevicesLoaded(plant) ? 'Plant-scoped device relation loaded' : 'Open Devices & Device to load exact relations'}</small></div><div><span>Alert count</span><strong>${plantDetailEscape(plantAlertCountLabel(plant))}</strong><small>${plantAlertsLoaded(plant) ? 'Plant-scoped alert relation loaded' : 'Open Alerts & Events to load exact relations'}</small></div><div><span>Telemetry</span><strong>${plant.telemetryLoaded ? 'Loaded' : 'On demand'}</strong><small>Open Energy & Telemetry</small></div></div>`;
 }
 
 function renderPlantDetailPage() {
@@ -3397,20 +3472,21 @@ function renderPlantDetailPage() {
   if (requestedEditTab) localStorage.removeItem('zentrid_plant_detail_edit');
   const plant = ZentridClientModel.selectedPlant();
   if (!plant.id) { window.ZentridApiOnly?.mountEmpty('Plant Detail', 'The plant endpoint has not returned a selected record.', '/api/plants'); return; }
-  const client = ZentridClientModel.getClient(plant.clientId);
+  const client = plant.clientId ? ZentridClientModel.clients.find(item => item.id === plant.clientId) || null : null;
+  const clientName = client ? String(client.name || client.code || client.id) : 'Unassigned client';
   const devices = ZentridClientModel.devicesForPlant(plant.id);
   ZentridLayout.mount(`
     <section class="page-hero plant-hero-v17">
-      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(client.name)} ${ZentridDataSource.badge(plant, 'plant', true)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.country)}, ${plantDetailEscape(plant.city)}</p></div>
-      <div class="hero-actions-v19"><button class="freshness-card" id="backToClient" type="button"><span class="pulse"></span><div><strong>Back to Client</strong><small>${plantDetailEscape(client.name)}</small></div></button><button class="freshness-card" id="backToPlantRegistry" type="button"><span class="pulse"></span><div><strong>Plant Registry</strong><small>All plants</small></div></button></div>
+      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(clientName)} ${ZentridDataSource.badge(plant, 'plant', true)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.sourceSystem || '—')}</p></div>
+      <div class="hero-actions-v19">${client ? `<button class="freshness-card" id="backToClient" type="button"><span class="pulse"></span><div><strong>Back to Client</strong><small>${plantDetailEscape(clientName)}</small></div></button>` : ''}<button class="freshness-card" id="backToPlantRegistry" type="button"><span class="pulse"></span><div><strong>Plant Registry</strong><small>All plants</small></div></button></div>
     </section>
     ${renderPlantDetailControl(plant)}
     <section class="context-bar plant-context-v17"><div><span>Portfolio</span><strong>${plantDetailEscape(plant.portfolio)}</strong></div><div><span>Client / Managing Tenant</span><strong>${plantDetailEscape(plant.owner)} / ${plantDetailEscape(plant.operator)}</strong></div><div><span>Service / O&M Provider</span><strong>${plantDetailEscape(plant.om)}</strong></div><div><span>Data Freshness</span><strong>${plantDetailEscape(plantDetailFreshness(plant))}</strong></div></section>
     <section class="kpi-grid plant-kpi-grid-v17">
-      <article class="kpi-card cyan"><span class="kpi-label">Current Power</span><div class="kpi-value">${plantDetailEscape(plant.powerNow || '—')}</div><small class="kpi-delta">Instant power</small></article>
-      <article class="kpi-card green"><span class="kpi-label">Today Energy</span><div class="kpi-value">${plantDetailEscape(plant.energyToday || '—')}</div><small class="kpi-delta">Accumulated energy</small></article>
+      <article class="kpi-card cyan"><span class="kpi-label">Current Power</span><div class="kpi-value">${plantDetailEscape(plant.powerNow || '—')}</div><small class="kpi-delta">${plantDetailEscape(plantPowerSourceHint(plant, 'power'))}</small></article>
+      <article class="kpi-card green"><span class="kpi-label">Today Energy</span><div class="kpi-value">${plantDetailEscape(plant.energyToday || '—')}</div><small class="kpi-delta">${plantDetailEscape(plantPowerSourceHint(plant, 'energy'))}</small></article>
       <article class="kpi-card blue"><span class="kpi-label">Capacity DC</span><div class="kpi-value">${plantDetailEscape(plant.capacityDc)}</div><small class="kpi-delta">Installed capacity</small></article>
-      <article class="kpi-card yellow"><span class="kpi-label">Open Alerts</span><div class="kpi-value">${plant.alerts}</div><small class="kpi-delta">Plant-level incidents</small></article>
+      <article class="kpi-card yellow"><span class="kpi-label">Open Alerts</span><div class="kpi-value">${plantDetailEscape(plantAlertCountLabel(plant))}</div><small class="kpi-delta">${plantAlertsLoaded(plant) ? 'Plant-scoped relation loaded' : 'Loaded on demand'}</small></article>
     </section>
     <section class="plant-workspace-v17">
       <aside class="glass-card plant-side-card-v17">
@@ -3422,7 +3498,7 @@ function renderPlantDetailPage() {
         <button class="${plantDetailActiveTab === 'device' ? 'active' : ''}" data-plant-tab="device" ${plantDetailActiveTab === 'device' ? 'aria-current="page"' : ''}>Devices & Device</button>
         <button class="${plantDetailActiveTab === 'inverters' ? 'active' : ''}" data-plant-tab="inverters" ${plantDetailActiveTab === 'inverters' ? 'aria-current="page"' : ''}>Inverters</button>
         <button class="${plantDetailActiveTab === 'arrays' ? 'active' : ''}" data-plant-tab="arrays" ${plantDetailActiveTab === 'arrays' ? 'aria-current="page"' : ''}>Arrays & Strings</button>
-        ${plant.battery === 'Yes' || devices.some(d => d.type === 'Battery' || d.type === 'PCS') ? `<button class="${plantDetailActiveTab === 'batteries' ? 'active' : ''}" data-plant-tab="batteries" ${plantDetailActiveTab === 'batteries' ? 'aria-current="page"' : ''}>BESS / PCS</button>` : ''}
+        ${String(plant.battery || '').toLowerCase().startsWith('yes') || plantDevicesMatching(devices, /battery|bess|pcs|storage/).length ? `<button class="${plantDetailActiveTab === 'batteries' ? 'active' : ''}" data-plant-tab="batteries" ${plantDetailActiveTab === 'batteries' ? 'aria-current="page"' : ''}>BESS / PCS</button>` : ''}
         <button class="${plantDetailActiveTab === 'metering' ? 'active' : ''}" data-plant-tab="metering" ${plantDetailActiveTab === 'metering' ? 'aria-current="page"' : ''}>Metering & Grid</button>
         <button class="${plantDetailActiveTab === 'gateways' ? 'active' : ''}" data-plant-tab="gateways" ${plantDetailActiveTab === 'gateways' ? 'aria-current="page"' : ''}>Loggers & Gateways</button>
         <button class="${plantDetailActiveTab === 'reportsdocs' ? 'active' : ''}" data-plant-tab="reportsdocs" ${plantDetailActiveTab === 'reportsdocs' ? 'aria-current="page"' : ''}>Reports & Documents</button>
@@ -3445,6 +3521,7 @@ function renderPlantDetailPage() {
   });
   document.getElementById('backToClient')?.addEventListener('click', () => {
     if (!plantDetailConfirmDiscard('Discard unsaved plant changes and return to Client Detail?')) return;
+    if (!client) return;
     ZentridClientModel.selectClient(client.id);
     location.href = 'client-detail.html';
   });
@@ -3452,9 +3529,14 @@ function renderPlantDetailPage() {
     if (!plantDetailConfirmDiscard('Discard unsaved plant changes and return to Plant Registry?')) return;
     location.href = 'plants.html';
   });
-  document.getElementById('editPlantTab')?.addEventListener('click', () => setPlantDetailEditMode(true, plant, devices));
-  document.getElementById('cancelPlantEdit')?.addEventListener('click', () => setPlantDetailEditMode(false, plant, devices));
-  document.getElementById('savePlantEdit')?.addEventListener('click', () => savePlantDetailEdits(plant, devices));
+  const currentPlantDetailState = (): { plant: ZentridPlantRecord; devices: ZentridDeviceRecord[] } => {
+    const currentPlant = ZentridClientModel.selectedPlant();
+    if (currentPlant?.id) return { plant: currentPlant, devices: ZentridClientModel.devicesForPlant(currentPlant.id) };
+    return { plant, devices };
+  };
+  document.getElementById('editPlantTab')?.addEventListener('click', () => { const current = currentPlantDetailState(); setPlantDetailEditMode(true, current.plant, current.devices); });
+  document.getElementById('cancelPlantEdit')?.addEventListener('click', () => { const current = currentPlantDetailState(); setPlantDetailEditMode(false, current.plant, current.devices); });
+  document.getElementById('savePlantEdit')?.addEventListener('click', () => { const current = currentPlantDetailState(); void savePlantDetailEdits(current.plant, current.devices); });
   document.querySelectorAll<HTMLElement>('[data-plant-tab]').forEach(btn => btn.addEventListener('click', () => {
     const nextTab = (btn.dataset.plantTab || 'overview') as PlantDetailTabKey;
     if (plantDetailEditMode && !plantDetailConfirmDiscard('Discard unsaved changes and open another plant section?')) return;
@@ -3470,7 +3552,8 @@ function renderPlantDetailPage() {
       else item.removeAttribute('aria-current');
     });
     clearPlantDetailFeedback();
-    renderPlantDetailCurrentTab(plant, devices);
+    const current = currentPlantDetailState();
+    renderPlantDetailCurrentTab(current.plant, current.devices);
     const summary = document.getElementById('plantDetailEditSummary');
     if (summary) { summary.hidden = true; summary.innerHTML = ''; }
   }));
@@ -3487,7 +3570,7 @@ function renderPlantDetailPage() {
       const run = action === 'activate' ? ZentridAPIMutations.plants.activate : action === 'deactivate' ? ZentridAPIMutations.plants.deactivate : ZentridAPIMutations.plants.archive;
       const prompt = action === 'archive' ? `Archive ${plant.name}?` : action === 'deactivate' ? `Deactivate ${plant.name}?` : '';
       if (prompt && !window.confirm(prompt)) return;
-      void run(plant.id).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+      void run(plantDetailAdminId(plant)).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
       return;
     }
     if (downloadDocument?.dataset.plantDocumentDownload) {
@@ -3563,7 +3646,7 @@ function renderPlantDetailPage() {
         };
         return resolve(payload);
       };
-      void ZentridPlatformAPI.plantRegistry.getDocument(plant.id, documentId).then(payload => {
+      void ZentridPlatformAPI.plantRegistry.getDocument(plantDetailAdminId(plant), documentId).then(payload => {
         if (downloadResolvedDocument(payload)) ZentridLayout.toast('Plant document download started.');
         else {
           console.warn('[Plant Document] GET returned a payload that could not be converted into a downloadable file.', { plantId: plant.id, documentId, payload });
@@ -3577,7 +3660,7 @@ function renderPlantDetailPage() {
     }
     if (deleteDocument?.dataset.plantDocumentDelete) {
       if (!window.confirm('Delete this plant document from the backend?')) return;
-      void ZentridAPIMutations.plants.deleteDocument(plant.id, deleteDocument.dataset.plantDocumentDelete).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+      void ZentridAPIMutations.plants.deleteDocument(plantDetailAdminId(plant), deleteDocument.dataset.plantDocumentDelete).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
       return;
     }
     const open = target.closest<HTMLElement>('[data-open-device]');
@@ -3585,8 +3668,22 @@ function renderPlantDetailPage() {
     const openDeviceId = open?.dataset.openDevice;
     const historyDeviceId = history?.dataset.deviceHistory;
     if ((openDeviceId || historyDeviceId) && !plantDetailConfirmDiscard('Discard unsaved plant changes and open Device Detail?')) return;
-    if (openDeviceId) { localStorage.setItem('zentrid_selected_device', openDeviceId); location.href = 'device-detail.html'; }
-    if (historyDeviceId) { localStorage.setItem('zentrid_selected_device', historyDeviceId); location.href = 'device-detail.html#activity'; }
+    if (openDeviceId) {
+      const selected = currentPlantDetailState().devices.find(device => device.id === openDeviceId);
+      if (selected && window.ZentridLiveSelection?.selectDevice) window.ZentridLiveSelection.selectDevice(selected as unknown as Record<string, unknown>);
+      else {
+        localStorage.setItem('zentrid_selected_device', openDeviceId);
+        location.href = `device-detail.html?id=${encodeURIComponent(openDeviceId)}`;
+      }
+      return;
+    }
+    if (historyDeviceId) {
+      const selected = currentPlantDetailState().devices.find(device => device.id === historyDeviceId);
+      if (selected && window.ZentridLiveSelection?.saveDevice) window.ZentridLiveSelection.saveDevice(selected as unknown as Record<string, unknown>);
+      localStorage.setItem('zentrid_selected_device', historyDeviceId);
+      location.href = `device-detail.html?id=${encodeURIComponent(historyDeviceId)}#activity`;
+      return;
+    }
   });
   const syncPlantField = (target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement): void => {
     if (!plantDetailDraft) return;
@@ -3619,7 +3716,7 @@ function renderPlantDetailPage() {
     const fd = new FormData(form);
     const file = fd.get('file');
     if (!(file instanceof File) || !file.name) { ZentridLayout.toast('Choose a document file first.'); return; }
-    void ZentridAPIMutations.plants.uploadDocument(plant.id, fd).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
+    void ZentridAPIMutations.plants.uploadDocument(plantDetailAdminId(plant), fd).then(result => { ZentridLayout.toast(result.message); if (result.ok) window.setTimeout(() => window.location.reload(), 250); });
   });
   if (requestedEditTab && plantDetailCanEdit(plant, requestedEditTab)) setPlantDetailEditMode(true, plant, devices);
   if (!plantDetailBeforeUnloadBound) {

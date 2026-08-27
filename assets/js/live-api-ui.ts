@@ -30,6 +30,8 @@
 
   type LiveSummaryItem = { label: unknown; value: unknown; meta?: unknown };
 
+  type BackgroundLoadState = 'pending' | 'ready' | 'error';
+
   type LiveSnapshotPayload = {
     plants?: AnyRecord[];
     devices?: AnyRecord[];
@@ -41,6 +43,10 @@
     deviceTotalCount?: number | null;
     alertTotalCount?: number | null;
     integrationTotalCount?: number | null;
+    deviceKpi?: AnyRecord;
+    alertKpi?: AnyRecord;
+    alertState?: BackgroundLoadState;
+    integrationState?: BackgroundLoadState;
   };
 
   type RegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts';
@@ -303,7 +309,7 @@
     if (!id) return;
     if (record) saveDetailSelection(kind, record);
     localStorage.setItem(kind === 'device' ? 'zentrid_selected_device' : 'zentrid_selected_alert', id);
-    location.href = kind === 'device' ? 'device-detail.html' : `alert-detail.html?id=${encodeURIComponent(id)}`;
+    location.href = kind === 'device' ? `device-detail.html?id=${encodeURIComponent(id)}` : `alert-detail.html?id=${encodeURIComponent(id)}`;
   }
 
   window.ZentridLiveSelection = {
@@ -433,7 +439,8 @@
 
     const legend = document.createElement('div');
     legend.className = 'data-source-legend';
-    (['live'] as ZentridDataOrigin[]).forEach(value => {
+    const legendOrigins: ZentridDataOrigin[] = origin === 'mixed' ? ['mixed'] : [origin];
+    legendOrigins.forEach(value => {
       const item = document.createElement('span');
       item.className = `record-origin-chip ${value} compact`;
       item.dataset.recordOrigin = value;
@@ -699,7 +706,8 @@
 
   function snapshotFromLive({
     plants = [], devices = [], alerts = [], integrations = [], providers = [], templates = [],
-    plantTotalCount = null, deviceTotalCount = null, alertTotalCount = null, integrationTotalCount = null
+    plantTotalCount = null, deviceTotalCount = null, alertTotalCount = null, integrationTotalCount = null,
+    deviceKpi = {}, alertKpi = {}
   }: LiveSnapshotPayload) {
     const knownPlantTotal = knownCollectionTotal(plantTotalCount, plants);
     const knownDeviceTotal = knownCollectionTotal(deviceTotalCount, devices);
@@ -710,9 +718,17 @@
     const alertCount = knownAlertTotal ?? (alerts.length || sum(integrations.map(x => x.alertsCount || x.alerts)));
     const currentPowerKw = sum(plants.map(x => x.currentPowerKw));
     const liveProviderNames = integrations.map(x => x.displayName || x.provider || x.name || x.vendor).filter(Boolean);
-    const providerNames = uniqueOverviewValues(providers.length ? providers : liveProviderNames);
-    const staleCount = sum(integrations.map(x => x.stalePlantsCount || x.liveSummary?.raw?.stalePlantsCount));
-    const errorRate = integrations.length ? (sum(integrations.map(x => x.errorRatePct || x.liveSummary?.raw?.errorRatePct)) / integrations.length) : 0;
+    const providerNames = uniqueOverviewValues((providers.length ? providers : liveProviderNames).map(value => ZentridAPIContracts.normalization.integrationProvider(value)));
+    const staleCount = sum(integrations.map(x => x.stalePlantsCount ?? x.stalePlants ?? x.liveSummary?.raw?.stalePlantsCount));
+    const integrationPlantCount = sum(integrations.map(x => x.plantsCount ?? x.plants ?? x.liveSummary?.raw?.plantsCount));
+    const stalePlantRate = integrationPlantCount > 0 ? Math.min(100, (staleCount / integrationPlantCount) * 100) : 0;
+    const onlineDevices = Number(deviceKpi?.onlineCount ?? 0);
+    const attentionDevices = Number(deviceKpi?.attentionCount ?? 0);
+    const mappedDevices = Number(deviceKpi?.mappedDevicesCount ?? 0);
+    const warningAlerts = Number(alertKpi?.warningCount ?? 0);
+    const criticalAlerts = Number(alertKpi?.criticalCount ?? 0);
+    const faultAlerts = Number(alertKpi?.faultCount ?? 0);
+    const escalatedAlerts = Number(alertKpi?.escalatedCount ?? 0);
     return {
       plantCount,
       deviceCount,
@@ -720,9 +736,17 @@
       currentPowerKw,
       providerNames,
       staleCount,
-      errorRate,
+      stalePlantRate,
+      integrationPlantCount,
       integrationCount: knownIntegrationTotal ?? integrations.length,
       templateCount: templates.length,
+      onlineDevices,
+      attentionDevices,
+      mappedDevices,
+      warningAlerts,
+      criticalAlerts,
+      faultAlerts,
+      escalatedAlerts,
       plantTotalCount: knownPlantTotal,
       deviceTotalCount: knownDeviceTotal,
       alertTotalCount: knownAlertTotal,
@@ -734,25 +758,53 @@
     const store = window.ZentridOverviewData;
     if (!store) return;
     const snap = snapshotFromLive(payload);
-    const currentPowerText = payload.plants.some(row => row.currentPowerKw !== undefined && row.currentPowerKw !== null)
-      ? `${snap.currentPowerKw} kW`
+    const hasDeviceKpi = Object.keys(payload.deviceKpi || {}).length > 0;
+    const hasAlertKpi = Object.keys(payload.alertKpi || {}).length > 0;
+    const alertsPending = payload.alertState === 'pending';
+    const alertsFailed = payload.alertState === 'error';
+    const integrationsPending = payload.integrationState === 'pending';
+    const integrationsFailed = payload.integrationState === 'error';
+    const mappedCoverage = snap.deviceCount > 0 && snap.mappedDevices > 0
+      ? `${Math.min(100, (snap.mappedDevices / snap.deviceCount) * 100).toFixed(1)}%`
       : '—';
 
     store.kpis = [
-      { label: 'Live Providers', value: String(snap.providerNames.length || snap.integrationCount), delta: snap.providerNames.join(', ') || '—', icon: '🔗', tone: 'cyan', route: 'integrations' },
+      { label: 'Available Providers', value: String(snap.providerNames.length || snap.integrationCount), delta: snap.providerNames.join(', ') || '—', icon: '🔗', tone: 'cyan', route: 'integrations' },
       { label: 'Plants', value: compactNumber(snap.plantCount), delta: overviewCoverageLabel(payload.plants.length, snap.plantTotalCount, 'plant'), icon: '🏭', tone: 'green', route: 'plants' },
-      { label: 'Devices', value: compactNumber(snap.deviceCount), delta: overviewCoverageLabel(payload.devices.length, snap.deviceTotalCount, 'device'), icon: '🔌', tone: 'blue', route: 'devices' },
-      { label: 'Live Power', value: currentPowerText, delta: payload.plants.length ? `Current page total · ${overviewCoverageLabel(payload.plants.length, snap.plantTotalCount, 'plant')}` : 'No plant power rows returned', icon: '⚡', tone: 'yellow', route: 'telemetry' },
-      { label: 'Alerts', value: compactNumber(snap.alertCount), delta: overviewCoverageLabel(payload.alerts.length, snap.alertTotalCount, 'alert'), icon: '🚨', tone: 'red', route: 'alerts' },
-      { label: 'Templates', value: compactNumber(snap.templateCount), delta: 'Provider integration templates returned by API', icon: '🧩', tone: 'violet', route: 'integrations' }
+      { label: 'Devices', value: compactNumber(snap.deviceCount), delta: hasDeviceKpi ? `${compactNumber(snap.onlineDevices)} online · ${compactNumber(snap.attentionDevices)} attention` : overviewCoverageLabel(payload.devices.length, snap.deviceTotalCount, 'device'), icon: '🔌', tone: 'blue', route: 'devices' },
+      { label: 'Online Devices', value: hasDeviceKpi ? compactNumber(snap.onlineDevices) : '—', delta: hasDeviceKpi ? `${compactNumber(snap.attentionDevices)} require attention` : 'Device KPI was not returned', icon: '●', tone: 'green', route: 'devices' },
+      { label: 'Alerts', value: alertsPending ? '…' : alertsFailed && snap.alertTotalCount === null ? 'Unavailable' : compactNumber(snap.alertCount), delta: alertsPending ? 'Loading operational alert summary' : alertsFailed && snap.alertTotalCount === null ? 'Alert endpoint did not complete' : hasAlertKpi ? `${compactNumber(snap.warningAlerts)} warning · ${compactNumber(snap.criticalAlerts)} critical · ${compactNumber(snap.faultAlerts)} fault` : overviewCoverageLabel(payload.alerts.length, snap.alertTotalCount, 'alert'), icon: '🚨', tone: 'red', route: 'alerts' },
+      { label: 'Integrations', value: integrationsPending ? '…' : integrationsFailed && snap.integrationTotalCount === null ? 'Unavailable' : compactNumber(snap.integrationCount), delta: integrationsPending ? 'Loading operational summaries' : integrationsFailed && snap.integrationTotalCount === null ? '/api/integrations did not complete' : 'Operational summaries returned by /api/integrations', icon: '🧩', tone: 'violet', route: 'integrations' }
     ];
 
-    store.integrations = payload.integrations.map(row => ({
-      name: safeText(row.displayName || row.name || row.provider || row.vendor, '—'),
-      status: safeText(row.operationalStatus || row.status || row.health, '—'),
-      sync: safeText(row.lastSyncText || row.lastSync, fmtDate(row.lastSyncAtUtc || row.updatedAt, '—')),
-      errors: row.vendorExtensions?.errorsCount ?? row.errorRatePct ?? null
-    }));
+    store.zentridHealth = hasDeviceKpi
+      ? [
+          { label: 'Online', value: snap.onlineDevices },
+          { label: 'Attention', value: snap.attentionDevices }
+        ]
+      : [];
+
+    store.alertState = payload.alertState;
+    store.integrationState = payload.integrationState;
+
+    store.integrations = payload.integrations.map(row => {
+      const errorRateValue = row.errorRatePct ?? row.errorRate ?? row.liveSummary?.raw?.errorRatePct;
+      const hasErrorRate = errorRateValue !== undefined && errorRateValue !== null && Number.isFinite(Number(errorRateValue));
+      const plantsValue = Number(row.plantsCount ?? row.plants ?? row.liveSummary?.raw?.plantsCount ?? 0);
+      const staleValue = Number(row.stalePlantsCount ?? row.stalePlants ?? row.liveSummary?.raw?.stalePlantsCount ?? 0);
+      const hasStaleMetric = Number.isFinite(plantsValue) && plantsValue > 0 && Number.isFinite(staleValue);
+      const lastError = safeText(row.lastErrorMessage || row.liveSummary?.lastErrorMessage, '').trim();
+      const healthParts = [
+        hasStaleMetric ? `${compactNumber(staleValue)}/${compactNumber(plantsValue)} stale` : '',
+        hasErrorRate ? `${Number(errorRateValue).toFixed(1)}% error rate` : ''
+      ].filter(Boolean);
+      return {
+        name: safeText(ZentridAPIContracts.normalization.integrationProvider(row.displayName || row.name || row.provider || row.vendor), '—'),
+        status: safeText(row.operationalStatus || row.status || row.health, '—'),
+        sync: safeText(row.lastSyncText || row.lastSync, fmtDate(row.lastSyncAtUtc || row.updatedAt, '—')),
+        errors: healthParts.join(' · ') || (lastError ? 'Last error reported' : 'No integration health metric')
+      };
+    });
 
     store.alerts = payload.alerts.slice(0, 6).map(row => ({
       title: safeText(row.title || row.message || row.sourceAlertId || row.id, '—'),
@@ -766,16 +818,18 @@
 
     store.quality = [
       { label: 'Providers', value: String(snap.providerNames.length || snap.integrationCount) },
+      { label: 'Integrations', value: integrationsPending ? '…' : integrationsFailed && snap.integrationTotalCount === null ? 'Unavailable' : String(snap.integrationCount) },
       { label: 'Templates', value: String(snap.templateCount) },
-      { label: 'Stale Plants', value: payload.integrations.some(row => row.stalePlantsCount !== undefined || row.liveSummary?.raw?.stalePlantsCount !== undefined) ? String(snap.staleCount) : '—' },
-      { label: 'Avg Error Rate', value: payload.integrations.some(row => row.errorRatePct !== undefined || row.liveSummary?.raw?.errorRatePct !== undefined) ? `${snap.errorRate.toFixed(1)}%` : '—' }
+      { label: 'Mapped Devices', value: hasDeviceKpi ? mappedCoverage : '—' },
+      { label: 'Stale Plants', value: integrationsPending ? '…' : integrationsFailed && !payload.integrations.length ? 'Unavailable' : payload.integrations.some(row => row.stalePlantsCount !== undefined || row.stalePlants !== undefined || row.liveSummary?.raw?.stalePlantsCount !== undefined) ? compactNumber(snap.staleCount) : '—' },
+      { label: 'Stale Plant Rate', value: integrationsPending ? '…' : integrationsFailed && !payload.integrations.length ? 'Unavailable' : snap.integrationPlantCount > 0 ? `${snap.stalePlantRate.toFixed(1)}%` : '—' }
     ];
   }
 
   function integrationVendor(provider: unknown): string {
     const p = String(provider || '').trim();
     if (/deye/i.test(p)) return 'DeyeCloud';
-    if (/solax/i.test(p)) return 'SolaX';
+    if (/solax|solarx/i.test(p)) return 'SolaX';
     return p || 'Unknown';
   }
 
@@ -874,24 +928,128 @@
       const relatedDevices = devices.filter(device => plantMatchesDevice(plant, device));
       const relatedAlerts = alerts.filter(alert => plantMatchesAlert(plant, alert));
       const typeCounts = relatedDevices.reduce((acc, device) => {
-        const key = String(device.type || '').toLowerCase();
+        const key = String(device.type || device.subtype || device.raw?.deviceType || '').toLowerCase();
         if (key.includes('invert')) acc.inverters += 1;
-        else if (key.includes('meter')) acc.meters += 1;
-        else if (key.includes('logger') || key.includes('collector') || key.includes('gateway')) acc.loggers += 1;
-        else acc.other += 1;
+        if (key.includes('meter')) acc.meters += 1;
+        if (key.includes('transform')) acc.transformers += 1;
+        if (key.includes('logger') || key.includes('collector') || key.includes('gateway')) acc.loggers += 1;
+        if (key.includes('module') || key.includes('panel')) acc.panels += 1;
+        if (key.includes('string')) acc.strings += 1;
         return acc;
-      }, { inverters: 0, meters: 0, loggers: 0, other: 0 });
+      }, { inverters: 0, meters: 0, transformers: 0, loggers: 0, panels: 0, strings: 0 });
+      const relationTenant = relatedDevices.map(device => safeText(device.tenant, '').trim()).find(value => value && value !== '—')
+        || relatedAlerts.map(alert => safeText(alert.tenant, '').trim()).find(value => value && value !== '—')
+        || '';
+      const relationTenantId = relatedDevices.map(device => safeText(device.raw?.tenantId || device.tenantId, '').trim()).find(Boolean)
+        || relatedAlerts.map(alert => safeText(alert.raw?.tenantId || alert.tenantId, '').trim()).find(Boolean)
+        || '';
       return {
         ...plant,
-        devices: relatedDevices.length || plant.devices,
-        alerts: relatedAlerts.length || plant.alerts,
-        inverters: typeCounts.inverters || plant.inverters,
-        meters: typeCounts.meters || plant.meters,
+        operator: plant.operator && plant.operator !== '—' ? plant.operator : (plant.tenant && plant.tenant !== '—' ? plant.tenant : relationTenant || '—'),
+        tenantId: plant.tenantId || relationTenantId,
+        devicesCount: plant.devicesLoaded ? relatedDevices.length : plant.devices,
+        alertsCount: plant.alertsLoaded ? relatedAlerts.length : plant.alerts,
+        inverters: plant.devicesLoaded ? typeCounts.inverters : plant.inverters,
+        meters: plant.devicesLoaded ? typeCounts.meters : plant.meters,
+        transformers: plant.devicesLoaded ? typeCounts.transformers : plant.transformers,
+        panels: plant.devicesLoaded ? typeCounts.panels : plant.panels,
+        strings: plant.devicesLoaded ? typeCounts.strings : plant.strings,
         loggers: typeCounts.loggers,
         relatedDevices,
         relatedAlerts
       };
     });
+  }
+
+  function mergeDetailRows(rows: AnyRecord[]): AnyRecord[] {
+    const output: AnyRecord[] = [];
+    const seen = new Set<string>();
+    rows.forEach((row, index) => {
+      const key = safeText(firstOf(row, ['id', 'externalId', 'code', 'serial', 'raw.id', 'raw.sourceDeviceId', 'raw.sourceAlertId'], `row-${index}`), `row-${index}`).trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      output.push(row);
+    });
+    return output;
+  }
+
+  function mappedDeviceRows(payload: unknown): AnyRecord[] {
+    return ZentridAPIContracts.devices.mapList(asArray(payload), contractMapperContext) as AnyRecord[];
+  }
+
+  async function loadPlantDeviceRelations(plant: AnyRecord, forceRefresh: boolean): Promise<{ rows: AnyRecord[]; errors: unknown[]; sources: string[] }> {
+    const errors: unknown[] = [];
+    const sources: string[] = [];
+    const rows: AnyRecord[] = [];
+    const plantId = safeText(plant.id, '').trim();
+    const externalId = safeText(plant.externalId, '').trim();
+    const adminId = safeText(plant.adminId || plant.raw?.adminRecord?.id || plant.raw?.adminRecord?.plantId, '').trim();
+
+    if (adminId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
+      try {
+        const payload = await window.ZentridPlatformAPI.plantRegistry.devices(adminId, detailReadOptions('plant-detail:admin-plant-devices', 100, forceRefresh));
+        rows.push(...mappedDeviceRows(payload));
+        sources.push(`/api/admin/plants/${encodeURIComponent(adminId)}/devices`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (plantId) {
+      try {
+        const result = await ZentridAPIRepositories.devices.list({
+          ...detailReadOptions('plant-detail:devices-by-plant', 100, forceRefresh),
+          plantId
+        });
+        rows.push(...result.items.filter(row => plantMatchesDevice(plant, row)));
+        errors.push(...result.errors);
+        sources.push(`${result.source}?plantId=${encodeURIComponent(plantId)}`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (!rows.length && window.ZentridPlatformAPI?.liveDevices?.list && plantId) {
+      try {
+        const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 100, plantId }, detailReadOptions('plant-detail:live-devices-by-plant', 100, forceRefresh));
+        rows.push(...mappedDeviceRows(payload).filter(row => plantMatchesDevice(plant, row)));
+        sources.push(`/api/devices?plantId=${encodeURIComponent(plantId)}`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (!rows.length && window.ZentridPlatformAPI?.liveDevices?.list && externalId && externalId !== '—') {
+      try {
+        const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 100, search: externalId }, detailReadOptions('plant-detail:live-devices-search', 100, forceRefresh));
+        rows.push(...mappedDeviceRows(payload).filter(row => plantMatchesDevice(plant, row)));
+        sources.push(`/api/devices?search=${encodeURIComponent(externalId)}`);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    return { rows: mergeDetailRows(rows), errors, sources };
+  }
+
+  async function loadPlantAlertRelations(plant: AnyRecord, forceRefresh: boolean): Promise<{ rows: AnyRecord[]; errors: unknown[]; source: string }> {
+    const plantIds = [safeText(plant.id, '').trim(), safeText(plant.externalId, '').trim()].filter(value => value && value !== '—');
+    const errors: unknown[] = [];
+    for (const plantId of plantIds) {
+      try {
+        const result = await ZentridAPIRepositories.alerts.list({
+          ...detailReadOptions(`plant-detail:alerts-${plantId}`, 100, forceRefresh),
+          timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
+          plantId
+        });
+        errors.push(...result.errors);
+        const rows = result.items.filter(row => plantMatchesAlert(plant, row));
+        if (rows.length || !result.errors.length) return { rows, errors, source: `${result.source}?plantId=${encodeURIComponent(plantId)}` };
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    return { rows: [], errors, source: '/api/admin/alerts' };
   }
 
   function enrichDeviceRelations(devices: AnyRecord[], plants: AnyRecord[], alerts: AnyRecord[]): AnyRecord[] {
@@ -943,16 +1101,22 @@
 
   function mergeIntegrationSummaries(registry: AnyRecord[], summaries: AnyRecord[]): AnyRecord[] {
     if (!summaries.length) return registry;
-    return registry.map(record => {
+    if (!registry.length) return summaries;
+    const matched = new Set<number>();
+    const merged = registry.map(record => {
       const key = integrationMatchKey(record);
-      const summary = summaries.find(item => integrationMatchKey(item) === key);
+      const summaryIndex = summaries.findIndex(item => integrationMatchKey(item) === key);
+      const summary = summaryIndex >= 0 ? summaries[summaryIndex] : undefined;
       if (!summary) return record;
+      matched.add(summaryIndex);
       return {
         ...record,
-        plants: Number(summary.plants || record.plants || 0),
-        devices: Number(summary.devices || record.devices || 0),
-        alerts: Number(summary.alerts || record.alerts || 0),
-        activeIntegrations: Number(summary.activeIntegrations || record.activeIntegrations || 0),
+        plants: Number(summary.plants ?? record.plants ?? 0),
+        devices: Number(summary.devices ?? record.devices ?? 0),
+        alerts: Number(summary.alerts ?? record.alerts ?? 0),
+        activeIntegrations: Number(summary.activeIntegrations ?? record.activeIntegrations ?? 0),
+        stalePlants: Number(summary.stalePlants ?? record.stalePlants ?? 0),
+        errorRate: summary.errorRate ?? record.errorRate,
         health: summary.health || record.health,
         operationalStatus: summary.status || summary.health || '',
         lastSync: summary.lastSync || record.lastSync,
@@ -962,6 +1126,8 @@
         liveSummary: summary
       };
     });
+    summaries.forEach((summary, index) => { if (!matched.has(index)) merged.push(summary); });
+    return merged;
   }
 
   function renderOverviewLiveSnapshot(payload: Required<LiveSnapshotPayload>): void {
@@ -980,7 +1146,8 @@
 
     const payload: Required<LiveSnapshotPayload> = {
       plants: [], devices: [], alerts: [], integrations: [], providers: [], templates: [],
-      plantTotalCount: null, deviceTotalCount: null, alertTotalCount: null, integrationTotalCount: null
+      plantTotalCount: null, deviceTotalCount: null, alertTotalCount: null, integrationTotalCount: null,
+      deviceKpi: {}, alertKpi: {}, alertState: 'pending', integrationState: 'pending'
     };
     const errors: unknown[] = [];
     const pending = new Set(['alerts', 'integration summaries']);
@@ -1005,33 +1172,30 @@
       insertIntegrationLiveSummary([
         { label: 'Core plants / devices', value: `${compactNumber(snap.plantCount)}/${compactNumber(snap.deviceCount)}`, meta: `${payload.plants.length}/${payload.devices.length} page row(s) loaded` },
         { label: 'Alerts', value: pending.has('alerts') ? 'Loading…' : compactNumber(snap.alertCount), meta: pending.has('alerts') ? 'Background request' : `${payload.alerts.length} page row(s) loaded` },
-        { label: 'Integrations', value: compactNumber(snap.integrationCount), meta: pending.has('integration summaries') ? `${payload.integrations.length} registry row(s); operational summary loading` : `${payload.integrations.length} registry row(s) enriched` }
+        { label: 'Integrations', value: compactNumber(snap.integrationCount), meta: pending.has('integration summaries') ? 'Operational summary loading' : `${payload.integrations.length} operational summary row(s) loaded` }
       ]);
     };
 
     try {
       const results = await Promise.allSettled([
-        ZentridAPIRepositories.plants.list(detailReadOptions('overview:plants', 100, forceRefresh)),
-        ZentridAPIRepositories.devices.list(detailReadOptions('overview:devices', 100, forceRefresh)),
-        ZentridAPIRepositories.integrations.list(detailReadOptions('integrations', 50, forceRefresh)),
+        ZentridAPIRepositories.plants.list({ ...detailReadOptions('overview:plants', 20, forceRefresh), cacheVariant: 'live' }),
+        ZentridAPIRepositories.devices.list({ ...detailReadOptions('overview:devices', 20, forceRefresh), cacheVariant: 'live' }),
         ZentridPlatformAPI.live.providers(),
         ZentridPlatformAPI.providerIntegrations.templates()
       ]);
-      const [plantsResult, devicesResult, registryResult, providersResult, templatesResult] = results;
+      const [plantsResult, devicesResult, providersResult, templatesResult] = results;
       payload.plants = plantsResult.status === 'fulfilled' ? plantsResult.value.rawItems : [];
       payload.plantTotalCount = plantsResult.status === 'fulfilled' ? plantsResult.value.pagination.totalCount : null;
       payload.devices = devicesResult.status === 'fulfilled' ? devicesResult.value.rawItems : [];
       payload.deviceTotalCount = devicesResult.status === 'fulfilled' ? devicesResult.value.pagination.totalCount : null;
-      payload.integrations = registryResult.status === 'fulfilled' ? registryResult.value.items : [];
-      payload.integrationTotalCount = registryResult.status === 'fulfilled' ? registryResult.value.pagination.totalCount : null;
+      payload.deviceKpi = devicesResult.status === 'fulfilled' ? (devicesResult.value.kpi || {}) : {};
       payload.providers = providersResult.status === 'fulfilled' ? asArray(providersResult.value) : [];
       payload.templates = templatesResult.status === 'fulfilled' ? asArray(templatesResult.value) : [];
       results.forEach(result => { if (result.status === 'rejected') errors.push(result.reason); });
       if (plantsResult.status === 'fulfilled') errors.push(...plantsResult.value.errors);
       if (devicesResult.status === 'fulfilled') errors.push(...devicesResult.value.errors);
-      if (registryResult.status === 'fulfilled') errors.push(...registryResult.value.errors);
 
-      const hasCoreSignal = Boolean(payload.plants.length || payload.devices.length || payload.integrations.length || payload.providers.length || payload.templates.length);
+      const hasCoreSignal = Boolean(payload.plants.length || payload.devices.length || payload.providers.length || payload.templates.length);
       if (!hasCoreSignal) {
         if (errors.length) setRequestFailure('Overview core endpoints', errors[0], 'No prototype fallback is displayed.');
         else setLiveDataState('empty', 'Core endpoints returned no records. The dashboard remains empty while background checks continue.', { source: 'Zentrid Platform APIs' });
@@ -1044,23 +1208,35 @@
       setRequestFailure('Overview core endpoints', error, 'No prototype fallback is displayed.');
     }
 
-    void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('overview:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+    void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('overview:alerts', 20, forceRefresh), cacheVariant: 'live', timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
         payload.alerts = result.rawItems;
         payload.alertTotalCount = result.pagination.totalCount;
+        payload.alertKpi = result.kpi || {};
+        payload.alertState = 'ready';
         errors.push(...result.errors);
         renderOverviewLiveSnapshot(payload);
       })
-      .catch(error => errors.push(error))
+      .catch(error => {
+        payload.alertState = 'error';
+        errors.push(error);
+        renderOverviewLiveSnapshot(payload);
+      })
       .finally(() => { pending.delete('alerts'); updateState(); });
 
-    void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+    void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 20, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
         payload.integrations = mergeIntegrationSummaries(payload.integrations || [], result.items);
+        payload.integrationTotalCount = Math.max(payload.integrationTotalCount || 0, result.pagination.totalCount || result.items.length);
+        payload.integrationState = 'ready';
         errors.push(...result.errors);
         renderOverviewLiveSnapshot(payload);
       })
-      .catch(error => errors.push(error))
+      .catch(error => {
+        payload.integrationState = 'error';
+        errors.push(error);
+        renderOverviewLiveSnapshot(payload);
+      })
       .finally(() => { pending.delete('integration summaries'); updateState(); });
   }
 
@@ -1109,7 +1285,7 @@
         { label: 'Operational Summary', value: 'Loading…', meta: 'Slow endpoint does not block the registry' }
       ]);
 
-      void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 50, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+      void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 20, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
         .then(summary => {
           const enriched = mergeIntegrationSummaries(data, summary.items);
           if (enriched.length) {
@@ -1146,62 +1322,52 @@
   async function applyPlants(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/plants\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('plants');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested administrative plant page first. Device and alert relations will be attached in the background.', { source: '/api/admin/plants' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the administrative Plant Registry. Operational plant data will load separately without blocking master-data actions.', { source: '/api/admin/plants' });
     try {
-      const live = await ZentridAPIRepositories.plants.list(registryReadOptions('plants', forceRefresh));
+      const registry = await ZentridAPIRepositories.plants.list({ ...registryReadOptions('plants', forceRefresh), cacheVariant: 'admin-registry' });
       if (!isCurrentRegistryRequest('plants', requestVersion)) return;
-      publishRegistryPagination('plants', live);
-      const data = live.items;
+      publishRegistryPagination('plants', registry);
+      const data = registry.items;
       if (!data.length) {
-        if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'No prototype plant records are displayed.');
-        else setLiveDataState('empty', 'The requested plant page returned no records. No prototype plant records are displayed.', { source: live.source, recordCount: live.pagination.totalCount });
+        if (registry.errors.length) setRequestFailure(registry.source, registry.errors[0], 'No plant registry records are displayed.');
+        else setLiveDataState('empty', 'The requested administrative plant page returned no records.', { source: registry.source, recordCount: registry.pagination.totalCount });
         return;
       }
-
-      let relatedDevices: AnyRecord[] = [];
-      let relatedAlerts: AnyRecord[] = [];
-      const relationErrors: unknown[] = [...live.errors];
-      const pending = new Set(['devices', 'alerts']);
-      const render = (): void => {
-        if (!isCurrentRegistryRequest('plants', requestVersion)) return;
-        window.ZentridLiveDevices = relatedDevices;
-        window.ZentridLiveAlerts = relatedAlerts;
-        window.ZentridLivePlants = enrichPlantRelations(data, relatedDevices, relatedAlerts);
-        syncLiveClientModel(window.ZentridLivePlants, relatedDevices);
-        ZentridLayout.mount(renderPlants());
-        wirePlants();
-        const pendingText = [...pending].join(' and ');
-        const cacheInfo = repositoryCachePresentation(live);
-        const state: LiveDataState = pending.size || relationErrors.length || cacheInfo.state === 'partial' ? 'partial' : 'live';
-        const baseMessage = pending.size
-          ? `Plant page ${live.pagination.page} is ready. ${pendingText} relations continue loading without blocking the registry.`
-          : relationErrors.length
-            ? `Plant page ${live.pagination.page} is visible, but some related data could not be loaded.`
-            : `Plant page ${live.pagination.page} and its available relations were applied.`;
-        const detailParts = [
-          pending.size ? `Background: ${pendingText}` : '',
-          relationErrors.length ? `${relationErrors.length} relation error(s)` : '',
-          cacheInfo.details,
-          `Page ${live.pagination.page} of ${live.pagination.totalPages}`
-        ].filter(Boolean);
-        setLiveDataState(state, `${cacheInfo.prefix}${baseMessage}`, {
-          source: live.source,
-          details: detailParts.join(' · '),
-          recordCount: live.pagination.totalCount,
-          ...cacheFreshnessOptions(cacheInfo)
+      window.ZentridLivePlants = data;
+      window.ZentridOperationalPlants = [];
+      window.ZentridOperationalPlantPagination = undefined;
+      window.ZentridOperationalPlantsState = 'pending';
+      syncLiveClientModel(data, []);
+      ZentridLayout.mount(renderPlants());
+      wirePlants();
+      const cacheInfo = repositoryCachePresentation(registry);
+      setLiveDataState('partial', `${cacheInfo.prefix}Plant Registry page ${registry.pagination.page} is ready. The operational /api/plants snapshot is loading independently.`, {
+        source: registry.source,
+        details: `${cacheInfo.details ? `${cacheInfo.details} · ` : ''}Registry page ${registry.pagination.page} of ${registry.pagination.totalPages} · Operational snapshot pending`,
+        recordCount: registry.pagination.totalCount,
+        ...cacheFreshnessOptions(cacheInfo)
+      });
+      void ZentridAPIRepositories.plants.list({ page: 1, pageSize: 20, cacheVariant: 'live', staleWhileRevalidate: true, persist: true, requestGroup: 'plants:operational-snapshot', supersede: true, forceRefresh })
+        .then(operational => {
+          if (!isCurrentRegistryRequest('plants', requestVersion)) return;
+          window.ZentridOperationalPlants = operational.items;
+          window.ZentridOperationalPlantPagination = operational.pagination;
+          window.ZentridOperationalPlantsState = operational.errors.length ? 'error' : 'ready';
+          ZentridLayout.mount(renderPlants()); wirePlants();
+          setLiveDataState(operational.errors.length ? 'partial' : 'live', operational.errors.length ? 'The Plant Registry is ready, but the optional operational snapshot could not be completed.' : 'Administrative Plant Registry and the separate operational plant snapshot are both ready.', {
+            source: `${registry.source} + ${operational.source}`,
+            details: operational.errors.length ? `${operational.errors.length} operational error(s) · Registry remains available` : `Registry ${registry.pagination.totalCount} record(s) · Operational ${operational.pagination.totalCount} record(s) · No page-position merge`,
+            recordCount: registry.pagination.totalCount
+          });
+        })
+        .catch(error => {
+          if (!isCurrentRegistryRequest('plants', requestVersion)) return;
+          window.ZentridOperationalPlants = [];
+          window.ZentridOperationalPlantPagination = undefined;
+          window.ZentridOperationalPlantsState = 'error';
+          ZentridLayout.mount(renderPlants()); wirePlants();
+          setLiveDataState('partial', 'The administrative Plant Registry is ready. Operational plant data is unavailable, so live metrics are not substituted with registry values.', { source: registry.source, details: liveErrorMessage(error), recordCount: registry.pagination.totalCount });
         });
-      };
-      render();
-
-      void ZentridAPIRepositories.devices.list(detailReadOptions('plant-relations:devices', 100, forceRefresh))
-        .then(result => { if (isCurrentRegistryRequest('plants', requestVersion)) { relatedDevices = result.items; relationErrors.push(...result.errors); } })
-        .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
-        .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('devices'); render(); } });
-
-      void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('plant-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
-        .then(result => { if (isCurrentRegistryRequest('plants', requestVersion)) { relatedAlerts = result.items; relationErrors.push(...result.errors); } })
-        .catch(error => { if (isCurrentRegistryRequest('plants', requestVersion)) relationErrors.push(error); })
-        .finally(() => { if (isCurrentRegistryRequest('plants', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
       if (isCurrentRegistryRequest('plants', requestVersion)) setRequestFailure('/api/admin/plants', error, 'No plant registry records are displayed.');
     }
@@ -1210,64 +1376,53 @@
   async function applyDevices(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/devices\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('devices');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested device page first. Plant and alert relations will be attached in the background.', { source: '/api/admin/devices' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the administrative Device Registry. Operational device KPI and status data will load separately.', { source: '/api/admin/devices' });
     try {
-      const live = await ZentridAPIRepositories.devices.list(registryReadOptions('devices', forceRefresh));
+      const registry = await ZentridAPIRepositories.devices.list(registryReadOptions('devices', forceRefresh));
       if (!isCurrentRegistryRequest('devices', requestVersion)) return;
-      publishRegistryPagination('devices', live);
-      const data = live.items;
-      if (!data.length) {
-        setLiveDataState('empty', 'The requested device page returned no records. No prototype device records are displayed.', { source: live.source, recordCount: live.pagination.totalCount });
+      publishRegistryPagination('devices', registry);
+      if (!registry.items.length) {
+        setLiveDataState('empty', 'The requested Device Registry page returned no records. No prototype device records are displayed.', { source: registry.source, recordCount: registry.pagination.totalCount });
         return;
       }
-
-      let relatedPlants: AnyRecord[] = [];
-      let relatedAlerts: AnyRecord[] = [];
-      const relationErrors: unknown[] = [...live.errors];
-      const pending = new Set(['plants', 'alerts']);
-      const render = (): void => {
-        if (!isCurrentRegistryRequest('devices', requestVersion)) return;
-        window.ZentridLivePlants = relatedPlants;
-        window.ZentridLiveAlerts = relatedAlerts;
-        window.ZentridLiveDevices = enrichDeviceRelations(data, relatedPlants, relatedAlerts);
-        syncLiveClientModel(relatedPlants, window.ZentridLiveDevices);
-        ZentridLayout.mount(renderDevices());
-        wireDevices();
-        const pendingText = [...pending].join(' and ');
-        const cacheInfo = repositoryCachePresentation(live);
-        const state: LiveDataState = pending.size || relationErrors.length || cacheInfo.state === 'partial' ? 'partial' : 'live';
-        const baseMessage = pending.size
-          ? `Device page ${live.pagination.page} is ready. ${pendingText} relations continue loading without blocking the list.`
-          : relationErrors.length
-            ? `Device page ${live.pagination.page} is visible, but some related data could not be loaded.`
-            : `Device page ${live.pagination.page} and its available relations were applied.`;
-        const detailParts = [
-          pending.size ? `Background: ${pendingText}` : '',
-          relationErrors.length ? `${relationErrors.length} relation error(s)` : '',
-          cacheInfo.details,
-          `Page ${live.pagination.page} of ${live.pagination.totalPages}`
-        ].filter(Boolean);
-        setLiveDataState(state, `${cacheInfo.prefix}${baseMessage}`, {
-          source: live.source,
-          details: detailParts.join(' · '),
-          recordCount: live.pagination.totalCount,
-          ...cacheFreshnessOptions(cacheInfo)
+      window.ZentridLiveDevices = registry.items;
+      window.ZentridOperationalDevices = [];
+      window.ZentridOperationalDevicePagination = undefined;
+      window.ZentridOperationalDeviceKpi = undefined;
+      window.ZentridOperationalDevicesState = 'pending';
+      ZentridLayout.mount(renderDevices());
+      wireDevices();
+      const cacheInfo = repositoryCachePresentation(registry);
+      setLiveDataState('partial', `${cacheInfo.prefix}Device Registry page ${registry.pagination.page} is ready. The operational /api/devices snapshot is loading independently.`, {
+        source: registry.source,
+        details: `${cacheInfo.details ? `${cacheInfo.details} · ` : ''}Registry page ${registry.pagination.page} of ${registry.pagination.totalPages} · Operational snapshot pending`,
+        recordCount: registry.pagination.totalCount,
+        ...cacheFreshnessOptions(cacheInfo)
+      });
+      void ZentridAPIRepositories.devices.list({ ...detailReadOptions('devices:operational-snapshot', 20, forceRefresh), cacheVariant: 'live' })
+        .then(operational => {
+          if (!isCurrentRegistryRequest('devices', requestVersion)) return;
+          window.ZentridOperationalDevices = operational.items;
+          window.ZentridOperationalDevicePagination = operational.pagination;
+          window.ZentridOperationalDeviceKpi = operational.kpi;
+          window.ZentridOperationalDevicesState = operational.errors.length ? 'error' : 'ready';
+          ZentridLayout.mount(renderDevices()); wireDevices();
+          setLiveDataState(operational.errors.length ? 'partial' : 'live', operational.errors.length ? 'The Device Registry is ready, but the operational device snapshot could not be completed.' : 'Administrative Device Registry and the separate operational device snapshot are both ready.', {
+            source: `${registry.source} + ${operational.source}`,
+            details: operational.errors.length ? `${operational.errors.length} operational error(s) · Registry remains available` : `Registry ${registry.pagination.totalCount} record(s) · Operational ${operational.pagination.totalCount} record(s) · KPI preserved from /api/devices`,
+            recordCount: registry.pagination.totalCount,
+            dataOrigin: operational.errors.length ? 'live' : 'mixed'
+          });
+        })
+        .catch(error => {
+          if (!isCurrentRegistryRequest('devices', requestVersion)) return;
+          window.ZentridOperationalDevices = [];
+          window.ZentridOperationalDevicePagination = undefined;
+          window.ZentridOperationalDeviceKpi = undefined;
+          window.ZentridOperationalDevicesState = 'error';
+          ZentridLayout.mount(renderDevices()); wireDevices();
+          setLiveDataState('partial', 'The administrative Device Registry is ready. Operational device data is unavailable, so live KPI values are not substituted with registry-page counts.', { source: registry.source, details: liveErrorMessage(error), recordCount: registry.pagination.totalCount });
         });
-      };
-      render();
-
-      void ZentridAPIRepositories.plants.list({
-        ...detailReadOptions('device-relations:plants', 100, forceRefresh),
-        cacheVariant: 'admin-registry'
-      })
-        .then(result => { if (isCurrentRegistryRequest('devices', requestVersion)) { relatedPlants = result.items; relationErrors.push(...result.errors); } })
-        .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
-        .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('plants'); render(); } });
-
-      void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-relations:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
-        .then(result => { if (isCurrentRegistryRequest('devices', requestVersion)) { relatedAlerts = result.items; relationErrors.push(...result.errors); } })
-        .catch(error => { if (isCurrentRegistryRequest('devices', requestVersion)) relationErrors.push(error); })
-        .finally(() => { if (isCurrentRegistryRequest('devices', requestVersion)) { pending.delete('alerts'); render(); } });
     } catch (error) {
       if (isCurrentRegistryRequest('devices', requestVersion)) setRequestFailure('/api/admin/devices', error, 'No prototype device records are displayed.');
     }
@@ -1276,45 +1431,84 @@
   async function applyAlerts(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/alerts\.html$/.test(location.pathname)) return;
     const requestVersion = beginRegistryRequest('alerts');
-    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested alert page.', { source: '/api/admin/alerts' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested Alert Registry page.', { source: '/api/admin/alerts' });
     try {
-      const result = await ZentridAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+      const registry = await ZentridAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
       if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
-      publishRegistryPagination('alerts', result);
-      const data = result.items;
-      if (!data.length) {
-        setLiveDataState('empty', 'The requested alert page returned no records. No prototype alert records are displayed.', { source: '/api/admin/alerts', recordCount: result.pagination.totalCount });
-        return;
-      }
+      publishRegistryPagination('alerts', registry);
+      const data = registry.items;
       const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
-      if (Array.isArray(alertStore)) {
-        try {
-          const storedContext = JSON.parse(localStorage.getItem('zentrid_alert_context') || '{}') as Record<string, unknown>;
-          const plantId = String(storedContext.plantId || '').trim();
-          const deviceId = String(storedContext.deviceId || '').trim();
-          const tenant = String(storedContext.tenant || '').trim();
-          const contextMatches = data.some(item =>
-            (!plantId || String(item.plantId || '') === plantId) &&
-            (!deviceId || String(item.deviceId || '') === deviceId) &&
-            (!tenant || String(item.tenant || '') === tenant)
-          );
-          if ((plantId || deviceId || tenant) && !contextMatches) {
-            localStorage.removeItem('zentrid_alert_context');
-          }
-        } catch {
-          localStorage.removeItem('zentrid_alert_context');
-        }
-        (alertStore as AnyRecord[]).splice(0, alertStore.length, ...data);
-        ZentridLayout.mount(renderAlertsPage());
-        wireAlertsPage();
-        const cacheInfo = repositoryCachePresentation(result);
-        setLiveDataState(cacheInfo.state, `${cacheInfo.prefix}Alert page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`, {
-          source: '/api/admin/alerts',
-          details: [`Server pagination · ${result.pagination.pageSize} rows per page`, cacheInfo.details].filter(Boolean).join(' · '),
-          recordCount: result.pagination.totalCount,
-          ...cacheFreshnessOptions(cacheInfo)
-        });
+      if (!Array.isArray(alertStore)) return;
+
+      try {
+        const storedContext = JSON.parse(localStorage.getItem('zentrid_alert_context') || '{}') as Record<string, unknown>;
+        const plantId = String(storedContext.plantId || '').trim();
+        const deviceId = String(storedContext.deviceId || '').trim();
+        const tenant = String(storedContext.tenant || '').trim();
+        const contextMatches = data.some(item =>
+          (!plantId || String(item.plantId || '') === plantId) &&
+          (!deviceId || String(item.deviceId || '') === deviceId) &&
+          (!tenant || String(item.tenant || '') === tenant)
+        );
+        if ((plantId || deviceId || tenant) && data.length && !contextMatches) localStorage.removeItem('zentrid_alert_context');
+      } catch {
+        localStorage.removeItem('zentrid_alert_context');
       }
+
+      (alertStore as AnyRecord[]).splice(0, alertStore.length, ...data);
+      window.ZentridOperationalAlerts = [];
+      window.ZentridOperationalAlertPagination = undefined;
+      window.ZentridOperationalAlertKpi = undefined;
+      window.ZentridOperationalAlertsState = 'pending';
+      ZentridLayout.mount(renderAlertsPage());
+      wireAlertsPage();
+
+      const cacheInfo = repositoryCachePresentation(registry);
+      const registryState: LiveDataState = data.length ? 'partial' : 'empty';
+      setLiveDataState(registryState, data.length
+        ? `${cacheInfo.prefix}Alert Registry page ${registry.pagination.page} is ready. The operational /api/alerts snapshot is loading independently.`
+        : 'The requested Alert Registry page returned no records. The operational /api/alerts snapshot is still checked separately.', {
+        source: registry.source,
+        details: [`Registry page ${registry.pagination.page} of ${registry.pagination.totalPages}`, 'Operational snapshot pending', cacheInfo.details].filter(Boolean).join(' · '),
+        recordCount: registry.pagination.totalCount,
+        ...cacheFreshnessOptions(cacheInfo)
+      });
+
+      void ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts:operational-snapshot', 20, forceRefresh), cacheVariant: 'live', timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
+        .then(operational => {
+          if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
+          window.ZentridOperationalAlerts = operational.items;
+          window.ZentridOperationalAlertPagination = operational.pagination;
+          window.ZentridOperationalAlertKpi = operational.kpi;
+          window.ZentridOperationalAlertsState = operational.errors.length ? 'error' : 'ready';
+          ZentridLayout.mount(renderAlertsPage());
+          wireAlertsPage();
+          const state: LiveDataState = operational.errors.length ? 'partial' : (data.length || operational.items.length ? 'live' : 'empty');
+          setLiveDataState(state, operational.errors.length
+            ? 'The Alert Registry is ready, but the operational alert snapshot could not be completed.'
+            : 'Administrative Alert Registry and the separate operational alert snapshot are both ready.', {
+            source: `${registry.source} + ${operational.source}`,
+            details: operational.errors.length
+              ? `${operational.errors.length} operational error(s) · Registry remains available`
+              : `Registry ${registry.pagination.totalCount} record(s) · Operational ${operational.pagination.totalCount} record(s) · No page-position join`,
+            recordCount: registry.pagination.totalCount,
+            dataOrigin: operational.errors.length ? 'live' : 'mixed'
+          });
+        })
+        .catch(error => {
+          if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
+          window.ZentridOperationalAlerts = [];
+          window.ZentridOperationalAlertPagination = undefined;
+          window.ZentridOperationalAlertKpi = undefined;
+          window.ZentridOperationalAlertsState = 'error';
+          ZentridLayout.mount(renderAlertsPage());
+          wireAlertsPage();
+          setLiveDataState('partial', 'The administrative Alert Registry is ready. Operational alert data is unavailable, so live counts are not substituted with registry-page counts.', {
+            source: registry.source,
+            details: liveErrorMessage(error),
+            recordCount: registry.pagination.totalCount
+          });
+        });
     } catch (error) {
       if (isCurrentRegistryRequest('alerts', requestVersion)) setRequestFailure('/api/admin/alerts', error, 'No prototype alert records are displayed.');
     }
@@ -1517,50 +1711,55 @@
   function ensureLiveClientModelPlant(plant: AnyRecord, devices: AnyRecord[] = []): void {
     const model = window.ZentridClientModel;
     if (!model || !Array.isArray(model.plants) || !Array.isArray(model.devices)) return;
-    const assignedClientId = String(plant.clientId || '').trim();
-    const assignedClient = assignedClientId ? model.clients?.find((item: AnyRecord) => String(item?.id || '').trim() === assignedClientId) : null;
-    const client = assignedClient || (typeof model.selectedClient === 'function' ? model.selectedClient() : null) || model.clients?.[0] || null;
-    const clientId = assignedClientId || client?.id || 'CL-LIVE-API';
-    if (!client && Array.isArray(model.clients)) {
-      model.clients.unshift({
-        id: clientId,
-        code: 'LIVE-API',
-        name: 'Backend Live API',
-        type: 'System Source',
-        legalForm: 'Live Data',
-        registrationNo: '—',
-        taxId: '—',
-        country: plant.country || '—',
-        city: plant.city || '—',
-        address: plant.address || '—',
-        status: 'Active',
-        verification: 'Backend Live API',
-        account: '—',
-        primaryContact: '—',
-        contactEmail: '—',
-        contactPhone: '—',
-        tenant: plant.tenant || 'Backend Live API',
-        plants: [],
-        users: 0,
-        documents: 0,
-        billing: '—',
-        supportTier: '—',
-        accessScope: 'Live API plant detail',
-        exportPolicy: '—',
-        assignmentRole: 'Source owner',
-        onboarding: 'Live API'
-      });
-    }
+
+    const relatedAlerts = Array.isArray(plant.relatedAlerts) ? plant.relatedAlerts as AnyRecord[] : [];
+    const assignedClientId = safeText(plant.clientId, '').trim();
+    const assignedClient = assignedClientId
+      ? model.clients?.find((item: AnyRecord) => safeText(item?.id, '').trim() === assignedClientId)
+      : null;
+    const relationTenant = devices.map(device => safeText(device.tenant, '').trim()).find(value => value && value !== '—')
+      || relatedAlerts.map(alert => safeText(alert.tenant, '').trim()).find(value => value && value !== '—')
+      || '';
+    const relationTenantId = devices.map(device => safeText(device.raw?.tenantId || device.tenantId, '').trim()).find(Boolean)
+      || relatedAlerts.map(alert => safeText(alert.raw?.tenantId || alert.tenantId, '').trim()).find(Boolean)
+      || '';
+    const relationProvider = devices.map(device => safeText(device.vendor || device.sourceSystem || device.raw?.provider || device.raw?.vendorExtensions?.sourceSystem, '').trim()).find(value => value && value !== '—') || '';
+    const sourceScheme = safeText(plant.sourceScheme || plant.raw?.sourceScheme || plant.raw?.vendorPlatform?.sourceScheme, '').trim();
+    const mappedSourceSystem = safeText(plant.sourceSystem || plant.vendor, '').trim();
+    const operationalProvider = mappedSourceSystem && mappedSourceSystem !== '—' && mappedSourceSystem !== sourceScheme ? mappedSourceSystem : relationProvider || '—';
+    const devicesLoaded = Boolean(plant.devicesLoaded);
+    const alertsLoaded = Boolean(plant.alertsLoaded);
+    const telemetryLoaded = Boolean(plant.telemetryLoaded);
+    const rawDeviceCount = Number(plant.devicesCount ?? plant.devices);
+    const backendDeviceCount = Number.isFinite(rawDeviceCount) ? rawDeviceCount : null;
+    const rawAlertCount = Number(plant.alertsCount ?? plant.alerts);
+    const backendAlertCount = Number.isFinite(rawAlertCount) ? rawAlertCount : null;
+
+    const normalizedCount = (value: unknown): number | null => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    };
+    const typeToken = (device: AnyRecord): string => safeText(device.type || device.subtype || device.raw?.deviceType || device.raw?.vendorExtensions?.deviceType, '').trim().toLowerCase();
+    const countType = (pattern: RegExp): number => devices.filter(device => pattern.test(typeToken(device))).length;
+    const panelCount = normalizedCount(plant.panels);
+    const stringCount = normalizedCount(plant.strings);
+    const inverterCount = devicesLoaded ? countType(/invert/) : normalizedCount(plant.inverters);
+    const meterCount = devicesLoaded ? countType(/meter/) : normalizedCount(plant.meters);
+    const transformerCount = devicesLoaded ? countType(/transform/) : normalizedCount(plant.transformers);
+
     const livePlant = {
       id: plant.id,
+      adminId: safeText(plant.adminId || plant.raw?.adminRecord?.id || plant.raw?.adminRecord?.plantId, '').trim(),
+      operationalId: safeText(plant.operationalId, '').trim(),
+      operationalExternalId: safeText(plant.operationalExternalId, '').trim(),
       code: plant.code || plant.externalId || plant.id,
       externalId: plant.externalId || plant.id,
       name: plant.name,
-      clientId,
-      tenantId: plant.tenantId || plant.raw?.clientAssignment?.managingTenant || 'LIVE-TENANT',
-      portfolio: plant.portfolio || plant.vendor || 'Backend Live API',
-      status: plant.status || 'Active',
-      type: plant.type || 'Solar Plant',
+      clientId: assignedClientId,
+      tenantId: safeText(plant.tenantId, '').trim() || relationTenantId,
+      portfolio: plant.portfolio && plant.portfolio !== '—' ? plant.portfolio : '—',
+      status: plant.status && plant.status !== 'Unknown' ? plant.status : '—',
+      type: plant.type || '—',
       country: plant.country || '—',
       region: plant.region || '—',
       city: plant.city || '—',
@@ -1570,24 +1769,33 @@
       capacityAc: liveCapacity(plant.capacityAc, 'MW'),
       gridCapacity: liveCapacity(plant.gridCapacity, 'MW'),
       commissioning: plant.commissioned || plant.commissioning || plant.commissionedAt || '—',
-      owner: assignedClient?.name || plant.owner || client?.name || 'Backend Live API',
-      operator: plant.operator || plant.tenant || 'Backend Live API',
-      om: plant.om || plant.operator || plant.tenant || 'Backend Live API',
-      powerNow: plant.livePower || '0 kW',
-      energyToday: plant.today || '0 kWh',
-      alerts: Number(plant.alerts || 0),
-      health: plant.status || plant.health || 'Unknown',
-      panels: Number(plant.panels || 0),
-      inverters: Number(plant.inverters || 0),
-      strings: Number(plant.strings || 0),
-      transformers: Number(plant.transformers || 0),
-      meters: Number(plant.meters || 0),
-      battery: plant.battery || 'Unknown',
+      owner: assignedClient?.name || (plant.owner && plant.owner !== '—' ? plant.owner : '—'),
+      operator: plant.operator && plant.operator !== '—' ? plant.operator : (plant.tenant && plant.tenant !== '—' ? plant.tenant : relationTenant || '—'),
+      om: plant.om && plant.om !== '—' ? plant.om : '—',
+      powerNow: plant.livePower && plant.livePower !== '0 kW' ? plant.livePower : '—',
+      energyToday: plant.today && plant.today !== '0 kWh' ? plant.today : '—',
+      totalEnergy: plant.totalEnergy ?? null,
+      alerts: alertsLoaded ? relatedAlerts.length : (backendAlertCount ?? null),
+      alertsLoaded,
+      health: plant.health || 'Unknown',
+      panels: panelCount,
+      inverters: inverterCount,
+      strings: stringCount,
+      transformers: transformerCount,
+      meters: meterCount,
+      battery: plant.battery || '—',
       devices: devices.map(device => device.id).filter(Boolean),
+      devicesCount: devicesLoaded ? devices.length : backendDeviceCount,
+      devicesLoaded,
+      telemetryLoaded,
+      relatedAlerts,
       dataOrigin: 'live',
-      lastSyncAt: plant.lastSyncAt || plant.lastData || plant.updatedAt || '',
-      sourceSystem: plant.sourceSystem || plant.vendor || plant.integration || 'Backend Live API',
-      integration: plant.integration || `${plant.vendor || 'Backend'} live integration`,
+      lastDataAt: plant.lastDataAt || '',
+      lastSyncAt: plant.lastSyncAt || plant.updatedAt || '',
+      dataQualityStatus: plant.dataQualityStatus || plant.freshness || '—',
+      sourceSystem: operationalProvider,
+      sourceScheme: sourceScheme || '—',
+      integration: plant.integration && plant.integration !== '—' ? plant.integration : '—',
       latitude: plant.latitude || plant.lat || '',
       longitude: plant.longitude || plant.lng || '',
       raw: plant.raw || undefined
@@ -1597,22 +1805,26 @@
       upsertLiveRecord(model.devices, {
         id: device.id,
         plantId: livePlant.id,
-        type: device.type || 'Device',
+        externalId: device.externalId || device.raw?.sourceDeviceId || '—',
+        type: device.type || device.subtype || 'Device',
         name: device.name || device.id,
-        vendor: device.vendor || device.manufacturer || 'Backend',
+        vendor: device.vendor || device.manufacturer || device.sourceSystem || '—',
         model: device.model || '—',
         serial: device.serial || device.externalId || '—',
         capacity: device.capacity || device.power || '—',
         firmware: device.firmware || '—',
         status: device.status || 'Unknown',
         location: device.parent || device.location || '—',
-        lastSeen: device.lastSeen || 'No live data',
-        children: device.children || device.subtype || '—',
-        manufacturer: device.manufacturer || device.vendor || 'Backend',
-        tenant: livePlant.operator,
+        parentDeviceId: device.raw?.parentDeviceId || device.raw?.vendorExtensions?.parentDeviceId || '',
+        parentDeviceName: device.raw?.parentDeviceName || '',
+        lastSeen: device.lastSeen || '—',
+        children: device.children ?? '—',
+        manufacturer: device.manufacturer || device.vendor || '—',
+        tenant: device.tenant && device.tenant !== '—' ? device.tenant : livePlant.operator,
         plant: livePlant.name,
-        integration: device.integration || `${device.vendor || 'Backend'} live integration`,
-        sourceStatus: device.sourceStatus || 'Live API'
+        integration: device.integration && device.integration !== '—' ? device.integration : '—',
+        sourceStatus: device.sourceStatus || device.dataQualityStatus || '—',
+        raw: device.raw || undefined
       });
     });
     if (typeof model.selectPlant === 'function') model.selectPlant(livePlant.id);
@@ -1706,24 +1918,59 @@
     return String(value ?? '').trim().toLowerCase();
   }
 
+  function normalizedProviderIdentity(value: unknown): string {
+    const key = normalizedSourceKey(value).replace(/[\s_-]+/g, '');
+    if (key === 'deye' || key === 'deyecloud') return 'deyecloud';
+    if (key === 'solarx' || key === 'solax') return 'solax';
+    if (key === 'sungrow') return 'sungrow';
+    if (key === 'huawei') return 'huawei';
+    return key;
+  }
+
   function liveDeviceMatchesAdmin(candidate: AnyRecord, device: AnyRecord): boolean {
     const sourceDeviceId = normalizedSourceKey(firstOf(candidate, ['sourceDeviceId', 'sourceReference.sourceEntityId', 'vendorExtensions.sourceDeviceId', 'vendorExtensions.deviceId', 'deviceId'], ''));
     const adminSourceDeviceId = normalizedSourceKey(firstOf(device, ['externalId', 'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'serial'], ''));
     if (!sourceDeviceId || !adminSourceDeviceId || sourceDeviceId !== adminSourceDeviceId) return false;
-    const publicProvider = normalizedSourceKey(firstOf(candidate, ['provider', 'sourceReference.sourceSystem', 'vendorExtensions.sourceSystem'], ''));
-    const adminProvider = normalizedSourceKey(firstOf(device, ['vendor', 'raw.source.provider'], ''));
+    const publicProvider = normalizedProviderIdentity(firstOf(candidate, ['provider', 'sourceReference.sourceSystem', 'vendorExtensions.sourceSystem'], ''));
+    const adminProvider = normalizedProviderIdentity(firstOf(device, ['vendor', 'raw.source.provider'], ''));
     return !publicProvider || !adminProvider || publicProvider === adminProvider;
   }
 
   async function loadLiveDeviceDetail(device: AnyRecord, forceRefresh: boolean): Promise<{ id: string; detail: AnyRecord } | null> {
     const sourceDeviceId = String(firstOf(device, ['externalId', 'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'serial'], '') || '').trim();
+    const explicitLiveId = String(firstOf(device, ['liveId'], '') || '').trim();
+
+    // Device Registry UUIDs are administrative/canonical identifiers. The Platform Live
+    // detail endpoint does not necessarily accept that UUID (confirmed by real 404s), so
+    // only reuse an already-resolved live id here. Otherwise start from sourceDeviceId.
+    if (explicitLiveId) {
+      try {
+        const direct = await window.ZentridPlatformAPI?.liveDevices?.get(explicitLiveId, detailReadOptions('device-detail:live-direct', 20, forceRefresh));
+        if (direct && typeof direct === 'object') return { id: explicitLiveId, detail: direct as AnyRecord };
+      } catch (_error) { /* Re-resolve below from source identity. */ }
+    }
+
     if (!sourceDeviceId || sourceDeviceId === '—') return null;
+
+    // Some live implementations address detail routes by the vendor/source device id.
+    // Try that before issuing a collection search. A 404 is a normal not-linked state.
+    try {
+      const bySource = await window.ZentridPlatformAPI?.liveDevices?.get(sourceDeviceId, detailReadOptions('device-detail:live-source-id', 20, forceRefresh));
+      if (bySource && typeof bySource === 'object') {
+        const detail = bySource as AnyRecord;
+        const liveId = String(firstOf(detail, ['deviceId', 'id', 'sourceDeviceId'], sourceDeviceId) || sourceDeviceId).trim();
+        if (liveDeviceMatchesAdmin(detail, device) || normalizedSourceKey(firstOf(detail, ['sourceDeviceId', 'sourceReference.sourceEntityId'], sourceDeviceId)) === normalizedSourceKey(sourceDeviceId)) {
+          return { id: liveId, detail };
+        }
+      }
+    } catch (_error) { /* Collection search remains the compatibility fallback. */ }
+
     const requestOptions = detailReadOptions('device-detail:live-match', 50, forceRefresh);
     const listPayload = await window.ZentridPlatformAPI?.liveDevices?.list({ page: 1, pageSize: 50, search: sourceDeviceId }, requestOptions);
     const candidates = asArray(listPayload);
     const match = candidates.find(candidate => liveDeviceMatchesAdmin(candidate, device));
     if (!match) return null;
-    const liveId = String(firstOf(match, ['deviceId', 'id'], '') || '').trim();
+    const liveId = String(firstOf(match, ['deviceId', 'id', 'sourceDeviceId'], '') || '').trim();
     if (!liveId) return null;
     try {
       const detail = await window.ZentridPlatformAPI?.liveDevices?.get(liveId, detailReadOptions('device-detail:live-core', 20, forceRefresh));
@@ -1749,7 +1996,25 @@
       const selectedDeviceFromNetwork = selectedId
         ? (networkRows.find(record => detailSelectionMatches(record, selectedId)) || networkRows[0])
         : networkRows[0];
-      const selectedRecord = selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined);
+      const preserveSnapshotValue = (networkValue: unknown, snapshotValue: unknown): unknown => {
+        const text = String(networkValue ?? '').trim();
+        return (!text || text === '—' || text.toLowerCase() === 'unknown') && snapshotValue !== undefined && snapshotValue !== null && String(snapshotValue).trim() !== ''
+          ? snapshotValue
+          : networkValue;
+      };
+      const selectedRecord = selectedDeviceFromNetwork && selectedSnapshot
+        ? {
+            ...selectedSnapshot,
+            ...selectedDeviceFromNetwork,
+            lastSeen: preserveSnapshotValue(selectedDeviceFromNetwork.lastSeen, selectedSnapshot.lastSeen),
+            alerts: selectedDeviceFromNetwork.alerts ?? selectedSnapshot.alerts,
+            plant: preserveSnapshotValue(selectedDeviceFromNetwork.plant, selectedSnapshot.plant),
+            tenant: preserveSnapshotValue(selectedDeviceFromNetwork.tenant, selectedSnapshot.tenant),
+            capacity: preserveSnapshotValue(selectedDeviceFromNetwork.capacity, selectedSnapshot.capacity),
+            sourceStatus: preserveSnapshotValue(selectedDeviceFromNetwork.sourceStatus, selectedSnapshot.sourceStatus),
+            raw: selectedDeviceFromNetwork.raw
+          }
+        : selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined);
       if (!selectedRecord) {
         const message = selectedId
           ? 'The selected device endpoint returned no record and no preserved selection snapshot is available.'
@@ -1760,7 +2025,7 @@
       }
 
       const deviceRows = selectedDeviceFromNetwork
-        ? networkRows
+        ? [selectedRecord, ...networkRows.filter(record => record !== selectedDeviceFromNetwork)]
         : [selectedRecord, ...networkRows.filter(record => !detailSelectionMatches(record, selectedId))];
       let plantRows: AnyRecord[] = [];
       let alertRows: AnyRecord[] = [];
@@ -1795,8 +2060,11 @@
         const liveMatch = device ? await loadLiveDeviceDetail(device, forceRefresh) : null;
         if (liveMatch) {
           selectedLiveDeviceId = liveMatch.id;
+          applyDeviceResource('liveLookupStatus', 'matched');
           applyDeviceResource('liveId', liveMatch.id);
           device = applyDeviceResource('liveDetail', liveMatch.detail);
+        } else {
+          device = applyDeviceResource('liveLookupStatus', 'not-linked');
         }
       } catch (error) {
         relationErrors.push(error);
@@ -1808,7 +2076,10 @@
           tabs: ['architecture', 'related'],
           label: 'Parent plant and topology',
           loader: async () => {
-            const result = await ZentridAPIRepositories.plants.list(detailReadOptions('device-detail:parent-plant', 100, forceRefresh));
+            const parentPlantId = String(firstOf(device || {}, ['plantId', 'raw.plantRelation.plantId'], '') || '').trim();
+            const result = parentPlantId
+              ? await ZentridAPIRepositories.plants.get(parentPlantId, { ...detailReadOptions('device-detail:parent-plant', 20, forceRefresh), cacheVariant: 'admin-registry' })
+              : await ZentridAPIRepositories.plants.list({ ...detailReadOptions('device-detail:parent-plant', 20, forceRefresh), cacheVariant: 'admin-registry' });
             plantRows = result.items;
             relationErrors.push(...result.errors);
             if (!plantRows.length && result.errors.length) throw result.errors[0];
@@ -1816,7 +2087,8 @@
             setLiveDataState(result.errors.length ? 'partial' : 'live', 'The device record is visible and its parent plant relation was loaded on demand.', {
               source: `${deviceResult.source} + ${result.source}`,
               details: result.errors.length ? `${result.errors.length} relation error(s)` : 'Parent relation loaded on demand',
-              recordCount: deviceResult.pagination.totalCount
+              recordCount: deviceResult.pagination.totalCount,
+              dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live'
             });
           }
         },
@@ -1825,15 +2097,18 @@
           tabs: ['alerts'],
           label: 'Device alerts',
           loader: async () => {
-            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), deviceId: selectedAdminDeviceId, timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
             alertRows = result.items;
             relationErrors.push(...result.errors);
             if (!alertRows.length && result.errors.length) throw result.errors[0];
+            applyDeviceResource('relatedAlerts', alertRows);
+            applyDeviceResource('alertsLoaded', true);
             sync();
             setLiveDataState(result.errors.length ? 'partial' : 'live', 'Device alerts were loaded only after the Alerts tab was opened.', {
               source: `${deviceResult.source} + ${result.source}`,
               details: result.errors.length ? `${result.errors.length} alert error(s)` : 'Alerts loaded on demand',
-              recordCount: deviceResult.pagination.totalCount
+              recordCount: deviceResult.pagination.totalCount,
+              dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live'
             });
           }
         },
@@ -1849,7 +2124,7 @@
             ]);
             applyDeviceResource('telemetryLatest', adminTelemetry);
             applyDeviceResource('liveTelemetryLatest', liveTelemetry);
-            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Administrative and Platform Live telemetry were mapped into Device Detail.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}/telemetry/latest` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest`, recordCount: deviceResult.pagination.totalCount });
+            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Administrative and Platform Live telemetry were mapped into Device Detail.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}/telemetry/latest` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}/telemetry/latest`, recordCount: deviceResult.pagination.totalCount, dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live' });
           }
         },
         {
@@ -1870,7 +2145,7 @@
             applyDeviceResource('linkedDevices', linked);
             applyDeviceResource('liveConnectivityDetail', liveConnectivity);
             applyDeviceResource('liveNetworkDetail', liveNetwork);
-            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Device Registry and Platform Live connectivity were mapped into the same Device Detail workspace.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)} + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}`, recordCount: deviceResult.pagination.totalCount });
+            setLiveDataState(relationErrors.length ? 'partial' : 'live', 'Device Registry and Platform Live connectivity were mapped into the same Device Detail workspace.', { source: selectedLiveDeviceId ? `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)} + /api/devices/${encodeURIComponent(selectedLiveDeviceId)}` : `/api/admin/devices/${encodeURIComponent(selectedAdminDeviceId)}`, recordCount: deviceResult.pagination.totalCount, dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live' });
           }
         },
         {
@@ -1908,7 +2183,8 @@
         : selectedLiveDeviceId ? 'The Device Registry record and matching Platform Live device are mapped. Lazy relation and operational subresources load when their tabs are opened.' : 'The Device Registry record is ready. No matching Platform Live device was found by provider + sourceDeviceId; admin sections remain available.', {
         source: usingSnapshot ? `${deviceResult.source} + selected session record` : deviceResult.source,
         details: usingSnapshot ? 'Selected record preserved · detail endpoint checked' : `Live device: ${selectedLiveDeviceId || 'not matched'} · Lazy sections: parent plant · alerts · telemetry · connectivity · warranty`,
-        recordCount: deviceResult.pagination.totalCount
+        recordCount: deviceResult.pagination.totalCount,
+        dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live'
       });
     } catch (error) {
       if (selectedSnapshot) {
@@ -1944,6 +2220,66 @@
     }
   }
 
+  async function resolveSelectedLivePlant(selectedId: string | null, forceRefresh: boolean): Promise<ZentridRepositoryListResult> {
+    const requestedId = String(selectedId || '').trim();
+    const pageSize = 100;
+    let page = 1;
+    let lastResult: ZentridRepositoryListResult | null = null;
+    do {
+      const result = await ZentridAPIRepositories.plants.list({
+        ...detailReadOptions(`plant-detail:live-core:${page}`, pageSize, forceRefresh),
+        cacheVariant: 'live',
+        page,
+        pageSize
+      });
+      lastResult = result;
+      const match = requestedId ? result.items.find(item => detailSelectionMatches(item, requestedId)) : result.items[0];
+      if (match) return { ...result, items: [match], rawItems: [match] };
+      page += 1;
+    } while (lastResult && lastResult.pagination.hasNextPage && page <= lastResult.pagination.totalPages);
+
+    if (lastResult) return { ...lastResult, items: [], rawItems: [] };
+    return {
+      entity: 'plants',
+      items: [],
+      rawItems: [],
+      source: '/api/plants',
+      errors: [],
+      pagination: { page: 1, pageSize, totalCount: 0, totalPages: 1, hasPreviousPage: false, hasNextPage: false }
+    };
+  }
+
+
+  function plantOperationalValue(value: unknown): boolean {
+    return value !== undefined && value !== null && String(value).trim() !== '' && String(value).trim() !== '—';
+  }
+
+  function enrichAdministrativePlantWithOperational(adminPlant: AnyRecord, operationalPlant: AnyRecord): AnyRecord {
+    const preferOperational = (operationalValue: unknown, adminValue: unknown): unknown => plantOperationalValue(operationalValue) ? operationalValue : adminValue;
+    const adminRaw = adminPlant.raw && typeof adminPlant.raw === 'object' ? adminPlant.raw as AnyRecord : {};
+    const liveRaw = operationalPlant.raw && typeof operationalPlant.raw === 'object' ? operationalPlant.raw as AnyRecord : {};
+    return {
+      ...adminPlant,
+      operationalId: safeText(operationalPlant.id, '').trim(),
+      operationalExternalId: safeText(operationalPlant.externalId, '').trim(),
+      livePower: preferOperational(operationalPlant.livePower, adminPlant.livePower),
+      today: preferOperational(operationalPlant.today, adminPlant.today),
+      totalEnergy: operationalPlant.totalEnergy ?? adminPlant.totalEnergy ?? null,
+      health: preferOperational(operationalPlant.health, adminPlant.health),
+      vendor: preferOperational(operationalPlant.vendor, adminPlant.vendor),
+      sourceSystem: preferOperational(operationalPlant.sourceSystem, adminPlant.sourceSystem),
+      lastDataAt: preferOperational(operationalPlant.lastDataAt, adminPlant.lastDataAt),
+      lastSyncAt: preferOperational(operationalPlant.lastSyncAt, adminPlant.lastSyncAt),
+      dataQualityStatus: preferOperational(operationalPlant.dataQualityStatus, adminPlant.dataQualityStatus),
+      freshness: preferOperational(operationalPlant.freshness, adminPlant.freshness),
+      raw: {
+        ...adminRaw,
+        adminRecord: adminRaw,
+        liveRecord: liveRaw
+      }
+    };
+  }
+
   async function applyPlantDetail(forceRefresh = false): Promise<void> {
     if (!/plant-detail\.html$/.test(location.pathname)) return;
     const selectedId = localStorage.getItem('zentrid_selected_plant') || new URLSearchParams(location.search).get('id');
@@ -1972,13 +2308,55 @@
       });
       return;
     }
-    const selectedAdminId = selectedPlantAdministrativeId(selectedId);
-    const detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/admin/plants';
-    setLiveDataState('loading', selectedAdminId ? 'Loading the selected Global Admin plant record.' : 'Resolving the selected plant from the available live and administrative registries.', { source: detailSource });
+    let selectedAdminId = selectedPlantAdministrativeId(selectedId);
+    let detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/plants';
+    setLiveDataState('loading', selectedAdminId ? 'Loading the selected Global Admin plant record.' : 'Resolving the selected plant from the live plant collection.', { source: detailSource });
     try {
-      const live = selectedAdminId
+      let live = selectedAdminId
         ? await ZentridAPIRepositories.plants.get(selectedAdminId, { ...detailReadOptions('plant-detail:core', 100, forceRefresh), cacheVariant: 'admin-registry' })
-        : await ZentridAPIRepositories.plants.list(detailReadOptions('plant-detail:core', 100, forceRefresh));
+        : await resolveSelectedLivePlant(selectedId, forceRefresh);
+
+      // Backward-compatible recovery for selections created before registry rows stored admin context.
+      // If a selected UUID is not a live plant id, probe the administrative detail endpoint before
+      // declaring the record missing. This keeps deep links / previously stored registry selections valid.
+      if (!live.items.length && selectedId && !selectedAdminId) {
+        try {
+          const adminFallback = await ZentridAPIRepositories.plants.get(selectedId, {
+            ...detailReadOptions('plant-detail:admin-recovery', 20, forceRefresh),
+            cacheVariant: 'admin-registry'
+          });
+          if (adminFallback.items.length) {
+            selectedAdminId = selectedId;
+            detailSource = `/api/admin/plants/${encodeURIComponent(selectedAdminId)}`;
+            live = adminFallback;
+            localStorage.setItem('zentrid_selected_plant_context', JSON.stringify({ selectedId, adminId: selectedAdminId }));
+          }
+        } catch {
+          // A live-only plant is allowed to have no corresponding admin record.
+        }
+      }
+
+      if (selectedAdminId && live.items.length) {
+        try {
+          const operational = await resolveSelectedLivePlant(selectedAdminId, forceRefresh);
+          const operationalPlant = operational.items[0];
+          if (operationalPlant) {
+            const enrichedPlant = enrichAdministrativePlantWithOperational(live.items[0] as AnyRecord, operationalPlant as AnyRecord);
+            live = {
+              ...live,
+              items: [enrichedPlant],
+              rawItems: [enrichedPlant],
+              source: `${live.source} + /api/plants`,
+              errors: [...live.errors, ...operational.errors]
+            };
+          } else if (operational.errors.length) {
+            live = { ...live, errors: [...live.errors, ...operational.errors] };
+          }
+        } catch (error) {
+          live = { ...live, errors: [...live.errors, error] };
+        }
+      }
+
       const data = live.items;
       if (!data.length) {
         if (live.errors.length) setRequestFailure(live.source, live.errors[0], 'No prototype plant detail is displayed.');
@@ -2021,14 +2399,24 @@
       let deviceRows: AnyRecord[] = [];
       let alertRows: AnyRecord[] = [];
       let telemetryRows: AnyRecord[] = [];
+      let devicesLoaded = false;
+      let alertsLoaded = false;
+      let telemetryLoaded = false;
       const relationErrors: unknown[] = [...live.errors];
       const sync = (): AnyRecord | undefined => {
-        const mapped = enrichPlantRelations(data, deviceRows, alertRows);
+        const relationAwareData: AnyRecord[] = data.map(item => ({ ...(item as AnyRecord), devicesLoaded, alertsLoaded, telemetryLoaded }));
+        const mapped: AnyRecord[] = enrichPlantRelations(relationAwareData, deviceRows, alertRows).map(item => ({
+          ...item,
+          adminId: safeText(item.adminId || (selectedAdminId && detailSelectionMatches(item, selectedAdminId) ? selectedAdminId : ''), '').trim(),
+          devicesLoaded,
+          alertsLoaded,
+          telemetryLoaded
+        }));
         window.ZentridLivePlants = mapped;
         window.ZentridLiveDevices = deviceRows;
         window.ZentridLiveAlerts = alertRows;
         syncLiveClientModel(mapped, deviceRows);
-        const plant = mapped.find(p => p.id === selectedId || p.externalId === selectedId || p.code === selectedId || p.adminId === selectedAdminId) || mapped[0];
+        const plant = mapped.find(p => p.id === selectedId || p.externalId === selectedId || p.code === selectedId || p.adminId === selectedAdminId) || (!selectedId && !selectedAdminId ? mapped[0] : undefined);
         if (plant) {
           const renderedId = String(plant.id || selectedId || selectedAdminId || '').trim();
           const administrativeId = String(plant.adminId || plant.raw?.adminRecord?.id || plant.raw?.adminRecord?.plantId || selectedAdminId || '').trim();
@@ -2047,18 +2435,21 @@
       window.ZentridDetailLazyTabs?.register('plant', [
         {
           key: 'devices',
-          tabs: ['structure', 'device', 'inverters', 'batteries', 'metering', 'gateways'],
+          tabs: ['structure', 'device', 'inverters', 'arrays', 'batteries', 'metering', 'gateways'],
           label: 'Plant devices and topology',
           loader: async () => {
-            const result = await ZentridAPIRepositories.devices.list(detailReadOptions('plant-detail:devices', 100, forceRefresh));
-            deviceRows = result.items;
-            relationErrors.push(...result.errors);
-            if (!deviceRows.length && result.errors.length) throw result.errors[0];
+            const selectedPlant = sync();
+            if (!selectedPlant) throw new Error('The selected plant is not available for device matching.');
+            const relation = await loadPlantDeviceRelations(selectedPlant, forceRefresh);
+            deviceRows = relation.rows;
+            devicesLoaded = true;
+            relationErrors.push(...relation.errors);
+            if (!deviceRows.length && relation.errors.length) throw relation.errors[0];
             sync();
-            setLiveDataState(result.errors.length ? 'partial' : 'live', 'Plant device relations were loaded only after a device-related tab was opened.', {
-              source: `${live.source} + ${result.source}`,
-              details: result.errors.length ? `${result.errors.length} device relation error(s)` : 'Devices loaded on demand',
-              recordCount: data.length
+            setLiveDataState(relation.errors.length ? 'partial' : 'live', 'Plant device relations were loaded for the selected plant only.', {
+              source: `${live.source} + ${relation.sources.join(' + ') || '/api/devices'}`,
+              details: relation.errors.length ? `${relation.errors.length} device relation error(s)` : `${deviceRows.length} matching device record(s)`,
+              recordCount: deviceRows.length
             });
           }
         },
@@ -2067,15 +2458,18 @@
           tabs: ['alerts'],
           label: 'Plant alerts',
           loader: async () => {
-            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('plant-detail:alerts', 100, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
-            alertRows = result.items;
-            relationErrors.push(...result.errors);
-            if (!alertRows.length && result.errors.length) throw result.errors[0];
+            const selectedPlant = sync();
+            if (!selectedPlant) throw new Error('The selected plant is not available for alert matching.');
+            const relation = await loadPlantAlertRelations(selectedPlant, forceRefresh);
+            alertRows = relation.rows;
+            alertsLoaded = true;
+            relationErrors.push(...relation.errors);
+            if (!alertRows.length && relation.errors.length) throw relation.errors[0];
             sync();
-            setLiveDataState(result.errors.length ? 'partial' : 'live', 'Plant alerts were loaded only after the Alerts tab was opened.', {
-              source: `${live.source} + ${result.source}`,
-              details: result.errors.length ? `${result.errors.length} alert relation error(s)` : 'Alerts loaded on demand',
-              recordCount: data.length
+            setLiveDataState(relation.errors.length ? 'partial' : 'live', 'Plant alerts were loaded for the selected plant only.', {
+              source: `${live.source} + ${relation.source}`,
+              details: relation.errors.length ? `${relation.errors.length} alert relation error(s)` : `${alertRows.length} matching alert record(s)`,
+              recordCount: alertRows.length
             });
           }
         },
@@ -2088,12 +2482,15 @@
             if (!selectedPlant) throw new Error('The selected plant is not available for telemetry matching.');
             const result = await ZentridAPIRepositories.telemetry.list({
               ...detailReadOptions('plant-detail:telemetry', 100, forceRefresh),
-              timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+              timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
+              plantId: safeText(selectedPlant.id, '').trim()
             });
             telemetryRows = result.items.filter(row => plantMatchesTelemetry(selectedPlant, row));
+            telemetryLoaded = true;
             relationErrors.push(...result.errors);
             if (!result.items.length && result.errors.length) throw result.errors[0];
             publishDetailTelemetry('plant', selectedPlant, telemetryRows);
+            sync();
             setLiveDataState(result.errors.length ? 'partial' : 'live', 'Plant telemetry was loaded only after the Energy & Telemetry tab was opened.', {
               source: `${live.source} + ${result.source}`,
               details: telemetryRows.length
@@ -2123,6 +2520,175 @@
     }
   }
 
+  function meaningfulAlertValue(value: unknown): boolean {
+    if (value === undefined || value === null) return false;
+    const text = String(value).trim();
+    return Boolean(text) && text !== '—' && text !== 'Unknown' && text !== 'Unassigned';
+  }
+
+  function mergeAlertRelated(adminValue: unknown, liveValue: unknown): AnyRecord {
+    const adminRelated = adminValue && typeof adminValue === 'object' ? adminValue as AnyRecord : {};
+    const liveRelated = liveValue && typeof liveValue === 'object' ? liveValue as AnyRecord : {};
+    const keys = new Set([...Object.keys(liveRelated), ...Object.keys(adminRelated)]);
+    const merged: AnyRecord = {};
+    keys.forEach(key => {
+      const adminField = adminRelated[key];
+      merged[key] = meaningfulAlertValue(adminField) ? adminField : liveRelated[key];
+    });
+    return merged;
+  }
+
+  function mergeAlertRegistryWithLive(adminAlert: AnyRecord, liveAlert: AnyRecord, livePayloads: AnyRecord): AnyRecord {
+    const merged: AnyRecord = { ...liveAlert, ...adminAlert };
+    const fillFromLive = [
+      'occurrenceStatus', 'vendorMessage', 'sourceAlertId', 'sourcePlantId', 'sourceDeviceId',
+      'rawPayloadRef', 'lastSyncAtUtc', 'telemetry', 'description', 'probableCause', 'recommendation',
+      'integration', 'age', 'sla', 'owner'
+    ];
+    fillFromLive.forEach(key => {
+      if (!meaningfulAlertValue(adminAlert[key]) && meaningfulAlertValue(liveAlert[key])) merged[key] = liveAlert[key];
+    });
+
+    const adminTimeline = Array.isArray(adminAlert.timeline) ? adminAlert.timeline : [];
+    const liveTimeline = Array.isArray(liveAlert.timeline) ? liveAlert.timeline : [];
+    merged.timeline = adminTimeline.length ? adminTimeline : liveTimeline;
+    merged.related = mergeAlertRelated(adminAlert.related, liveAlert.related);
+
+    const adminRaw = adminAlert.raw && typeof adminAlert.raw === 'object' ? adminAlert.raw as AnyRecord : {};
+    const adminSopRaw = adminRaw.__sop;
+    const adminHasSop = Boolean(adminSopRaw && typeof adminSopRaw === 'object');
+    const liveHasSop = Boolean(liveAlert.sop && typeof liveAlert.sop === 'object');
+    merged.sop = adminHasSop ? adminAlert.sop : liveHasSop ? liveAlert.sop : adminAlert.sop ?? liveAlert.sop ?? null;
+
+    const liveCurve = liveAlert.telemetryCurve && typeof liveAlert.telemetryCurve === 'object' ? liveAlert.telemetryCurve : null;
+    const adminCurve = adminAlert.telemetryCurve && typeof adminAlert.telemetryCurve === 'object' ? adminAlert.telemetryCurve : null;
+    merged.telemetryCurve = liveCurve || adminCurve;
+
+    merged.adminSnapshot = { ...adminAlert };
+    merged.liveOperational = livePayloads;
+    merged.dataOrigin = 'mixed';
+    merged.subresourceSources = {
+      timeline: Object.prototype.hasOwnProperty.call(adminRaw, '__timeline') ? 'admin' : Array.isArray(livePayloads.timeline) ? 'live' : 'none',
+      related: Object.prototype.hasOwnProperty.call(adminRaw, '__related') ? 'admin' : livePayloads.related && typeof livePayloads.related === 'object' ? 'live' : 'none',
+      sop: adminHasSop ? 'admin' : liveHasSop ? 'live' : 'none',
+      telemetryCurve: liveCurve ? 'live' : Object.prototype.hasOwnProperty.call(adminRaw, '__telemetryCurve') ? 'admin' : 'none'
+    };
+    return merged;
+  }
+
+  function alertDeviceSourceId(alert: AnyRecord): string {
+    return String(firstOf(alert, ['sourceDeviceId', 'device', 'raw.sourceDeviceId', 'raw.vendor.sourceDeviceId', 'raw.vendorExtensions.deviceSn'], '') || '').trim();
+  }
+
+  function alertDeviceProvider(alert: AnyRecord): string {
+    return normalizedProviderIdentity(firstOf(alert, ['vendor', 'provider', 'source', 'raw.vendor.provider', 'raw.provider'], ''));
+  }
+
+  function mappedDeviceSourceId(device: AnyRecord): string {
+    return normalizedSourceKey(firstOf(device, [
+      'externalId', 'sourceDeviceId', 'serial', 'serialNumber',
+      'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'raw.identity.serialNumber',
+      'raw.sourceReference.sourceEntityId', 'raw.vendorExtensions.sourceDeviceId'
+    ], ''));
+  }
+
+  function mappedDeviceProvider(device: AnyRecord): string {
+    return normalizedProviderIdentity(firstOf(device, [
+      'vendor', 'provider', 'sourceSystem', 'raw.source.provider', 'raw.provider',
+      'raw.sourceReference.sourceSystem', 'raw.vendorExtensions.sourceSystem'
+    ], ''));
+  }
+
+  function alertDeviceSourceMatch(device: AnyRecord, sourceDeviceId: string, provider: string): boolean {
+    const candidateSource = mappedDeviceSourceId(device);
+    const wantedSource = normalizedSourceKey(sourceDeviceId);
+    if (!candidateSource || !wantedSource || candidateSource !== wantedSource) return false;
+    const candidateProvider = mappedDeviceProvider(device);
+    return !provider || !candidateProvider || candidateProvider === provider;
+  }
+
+  function mapAlertLinkedDevicePayload(payload: unknown): AnyRecord | null {
+    if (!payload || typeof payload !== 'object') return null;
+    return ZentridAPIContracts.devices.map(payload as AnyRecord, 0, contractMapperContext) as AnyRecord;
+  }
+
+  async function resolveAlertLinkedDevice(alert: AnyRecord, forceRefresh: boolean): Promise<{ admin: AnyRecord | null; live: AnyRecord | null; errors: unknown[]; source: string }> {
+    const errors: unknown[] = [];
+    let admin: AnyRecord | null = null;
+    let live: AnyRecord | null = null;
+    let source = 'not-resolved';
+    const alertDeviceId = safeText(alert.deviceId, '').trim();
+    let sourceDeviceId = alertDeviceSourceId(alert);
+    let provider = alertDeviceProvider(alert);
+    const requestOptions = { ...detailReadOptions('alert-detail:linked-device', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS };
+
+    // Alert device ids can belong to the operational/canonical alert graph and are not
+    // guaranteed to be Device Registry ids. A direct 404 is therefore an expected miss,
+    // not a page-level partial failure.
+    if (alertDeviceId && window.ZentridPlatformAPI?.deviceRegistry) {
+      try {
+        const payload = await window.ZentridPlatformAPI.deviceRegistry.get(alertDeviceId, requestOptions);
+        admin = mapAlertLinkedDevicePayload(payload);
+        if (admin) source = 'admin-id';
+      } catch (_expectedDirectMiss) { /* Resolve by source identity below. */ }
+    }
+
+    // The alert device id may instead be the Platform Live id. Use it to enrich the
+    // source identity before searching the administrative registry.
+    if (alertDeviceId && window.ZentridPlatformAPI?.liveDevices) {
+      try {
+        const payload = await window.ZentridPlatformAPI.liveDevices.get(alertDeviceId, requestOptions);
+        if (payload && typeof payload === 'object') {
+          live = ZentridAPIContracts.devices.map(payload as AnyRecord, 0, contractMapperContext) as AnyRecord;
+          sourceDeviceId = sourceDeviceId || String(firstOf(live, ['externalId', 'sourceDeviceId', 'serial'], '') || '').trim();
+          provider = provider || mappedDeviceProvider(live);
+        }
+      } catch (_expectedLiveMiss) { /* Source search remains available. */ }
+    }
+
+    if (!admin && sourceDeviceId) {
+      try {
+        const search = await ZentridAPIRepositories.devices.list({
+          page: 1,
+          pageSize: 50,
+          search: sourceDeviceId,
+          timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
+          forceRefresh
+        });
+        admin = (search.items as AnyRecord[]).find(row => alertDeviceSourceMatch(row, sourceDeviceId, provider)) || null;
+        if (admin) source = 'admin-source-search';
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (!admin && sourceDeviceId) {
+      const plantId = safeText(alert.plantId, '').trim();
+      if (plantId && window.ZentridPlatformAPI?.plantRegistry) {
+        try {
+          const payload = await window.ZentridPlatformAPI.plantRegistry.devices(plantId, requestOptions);
+          const mapped = asArray(payload).map(row => ZentridAPIContracts.devices.map(row, 0, contractMapperContext) as AnyRecord);
+          admin = mapped.find(row => alertDeviceSourceMatch(row, sourceDeviceId, provider)) || null;
+          if (admin) source = 'plant-device-relation';
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+    }
+
+    if (!live && sourceDeviceId && window.ZentridPlatformAPI?.liveDevices) {
+      try {
+        const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 50, search: sourceDeviceId }, requestOptions);
+        const mapped = asArray(payload).map(row => ZentridAPIContracts.devices.map(row, 0, contractMapperContext) as AnyRecord);
+        live = mapped.find(row => alertDeviceSourceMatch(row, sourceDeviceId, provider)) || null;
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    return { admin, live, errors, source };
+  }
+
   async function applyAlertDetail(forceRefresh = false): Promise<void> {
     if (!/alert-detail\.html$/.test(location.pathname)) return;
     const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_alert');
@@ -2147,6 +2713,17 @@
         return;
       }
 
+      const selectedAdminRaw = selectedRecord.raw && typeof selectedRecord.raw === 'object' ? selectedRecord.raw as AnyRecord : {};
+      selectedRecord = {
+        ...selectedRecord,
+        subresourceSources: {
+          timeline: Object.prototype.hasOwnProperty.call(selectedAdminRaw, '__timeline') ? 'admin' : 'none',
+          related: Object.prototype.hasOwnProperty.call(selectedAdminRaw, '__related') ? 'admin' : 'none',
+          sop: selectedAdminRaw.__sop && typeof selectedAdminRaw.__sop === 'object' ? 'admin' : 'none',
+          telemetryCurve: selectedAdminRaw.__telemetryCurve && typeof selectedAdminRaw.__telemetryCurve === 'object' ? 'admin' : 'none'
+        }
+      };
+
       if (selectedId && selectedRecord && window.ZentridPlatformAPI?.liveAlerts) {
         const liveErrors: unknown[] = [];
         const safeLive = async <T>(promise: Promise<T>, fallback: T): Promise<T> => {
@@ -2169,20 +2746,30 @@
             __telemetryCurve: liveTelemetryCurve
           } as AnyRecord;
           const liveMapped = ZentridAPIContracts.alerts.map(liveRaw, 0, contractMapperContext) as AnyRecord;
-          selectedRecord = {
-            ...selectedRecord,
-            ...liveMapped,
-            adminSnapshot: { ...selectedRecord },
-            liveOperational: {
-              detail: liveDetail,
-              timeline: liveTimeline,
-              related: liveRelated,
-              sop: liveSop,
-              telemetryCurve: liveTelemetryCurve
-            }
-          };
+          selectedRecord = mergeAlertRegistryWithLive(selectedRecord, liveMapped, {
+            detail: liveDetail,
+            timeline: liveTimeline,
+            related: liveRelated,
+            sop: liveSop,
+            telemetryCurve: liveTelemetryCurve
+          });
         }
         uiErrors.push(...liveErrors);
+      }
+
+      if (safeText(selectedRecord.deviceId, '').trim() || alertDeviceSourceId(selectedRecord)) {
+        const resolution = await resolveAlertLinkedDevice(selectedRecord, forceRefresh);
+        selectedRecord = {
+          ...selectedRecord,
+          ...(resolution.admin ? { linkedDevice: resolution.admin } : {}),
+          ...(resolution.live ? { linkedLiveDevice: resolution.live } : {}),
+          linkedDeviceResolution: {
+            source: resolution.source,
+            adminId: safeText(resolution.admin?.id, '').trim(),
+            liveId: safeText(resolution.live?.id, '').trim()
+          }
+        };
+        uiErrors.push(...resolution.errors);
       }
 
       if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
@@ -2196,12 +2783,22 @@
         ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
         const usingSnapshot = Boolean(selectedSnapshot && !selectedAlertFromNetwork);
+        const hasLiveOperational = Boolean(selectedRecord.liveOperational && typeof selectedRecord.liveOperational === 'object' && (selectedRecord.liveOperational as AnyRecord).detail);
         setLiveDataState(uiErrors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
           ? 'The exact selected alert was restored from this browser session because it is not present on API page 1.'
-          : 'Admin Alert Registry and Platform Live Alert data are mapped into this detail page.', {
-          source: usingSnapshot ? `${result.source} + selected session record` : `${result.source} + /api/alerts/${encodeURIComponent(selectedId || selectedRecord.id)}`,
-          details: usingSnapshot ? `Selected record preserved · API page ${result.pagination.page} checked` : `Admin + live operational detail · ${uiErrors.length} non-blocking enrichment error(s)`,
-          recordCount: result.pagination.totalCount
+          : hasLiveOperational
+            ? 'Alert Registry detail is authoritative; matching Platform Live alert data is attached as operational enrichment.'
+            : 'Alert Registry detail is ready. No matching Platform Live alert detail was attached.', {
+          source: usingSnapshot
+            ? `${result.source} + selected session record`
+            : hasLiveOperational
+              ? `${result.source} + /api/alerts/${encodeURIComponent(selectedId || selectedRecord.id)}`
+              : result.source,
+          details: usingSnapshot
+            ? `Selected record preserved · API page ${result.pagination.page} checked`
+            : `${hasLiveOperational ? 'Registry-authoritative + live operational enrichment' : 'Registry-only detail'} · ${uiErrors.length} non-blocking enrichment error(s)`,
+          recordCount: result.pagination.totalCount,
+          dataOrigin: hasLiveOperational ? 'mixed' : 'live'
         });
       }
     } catch (error) {

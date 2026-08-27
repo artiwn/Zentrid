@@ -884,6 +884,7 @@
   function normalizeIntegrationStatus(value: unknown): string {
     return aliasValue(value, {
       online: 'Active', active: 'Active', enabled: 'Active', activated: 'Active', healthy: 'Active',
+      warning: 'Warning', degraded: 'Warning', attention: 'Warning', stale: 'Warning', partial: 'Warning',
       suspended: 'Suspended', inactive: 'Suspended', disabled: 'Suspended', paused: 'Suspended',
       archived: 'Archived', deleted: 'Archived',
       failed: 'Failed', fault: 'Failed', error: 'Failed', unhealthy: 'Failed',
@@ -1112,11 +1113,10 @@
   const plants = createContract<ZentridPlantDto>(CONTRACT_DEFINITIONS.plants, (row, _index, context) => {
     const id = normalizedId(row, context);
     const provider = normalization.provider(context.firstOf(row, [
-      'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem',
-      'source.provider', 'source.vendor', 'integration.provider',
+      'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceSystem',
+      'source.provider', 'source.vendor', 'integration.provider', 'vendorExtensions.sourceSystem',
       'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor',
-      'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem',
-      'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'
+      'adminRecord.vendorName', 'adminRecord.sourceSystem'
     ], '—'));
     const name = strictDisplayName(row, context, [
       'adminName', 'liveName', 'vendorExtensions.plantName', 'vendorExtensions.stationName',
@@ -1143,8 +1143,10 @@
       clientId: context.safeText(context.firstOf(row, ['clientAssignment.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ''), ''),
       portfolio: context.safeText(context.firstOf(row, ['portfolio', 'portfolioName', 'groupName'], '—')),
       integration, vendor: provider,
-      status: normalization.plantStatus(context.firstOf(row, ['vendorPlatform.recordStatus', 'status', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], '—')),
-      health: normalization.plantStatus(context.firstOf(row, ['health', 'operationalStatus', 'vendorPlatform.recordStatus', 'status', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], '—')),
+      sourceScheme: context.safeText(context.firstOf(row, ['sourceScheme', 'vendorPlatform.sourceScheme', 'adminRecord.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], '—')),
+      creationMode: context.safeText(context.firstOf(row, ['creationMode', 'adminRecord.creationMode'], '—')),
+      status: normalization.plantStatus(context.firstOf(row, ['adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status', 'vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status'], '—')),
+      health: normalization.plantStatus(context.firstOf(row, ['liveRecord.status', 'liveRecord.operationalStatus', 'health', 'operationalStatus', 'status', 'vendorPlatform.operationalStatus'], 'Unknown')),
       type: context.safeText(context.firstOf(row, ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], '—')),
       country: normalization.country(context.firstOf(row, ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], '—')),
       region: context.safeText(context.firstOf(row, ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], '—')),
@@ -1153,7 +1155,7 @@
       lat: context.safeText(context.firstOf(row, ['location.latitude', 'location.lat', 'latitude', 'lat', 'vendorExtensions.latitude', 'adminRecord.location.latitude', 'adminRecord.location.lat'], '—')),
       lng: context.safeText(context.firstOf(row, ['location.longitude', 'location.lng', 'longitude', 'lng', 'vendorExtensions.longitude', 'adminRecord.location.longitude', 'adminRecord.location.lng'], '—')),
       timezone: context.safeText(context.firstOf(row, ['location.plantTimeZone', 'location.timezone', 'location.timeZone', 'plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.location.timezone', 'adminRecord.location.timeZone', 'adminRecord.plantTimeZone'], '—')),
-      capacityDc: installedDcMw !== null ? installedDcMw : installedKw === null ? null : Number((installedKw / 1000).toFixed(3)),
+      capacityDc: installedDcMw !== null ? installedDcMw : installedKw === null ? null : installedKw / 1000,
       capacityAc: optionalNumber(context.firstOf(row, ['technical.installedCapacityAcMw', 'installedCapacityAcMw', 'technical.capacityAcMw', 'capacityAcMw', 'capacityAc', 'technical.installedPowerAcKw', 'installedPowerAcKw', 'vendorExtensions.capacityAc', 'adminRecord.technical.installedCapacityAcMw', 'adminRecord.installedCapacityAcMw'], undefined)),
       gridCapacity: optionalNumber(context.firstOf(row, ['technical.gridConnectionCapacityMw', 'gridConnectionCapacityMw', 'technical.gridCapacityMw', 'gridCapacityMw', 'gridCapacity', 'technical.gridCapacityKw', 'gridCapacityKw', 'vendorExtensions.gridCapacity', 'adminRecord.technical.gridConnectionCapacityMw', 'adminRecord.gridConnectionCapacityMw'], undefined)),
       panels: optionalNumber(context.firstOf(row, ['panels', 'panelCount', 'vendorExtensions.panelCount'], undefined)),
@@ -1174,9 +1176,11 @@
       owner: context.safeText(context.firstOf(row, ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'ownerName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], '—')),
       operator: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'operator.name', 'operator.tenantName', 'operator.id', 'operatorName', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
       om: context.safeText(context.firstOf(row, ['serviceProvider.name', 'serviceProvider', 'omProvider.name', 'omProvider', 'commercial.serviceProvider', 'technical.serviceProvider', 'adminRecord.serviceProvider.name', 'adminRecord.serviceProvider'], '—')),
-      sourceSystem: context.safeText(context.firstOf(row, ['vendorPlatform.sourceScheme', 'sourceScheme', 'sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
+      sourceSystem: context.safeText(context.firstOf(row, ['sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
       updated: context.formatDate(context.firstOf(row, ['updatedAtUtc', 'createdAtUtc', 'adminRecord.updatedAtUtc', 'adminRecord.createdAtUtc'], undefined), '—'),
-      lastSyncAt: context.safeText(context.firstOf(row, ['lastDataAt', 'updatedAtUtc', 'createdAtUtc'], ''), ''),
+      lastDataAt: context.safeText(context.firstOf(row, ['lastDataAt', 'liveRecord.lastDataAt'], ''), ''),
+      lastSyncAt: context.safeText(context.firstOf(row, ['lastSyncAt', 'lastSyncAtUtc', 'liveRecord.lastSyncAt', 'updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
+      dataQualityStatus: context.safeText(context.firstOf(row, ['dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
       totalEnergy: optionalNumber(row.totalEnergyKwh), raw: row
     };
   });
@@ -1249,9 +1253,7 @@
     const occurredAt = context.formatDate(occurredRaw, '—');
     const updatedAt = context.formatDate(updatedRaw, '—');
     const timelineRows = Array.isArray(row.__timeline) ? row.__timeline : [];
-    const timeline = timelineRows.length
-      ? timelineRows.map((event: Record<string, unknown>) => `${context.formatDate(event.occurredAtUtc, '—')} · ${context.safeText(event.eventType, 'Event')}${event.actor ? ` · ${context.safeText(event.actor)}` : ''}${event.comment ? ` · ${context.safeText(event.comment)}` : ''}`)
-      : [occurredRaw ? `${occurredAt} · Alert received` : '', updatedRaw ? `${updatedAt} · Last synchronized` : ''].filter(Boolean);
+    const timeline = timelineRows.map((event: Record<string, unknown>) => `${context.formatDate(event.occurredAtUtc, '—')} · ${context.safeText(event.eventType, 'Event')}${event.actor ? ` · ${context.safeText(event.actor)}` : ''}${event.comment ? ` · ${context.safeText(event.comment)}` : ''}`);
     const relatedPayload = (row.__related && typeof row.__related === 'object') ? row.__related as Record<string, unknown> : (row.related as Record<string, unknown> || {});
     const telemetryCurve = (row.__telemetryCurve && typeof row.__telemetryCurve === 'object') ? row.__telemetryCurve as Record<string, unknown> : {};
     const sop = (row.__sop && typeof row.__sop === 'object') ? row.__sop as Record<string, unknown> : null;
@@ -1282,7 +1284,7 @@
       updated: updatedAt,
       age: context.safeText(context.firstOf(row, ['age', 'ageText'], '—')),
       sla: context.safeText(context.firstOf(row, ['sla.text', 'sla.status', 'sla'], '—')),
-      owner: context.safeText(context.firstOf(row, ['assignment.assigneeName', 'owner'], 'Unassigned')),
+      owner: context.safeText(context.firstOf(row, ['assignment.assigneeName', 'owner'], '—')),
       telemetry: context.safeText(telemetryCurve.metricCode || relatedPayload.telemetryMetric || '—'),
       description: context.safeText(context.firstOf(row, ['guidance.description', 'vendor.vendorMessage', 'message', 'vendorExtensions.alarmName'], '—')),
       probableCause: context.safeText(context.firstOf(row, ['guidance.probableCause', 'probableCause', 'vendorExtensions.reason'], '—')),
