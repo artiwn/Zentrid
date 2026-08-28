@@ -13,8 +13,20 @@
     hasNextPage: boolean;
   }
 
+  interface TelemetryContext {
+    tenant?: string;
+    plant?: string;
+    plantId?: string;
+    device?: string;
+    deviceId?: string;
+    metric?: string;
+    range?: string;
+    layer?: string;
+    source?: string;
+  }
+
   interface ZentridTelemetryPageApi {
-    readOptions(): { page: number; pageSize: number };
+    readOptions(): { page: number; pageSize: number; plantId?: string; deviceId?: string; metric?: string };
     setLoading(message?: string): void;
     render(result: ZentridRepositoryListResult): void;
     renderFailure(message: string): void;
@@ -29,6 +41,39 @@
     hasNextPage: false
   };
 
+  function canonicalMetric(value: unknown): string {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    const key = raw.toLowerCase().replace(/[\s-]+/g, '_');
+    if (key === 'current_power' || key === 'current_power_kw' || key === 'power_now' || key === 'live_power') return 'current_power_kw';
+    return raw;
+  }
+
+  function readTelemetryContext(): TelemetryContext {
+    try {
+      const raw = localStorage.getItem('zentrid_telemetry_context');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      const record = parsed as Record<string, unknown>;
+      return {
+        tenant: String(record.tenant ?? '').trim(),
+        plant: String(record.plant ?? '').trim(),
+        plantId: String(record.plantId ?? '').trim(),
+        device: String(record.device ?? '').trim(),
+        deviceId: String(record.deviceId ?? '').trim(),
+        metric: canonicalMetric(record.metric),
+        range: String(record.range ?? '').trim(),
+        layer: String(record.layer ?? '').trim(),
+        source: String(record.source ?? '').trim()
+      };
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  let telemetryContext = readTelemetryContext();
+
   function escapeHtml(value: unknown): string {
     const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
     return String(value ?? '—').replace(/[&<>"']/g, character => entities[character] || character);
@@ -37,6 +82,19 @@
   function text(value: unknown, fallback = '—'): string {
     if (value === undefined || value === null || value === '') return fallback;
     return String(value);
+  }
+
+  function canonicalUnit(value: unknown): string {
+    const raw = text(value, '').trim();
+    if (!raw) return '';
+    const key = raw.toLowerCase().replace(/\s+/g, '');
+    if (['c', '°c', 'degc', 'celsius'].includes(key)) return '°C';
+    if (key === 'kw') return 'kW';
+    if (key === 'kwh') return 'kWh';
+    if (key === 'hz') return 'Hz';
+    if (key === 'v') return 'V';
+    if (key === 'a') return 'A';
+    return raw;
   }
 
 
@@ -106,6 +164,7 @@
   function rowHtml(record: TelemetryRecord): string {
     const metric = text(record.metric);
     const displayValue = text(record.valueText, text(record.value));
+    const unit = canonicalUnit(record.unit);
     const plant = text(record.plant);
     const device = text(record.device);
     const deviceType = text(record.deviceType, '');
@@ -118,7 +177,7 @@
     return `
       <div class="data-row" data-record-origin="live">
         <div><strong>${escapeHtml(metric)}</strong><small>${escapeHtml(identifier || 'Telemetry record')}</small></div>
-        <div><strong>${escapeHtml(displayValue)}</strong><small>${escapeHtml(text(record.unit, 'Unit not supplied'))}</small></div>
+        <div><strong>${escapeHtml(displayValue)}</strong><small>${escapeHtml(unit || 'Unit not supplied')}</small></div>
         <div><strong>${escapeHtml(plant)}</strong><small>${escapeHtml([device, deviceType].filter(value => value && value !== '—').join(' · ') || 'Device not supplied')}</small></div>
         <div><strong>${escapeHtml(provider)}</strong><small>${escapeHtml(tenant)}</small><span class="badge ${qualityClass(quality)}">${escapeHtml(quality)}</span></div>
         <div><strong>${escapeHtml(timestamp)}</strong><small>${escapeHtml(text(record.timestampRaw, 'Raw timestamp not supplied'))}</small></div>
@@ -131,9 +190,31 @@
     }
     return `
       <div class="data-table telemetry-table">
-        <div class="data-head"><span>Metric</span><span>Value</span><span>Plant / Device</span><span>Source / Quality</span><span>Timestamp</span></div>
+        <div class="data-head"><span>Metric</span><span>Value</span><span>Plant / Device</span><span>Source / Backend State</span><span>Timestamp</span></div>
         ${items.map(rowHtml).join('')}
       </div>`;
+  }
+
+  function contextHtml(): string {
+    const ctx = telemetryContext;
+    const hasContext = Boolean(ctx.plant || ctx.device || ctx.plantId || ctx.deviceId || ctx.metric || ctx.tenant);
+    if (!hasContext) return '';
+    const scopeNotes = [
+      ctx.plant ? `Plant: ${ctx.plant}` : '',
+      ctx.device && ctx.device !== 'All Devices' ? `Device: ${ctx.device}` : '',
+      ctx.metric ? `Metric: ${ctx.metric}` : ''
+    ].filter(Boolean);
+    const apiFilters = [
+      ctx.plantId ? `plantId=${ctx.plantId}` : '',
+      ctx.deviceId ? `deviceId=${ctx.deviceId}` : '',
+      ctx.metric ? `metric=${ctx.metric}` : ''
+    ].filter(Boolean);
+    const missingIdentity = (ctx.plant && !ctx.plantId) || (ctx.device && ctx.device !== 'All Devices' && !ctx.deviceId);
+    return `<section class="context-bar glass-card telemetry-context" aria-label="Telemetry context">
+      <div class="ctx-item"><span>Related Context</span><strong>${escapeHtml(scopeNotes.join(' · ') || 'Telemetry')}</strong><small>${escapeHtml(ctx.source || 'Related workspace')}</small></div>
+      <div class="ctx-item"><span>API Scope</span><strong>${escapeHtml(apiFilters.join(' · ') || 'No canonical ID filter')}</strong><small>${missingIdentity ? 'A display context exists, but no canonical entity ID was supplied for API scoping.' : 'Applied to /api/telemetry.'}</small></div>
+      <button id="telemetryClearContext" class="secondary-action" type="button">Clear Context</button>
+    </section>`;
   }
 
   function updatePager(): void {
@@ -160,6 +241,14 @@
     });
     document.getElementById('telemetryPreviousPage')?.addEventListener('click', () => requestPage(state.page - 1));
     document.getElementById('telemetryNextPage')?.addEventListener('click', () => requestPage(state.page + 1));
+    document.getElementById('telemetryClearContext')?.addEventListener('click', () => {
+      localStorage.removeItem('zentrid_telemetry_context');
+      telemetryContext = {};
+      state.page = 1;
+      const context = document.querySelector('.telemetry-context');
+      if (context) context.remove();
+      window.dispatchEvent(new CustomEvent('zentrid:telemetry-page-change', { detail: { page: 1, pageSize: state.pageSize } }));
+    });
   }
 
   function mountShell(): void {
@@ -175,6 +264,7 @@
           <div><strong>Live telemetry</strong><small>Refresh API data</small></div>
         </button>
       </section>
+      ${contextHtml()}
       <section id="telemetrySummary" class="telemetry-summary telemetry-lower">${summaryHtml([])}</section>
       <section class="panel glass-card telemetry-lower">
         <div class="panel-head">
@@ -191,7 +281,14 @@
 
   const api: ZentridTelemetryPageApi = {
     readOptions() {
-      return { page: state.page, pageSize: state.pageSize };
+      const ctx = telemetryContext;
+      return {
+        page: state.page,
+        pageSize: state.pageSize,
+        ...(ctx.plantId ? { plantId: ctx.plantId } : {}),
+        ...(ctx.deviceId ? { deviceId: ctx.deviceId } : {}),
+        ...(ctx.metric ? { metric: ctx.metric } : {})
+      };
     },
     setLoading(message = 'Loading telemetry from /api/telemetry…') {
       const container = document.getElementById('telemetryRecords');
