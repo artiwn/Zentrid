@@ -114,6 +114,7 @@ type ZentridPlatformAPIShape = {
     deleteDocument(id: string, documentId: string): Promise<unknown>;
   };
   plantRegistry: ZentridPlatformModule & {
+    search(search: string, options?: ZentridRequestOptions): Promise<unknown>;
     update(id: string, payload: unknown): Promise<unknown>;
     devices(plantId: string, options?: ZentridRequestOptions): Promise<unknown>;
     createDevice(plantId: string, payload: unknown): Promise<unknown>;
@@ -449,6 +450,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
 
   const plantRegistry = {
     list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/plants', options),
+    search: (search: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/plants?search=${encodeURIComponent(search)}&page=1&pageSize=50`, options),
     get: (id: string, options: ZentridRequestOptions = {}) => ZentridAPI.request(`/api/admin/plants/${encodeURIComponent(id)}`, options),
     create: (payload: unknown) => mutationRequest('/api/admin/plants', jsonOptions('POST', payload), ['plants'], 'plant.create'),
     update: (id: string, payload: unknown) => mutationRequest(`/api/admin/plants/${encodeURIComponent(id)}`, jsonOptions('PUT', payload), ['plants'], 'plant.update'),

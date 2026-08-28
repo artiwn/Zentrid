@@ -27,6 +27,7 @@ interface ZentridDeviceRecord {
   installDate?: string;
   warranty?: string;
   lastSeen?: string;
+  lastSeenAt?: string;
   alerts?: number | string;
   power?: string;
   voltage?: string;
@@ -43,6 +44,9 @@ interface ZentridDeviceRecord {
   warrantyDetail?: unknown;
   telemetryLatest?: unknown;
   liveId?: string;
+  registryDeviceId?: string;
+  canonicalDeviceId?: string;
+  sourceDeviceId?: string;
   liveDetail?: unknown;
   liveConnectivityDetail?: unknown;
   liveNetworkDetail?: unknown;
@@ -98,6 +102,16 @@ function optionText(value: unknown): string { return String(value ?? '').replace
 function deviceEditableValue(value: unknown): string { const text=String(value ?? '').trim(); return !text || text === '—' || text.toLowerCase() === 'null' || text.toLowerCase() === 'undefined' ? '' : text; }
 function deviceStatusCls(v: unknown): ZentridDeviceStatusTone { const text = String(v).toLowerCase(); if(text.includes('offline')||text.includes('fault')) return 'danger'; if(text.includes('warning')||text.includes('delayed')) return 'warning'; return 'success'; }
 function deviceStatusPill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceStatusCls(d.status)}">${optionText(d.status || 'Unknown')}</span>`; }
+function deviceUiFreshness(d: ZentridDeviceRecord): ZentridRecordFreshnessResult {
+  return window.ZentridDataFreshness?.evaluateRecord(d, 'device') || { status:'unknown', label:'Unknown', tone:'neutral', ageMs:null, ageLabel:'Timestamp unavailable', timestamp:null, basis:'Last communication', backendStatus:String(d.sourceStatus || ''), contradictsBackend:false };
+}
+function deviceFreshnessHtml(d: ZentridDeviceRecord): string {
+  const freshness=deviceUiFreshness(d);
+  const backend=freshness.backendStatus || String(d.sourceStatus || '—');
+  const mismatch=freshness.contradictsBackend ? ' · backend status conflicts with timestamp' : '';
+  const title=`${freshness.basis}: ${freshness.timestamp || 'unavailable'}${backend && backend !== '—' ? ` · Backend: ${backend}` : ''}${mismatch}`;
+  return `<span class="badge ${freshness.tone}" title="${optionText(title)}">${optionText(freshness.label)}</span><small>${optionText(freshness.basis)} ${optionText(freshness.ageLabel)} · Backend: ${optionText(backend)}${freshness.contradictsBackend ? ' · mismatch' : ''}</small>`;
+}
 function deviceLiveRecord(d: ZentridDeviceRecord): Record<string, unknown> { return deviceRawRecord(d.liveDetail); }
 function deviceLiveId(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(d.liveId || live.deviceId || live.id || '').trim(); }
 function deviceLiveStatus(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); const summary=deviceRawRecord(live.technicalSummary); return String(live.normalizedStatus || live.status || summary.connectivityStatus || d.status || 'Unknown'); }
@@ -179,6 +193,73 @@ function deviceTelemetryPanel(payload: unknown, sourceNote = 'Device Registry AP
   return deviceApiPanel('Latest Telemetry', payload, 'No latest telemetry returned', sourceNote);
 }
 function selectedDevice(): ZentridDeviceRecord { const list=devices(); const id=new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device'); const snapshot=window.ZentridLiveSelection?.readDevice?.(id) as ZentridDeviceRecord | null | undefined; return list.find(d=>d.id===id || d.externalId===id || d.serial===id) ?? snapshot ?? (!id ? list[0] : undefined) ?? ({} as ZentridDeviceRecord); }
+
+function deviceIdentityRows(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) return payload.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  if (!payload || typeof payload !== 'object') return [];
+  const record = payload as Record<string, unknown>;
+  for (const key of ['items', 'data', 'results', 'rows', 'devices']) {
+    const value = record[key];
+    if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  }
+  return [];
+}
+
+function deviceSourceIdentity(value: unknown): string { return String(value ?? '').trim().toLowerCase(); }
+
+function canonicalDeviceCandidateMatches(candidate: Record<string, unknown>, device: ZentridDeviceRecord): boolean {
+  const source = candidate.source && typeof candidate.source === 'object' ? candidate.source as Record<string, unknown> : {};
+  const identity = candidate.identity && typeof candidate.identity === 'object' ? candidate.identity as Record<string, unknown> : {};
+  const candidateIds = [candidate.sourceDeviceId, source.sourceDeviceId, candidate.deviceCode, identity.deviceCode, candidate.serialNumber, identity.serialNumber]
+    .map(deviceSourceIdentity).filter(Boolean);
+  const deviceIds = [device.sourceDeviceId, device.externalId, device.serial, device.serialNumber]
+    .map(deviceSourceIdentity).filter(Boolean);
+  return deviceIds.some(id => candidateIds.includes(id));
+}
+
+async function resolveDeviceCanonicalId(device: ZentridDeviceRecord): Promise<string> {
+  const existing = String(device.canonicalDeviceId || deviceLiveId(device) || '').trim();
+  if (existing) return existing;
+  const registryPlantId = String(device.plantId || '').trim();
+  if (registryPlantId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
+    try {
+      const payload = await window.ZentridPlatformAPI.plantRegistry.devices(registryPlantId);
+      const match = deviceIdentityRows(payload).find(candidate => canonicalDeviceCandidateMatches(candidate, device));
+      const canonicalId = String(match?.id || match?.deviceId || '').trim();
+      if (canonicalId) {
+        device.canonicalDeviceId = canonicalId;
+        device.liveId = canonicalId;
+        device.registryDeviceId = String(device.id || '').trim();
+        return canonicalId;
+      }
+    } catch { /* Fall through to the live collection compatibility lookup. */ }
+  }
+  const sourceDeviceId = String(device.sourceDeviceId || device.externalId || device.serial || '').trim();
+  if (sourceDeviceId && sourceDeviceId !== '—' && window.ZentridPlatformAPI?.liveDevices?.list) {
+    try {
+      const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 50, search: sourceDeviceId });
+      const match = deviceIdentityRows(payload).find(candidate => canonicalDeviceCandidateMatches(candidate, device));
+      const canonicalId = String(match?.id || match?.deviceId || '').trim();
+      if (canonicalId) {
+        device.canonicalDeviceId = canonicalId;
+        device.liveId = canonicalId;
+        device.registryDeviceId = String(device.id || '').trim();
+        return canonicalId;
+      }
+    } catch { /* No unsafe Registry UUID fallback. */ }
+  }
+  return '';
+}
+
+async function openDeviceAlerts(device: ZentridDeviceRecord): Promise<void> {
+  const canonicalDeviceId = await resolveDeviceCanonicalId(device);
+  if (!canonicalDeviceId) {
+    window.ZentridLayout?.toast?.('Operational Device ID could not be resolved. Alerts were not opened with a Registry UUID.');
+    return;
+  }
+  localStorage.setItem('zentrid_alert_context', JSON.stringify({ deviceId: canonicalDeviceId, tenant: device.tenant }));
+  location.href = 'alerts.html';
+}
 function wireDevices(): void {
   const table = document.getElementById('deviceTable') as HTMLElement;
   const search = document.getElementById('deviceSearch') as HTMLInputElement;
@@ -198,7 +279,7 @@ function wireDevices(): void {
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('devices') || '';
     bindRows();
   }
-  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ if (d && window.ZentridLiveSelection?.selectDevice) window.ZentridLiveSelection.selectDevice(d); else { localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, device:d.name, metric:'Current Power', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ localStorage.setItem('zentrid_alert_context', JSON.stringify({deviceId:d.id, plantId:d.plantId, tenant:d.tenant})); location.href='alerts.html'; } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.ZentridRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
+  function bindRows(){ table.querySelectorAll('.data-row').forEach(row=> row.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{ const id=row.dataset.id; const d=devices().find(x=>x.id===id); if(btn.dataset.action==='open' && id){ if (d && window.ZentridLiveSelection?.selectDevice) window.ZentridLiveSelection.selectDevice(d); else { localStorage.setItem('zentrid_selected_device', id); location.href='device-detail.html'; } } if(btn.dataset.action==='plant' && d?.plantId){ localStorage.setItem('zentrid_selected_plant', d.plantId); location.href='plant-detail.html'; } if(btn.dataset.action==='telemetry' && d){ localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:d.tenant, plant:d.plant, plantId:'', device:d.name, deviceId:deviceLiveId(d) || '', metric:'current_power_kw', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized', source:'Device Registry'})); location.href='telemetry.html'; } if(btn.dataset.action==='alerts' && d){ void openDeviceAlerts(d); } })); table.querySelectorAll('[data-device-page]').forEach(btn=>btn.onclick=()=>{ if (window.ZentridRegistryQuery?.pagination('devices')) return; ZentridDevicePager.page += btn.dataset.devicePage === 'next' ? 1 : -1; apply(false); }); }
   search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:devices:search', () => apply(true), 220));
   [type,status].forEach(el=> el && el.addEventListener('change', ()=>apply(true)));
   bindRows();
@@ -802,7 +883,7 @@ function deviceOperationalSnapshotHtml(): string {
   const online=deviceOptionalNumber(kpi.onlineCount);
   const attention=deviceOptionalNumber(kpi.attentionCount);
   const mapped=deviceOptionalNumber(kpi.mappedDevicesCount);
-  return `<div class="integration-live-summary-grid device-operational-kpis"><article><span>Operational devices</span><strong>${Number(total).toLocaleString()}</strong><small>/api/devices KPI / totalCount</small></article><article><span>Online / Attention</span><strong>${online === null ? '—' : online.toLocaleString()} / ${attention === null ? '—' : attention.toLocaleString()}</strong><small>Global backend KPI</small></article><article><span>Mapped devices</span><strong>${mapped === null ? '—' : mapped.toLocaleString()}</strong><small>Global backend KPI</small></article></div><div class="data-table device-operational-table"><div class="data-head"><span>Device</span><span>Plant</span><span>Type</span><span>Provider</span><span>Status</span><span>Backend Freshness</span></div>${rows.map(row => `<div class="data-row"><div><strong>${optionText(row.name || row.externalId || row.id)}</strong><small>${optionText(row.externalId || row.id)}</small></div><div><strong>${optionText(row.plant || '—')}</strong><small>${optionText(row.plantId || '—')}</small></div><div><strong>${optionText(deviceEffectiveType(row))}</strong><small>${optionText(row.subtype || row.model || '—')}</small></div><div><strong>${optionText(row.vendor || row.manufacturer || '—')}</strong><small>${optionText(row.integration || '—')}</small></div><div><span class="badge ${deviceStatusCls(row.status)}">${optionText(row.status || 'Unknown')}</span><small>${row.alerts === null || row.alerts === undefined ? '—' : `${optionText(row.alerts)} alert(s)`}</small></div><div><strong>${optionText(row.sourceStatus || '—')}</strong><small>Last seen ${optionText(row.lastSeen || '—')}</small></div></div>`).join('')}</div>`;
+  return `<div class="integration-live-summary-grid device-operational-kpis"><article><span>Operational devices</span><strong>${Number(total).toLocaleString()}</strong><small>/api/devices KPI / totalCount</small></article><article><span>Online / Attention</span><strong>${online === null ? '—' : online.toLocaleString()} / ${attention === null ? '—' : attention.toLocaleString()}</strong><small>Global backend KPI</small></article><article><span>Mapped devices</span><strong>${mapped === null ? '—' : mapped.toLocaleString()}</strong><small>Global backend KPI</small></article></div><div class="data-table device-operational-table"><div class="data-head"><span>Device</span><span>Plant</span><span>Type</span><span>Provider</span><span>Status</span><span>UI Freshness</span></div>${rows.map(row => `<div class="data-row"><div><strong>${optionText(row.name || row.externalId || row.id)}</strong><small>${optionText(row.externalId || row.id)}</small></div><div><strong>${optionText(row.plant || '—')}</strong><small>${optionText(row.plantId || '—')}</small></div><div><strong>${optionText(deviceEffectiveType(row))}</strong><small>${optionText(row.subtype || row.model || '—')}</small></div><div><strong>${optionText(row.vendor || row.manufacturer || '—')}</strong><small>${optionText(row.integration || '—')}</small></div><div><span class="badge ${deviceStatusCls(row.status)}">${optionText(row.status || 'Unknown')}</span><small>${row.alerts === null || row.alerts === undefined ? '—' : `${optionText(row.alerts)} alert(s)`}</small></div><div>${deviceFreshnessHtml(row)}</div></div>`).join('')}</div>`;
 }
 
 function deviceRows(list: ZentridDeviceRecord[]): string {
@@ -811,7 +892,7 @@ function deviceRows(list: ZentridDeviceRecord[]): string {
     ? { total: serverPagination.totalCount, pages: serverPagination.totalPages, page: serverPagination.page, start: (serverPagination.page - 1) * serverPagination.pageSize, end: Math.min(serverPagination.page * serverPagination.pageSize, serverPagination.totalCount), rows: list }
     : pageSlice(list, ZentridDevicePager);
   const pager = serverPagination ? window.ZentridRegistryQuery?.pagerHtml('devices', list.length) || '' : pagerHtml('device', state);
-  return `${pager}<div class="data-table device-table"><div class="data-head"><span>Device</span><span>Plant / Tenant</span><span>Type</span><span>Vendor Source</span><span>Status</span><span>Actions</span></div>${state.rows.map(d=>`<div class="data-row" data-id="${d.id}"><div><span class="record-origin-chip live" data-record-origin="live" title="Data source: Device Registry API · /api/admin/devices">Device Registry</span><strong>${d.name}</strong><small>${d.id}<br>${d.serial}</small></div><div><strong>${d.plant}</strong><small>${d.tenant}</small></div><div><strong>${d.type}</strong><small>${d.subtype} · ${d.capacity}</small></div><div><strong>${d.vendor}</strong><small>${d.integration}<br>${d.sourceStatus}</small></div><div><span class="badge ${deviceStatusCls(d.status)}">${d.status}</span><small>${d.alerts === null || d.alerts === undefined ? '—' : `${optionText(d.alerts)} alert(s)`} · Last seen ${optionText(d.lastSeen || '—')}</small></div><div class="row-actions"><button data-action="open">Open</button><button data-action="plant">Plant</button><button data-action="telemetry">Telemetry</button><button data-action="alerts">Alerts</button></div></div>`).join('')}</div>${pager}`;
+  return `${pager}<div class="data-table device-table"><div class="data-head"><span>Device</span><span>Plant / Tenant</span><span>Type</span><span>Vendor Source</span><span>Status</span><span>Actions</span></div>${state.rows.map(d=>`<div class="data-row" data-id="${d.id}"><div><span class="record-origin-chip live" data-record-origin="live" title="Data source: Device Registry API · /api/admin/devices">Device Registry</span><strong>${d.name}</strong><small>${d.id}<br>${d.serial}</small></div><div><strong>${d.plant}</strong><small>${d.tenant}</small></div><div><strong>${d.type}</strong><small>${d.subtype} · ${d.capacity}</small></div><div><strong>${d.vendor}</strong><small>${d.integration}<br>${d.sourceStatus}</small></div><div><span class="badge ${deviceStatusCls(d.status)}">${d.status}</span>${deviceFreshnessHtml(d)}<small>${d.alerts === null || d.alerts === undefined ? '—' : `${optionText(d.alerts)} alert(s)`} · Last seen ${optionText(d.lastSeen || '—')}</small></div><div class="row-actions"><button data-action="open">Open</button><button data-action="plant">Plant</button><button data-action="telemetry">Telemetry</button><button data-action="alerts">Alerts</button></div></div>`).join('')}</div>${pager}`;
 }
 function renderDevices(): string {
   const all=devices();
@@ -865,7 +946,7 @@ function deviceKpis(d: ZentridDeviceRecord): string {
     <article class="kpi-card"><span>Lifecycle</span><strong>${optionText(d.lifecycle || '—')}</strong><small>Device Registry administrative state</small></article>
     <article class="kpi-card"><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article>
     <article class="kpi-card"><span>Serial / Source ID</span><strong>${d.serial}</strong><small>${d.externalId}</small></article>
-    <article class="kpi-card"><span>Data Quality</span><strong>${optionText(deviceLiveDataQuality(d))}</strong><small>${liveId ? optionText(deviceLiveLastSync(d)) : 'Device Registry quality · live detail not linked'}</small></article>
+    <article class="kpi-card"><span>UI Freshness</span><strong>${deviceFreshnessHtml(d)}</strong></article>
   </section>`;
 }
 function universalDeviceSidebar(d: ZentridDeviceRecord, activeTab: ZentridDeviceTab = deviceDetailActiveTab): string {
@@ -1142,7 +1223,7 @@ function deviceAlertsPanel(d: ZentridDeviceRecord): string {
 }
 
 function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): string {
-  if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Operational Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen}</small></article><article><span>Lifecycle</span><strong>${deviceLifecyclePill(d)}</strong><small>Device Registry state</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>${d.id}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${deviceTelemetryAvailabilityNote(d)}${operatingDataGrid(d)}`;
+  if(tab==='overview') return `<div class="section-title-v17"><div><h2>Device Overview</h2><p class="muted">Type-driven workspace: ${deviceTypeLabel(d)} shows only relevant operational data.</p></div></div><div class="device-overview-grid-v58"><article><span>Operational Status</span><strong>${deviceStatusPill(d)}</strong><small>${d.lastSeen} · ${optionText(deviceUiFreshness(d).label)}</small></article><article><span>Lifecycle</span><strong>${deviceLifecyclePill(d)}</strong><small>Device Registry state</small></article><article><span>Plant</span><strong>${d.plant}</strong><small>${d.tenant}</small></article><article><span>Vendor / Model</span><strong>${d.vendor}</strong><small>${d.model}</small></article><article><span>Serial Number</span><strong>${d.serial}</strong><small>Admin Registry ID: ${optionText(d.id)}</small></article></div><div class="section-title-v17 mini"><div><h3>Realtime Snapshot</h3><p class="muted">Main values change by device type.</p></div></div>${deviceTelemetryAvailabilityNote(d)}${operatingDataGrid(d)}`;
   if(tab==='telemetry'||tab==='monitoring') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Telemetry</h2><p class="muted">Administrative and live operational telemetry remain separate and are mapped into the same workspace.</p></div></div><div class="section-title-v17 mini"><div><h3>Device Registry Latest Telemetry</h3><p class="muted">GET /api/admin/devices/{id}/telemetry/latest</p></div></div>${deviceTelemetryPanel(d.telemetryLatest, 'Device Registry API · GET /api/admin/devices/{id}/telemetry/latest')}<div class="section-title-v17 mini"><div><h3>Platform Live Latest Telemetry</h3><p class="muted">GET /api/devices/{liveDeviceId}/telemetry/latest</p></div></div>${deviceLiveId(d) ? deviceTelemetryPanel(d.liveTelemetryLatest, 'Platform Live API · GET /api/devices/{liveDeviceId}/telemetry/latest') : `<div class="empty-state"><strong>Platform Live device not linked</strong><small>The administrative UUID is not assumed to be a Platform Live device id. Live telemetry is skipped until a source-device match is resolved.</small></div>`}`);
   if(tab==='architecture') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Architecture</h2><p class="muted">Visual relationship between plant, device and connected objects.</p></div></div>${architectureFlow(d)}${architectureRelations(d)}`);
   if(tab==='strings') return `<div class="section-title-v17"><div><h2>PV Strings / Inputs</h2><p class="muted">MPPT and PV input values for inverter and microinverter devices.</p></div></div>${stringRows(d)}`;
@@ -1152,10 +1233,10 @@ function deviceDetailPanel(d: ZentridDeviceRecord, tab: ZentridDeviceTab): strin
   if(tab==='weather') return `<div class="section-title-v17"><div><h2>Weather Data</h2><p class="muted">Weather plant values used for performance analytics.</p></div></div>${operatingDataGrid(d)}`;
   if(tab==='module') return `<div class="section-title-v17"><div><h2>Module Data</h2><p class="muted">Module-level values are shown inside the device topology without turning the whole registry into module-only UI.</p></div></div>${deviceTelemetryAvailabilityNote(d)}${operatingDataGrid(d)}`;
   if(tab==='information') return `<div class="section-title-v17"><div><h2>Technical Info</h2><p class="muted">Static master data, vendor identifiers and lifecycle attributes.</p></div></div><div class="info-grid"><div><span>Device Name</span><strong>${d.name}</strong></div><div><span>Device Type</span><strong>${d.type}</strong></div><div><span>Subtype</span><strong>${d.subtype}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>Manufacturer</span><strong>${d.manufacturer}</strong></div><div><span>Model</span><strong>${d.model}</strong></div><div><span>Serial Number</span><strong>${d.serial}</strong></div><div><span>Firmware</span><strong>${d.firmware}</strong></div><div><span>IP Address</span><strong>${d.ip}</strong></div><div><span>MAC Address</span><strong>${d.mac}</strong></div><div><span>Installation Date</span><strong>${d.installation}</strong></div><div><span>Warranty</span><strong>${d.warranty}</strong></div></div>`;
-  if(tab==='alerts') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Alerts / Faults</h2><p class="muted">Device-level events returned by the device-scoped alert query.</p></div></div>${deviceAlertsPanel(d)}<div class="drawer-actions"><button class="primary-action" onclick='localStorage.setItem("zentrid_alert_context", JSON.stringify({deviceId:"${d.id}", plantId:"${d.plantId}", tenant:"${d.tenant}"})); location.href="alerts.html"'>Open Alerts Center</button></div>`);
+  if(tab==='alerts') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Alerts / Faults</h2><p class="muted">Device-level events returned by the device-scoped alert query.</p></div></div>${deviceAlertsPanel(d)}<div class="drawer-actions"><button class="primary-action" onclick='void openDeviceAlerts(selectedDevice())'>Open Alerts Center</button></div>`);
   if(tab==='configuration') return configurationPanel(d) + `<div class="section-title-v17 mini"><div><h3>Remote Actions</h3><p class="muted">Common actions are shown below the config blocks.</p></div></div>${remoteControlPanel(d)}`;
   if(tab==='activity') return deviceLazyPanel(tab, `<div class="section-title-v17"><div><h2>Activity Log</h2><p class="muted">Server-recorded device activity from DeviceRegistry.</p></div></div>${deviceAuditPanel(d.auditDetail)}`);
-  if(tab==='source') { const live=deviceLiveRecord(d); const sourceRef=deviceRawRecord(live.sourceReference); return `<div class="section-title-v17"><div><h2>Source & Sync</h2><p class="muted">Administrative identity and Platform Live vendor-normalized identity are intentionally kept separate.</p></div></div><div class="info-grid"><div><span>Integration</span><strong>${d.integration}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>Source Device ID</span><strong>${d.externalId}</strong></div><div><span>Admin Registry ID</span><strong>${d.id}</strong></div><div><span>Platform Live ID</span><strong>${optionText(deviceLiveId(d) || 'Not linked')}</strong></div><div><span>Live Identity Lookup</span><strong>${optionText(deviceLiveLookupStatus(d) === 'matched' ? 'Matched by source identity' : 'Not matched')}</strong><small>Admin Registry UUID is not assumed to be a Platform Live ID</small></div><div><span>Source Plant ID</span><strong>${optionText(deviceLiveSourcePlantId(d))}</strong></div><div><span>Data Quality</span><strong>${optionText(deviceLiveDataQuality(d))}</strong></div><div><span>Operational Status</span><strong>${optionText(deviceLiveStatus(d))}</strong></div><div><span>Last Seen</span><strong>${optionText(deviceLiveLastSeen(d))}</strong></div><div><span>Last Sync</span><strong>${optionText(deviceLiveLastSync(d))}</strong></div><div><span>Data Updated</span><strong>${optionText(live.dataUpdatedAtUtc || '—')}</strong></div><div><span>Raw Payload Ref</span><strong>${optionText(sourceRef.rawPayloadRef || '—')}</strong></div></div>${deviceLiveId(d) ? `${deviceApiPanel('Platform Live Technical Summary', live.technicalSummary, 'No Platform Live technical summary returned', 'Platform Live API · GET /api/devices/{liveDeviceId}')}${deviceApiPanel('Platform Live Source Reference', live.sourceReference, 'No Platform Live source reference returned', 'Platform Live API · normalized sourceReference from /api/devices/{liveDeviceId}')}${deviceApiPanel('Vendor Extensions', live.vendorExtensions, 'No vendor extensions returned', 'Platform Live API · vendorExtensions from /api/devices/{liveDeviceId}')}` : `<div class="empty-state"><strong>Platform Live device not linked</strong><small>No live technical, source-reference or vendor-extension subresources are shown until the source identity is matched.</small></div>`}`; }
+  if(tab==='source') { const live=deviceLiveRecord(d); const sourceRef=deviceRawRecord(live.sourceReference); return `<div class="section-title-v17"><div><h2>Source & Sync</h2><p class="muted">Administrative identity and Platform Live vendor-normalized identity are intentionally kept separate.</p></div></div><div class="info-grid"><div><span>Integration</span><strong>${d.integration}</strong></div><div><span>Vendor</span><strong>${d.vendor}</strong></div><div><span>Source Device ID</span><strong>${d.externalId}</strong></div><div><span>Admin Registry ID</span><strong>${d.id}</strong></div><div><span>Canonical / Platform Live ID</span><strong>${optionText(deviceLiveId(d) || 'Not linked')}</strong></div><div><span>Live Identity Lookup</span><strong>${optionText(deviceLiveLookupStatus(d) === 'matched' ? 'Matched by source identity' : 'Not matched')}</strong><small>Admin Registry UUID is not assumed to be a Platform Live ID</small></div><div><span>Source Plant ID</span><strong>${optionText(deviceLiveSourcePlantId(d))}</strong></div><div><span>UI Freshness</span><strong>${deviceFreshnessHtml(d)}</strong></div><div><span>Backend Data Quality</span><strong>${optionText(deviceLiveDataQuality(d))}</strong></div><div><span>Operational Status</span><strong>${optionText(deviceLiveStatus(d))}</strong></div><div><span>Last Seen</span><strong>${optionText(deviceLiveLastSeen(d))}</strong></div><div><span>Last Sync</span><strong>${optionText(deviceLiveLastSync(d))}</strong></div><div><span>Data Updated</span><strong>${optionText(live.dataUpdatedAtUtc || '—')}</strong></div><div><span>Raw Payload Ref</span><strong>${optionText(sourceRef.rawPayloadRef || '—')}</strong></div></div>${deviceLiveId(d) ? `${deviceApiPanel('Platform Live Technical Summary', live.technicalSummary, 'No Platform Live technical summary returned', 'Platform Live API · GET /api/devices/{liveDeviceId}')}${deviceApiPanel('Platform Live Source Reference', live.sourceReference, 'No Platform Live source reference returned', 'Platform Live API · normalized sourceReference from /api/devices/{liveDeviceId}')}${deviceApiPanel('Vendor Extensions', live.vendorExtensions, 'No vendor extensions returned', 'Platform Live API · vendorExtensions from /api/devices/{liveDeviceId}')}` : `<div class="empty-state"><strong>Platform Live device not linked</strong><small>No live technical, source-reference or vendor-extension subresources are shown until the source identity is matched.</small></div>`}`; }
   if(tab==='passport') return deviceLazyPanel(tab, devicePassportPanelV92(d) + deviceApiPanel('Device Registry Warranty', d.warrantyDetail, 'No Device Registry warranty returned') + deviceLiveSubresourcePanel(d, 'Platform Live Warranty', d.liveWarrantyDetail, 'No Platform Live warranty returned', 'warranty'));
   if(tab==='connectivity-full') return deviceLazyPanel(tab, deviceConnectivityFullPanelV92(d) + deviceApiPanel('Device Registry Connectivity', d.connectivityDetail, 'No Device Registry connectivity returned') + deviceLiveSubresourcePanel(d, 'Platform Live Connectivity', d.liveConnectivityDetail, 'No Platform Live connectivity returned', 'connectivity') + deviceApiPanel('Device Registry Network', d.networkDetail, 'No Device Registry network returned') + deviceLiveSubresourcePanel(d, 'Platform Live Network', d.liveNetworkDetail, 'No Platform Live network returned', 'network'));
   if(tab==='lifecycle') return deviceLazyPanel(tab, lifecyclePanelV92(d));

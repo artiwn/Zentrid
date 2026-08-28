@@ -66,6 +66,7 @@
     deviceStatus?: string;
     plantId?: string;
     deviceId?: string;
+    metric?: string;
     tenantId?: string;
     severity?: string;
     alertStatus?: string;
@@ -228,7 +229,16 @@
     const variant = String(options.cacheVariant || 'list').trim().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase() || 'list';
     const sortBy = String(options.sortBy || '').trim();
     const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
-    return `${entity}|variant=${variant}|page=${page}|pageSize=${pageSize}|sortBy=${sortBy}|sortDirection=${sortDirection}`;
+    const queryIdentityKeys: Array<keyof ZentridRepositoryReadOptions> = [
+      'search', 'deviceType', 'deviceStatus', 'plantId', 'deviceId', 'metric', 'tenantId',
+      'severity', 'alertStatus', 'status', 'tenant', 'plant', 'vendor', 'cursor', 'format'
+    ];
+    const queryIdentity = queryIdentityKeys
+      .map(key => [String(key), String(options[key] ?? '').trim()] as const)
+      .filter(([, value]) => Boolean(value))
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&');
+    return `${entity}|variant=${variant}|page=${page}|pageSize=${pageSize}|sortBy=${encodeURIComponent(sortBy)}|sortDirection=${sortDirection}|query=${queryIdentity}`;
   }
 
   function persistentStorage(): Storage | null {
@@ -1140,6 +1150,7 @@
     });
     if (options?.plantId) query.set('plantId', options.plantId);
     if (options?.deviceId) query.set('deviceId', options.deviceId);
+    if (options?.metric) query.set('metric', options.metric);
     if (options?.search) query.set('search', options.search);
     const requestOptions: ZentridRequestOptions = {
       ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),

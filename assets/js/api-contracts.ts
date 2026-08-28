@@ -554,7 +554,7 @@
       field('stalePlantsCount', ['stalePlantsCount', 'vendorExtensions.stalePlantsCount'], ['Integration operational health'], 'count', '0'),
       field('devicesCount', ['devicesCount', 'deviceCount', 'devices', 'vendorExtensions.devicesCount'], ['Integration Registry devices KPI', 'Integration Detail discovery'], 'count', '0'),
       field('alertsCount', ['alertsCount', 'alertCount', 'alerts', 'vendorExtensions.activeAlertsCount'], ['Integration Registry alerts KPI', 'Integration Detail discovery'], 'count', '0'),
-      field('errorRatePct', ['errorRatePct'], ['Integration operational health'], 'count', '0'),
+      field('errorRatePct', ['errorRatePct'], ['Raw backend integration metric; semantics must be verified before UX interpretation'], 'count', '0'),
       field('lastSyncAtUtc', ['lastSyncAtUtc'], ['Integration Registry last sync', 'Integration Detail freshness'], 'date', 'No sync'),
       field('lastSyncText', ['lastSyncText'], ['Integration Registry last activity'], 'text', 'No data'),
       field('lastErrorMessage', ['lastErrorMessage'], ['Integration Detail last error'], 'text', ''),
@@ -681,6 +681,19 @@
     if (value === undefined || value === null || value === '') return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function normalizeTelemetryUnit(value: unknown): string {
+    const raw = sourceValue(value, '').trim();
+    if (!raw) return '';
+    const key = raw.toLowerCase().replace(/\s+/g, '');
+    if (['c', '°c', 'degc', 'celsius'].includes(key)) return '°C';
+    if (key === 'kw') return 'kW';
+    if (key === 'kwh') return 'kWh';
+    if (key === 'hz') return 'Hz';
+    if (key === 'v') return 'V';
+    if (key === 'a') return 'A';
+    return raw;
   }
 
   type ZentridNormalizationDomain =
@@ -1132,10 +1145,20 @@
     const installedDcMw = optionalNumber(context.firstOf(row, ['technical.installedCapacityDcMw', 'installedCapacityDcMw', 'technical.capacityDcMw', 'capacityDcMw', 'adminRecord.technical.installedCapacityDcMw', 'adminRecord.installedCapacityDcMw'], undefined));
     const todayEnergy = optionalNumber(row.todayEnergyKwh);
     const integration = context.safeText(context.firstOf(row, ['integrationName', 'integration', 'sourceIntegrationName', 'adminRecord.integration'], '—'));
+    const embeddedCanonicalPlantId = context.safeText(context.firstOf(row, ['operationalData.canonicalPlantId', 'canonicalPlantId', 'liveRecord.id'], ''), '');
+    const explicitAdminPlantId = context.safeText(context.firstOf(row, ['adminRecord.id', 'adminRecord.plantId', 'adminRecord.canonicalId', 'adminRecord.sourceEntityId'], ''), '');
+    const looksLikeOperationalPlant = !embeddedCanonicalPlantId && (row.currentPowerKw !== undefined || row.lastDataAt !== undefined || (row.sourcePlantId !== undefined && row.provider !== undefined));
+    const canonicalPlantId = embeddedCanonicalPlantId || (looksLikeOperationalPlant ? id : '');
+    const registryPlantId = embeddedCanonicalPlantId ? id : explicitAdminPlantId;
     return {
       dataOrigin: 'live', id,
-      adminId: context.safeText(context.firstOf(row, ['adminRecord.id', 'adminRecord.plantId', 'adminRecord.canonicalId', 'adminRecord.sourceEntityId'], ''), ''),
-      externalId: context.safeText(context.firstOf(row, ['sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], '—')),
+      adminId: explicitAdminPlantId,
+      registryPlantId,
+      canonicalPlantId,
+      operationalId: canonicalPlantId,
+      sourcePlantId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
+      operationalExternalId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
+      externalId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], '—')),
       code: context.safeText(context.firstOf(row, ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode'], ''), ''),
       name, vendorDisplayName: name,
       registeredName: context.safeText(context.firstOf(row, ['sourcePlantId', 'plantId', 'code', 'id'], ''), ''),
@@ -1200,6 +1223,9 @@
     return {
       dataOrigin: 'live', id,
       adminId: id,
+      registryDeviceId: context.safeText(context.firstOf(row, ['registryDeviceId', 'adminRecord.id', 'adminRecord.deviceId'], ''), ''),
+      canonicalDeviceId: context.safeText(context.firstOf(row, ['canonicalDeviceId', 'liveDeviceId'], ''), ''),
+      sourceDeviceId: context.safeText(context.firstOf(row, ['source.sourceDeviceId', 'sourceDeviceId', 'identity.deviceCode', 'deviceCode'], ''), ''),
       externalId: context.safeText(context.firstOf(row, ['source.sourceDeviceId', 'sourceDeviceId', 'identity.deviceCode', 'deviceCode'], '—')),
       name, vendorDisplayName: name,
       registeredName: context.safeText(context.firstOf(row, ['deviceCode', 'identity.deviceCode', 'source.sourceDeviceId', 'sourceDeviceId', 'deviceId', 'identity.serialNumber', 'serialNumber', 'code', 'id'], ''), ''),
@@ -1226,6 +1252,7 @@
       installDate: context.formatDate(context.firstOf(row, ['lifecycle.installDate', 'lifecycle.installedAt', 'installationDate', 'installDate'], undefined), '—'),
       warranty: context.safeText(context.firstOf(row, ['technical.warranty', 'lifecycle.warrantyExpiresAt', 'warranty', 'warrantyStatus', 'warrantyEndDate'], '—')),
       lastSeen: context.formatDate(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt'], undefined), '—'),
+      lastSeenAt: context.safeText(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt'], ''), ''),
       alerts: optionalNumber(context.firstOf(row, ['alertsCount', 'vendorExtensions.alertsCount'], undefined)),
       power: context.safeText(context.firstOf(row, ['telemetry.power', 'telemetry.currentPowerKw', 'power', 'currentPowerKw', 'vendorExtensions.power'], '—')),
       voltage: context.safeText(context.firstOf(row, ['telemetry.voltage', 'voltage', 'vendorExtensions.voltage'], '—')),
@@ -1319,7 +1346,7 @@
   const telemetry = createContract<ZentridTelemetryDto>(CONTRACT_DEFINITIONS.telemetry, (row, _index, context) => {
     const rawValue = context.firstOf(row, ['value.value', 'measurement.value', 'reading.value', 'telemetry.value', 'data.value', 'payload.value', 'metric.value', 'latest.value', 'point.value', 'sample.value', 'metricValue', 'numericValue', 'currentValue', 'rawValue', 'reading', 'value'], null);
     const metric = context.safeText(context.firstOf(row, ['metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], '—'));
-    const unit = context.safeText(context.firstOf(row, ['value.unit', 'measurement.unit', 'reading.unit', 'telemetry.unit', 'data.unit', 'payload.unit', 'metric.unit', 'latest.unit', 'point.unit', 'sample.unit', 'unit', 'unitSymbol', 'uom', 'measurementUnit'], ''), '');
+    const unit = normalizeTelemetryUnit(context.firstOf(row, ['value.unit', 'measurement.unit', 'reading.unit', 'telemetry.unit', 'data.unit', 'payload.unit', 'metric.unit', 'latest.unit', 'point.unit', 'sample.unit', 'unit', 'unitSymbol', 'uom', 'measurementUnit'], ''));
     const timestampRaw = context.firstOf(row, ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], undefined);
     const quality = context.safeText(context.firstOf(row, ['quality.status', 'measurement.quality', 'reading.quality', 'telemetry.quality', 'data.quality', 'payload.quality', 'dataQualityStatus', 'quality', 'qualityStatus', 'freshness', 'status'], '—'));
     return {

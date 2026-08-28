@@ -17,6 +17,14 @@ interface ZentridAlertDictionaryModel {
   codes: Record<string, ZentridAlertMeta>;
 }
 
+interface ZentridAlertSearchMeta {
+  mode: 'none' | 'backend' | 'display-fallback';
+  query: string;
+  scannedCount: number;
+  availableCount: number;
+  truncated: boolean;
+}
+
 interface ZentridAlertRecord {
   id: string;
   dataOrigin?: ZentridDataOrigin;
@@ -359,6 +367,20 @@ function renderAlertContextBanner(): string {
   return `<section class="context-banner glass-card"><div><strong>Filtered alert context</strong><small>${parts.join(' · ')}</small></div><button class="secondary-action" id="clearAlertContext">Clear context</button></section>`;
 }
 
+function alertSearchScopeHtml(): string {
+  const state = window.ZentridRegistryQuery?.read('alerts');
+  const query = String(state?.search || '').trim();
+  const meta = (window as Window & { ZentridAlertSearchMeta?: ZentridAlertSearchMeta }).ZentridAlertSearchMeta;
+  if (!query) return window.ZentridRegistryQuery?.filterScopeHtml('alerts') || '';
+  if (meta?.mode === 'display-fallback' && meta.query === query) {
+    const coverage = meta.truncated
+      ? `Scanned the first ${meta.scannedCount.toLocaleString()} of ${meta.availableCount.toLocaleString()} filtered alerts.`
+      : `Scanned ${meta.scannedCount.toLocaleString()} filtered alert record(s).`;
+    return `<p class="registry-filter-scope" role="status">Backend search returned no match, so Zentrid used display-field search across alert title, plant, device and source IDs. ${coverage}${meta.truncated ? ' Refine the query for complete coverage.' : ''}</p>`;
+  }
+  return `<p class="registry-filter-scope" role="status">Search is applied to the Alert Registry backend. If it returns no match, Zentrid automatically checks display fields such as alert title and device name.</p>`;
+}
+
 function renderAlertFilters(): string {
   const ctx = getAlertContext();
   const queryState = window.ZentridRegistryQuery?.read('alerts');
@@ -379,9 +401,9 @@ function renderAlertFilters(): string {
       <label>Tenant<select id="tenantFilter">${apiValues('tenant').map(x => opt(x, selected.tenant)).join('')}</select></label>
       <label>Plant<select id="plantFilter">${apiValues('plant').map(x => opt(x, selected.plant)).join('')}</select></label>
       <label>Vendor<select id="vendorFilter">${apiValues('vendor').map(x => opt(x, selected.vendor)).join('')}</select></label>
-      <label>Search<input id="alertSearch" value="${String(selected.search).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by alert, plant, device..." /></label>
+      <label>Search<input id="alertSearch" value="${String(selected.search).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search alerts by title, plant, device, code or source ID..." /></label>
     </section>
-    <div id="alertFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('alerts') || ''}</div>`;
+    <div id="alertFilterScopeV126">${alertSearchScopeHtml()}</div>`;
 }
 
 function alertRow(a: ZentridAlertRecord): string {
@@ -451,7 +473,7 @@ function openAlert(id: string): void {
   location.href = `alert-detail.html?id=${encodeURIComponent(id)}`;
 }
 
-function applyAlertFilters(resetPage = true): void {
+function applyAlertFilters(resetPage = true, emitQuery = false): void {
   if (resetPage && !window.ZentridRegistryQuery?.pagination('alerts')) ZentridAlertPager.page = 1;
   const kpiWrap = document.getElementById('alertKpiWrap');
   const host = document.getElementById('alertsTableHost');
@@ -464,9 +486,9 @@ function applyAlertFilters(resetPage = true): void {
   const plant = document.getElementById('plantFilter')?.value || 'All';
   const vendor = document.getElementById('vendorFilter')?.value || 'All';
   const search = (document.getElementById('alertSearch')?.value || '').trim();
-  window.ZentridRegistryQuery?.update('alerts', { search: search || null, severity: severity === 'All' ? null : severity, alertStatus: status === 'All' ? null : status, tenant: tenant === 'All' ? null : tenant, plant: plant === 'All' ? null : plant, vendor: vendor === 'All' ? null : vendor }, { replace: true, emit: false });
+  window.ZentridRegistryQuery?.update('alerts', { page: emitQuery ? 1 : undefined, search: search || null, severity: severity === 'All' ? null : severity, alertStatus: status === 'All' ? null : status, tenant: tenant === 'All' ? null : tenant, plant: plant === 'All' ? null : plant, vendor: vendor === 'All' ? null : vendor }, { replace: true, emit: emitQuery });
   const scope = document.getElementById('alertFilterScopeV126');
-  if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('alerts') || '';
+  if (scope) scope.innerHTML = alertSearchScopeHtml();
 }
 
 function renderAlertRegistryContext(): string {
@@ -541,12 +563,12 @@ function wireAlertsPage(): void {
       ['severityFilter','statusFilter','tenantFilter','plantFilter','vendorFilter'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'All'; });
       const s = document.getElementById('alertSearch'); if (s) s.value = '';
       window.ZentridRegistryQuery?.update('alerts', { search: null, severity: null, alertStatus: null, tenant: null, plant: null, vendor: null }, { replace: true, emit: false });
-      applyAlertFilters(true);
+      applyAlertFilters(true, true);
     }
     if (target.closest('#clearAlertContext')) { clearAlertContext(); location.reload(); }
     if (target.closest('#exportAlerts')) { e.preventDefault(); void exportAlertsCsv(); }
   });
-  document.getElementById('alertSearch')?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:alerts:search', () => applyAlertFilters(true), 220));
+  document.getElementById('alertSearch')?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:alerts:search', () => applyAlertFilters(true, true), 320));
   ['severityFilter','statusFilter','tenantFilter','plantFilter','vendorFilter'].forEach(id => document.getElementById(id)?.addEventListener('change', () => applyAlertFilters(true)));
 }
 
@@ -626,7 +648,7 @@ function bindAlertDetailActions(a: ZentridAlertRecord): void {
   const heroDevice = document.getElementById('openAlertDeviceFromHero');
   if (heroDevice && resolvedAdminDeviceId) heroDevice.onclick = () => { localStorage.setItem('zentrid_selected_device', resolvedAdminDeviceId); location.href = `device-detail.html?id=${encodeURIComponent(resolvedAdminDeviceId)}`; };
   const tel = document.getElementById('openAlertTelemetry');
-  if (tel) tel.onclick = () => { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({ tenant: a.tenant, plant: a.plant, device: a.device, metric: a.related?.telemetryMetric || '', range: localStorage.getItem('zentrid_time') || 'Last 24h', layer: 'Normalized' })); location.href = 'telemetry.html'; };
+  if (tel) tel.onclick = () => { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({ tenant: a.tenant, plant: a.plant, plantId: a.plantId || '', device: a.device, deviceId: a.deviceId || '', metric: a.related?.telemetryMetric || a.telemetry || '', range: localStorage.getItem('zentrid_time') || 'Last 24h', layer: 'Normalized', source: 'Alert Detail' })); location.href = 'telemetry.html'; };
 
   const acknowledge = async (button: HTMLElement): Promise<void> => {
     try {
@@ -765,6 +787,8 @@ function alertSopChecklistBlock(a: ZentridAlertRecord): string {
         <div class="sop-progress"><strong>${sop.progress}%</strong><span>${sop.hasDraft ? 'Draft completion' : 'Completion'}</span></div>
       </div>
       <div class="sop-progress-bar"><i style="width:${sop.progress}%"></i></div>
+      <div class="info-grid alert-sop-identity-grid"><div><span>Canonical Alert</span><strong>${alertDisplayValue(a.title)}</strong><small>${alertDisplayValue(a.zentridCode)}</small></div><div><span>Backend SOP</span><strong>${alertDisplayValue(sop.title)}</strong><small>${alertDisplayValue(sop.procedure)}</small></div></div>
+      <p class="muted">The SOP title and procedure above are shown exactly from the backend beside the canonical alert identity so operators can verify the mapping before execution.</p>
       <div class="sop-checklist sop-checklist-interactive">${sop.items.map((item, idx) => renderCheckRow({ label:item.label, hint:`Owner: ${item.owner} · ${item.time}`, status:item.done ? 'Done' : 'Pending', checked:item.done, input:editable, index:idx })).join('')}</div>
       <div class="sop-bottom-grid">
         <div class="sop-evidence"><h3>Backend Evidence Requirements</h3><div>${sop.evidence.length ? sop.evidence.map(x => `<span class="badge neutral">${x}</span>`).join('') : '<small>No evidence requirements returned.</small>'}</div></div>

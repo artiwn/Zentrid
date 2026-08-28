@@ -213,16 +213,30 @@ function liveTemplateValue(detail: Record<string, unknown>, paths: string[], ali
   const nested = objectValueAt(detail, paths, '');
   return nested || liveTemplateFieldValue(detail, aliases, fallback);
 }
+function liveProviderParameters(detail: Record<string, unknown>): Record<string, unknown> {
+  return toRecord(detail.providerParameters);
+}
+function liveProviderParameterKeys(detail: Record<string, unknown>): string[] {
+  const parameters = liveProviderParameters(detail);
+  const excluded = new Set(['providerType', 'baseUrl']);
+  return Object.keys(parameters).filter(key => !excluded.has(key));
+}
 function liveTemplateCredentials(detail: Record<string, unknown>): string[] | null{
+  // providerParameters is the authoritative backend schema for provider-specific
+  // connector inputs. Preserve the exact API keys (appId, clientSecret, sysCode,
+  // etc.) so form submission does not silently rewrite them to snake_case.
+  const providerKeys = liveProviderParameterKeys(detail);
+  if (providerKeys.length) return providerKeys;
+
   const source = toRecord(detail.connectionAuthentication || detail.authentication || detail.credentials);
   const blacklist = new Set(['connectionStatus','sampleDataStatus','authenticationStatus','notes','fields','parameters']);
   const keys = Object.keys(source || {}).filter(k => !blacklist.has(k));
-  const fieldLabels = liveTemplateFieldRecords(detail).filter(field => {
+  const fieldKeys = liveTemplateFieldRecords(detail).filter(field => {
     const section = String(field.section || field.group || field.category || '').toLowerCase();
     const type = String(field.type || field.inputType || field.dataType || '').toLowerCase();
     return /auth|credential|connection/.test(section) || /password|secret|token|api.?key/.test(type) || field.secret === true || field.isSecret === true;
-  }).map(field => String(field.label || field.displayName || field.name || field.key || field.fieldName || '')).filter(Boolean);
-  const labels = [...keys.map(titleFromCamel), ...fieldLabels];
+  }).map(field => String(field.name || field.key || field.fieldName || field.code || field.id || '')).filter(Boolean);
+  const labels = [...keys, ...fieldKeys];
   return labels.length ? Array.from(new Set(labels)) : null;
 }
 function mergeLiveVendorTemplate(name: string, detail: Record<string, unknown> = {}): IntegrationVendorTemplate{
@@ -242,7 +256,7 @@ function mergeLiveVendorTemplate(name: string, detail: Record<string, unknown> =
     method: liveTemplateValue(detail, ['method','general.integrationMethod'], ['method','integrationMethod'], base.method || '—'),
     protocol: liveTemplateValue(detail, ['protocol','apiRequest.protocol'], ['protocol'], base.protocol || '—'),
     auth: liveTemplateValue(detail, ['auth','authType','connectionAuthentication.authenticationStatus'], ['auth','authType','authenticationType'], base.auth || '—'),
-    base: liveTemplateValue(detail, ['baseUrl','host','endpoint','connectionAuthentication.baseUrl','general.baseUrl'], ['baseUrl','host','endpoint','url'], base.base || '—'),
+    base: liveTemplateValue(detail, ['providerParameters.baseUrl','baseUrl','host','endpoint','connectionAuthentication.baseUrl','general.baseUrl'], ['baseUrl','host','endpoint','url'], base.base || '—'),
     port: liveTemplateValue(detail, ['port','apiRequest.port'], ['port','portNumber'], base.port || '—'),
     format: liveTemplateValue(detail, ['format','dataFormat','apiRequest.format'], ['format','dataFormat'], base.format || '—'),
     sync: liveTemplateValue(detail, ['synchronization.syncFrequency','syncFrequency'], ['syncFrequency','syncMode'], String(sync.syncFrequency || base.sync || '—')),
@@ -471,6 +485,15 @@ function integrationCreateApiPayload(
   const scopedTenant = String(localStorage.getItem('zentrid_integration_tenant') || '').trim();
   const tenantName = scopedTenant && scopedTenant !== 'All Tenants' ? scopedTenant : '';
   const credentials = integrationCredentialValues(formData);
+  const providerParameterDefaults = liveProviderParameters(toRecord(template.templateDetail));
+  const providerParameters: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(providerParameterDefaults)) {
+    if (value !== undefined && value !== null && value !== '') providerParameters[key] = value;
+  }
+  providerParameters.providerType = vendor;
+  const submittedBaseUrl = integrationFormText(formData, 'baseUrl');
+  if (submittedBaseUrl) providerParameters.baseUrl = submittedBaseUrl;
+  Object.assign(providerParameters, credentials);
   const splitList = (value: string): string[] => value.split(/[\n,]+/).map(item => item.trim()).filter(Boolean);
   const payload: Record<string, unknown> = {
     integrationName,
@@ -479,8 +502,9 @@ function integrationCreateApiPayload(
     vendorName: integrationFormText(formData, 'vendorName', vendor),
     integrationStatus: status,
     status,
-    baseUrl: integrationFormText(formData, 'baseUrl'),
+    baseUrl: submittedBaseUrl,
     authType: template.auth,
+    providerParameters,
     credentials
   };
   const optional = (key: string, value: unknown): void => {
@@ -716,7 +740,7 @@ function integrationWizard(_tenant?: string): string{
   const steps = ['General','Connection & Authentication','API Request','Synchronization','Partner Account'];
   const stepDescriptions: Record<string, string> = {
     'General': 'Define the connector identity, vendor name and intended lifecycle status. New connectors start Inactive until validation is complete.',
-    'Connection & Authentication': 'Configure the vendor host, whitelist rules and credentials. Wizard checks remain local previews; credentials are submitted only when Create Connector is confirmed.',
+    'Connection & Authentication': 'Configure the vendor host, whitelist rules and provider-specific parameters from the live backend template. Secret values are submitted only when Create Connector is confirmed.',
     'API Request': 'Define request limits and throttling parameters used by the connector adapter.',
     'Synchronization': 'Define the schedule and timestamp field used by the sync pipeline. Failed-sync handling belongs to Connector Operations.',
     'Partner Account': 'Capture optional vendor-side account and support contacts, then review the connector before backend creation.'
@@ -727,8 +751,8 @@ function integrationWizard(_tenant?: string): string{
     <button class="modal-close" id="closeIntModal" type="button" aria-label="Close connector wizard">×</button>
     <p class="eyebrow">Integration Parameters</p>
     <h2 id="integrationWizardTitle">Connect Vendor Platform</h2>
-    <p class="muted">Admin-facing setup only: identity, connection address, vendor credentials, API limits, synchronization and partner/account contact context.</p>
-    <div class="integration-prototype-note"><span class="badge info">Backend API</span><small>The connector is created through the confirmed backend mutation. Credential values are submitted only with the final create request and are never stored in the browser fallback.</small></div>
+    <p class="muted">Admin-facing setup only: identity, connection address, live provider parameters, API limits, synchronization and partner/account contact context.</p>
+    <div class="integration-prototype-note"><span class="badge info">Backend API</span><small>The connector is created through the confirmed backend mutation. Provider parameter values are submitted only with the final create request; secret values are never stored in the browser fallback.</small></div>
     <div id="integrationValidationSummary" class="form-validation-summary" role="alert" tabindex="-1" hidden></div>
     <div class="setup-layout">
       <div class="setup-rail" aria-label="Connector setup steps">${steps.map((name,index)=>`<button type="button" class="${index===0?'active':''}" data-step="${index}" ${index===0?'aria-current="step"':''}><b>${index+1}</b><span>${name}</span></button>`).join('')}</div>
@@ -822,7 +846,16 @@ function hydrateVendor(): void{
 
   const credentialFields = byId('credentialFields');
   if (credentialFields) {
-    credentialFields.innerHTML = tpl.credentials.map(f => { const key = f.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); const secret = fieldType(f) === 'password'; return `<label>${f} *<input name="credential_${key}" type="${secret ? 'password' : 'text'}" required autocomplete="${secret ? 'new-password' : 'off'}" placeholder="${f}"></label>`; }).join('');
+    const providerDefaults = liveProviderParameters(toRecord(tpl.templateDetail));
+    credentialFields.innerHTML = tpl.credentials.map(fieldKey => {
+      const label = titleFromCamel(fieldKey);
+      const secret = fieldType(fieldKey) === 'password';
+      const defaultValue = providerDefaults[fieldKey];
+      const valueAttr = !secret && defaultValue !== undefined && defaultValue !== null && String(defaultValue) !== ''
+        ? ` value="${integrationDetailEscape(String(defaultValue))}"`
+        : '';
+      return `<label>${integrationDetailEscape(label)} *<input name="credential_${integrationDetailEscape(fieldKey)}" type="${secret ? 'password' : 'text'}" required autocomplete="${secret ? 'new-password' : 'off'}" placeholder="${integrationDetailEscape(label)}"${valueAttr}></label>`;
+    }).join('');
   }
   applyTemplateDetailToForm(vendor);
 
@@ -1684,7 +1717,7 @@ function connectorCredentialMap(x: Partial<IntegrationRecord>): Record<string, u
   const vendor = x.vendor || 'Other';
   const tpl = resolveIntegrationVendorTemplate(vendor);
   const stored: Record<string, unknown> = x.credentials || {};
-  return Object.fromEntries(tpl.credentials.map((name: string) => [name, stored[name] || stored[name.toLowerCase()] || 'Configured value']));
+  return Object.fromEntries(tpl.credentials.map((name: string) => [titleFromCamel(name), stored[name] || stored[name.toLowerCase()] || stored[titleFromCamel(name)] || 'Configured value']));
 }
 
 function editableControl(key: string, value: unknown, label: string): string{

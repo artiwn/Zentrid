@@ -74,13 +74,23 @@
         alertContext = {};
       }
     }
+    const rawAlertVendor = state?.params?.vendor || '';
+    const normalizedAlertVendor = (() => {
+      const value = String(rawAlertVendor || '').trim();
+      const key = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (key === 'solax') return 'solarx';
+      if (key === 'deye' || key === 'deyecloud') return 'deyecloud';
+      if (key === 'sungrow') return 'sungrow';
+      if (key === 'huawei') return 'huawei';
+      return value;
+    })();
     const alertFilters = entity === 'alerts' ? {
       search: state?.search || '',
       severity: state?.params?.severity || alertContext.severity || '',
       alertStatus: state?.params?.alertStatus || alertContext.status || '',
       tenant: state?.params?.tenant || alertContext.tenant || '',
       plant: state?.params?.plant || '',
-      vendor: state?.params?.vendor || '',
+      vendor: normalizedAlertVendor,
       plantId: state?.params?.plantId || alertContext.plantId || '',
       deviceId: state?.params?.deviceId || alertContext.deviceId || '',
       tenantId: state?.params?.tenantId || ''
@@ -121,6 +131,9 @@
     return {
       page: page.page,
       pageSize: page.pageSize,
+      ...(page.plantId ? { plantId: page.plantId } : {}),
+      ...(page.deviceId ? { deviceId: page.deviceId } : {}),
+      ...(page.metric ? { metric: page.metric } : {}),
       staleWhileRevalidate: true,
       persist: true,
       requestGroup: 'registry:telemetry',
@@ -189,6 +202,122 @@
       server: true,
       source: result.source
     });
+  }
+
+  const ALERT_DISPLAY_SEARCH_PAGE_SIZE = 100;
+  const ALERT_DISPLAY_SEARCH_MAX_PAGES = 10;
+
+  type AlertSearchMode = 'none' | 'backend' | 'display-fallback';
+  type AlertSearchMeta = {
+    mode: AlertSearchMode;
+    query: string;
+    scannedCount: number;
+    availableCount: number;
+    truncated: boolean;
+  };
+
+  function setAlertSearchMeta(meta: AlertSearchMeta): void {
+    (window as Window & { ZentridAlertSearchMeta?: AlertSearchMeta }).ZentridAlertSearchMeta = meta;
+  }
+
+  function alertDisplaySearchText(item: AnyRecord): string {
+    const values = [
+      item.title,
+      item.canonicalName,
+      item.zentridCode,
+      item.id,
+      item.sourceAlertId,
+      item.vendorRawCode,
+      item.vendorCode,
+      item.vendorMessage,
+      item.category,
+      item.plant,
+      item.plantName,
+      item.plantId,
+      item.sourcePlantId,
+      item.device,
+      item.deviceName,
+      item.deviceId,
+      item.sourceDeviceId,
+      item.tenant,
+      item.tenantId,
+      item.vendor,
+      item.source
+    ];
+    return values.map(value => String(value ?? '').trim()).filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function alertDisplaySearchKpi(items: AnyRecord[]): Record<string, number> {
+    const severity = (value: unknown) => String(value || '').trim().toLowerCase();
+    const escalated = (value: unknown) => String(value || '').trim().toLowerCase().includes('escalat');
+    return {
+      totalCount: items.length,
+      criticalCount: items.filter(item => severity(item.severity) === 'critical').length,
+      faultCount: items.filter(item => severity(item.severity) === 'fault').length,
+      warningCount: items.filter(item => severity(item.severity) === 'warning').length,
+      escalatedCount: items.filter(item => escalated(item.status) || escalated(item.priority)).length
+    };
+  }
+
+  async function alertDisplaySearchFallback(
+    query: string,
+    baseOptions: ZentridRepositoryReadOptions
+  ): Promise<ZentridRepositoryListResult | null> {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    if (!normalizedQuery) return null;
+
+    const pageOptions = (page: number): ZentridRepositoryReadOptions => ({
+      ...baseOptions,
+      page,
+      pageSize: ALERT_DISPLAY_SEARCH_PAGE_SIZE,
+      search: '',
+      requestGroup: `registry:alerts:display-search:${page}`,
+      supersede: false
+    });
+
+    const first = await ZentridAPIRepositories.alerts.list(pageOptions(1));
+    const availableCount = Math.max(first.pagination.totalCount, first.items.length);
+    const pageLimit = Math.max(1, Math.min(first.pagination.totalPages || 1, ALERT_DISPLAY_SEARCH_MAX_PAGES));
+    const rest = pageLimit > 1
+      ? await Promise.all(Array.from({ length: pageLimit - 1 }, (_, index) => ZentridAPIRepositories.alerts.list(pageOptions(index + 2))))
+      : [];
+    const pages = [first, ...rest];
+    const allItems = pages.flatMap(page => page.items as AnyRecord[]);
+    const unique = Array.from(new Map(allItems.map(item => [String(item.id || item.sourceAlertId || JSON.stringify(item)), item])).values());
+    const matches = unique.filter(item => alertDisplaySearchText(item).includes(normalizedQuery));
+
+    const requestedPage = Math.max(1, Number(baseOptions.page) || 1);
+    const requestedPageSize = Math.max(1, Number(baseOptions.pageSize) || 50);
+    const totalPages = Math.max(1, Math.ceil(matches.length / requestedPageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const start = (page - 1) * requestedPageSize;
+    const pageItems = matches.slice(start, start + requestedPageSize);
+    const truncated = (first.pagination.totalPages || 1) > pageLimit;
+
+    setAlertSearchMeta({
+      mode: 'display-fallback',
+      query,
+      scannedCount: unique.length,
+      availableCount,
+      truncated
+    });
+
+    return {
+      entity: 'alerts',
+      items: pageItems,
+      rawItems: pageItems,
+      source: '/api/admin/alerts · Zentrid display-field fallback',
+      errors: pages.flatMap(pageResult => pageResult.errors || []),
+      pagination: {
+        page,
+        pageSize: requestedPageSize,
+        totalCount: matches.length,
+        totalPages,
+        hasPreviousPage: page > 1,
+        hasNextPage: page < totalPages
+      },
+      kpi: alertDisplaySearchKpi(matches)
+    };
   }
 
   function beginRegistryRequest(entity: RegistryEntity): number {
@@ -794,9 +923,16 @@
       const staleValue = Number(row.stalePlantsCount ?? row.stalePlants ?? row.liveSummary?.raw?.stalePlantsCount ?? 0);
       const hasStaleMetric = Number.isFinite(plantsValue) && plantsValue > 0 && Number.isFinite(staleValue);
       const lastError = safeText(row.lastErrorMessage || row.liveSummary?.lastErrorMessage, '').trim();
+      const staleRateValue = hasStaleMetric ? Math.min(100, (staleValue / plantsValue) * 100) : null;
+      const backendMetricValue = hasErrorRate ? Number(errorRateValue) : null;
+      const backendMetricMatchesStaleRate = backendMetricValue !== null && staleRateValue !== null
+        ? Math.abs(backendMetricValue - staleRateValue) < 0.15
+        : false;
       const healthParts = [
         hasStaleMetric ? `${compactNumber(staleValue)}/${compactNumber(plantsValue)} stale` : '',
-        hasErrorRate ? `${Number(errorRateValue).toFixed(1)}% error rate` : ''
+        backendMetricValue !== null
+          ? `API errorRatePct ${backendMetricValue.toFixed(1)}%${backendMetricMatchesStaleRate ? ' · matches stale rate' : ''} · semantics unverified`
+          : ''
       ].filter(Boolean);
       return {
         name: safeText(ZentridAPIContracts.normalization.integrationProvider(row.displayName || row.name || row.provider || row.vendor), '—'),
@@ -876,15 +1012,33 @@
   }
 
   function plantMatchesDevice(plant: AnyRecord, device: AnyRecord): boolean {
-    return sameId(device.plantId, plant.externalId) || sameId(device.plantId, plant.id) || sameId(device.raw?.sourcePlantId, plant.externalId) || sameId(device.raw?.sourcePlantId, plant.id);
+    const canonicalPlantId = firstOf(plant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.liveRecord.id'], '');
+    return sameId(device.plantId, canonicalPlantId)
+      || sameId(device.plantId, plant.externalId)
+      || sameId(device.plantId, plant.id)
+      || sameId(device.raw?.sourcePlantId, plant.externalId)
+      || sameId(device.raw?.sourcePlantId, plant.sourcePlantId)
+      || sameId(device.raw?.sourcePlantId, plant.id);
   }
 
   function plantMatchesAlert(plant: AnyRecord, alert: AnyRecord): boolean {
-    return sameId(alert.plantId, plant.externalId) || sameId(alert.plantId, plant.id) || sameId(alert.raw?.sourcePlantId, plant.externalId) || sameId(alert.raw?.sourcePlantId, plant.id);
+    const canonicalPlantId = firstOf(plant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.liveRecord.id'], '');
+    return sameId(alert.plantId, canonicalPlantId)
+      || sameId(alert.plantId, plant.externalId)
+      || sameId(alert.plantId, plant.id)
+      || sameId(alert.raw?.sourcePlantId, plant.externalId)
+      || sameId(alert.raw?.sourcePlantId, plant.sourcePlantId)
+      || sameId(alert.raw?.sourcePlantId, plant.id);
   }
 
   function deviceMatchesAlert(device: AnyRecord, alert: AnyRecord): boolean {
-    return sameId(alert.deviceId, device.externalId) || sameId(alert.deviceId, device.id) || sameId(alert.raw?.sourceDeviceId, device.externalId) || sameId(alert.raw?.sourceDeviceId, device.id);
+    const canonicalDeviceId = firstOf(device, ['liveId', 'canonicalDeviceId', 'liveDetail.id', 'liveDetail.deviceId'], '');
+    return sameId(alert.deviceId, canonicalDeviceId)
+      || sameId(alert.deviceId, device.externalId)
+      || sameId(alert.deviceId, device.id)
+      || sameId(alert.raw?.sourceDeviceId, device.externalId)
+      || sameId(alert.raw?.sourceDeviceId, device.sourceDeviceId)
+      || sameId(alert.raw?.sourceDeviceId, device.id);
   }
 
   function sameLabel(a: unknown, b: unknown): boolean {
@@ -894,18 +1048,24 @@
   }
 
   function plantMatchesTelemetry(plant: AnyRecord, telemetry: AnyRecord): boolean {
-    return sameId(telemetry.plantId, plant.externalId)
+    const canonicalPlantId = firstOf(plant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.liveRecord.id'], '');
+    return sameId(telemetry.plantId, canonicalPlantId)
+      || sameId(telemetry.plantId, plant.externalId)
       || sameId(telemetry.plantId, plant.id)
       || sameId(telemetry.raw?.sourcePlantId, plant.externalId)
+      || sameId(telemetry.raw?.sourcePlantId, plant.sourcePlantId)
       || sameId(telemetry.raw?.sourcePlantId, plant.id)
       || sameLabel(telemetry.plant, plant.name);
   }
 
   function deviceMatchesTelemetry(device: AnyRecord, telemetry: AnyRecord): boolean {
-    return sameId(telemetry.deviceId, device.externalId)
+    const canonicalDeviceId = firstOf(device, ['liveId', 'canonicalDeviceId', 'liveDetail.id', 'liveDetail.deviceId'], '');
+    return sameId(telemetry.deviceId, canonicalDeviceId)
+      || sameId(telemetry.deviceId, device.externalId)
       || sameId(telemetry.deviceId, device.id)
       || sameId(telemetry.deviceId, device.serial)
       || sameId(telemetry.raw?.sourceDeviceId, device.externalId)
+      || sameId(telemetry.raw?.sourceDeviceId, device.sourceDeviceId)
       || sameId(telemetry.raw?.sourceDeviceId, device.id)
       || sameId(telemetry.raw?.sourceDeviceId, device.serial)
       || sameLabel(telemetry.device, device.name);
@@ -1033,23 +1193,21 @@
   }
 
   async function loadPlantAlertRelations(plant: AnyRecord, forceRefresh: boolean): Promise<{ rows: AnyRecord[]; errors: unknown[]; source: string }> {
-    const plantIds = [safeText(plant.id, '').trim(), safeText(plant.externalId, '').trim()].filter(value => value && value !== '—');
-    const errors: unknown[] = [];
-    for (const plantId of plantIds) {
-      try {
-        const result = await ZentridAPIRepositories.alerts.list({
-          ...detailReadOptions(`plant-detail:alerts-${plantId}`, 100, forceRefresh),
-          timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
-          plantId
-        });
-        errors.push(...result.errors);
-        const rows = result.items.filter(row => plantMatchesAlert(plant, row));
-        if (rows.length || !result.errors.length) return { rows, errors, source: `${result.source}?plantId=${encodeURIComponent(plantId)}` };
-      } catch (error) {
-        errors.push(error);
-      }
+    const canonicalPlantId = safeText(firstOf(plant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.liveRecord.id'], ''), '').trim();
+    if (!canonicalPlantId) {
+      return { rows: [], errors: [new Error('A Canonical/Platform Live Plant ID is required for plant-scoped alerts. Registry UUIDs are not sent to /api/admin/alerts.')], source: '/api/admin/alerts' };
     }
-    return { rows: [], errors, source: '/api/admin/alerts' };
+    try {
+      const result = await ZentridAPIRepositories.alerts.list({
+        ...detailReadOptions(`plant-detail:alerts-${canonicalPlantId}`, 100, forceRefresh),
+        timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
+        plantId: canonicalPlantId
+      });
+      const rows = result.items.filter(row => plantMatchesAlert(plant, row));
+      return { rows, errors: result.errors, source: `${result.source}?plantId=${encodeURIComponent(canonicalPlantId)}` };
+    } catch (error) {
+      return { rows: [], errors: [error], source: `/api/admin/alerts?plantId=${encodeURIComponent(canonicalPlantId)}` };
+    }
   }
 
   function enrichDeviceRelations(devices: AnyRecord[], plants: AnyRecord[], alerts: AnyRecord[]): AnyRecord[] {
@@ -1433,8 +1591,28 @@
     const requestVersion = beginRegistryRequest('alerts');
     if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested Alert Registry page.', { source: '/api/admin/alerts' });
     try {
-      const registry = await ZentridAPIRepositories.alerts.list({ ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+      const alertOptions = { ...registryReadOptions('alerts', forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS };
+      let registry = await ZentridAPIRepositories.alerts.list(alertOptions);
       if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
+      const requestedSearch = String(alertOptions.search || '').trim();
+      if (requestedSearch && registry.pagination.totalCount === 0) {
+        try {
+          const fallback = await alertDisplaySearchFallback(requestedSearch, alertOptions);
+          if (!isCurrentRegistryRequest('alerts', requestVersion)) return;
+          if (fallback) registry = fallback;
+        } catch (fallbackError) {
+          console.warn('Zentrid alert display-field fallback search was unavailable.', fallbackError);
+          setAlertSearchMeta({ mode: 'backend', query: requestedSearch, scannedCount: 0, availableCount: 0, truncated: false });
+        }
+      } else {
+        setAlertSearchMeta({
+          mode: requestedSearch ? 'backend' : 'none',
+          query: requestedSearch,
+          scannedCount: registry.items.length,
+          availableCount: registry.pagination.totalCount,
+          truncated: false
+        });
+      }
       publishRegistryPagination('alerts', registry);
       const data = registry.items;
       const alertStore = window.ZentridAlerts || (typeof ZentridAlerts !== 'undefined' ? ZentridAlerts : null);
@@ -1469,7 +1647,7 @@
         ? `${cacheInfo.prefix}Alert Registry page ${registry.pagination.page} is ready. The operational /api/alerts snapshot is loading independently.`
         : 'The requested Alert Registry page returned no records. The operational /api/alerts snapshot is still checked separately.', {
         source: registry.source,
-        details: [`Registry page ${registry.pagination.page} of ${registry.pagination.totalPages}`, 'Operational snapshot pending', cacheInfo.details].filter(Boolean).join(' · '),
+        details: [`Registry page ${registry.pagination.page} of ${registry.pagination.totalPages}`, requestedSearch && registry.source.includes('display-field fallback') ? 'Display-field fallback search' : '', 'Operational snapshot pending', cacheInfo.details].filter(Boolean).join(' · '),
         recordCount: registry.pagination.totalCount,
         ...cacheFreshnessOptions(cacheInfo)
       });
@@ -1918,6 +2096,10 @@
     return String(value ?? '').trim().toLowerCase();
   }
 
+  function isUuidValue(value: unknown): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value ?? '').trim());
+  }
+
   function normalizedProviderIdentity(value: unknown): string {
     const key = normalizedSourceKey(value).replace(/[\s_-]+/g, '');
     if (key === 'deye' || key === 'deyecloud') return 'deyecloud';
@@ -1950,20 +2132,27 @@
       } catch (_error) { /* Re-resolve below from source identity. */ }
     }
 
+    const registryPlantId = String(firstOf(device, ['plantId', 'raw.plantRelation.plantId'], '') || '').trim();
+    if (registryPlantId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
+      try {
+        const plantDevices = await window.ZentridPlatformAPI.plantRegistry.devices(registryPlantId, detailReadOptions('device-detail:canonical-by-registry-plant', 100, forceRefresh));
+        const canonicalMatch = asArray(plantDevices).find(candidate => liveDeviceMatchesAdmin(candidate, device));
+        const canonicalId = String(firstOf(canonicalMatch || {}, ['deviceId', 'id'], '') || '').trim();
+        if (canonicalMatch && canonicalId) {
+          try {
+            const detail = await window.ZentridPlatformAPI?.liveDevices?.get(canonicalId, detailReadOptions('device-detail:live-core-from-registry-plant', 20, forceRefresh));
+            return { id: canonicalId, detail: (detail && typeof detail === 'object' ? detail as AnyRecord : canonicalMatch as AnyRecord) };
+          } catch {
+            return { id: canonicalId, detail: canonicalMatch as AnyRecord };
+          }
+        }
+      } catch (_error) { /* Source identity fallbacks remain available below. */ }
+    }
+
     if (!sourceDeviceId || sourceDeviceId === '—') return null;
 
-    // Some live implementations address detail routes by the vendor/source device id.
-    // Try that before issuing a collection search. A 404 is a normal not-linked state.
-    try {
-      const bySource = await window.ZentridPlatformAPI?.liveDevices?.get(sourceDeviceId, detailReadOptions('device-detail:live-source-id', 20, forceRefresh));
-      if (bySource && typeof bySource === 'object') {
-        const detail = bySource as AnyRecord;
-        const liveId = String(firstOf(detail, ['deviceId', 'id', 'sourceDeviceId'], sourceDeviceId) || sourceDeviceId).trim();
-        if (liveDeviceMatchesAdmin(detail, device) || normalizedSourceKey(firstOf(detail, ['sourceDeviceId', 'sourceReference.sourceEntityId'], sourceDeviceId)) === normalizedSourceKey(sourceDeviceId)) {
-          return { id: liveId, detail };
-        }
-      }
-    } catch (_error) { /* Collection search remains the compatibility fallback. */ }
+    // Do not probe /api/devices/{sourceDeviceId}: the detail route is canonical-id based
+    // for vendors where source ids are not route ids. Continue with the collection search.
 
     const requestOptions = detailReadOptions('device-detail:live-match', 50, forceRefresh);
     const listPayload = await window.ZentridPlatformAPI?.liveDevices?.list({ page: 1, pageSize: 50, search: sourceDeviceId }, requestOptions);
@@ -2097,7 +2286,8 @@
           tabs: ['alerts'],
           label: 'Device alerts',
           loader: async () => {
-            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), deviceId: selectedAdminDeviceId, timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
+            if (!selectedLiveDeviceId) throw new Error('A Canonical/Platform Live Device ID is required for device-scoped alerts. Registry UUIDs are not sent to /api/admin/alerts.');
+            const result = await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('device-detail:alerts', 100, forceRefresh), deviceId: selectedLiveDeviceId, timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
             alertRows = result.items;
             relationErrors.push(...result.errors);
             if (!alertRows.length && result.errors.length) throw result.errors[0];
@@ -2260,8 +2450,11 @@
     const liveRaw = operationalPlant.raw && typeof operationalPlant.raw === 'object' ? operationalPlant.raw as AnyRecord : {};
     return {
       ...adminPlant,
-      operationalId: safeText(operationalPlant.id, '').trim(),
-      operationalExternalId: safeText(operationalPlant.externalId, '').trim(),
+      operationalId: safeText(operationalPlant.id || adminPlant.operationalId || adminPlant.canonicalPlantId, '').trim(),
+      canonicalPlantId: safeText(operationalPlant.id || adminPlant.canonicalPlantId || adminPlant.operationalId, '').trim(),
+      registryPlantId: safeText(adminPlant.registryPlantId || adminPlant.adminId || adminPlant.id, '').trim(),
+      operationalExternalId: safeText(operationalPlant.externalId || adminPlant.operationalExternalId || adminPlant.sourcePlantId, '').trim(),
+      sourcePlantId: safeText(adminPlant.sourcePlantId || operationalPlant.externalId || adminPlant.externalId, '').trim(),
       livePower: preferOperational(operationalPlant.livePower, adminPlant.livePower),
       today: preferOperational(operationalPlant.today, adminPlant.today),
       totalEnergy: operationalPlant.totalEnergy ?? adminPlant.totalEnergy ?? null,
@@ -2338,7 +2531,9 @@
 
       if (selectedAdminId && live.items.length) {
         try {
-          const operational = await resolveSelectedLivePlant(selectedAdminId, forceRefresh);
+          const adminPlant = live.items[0] as AnyRecord;
+          const canonicalPlantId = safeText(firstOf(adminPlant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId'], ''), '').trim();
+          const operational = canonicalPlantId ? await resolveSelectedLivePlant(canonicalPlantId, forceRefresh) : { ...live, items: [], rawItems: [], errors: [] };
           const operationalPlant = operational.items[0];
           if (operationalPlant) {
             const enrichedPlant = enrichAdministrativePlantWithOperational(live.items[0] as AnyRecord, operationalPlant as AnyRecord);
@@ -2370,9 +2565,11 @@
       if (assignmentRecord) {
         const rawAssignment = assignmentRecord.raw?.clientAssignment || assignmentRecord.clientAssignment || {};
         const assignmentClientId = String(assignmentRecord.clientId || rawAssignment.clientId || '').trim();
-        const assignmentTenantId = String(assignmentRecord.tenantId || rawAssignment.managingTenant || assignmentRecord.tenant || '').trim();
+        const assignmentTenantCandidate = String(assignmentRecord.tenantId || rawAssignment.managingTenant || assignmentRecord.tenant || '').trim();
+        const assignmentTenantId = isUuidValue(assignmentTenantCandidate) ? assignmentTenantCandidate : '';
+        const assignmentTenantLabel = assignmentTenantId ? '' : assignmentTenantCandidate;
         const [clientResult, tenantResult] = await Promise.all([
-          assignmentClientId
+          assignmentClientId && isUuidValue(assignmentClientId)
             ? ZentridAPIRepositories.clients.get(assignmentClientId, detailReadOptions('plant-detail:client-assignment', 20, forceRefresh)).catch(() => null)
             : Promise.resolve(null),
           assignmentTenantId
@@ -2393,6 +2590,9 @@
           assignmentRecord.operator = tenantLabel;
           assignmentRecord.tenant = tenantLabel;
           setLiveTenants([resolvedTenant]);
+        } else if (assignmentTenantLabel) {
+          assignmentRecord.operator = assignmentTenantLabel;
+          assignmentRecord.tenant = assignmentTenantLabel;
         }
       }
 
@@ -2483,7 +2683,7 @@
             const result = await ZentridAPIRepositories.telemetry.list({
               ...detailReadOptions('plant-detail:telemetry', 100, forceRefresh),
               timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
-              plantId: safeText(selectedPlant.id, '').trim()
+              plantId: safeText(firstOf(selectedPlant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'id'], ''), '').trim()
             });
             telemetryRows = result.items.filter(row => plantMatchesTelemetry(selectedPlant, row));
             telemetryLoaded = true;
@@ -2612,6 +2812,67 @@
     return ZentridAPIContracts.devices.map(payload as AnyRecord, 0, contractMapperContext) as AnyRecord;
   }
 
+  const alertRegistryPlantCache = new Map<string, string>();
+
+  async function resolveAlertRegistryPlantId(alert: AnyRecord, forceRefresh: boolean, requestOptions: ZentridRequestOptions): Promise<string> {
+    const sourcePlantId = safeText(firstOf(alert, ['sourcePlantId', 'raw.sourcePlantId', 'raw.plant.sourcePlantId'], ''), '').trim();
+    const provider = alertDeviceProvider(alert);
+    const plantName = safeText(firstOf(alert, ['plant', 'plantName', 'raw.plantName'], ''), '').trim();
+    if (!sourcePlantId || !plantName) return '';
+    const cacheKey = `${provider}|${normalizedSourceKey(sourcePlantId)}|${normalizedSourceKey(plantName)}`;
+    if (!forceRefresh && alertRegistryPlantCache.has(cacheKey)) return alertRegistryPlantCache.get(cacheKey) || '';
+
+    const payload = await window.ZentridPlatformAPI?.plantRegistry?.search(plantName, requestOptions);
+    const candidates = asArray(payload).map(row => ZentridAPIContracts.plants.map(row, 0, contractMapperContext) as AnyRecord);
+    const exactNameCandidates = candidates.filter(row => normalizedSourceKey(firstOf(row, ['name', 'plant', 'plantName'], '')) === normalizedSourceKey(plantName));
+    const pool = exactNameCandidates.length ? exactNameCandidates : candidates;
+
+    for (const candidate of pool.slice(0, 10)) {
+      const registryPlantId = safeText(firstOf(candidate, ['adminId', 'id'], ''), '').trim();
+      if (!registryPlantId || !isUuidValue(registryPlantId)) continue;
+      try {
+        const detailResult = await ZentridAPIRepositories.plants.get(registryPlantId, {
+          ...detailReadOptions('alert-detail:registry-plant-identity', 20, forceRefresh),
+          cacheVariant: 'admin-registry',
+          timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+        });
+        const detail = detailResult.items[0] as AnyRecord | undefined;
+        if (!detail) continue;
+        const detailSourcePlantId = normalizedSourceKey(firstOf(detail, [
+          'sourcePlantId', 'raw.providerData.sourcePlantId', 'raw.source.sourcePlantId', 'raw.sourcePlantId'
+        ], ''));
+        const detailProvider = normalizedProviderIdentity(firstOf(detail, [
+          'vendor', 'raw.providerData.provider', 'raw.source.provider', 'raw.provider'
+        ], ''));
+        const sourceMatches = !detailSourcePlantId || detailSourcePlantId === normalizedSourceKey(sourcePlantId);
+        const providerMatches = !provider || !detailProvider || detailProvider === provider;
+        if (sourceMatches && providerMatches) {
+          alertRegistryPlantCache.set(cacheKey, registryPlantId);
+          return registryPlantId;
+        }
+      } catch {
+        // Search candidates come from the Registry list. A missing enrichment detail is non-fatal.
+      }
+    }
+
+    if (pool.length === 1) {
+      const onlyId = safeText(firstOf(pool[0] || {}, ['adminId', 'id'], ''), '').trim();
+      if (isUuidValue(onlyId)) {
+        alertRegistryPlantCache.set(cacheKey, onlyId);
+        return onlyId;
+      }
+    }
+    return '';
+  }
+
+  function alertAdminDevicePlantMatch(device: AnyRecord, alert: AnyRecord, sourceDeviceId: string, provider: string): boolean {
+    if (alertDeviceSourceMatch(device, sourceDeviceId, provider)) return true;
+    const candidateProvider = mappedDeviceProvider(device);
+    const alertName = normalizedSourceKey(firstOf(alert, ['device', 'deviceName'], ''));
+    const candidateName = normalizedSourceKey(firstOf(device, ['name', 'device', 'deviceName', 'raw.identity.deviceName'], ''));
+    return Boolean(alertName && candidateName && alertName === candidateName && (!provider || !candidateProvider || candidateProvider === provider));
+  }
+
   async function resolveAlertLinkedDevice(alert: AnyRecord, forceRefresh: boolean): Promise<{ admin: AnyRecord | null; live: AnyRecord | null; errors: unknown[]; source: string }> {
     const errors: unknown[] = [];
     let admin: AnyRecord | null = null;
@@ -2622,16 +2883,8 @@
     let provider = alertDeviceProvider(alert);
     const requestOptions = { ...detailReadOptions('alert-detail:linked-device', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS };
 
-    // Alert device ids can belong to the operational/canonical alert graph and are not
-    // guaranteed to be Device Registry ids. A direct 404 is therefore an expected miss,
-    // not a page-level partial failure.
-    if (alertDeviceId && window.ZentridPlatformAPI?.deviceRegistry) {
-      try {
-        const payload = await window.ZentridPlatformAPI.deviceRegistry.get(alertDeviceId, requestOptions);
-        admin = mapAlertLinkedDevicePayload(payload);
-        if (admin) source = 'admin-id';
-      } catch (_expectedDirectMiss) { /* Resolve by source identity below. */ }
-    }
+    // Alert.deviceId belongs to the canonical/operational graph. Do not probe the
+    // administrative Device Registry detail route with it; resolve Registry identity below.
 
     // The alert device id may instead be the Platform Live id. Use it to enrich the
     // source identity before searching the administrative registry.
@@ -2663,16 +2916,21 @@
     }
 
     if (!admin && sourceDeviceId) {
-      const plantId = safeText(alert.plantId, '').trim();
-      if (plantId && window.ZentridPlatformAPI?.plantRegistry) {
-        try {
-          const payload = await window.ZentridPlatformAPI.plantRegistry.devices(plantId, requestOptions);
-          const mapped = asArray(payload).map(row => ZentridAPIContracts.devices.map(row, 0, contractMapperContext) as AnyRecord);
-          admin = mapped.find(row => alertDeviceSourceMatch(row, sourceDeviceId, provider)) || null;
-          if (admin) source = 'plant-device-relation';
-        } catch (error) {
-          errors.push(error);
+      try {
+        const registryPlantId = await resolveAlertRegistryPlantId(alert, forceRefresh, requestOptions);
+        if (registryPlantId) {
+          const registryDevices = await ZentridAPIRepositories.devices.list({
+            page: 1,
+            pageSize: 100,
+            plantId: registryPlantId,
+            timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS,
+            forceRefresh
+          });
+          admin = (registryDevices.items as AnyRecord[]).find(row => alertAdminDevicePlantMatch(row, alert, sourceDeviceId, provider)) || null;
+          if (admin) source = 'registry-plant-device-list';
         }
+      } catch (error) {
+        errors.push(error);
       }
     }
 
