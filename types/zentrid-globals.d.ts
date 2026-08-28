@@ -495,6 +495,7 @@ interface ZentridRepositoryReadOptions {
   deviceStatus?: string;
   plantId?: string;
   deviceId?: string;
+  metric?: string;
   tenantId?: string;
   severity?: string;
   alertStatus?: string;
@@ -568,7 +569,7 @@ declare const ZentridAPIRepositories: ZentridAPIRepositoriesApi;
 interface Window { ZentridAPIRepositories: ZentridAPIRepositoriesApi; }
 
 interface ZentridTelemetryPageApi {
-  readOptions(): { page: number; pageSize: number };
+  readOptions(): { page: number; pageSize: number; plantId?: string; deviceId?: string; metric?: string };
   setLoading(message?: string): void;
   render(result: ZentridRepositoryListResult): void;
   renderFailure(message: string): void;
@@ -760,12 +761,26 @@ interface ZentridFreshnessSnapshot {
   online: boolean;
   visible: boolean;
 }
+type ZentridRecordFreshnessKind = 'plant' | 'device' | 'telemetry' | 'generic';
+type ZentridRecordFreshnessStatus = 'fresh' | 'stale' | 'very-stale' | 'unknown';
+interface ZentridRecordFreshnessResult {
+  status: ZentridRecordFreshnessStatus;
+  label: string;
+  tone: 'success' | 'warning' | 'danger' | 'neutral';
+  ageMs: number | null;
+  ageLabel: string;
+  timestamp: string | null;
+  basis: string;
+  backendStatus: string;
+  contradictsBackend: boolean;
+}
 interface ZentridDataFreshnessApi {
   sync(input: ZentridFreshnessSyncInput): ZentridFreshnessSnapshot;
   markRefreshComplete(success?: boolean): void;
   requestRefresh(reason: 'manual' | 'retry' | 'auto'): void;
   setAutoRefresh(intervalMs: number): void;
   snapshot(resource?: ZentridFreshnessResource): ZentridFreshnessSnapshot;
+  evaluateRecord(record: unknown, kind?: ZentridRecordFreshnessKind): ZentridRecordFreshnessResult;
   inferResource(): ZentridFreshnessResource;
   intervals: number[];
 }
