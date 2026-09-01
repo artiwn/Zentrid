@@ -1152,8 +1152,8 @@
 }
 .client-document-view-v118 .data-head,
 .client-document-view-v118 .data-row {
-  grid-template-columns: minmax(240px,1.35fr) minmax(130px,.7fr) minmax(130px,.7fr) minmax(130px,.65fr);
-  min-width: 690px;
+  grid-template-columns: minmax(240px,1.35fr) minmax(130px,.7fr) minmax(130px,.7fr) minmax(130px,.65fr) minmax(100px,.5fr);
+  min-width: 800px;
 }
 .client-user-editor-v118 .data-head,
 .client-user-editor-v118 .data-row {
