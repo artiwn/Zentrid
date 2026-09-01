@@ -164,6 +164,76 @@ function plantOperationalId(plant: ZentridPlant | undefined): string {
   return candidate === undefined || candidate === null ? '' : String(candidate).trim();
 }
 
+function plantProviderAssignmentRows(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) return payload.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  if (!payload || typeof payload !== 'object') return [];
+  const record = payload as Record<string, unknown>;
+  for (const key of ['items', 'data', 'results']) {
+    const value = record[key];
+    if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as Array<Record<string, unknown>>;
+  }
+  return [];
+}
+
+async function resolvePlantProviderAssignment(plant: ZentridPlant): Promise<Record<string, unknown> | null> {
+  const adminId = plantAdministrativeId(plant) || String(plant.id || '').trim();
+  if (!adminId || !window.ZentridPlatformAPI?.providerPlantAssignments?.list) return null;
+  try {
+    const payload = await window.ZentridPlatformAPI.providerPlantAssignments.list({ timeoutMs: 15000 });
+    let matches = plantProviderAssignmentRows(payload).filter(row => String(row.plantRegistryId || '').trim().toLowerCase() === adminId.toLowerCase());
+    const provider = String(plant.vendor || plant.sourceSystem || '').trim().toLowerCase();
+    if (matches.length > 1 && provider) {
+      const providerMatches = matches.filter(row => String(row.provider || '').trim().toLowerCase() === provider);
+      if (providerMatches.length) matches = providerMatches;
+    }
+    return matches.length === 1 ? matches[0] || null : null;
+  } catch {
+    return null;
+  }
+}
+
+function plantLiveMatchesAssignment(row: Record<string, unknown>, assignment: Record<string, unknown>): boolean {
+  const raw = row.raw && typeof row.raw === 'object' ? row.raw as Record<string, unknown> : {};
+  const sourceId = String(row.sourcePlantId || row.externalId || row.operationalExternalId || row.code || raw.sourcePlantId || '').trim().toLowerCase();
+  const assignedSourceId = String(assignment.sourcePlantId || '').trim().toLowerCase();
+  if (!sourceId || !assignedSourceId || sourceId !== assignedSourceId) return false;
+  const provider = String(row.vendor || row.sourceSystem || raw.provider || '').trim().toLowerCase();
+  const assignedProvider = String(assignment.provider || '').trim().toLowerCase();
+  return !provider || !assignedProvider || provider === assignedProvider;
+}
+
+async function resolvePlantOperationalIdFromAssignment(plant: ZentridPlant): Promise<string> {
+  const assignment = await resolvePlantProviderAssignment(plant);
+  if (!assignment || !window.ZentridAPIRepositories?.plants?.list) return '';
+  const sourcePlantId = String(assignment.sourcePlantId || '').trim();
+  if (!sourcePlantId) return '';
+  plant.sourcePlantId = plant.sourcePlantId || sourcePlantId;
+  if (!plant.vendor && assignment.provider) plant.vendor = String(assignment.provider);
+  (plant as ZentridLegacyCompat).providerAccount = assignment.providerAccount || '';
+  (plant as ZentridLegacyCompat).providerPlantAssignment = assignment;
+  (plant as ZentridLegacyCompat).providerPlantAssignmentStatus = 'matched';
+  let page = 1;
+  const pageSize = 100;
+  let hasNext = true;
+  while (hasNext) {
+    try {
+      const result = await window.ZentridAPIRepositories.plants.list({ cacheVariant: 'live', page, pageSize, requestGroup: `plant-identity:${plantAdministrativeId(plant) || plant.id || sourcePlantId}` });
+      const rows = Array.isArray(result?.items) ? result.items as Array<Record<string, unknown>> : [];
+      const match = rows.find(row => plantLiveMatchesAssignment(row, assignment));
+      if (match) {
+        const canonicalId = String(match.id || match.canonicalPlantId || match.operationalId || '').trim();
+        if (canonicalId) return canonicalId;
+      }
+      hasNext = Boolean(result?.pagination?.hasNextPage);
+      page += 1;
+      if (page > Number(result?.pagination?.totalPages || page)) hasNext = false;
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
 async function resolvePlantOperationalId(plant: ZentridPlant): Promise<string> {
   const existing = plantOperationalId(plant);
   if (existing) return existing;
@@ -178,11 +248,18 @@ async function resolvePlantOperationalId(plant: ZentridPlant): Promise<string> {
       plant.operationalId = canonicalId;
       plant.canonicalPlantId = canonicalId;
       plant.registryPlantId = adminId;
+      return canonicalId;
     }
-    return canonicalId;
   } catch {
-    return '';
+    // ProviderPlantAssignments remains a deterministic fallback for source identity below.
   }
+  const assignedCanonicalId = await resolvePlantOperationalIdFromAssignment(plant);
+  if (assignedCanonicalId) {
+    plant.operationalId = assignedCanonicalId;
+    plant.canonicalPlantId = assignedCanonicalId;
+    plant.registryPlantId = adminId;
+  }
+  return assignedCanonicalId;
 }
 
 async function openPlantAlerts(plant: ZentridPlant): Promise<void> {
@@ -193,6 +270,25 @@ async function openPlantAlerts(plant: ZentridPlant): Promise<void> {
   }
   localStorage.setItem('zentrid_alert_context', JSON.stringify({ plantId: canonicalPlantId, tenant: plant.tenant }));
   location.href = 'alerts.html';
+}
+
+async function openPlantTelemetry(plant: ZentridPlant): Promise<void> {
+  const canonicalPlantId = await resolvePlantOperationalId(plant);
+  if (!canonicalPlantId) {
+    window.ZentridLayout?.toast?.('Operational Plant ID could not be resolved. Telemetry was not opened with a Registry UUID.');
+    return;
+  }
+  localStorage.setItem('zentrid_telemetry_context', JSON.stringify({
+    tenant: plant.tenant,
+    plant: plant.name,
+    plantId: canonicalPlantId,
+    device: 'All Devices',
+    metric: 'current_power_kw',
+    range: localStorage.getItem('zentrid_time') || 'Last 24h',
+    layer: 'Normalized',
+    source: 'Plant Registry'
+  }));
+  location.href = 'telemetry.html';
 }
 
 function rememberPlantSelection(plant: ZentridPlant | undefined, selectedId: unknown): void {
@@ -1225,7 +1321,7 @@ function renderPlants(): string {
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>${openSolar ? 'Plant Registry' : 'Groups'}</h1><p class="muted">${openSolar ? 'Administrative master records come from /api/admin/plants. Operational status and energy are loaded separately from /api/plants.' : 'Groups control which typed registries appear in the main sidebar. Each group keeps its own table, filters, detail page and create form.'}</p></div>${openSolar ? `<button class="create-action" id="openPlantCreate" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button>` : `<button class="create-action" id="openGroupCreate" type="button"><span class="pulse"></span><div><strong>+ Create Group</strong><small>Show/hide in sidebar</small></div></button>`}</section>
   <section class="context-bar glass-card">${openSolar ? `<div class="ctx-item"><span>Registry Records</span><strong>${totalPlantCount.toLocaleString()}</strong></div><div class="ctx-item"><span>Registry Page</span><strong>${registryPage}</strong></div><div class="ctx-item"><span>Rows Loaded</span><strong>${list.length}</strong></div><div class="ctx-item"><span>Clients on Page</span><strong>${pageClients}</strong></div><div class="ctx-item"><span>Devices on Page</span><strong>${pageDevices.toLocaleString()}</strong></div><div class="ctx-item"><span>Draft on Page</span><strong>${pageDraft}</strong></div>` : `<button class="ctx-item"><span>Visible Groups</span><strong>${groups.filter(g => g.show).length}</strong></button><button class="ctx-item"><span>Total Groups</span><strong>${groups.length}</strong></button><button class="ctx-item"><span>Plants</span><strong>${totalPlantCount.toLocaleString()}</strong></button>`}</section>
   <section class="panel glass-card ${openSolar ? 'hidden' : ''}" id="groupsCatalogView"><div class="panel-head"><div><h2>Group Management</h2><p>Create groups and decide which ones appear in the main sidebar. This page does not mix Plants, Smart Homes, Chargers and BESS into one table.</p></div><div class="hero-actions"><button class="secondary-btn" id="openSolarPlantsFromGroups" type="button">Open Plants</button><button class="primary-btn" id="openGroupCreateInline" type="button">Create Group</button></div></div><div id="groupsTableHost">${groupRows(groups)}</div></section>
-  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Master data · /api/admin/plants</p><h2>Plant Registry</h2><p>Client, tenant, provisioning, lifecycle and device-count fields are administrative registry data. Missing operational metrics are not fabricated.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current registry page by plant, client, tenant, source..."/><select id="plantStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${plantStatuses.map(value => `<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select><select id="plantVendorFilter"><option ${initialVendor === 'All Sources' ? 'selected' : ''}>All Sources</option>${plantSources.map(value => `<option ${value === initialVendor ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
+  <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="solarPlantsRegistryView"><div class="panel-head"><div><p class="eyebrow">Master data · /api/admin/plants</p><h2>Plant Registry</h2><p>Client, tenant, provisioning, lifecycle and device-count fields are administrative registry data. Missing operational metrics are not fabricated.</p></div><div class="hero-actions"><button class="secondary-btn" id="backToGroups" type="button">Back to Groups</button><button class="create-action" id="openPlantCreateInline" type="button" data-permission-action="create" data-permission-resource="plant"><span class="pulse"></span><div><strong>+ Add Plant</strong><small>Client → vendor → plant data</small></div></button></div></div><div class="toolbar plant-registry-toolbar"><input id="plantSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search Plant Registry by plant, client, tenant, source..."/><select id="plantStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${plantStatuses.map(value => `<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select><select id="plantVendorFilter"><option ${initialVendor === 'All Sources' ? 'selected' : ''}>All Sources</option>${plantSources.map(value => `<option ${value === initialVendor ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div><div id="plantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('plants') || ''}</div><div id="plantTable">${plantRows(list)}</div></section>
   <section class="panel glass-card ${openSolar ? '' : 'hidden'}" id="plantOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/plants</p><h2>Operational Plant Snapshot</h2><p>This is a separate live view. It is not joined to registry rows by page position, because the two endpoints may sort independently.</p></div><button class="go" type="button" data-live-refresh="plants">Refresh</button></div>${operationalPlantSnapshotHtml()}</section>
   ${plantCreateModal()}${groupCreateModal()}`;
 }
@@ -1238,21 +1334,31 @@ function wirePlants(){
   const search = document.getElementById('plantSearch') as HTMLInputElement | null;
   const status = document.getElementById('plantStatusFilter') as HTMLSelectElement | null;
   const vendor = document.getElementById('plantVendorFilter') as HTMLSelectElement | null;
-  function apply(resetPage = true){
+  function apply(resetPage = true, emitQuery = false){
     if (!table || !search || !status || !vendor) return;
     if (resetPage && !window.ZentridRegistryQuery?.pagination('plants')) ZentridPlantPager.page = 1;
-    const q = (search.value || '').toLowerCase();
+    const query = (search.value || '').trim();
+    const q = query.toLowerCase();
     const s = status.value;
     const v = vendor.value;
+    // Give immediate feedback from the currently loaded rows while the backend
+    // search request is coordinated. Status/source remain current-page filters.
     let list = plants().filter(p => [p.name,p.owner,p.tenant,p.sourceScheme,p.sourceSystem,p.code,p.status].join(' ').toLowerCase().includes(q));
     if (s !== 'All Statuses') list = list.filter(p => p.status === s);
     if (v !== 'All Sources') list = list.filter(p => String(p.sourceScheme || p.sourceSystem || '') === v);
     ZentridRuntimeStability.replaceHtml(table, plantRows(list));
-    window.ZentridRegistryQuery?.update('plants', { search: q || null, plantStatus: s === 'All Statuses' ? null : s, plantVendor: v === 'All Sources' ? null : v }, { replace: true, emit: false });
+    window.ZentridRegistryQuery?.update('plants', {
+      page: emitQuery ? 1 : undefined,
+      search: query || null,
+      plantStatus: s === 'All Statuses' ? null : s,
+      plantVendor: v === 'All Sources' ? null : v
+    }, { replace: true, emit: emitQuery });
     const scope = document.getElementById('plantFilterScopeV126');
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('plants') || '';
   }
-  search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:plants:search', () => apply(true), 220)); status?.addEventListener('change', () => apply(true)); vendor?.addEventListener('change', () => apply(true));
+  search?.addEventListener('input', () => ZentridRuntimeStability.debounce('registry:plants:search', () => apply(true, true), 260));
+  status?.addEventListener('change', () => apply(true, false));
+  vendor?.addEventListener('change', () => apply(true, false));
   table?.addEventListener('click', e => {
     const target = plantEventTarget(e);
     const pageBtn = target?.closest<HTMLElement>('[data-plant-page]');
@@ -1266,7 +1372,7 @@ function wirePlants(){
     if (btn.dataset.action === 'open') location.href = 'plant-detail.html';
     if (btn.dataset.action === 'edit') { localStorage.setItem('zentrid_plant_detail_edit', 'overview'); location.href = 'plant-detail.html'; }
     if (btn.dataset.action === 'devices') { localStorage.setItem('zentrid_device_filter_plant', id); ZentridLayout.toast('Opening Device Registry for selected plant'); location.href = 'devices.html'; }
-    if (btn.dataset.action === 'telemetry' && p) { localStorage.setItem('zentrid_telemetry_context', JSON.stringify({tenant:p.tenant, plant:p.name, plantId:plantOperationalId(p) || '', device:'All Devices', metric:'current_power_kw', range:localStorage.getItem('zentrid_time')||'Last 24h', layer:'Normalized', source:'Plant Registry'})); location.href = 'telemetry.html'; }
+    if (btn.dataset.action === 'telemetry' && p) { void openPlantTelemetry(p); }
     if (btn.dataset.action === 'alerts' && p) { void openPlantAlerts(p); }
   });
   function openSolarPlantsRegistry(){
@@ -1900,19 +2006,19 @@ function plantDocumentsPanel(p: ZentridPlant): string {
 function plantTab(p: ZentridPlant, tab: string): string {
   if (tab === 'master') return `<div class="split-grid"><div class="panel-lite"><h3>General Information</h3><div class="info-grid"><div><span>Admin Registry ID</span><strong>${plantDisplay(plantAdministrativeId(p) || p.id)}</strong></div><div><span>Canonical / Platform Live ID</span><strong>${plantDisplay(plantOperationalId(p) || 'Not linked')}</strong></div><div><span>Source Plant ID</span><strong>${plantDisplay(p.sourcePlantId || p.operationalExternalId || p.externalId)}</strong></div><div><span>Plant Code</span><strong>${plantDisplay(p.code)}</strong></div><div><span>Plant Type</span><strong>${plantDisplay(p.type)}</strong></div><div><span>Tenant</span><strong>${plantDisplay(p.tenant)}</strong></div><div><span>Portfolio</span><strong>${plantDisplay(p.portfolio)}</strong></div><div><span>Owner</span><strong>${plantDisplay(p.owner)}</strong></div><div><span>O&M Provider</span><strong>${plantDisplay(p.om)}</strong></div></div></div><div class="panel-lite"><h3>Location Information</h3><div class="info-grid"><div><span>Country</span><strong>${plantDisplay(p.country)}</strong></div><div><span>Region</span><strong>${plantDisplay(p.region)}</strong></div><div><span>City</span><strong>${plantDisplay(p.city)}</strong></div><div><span>Time Zone</span><strong>${plantDisplay(p.timezone)}</strong></div><div><span>Latitude</span><strong>${plantDisplay(p.lat)}</strong></div><div><span>Longitude</span><strong>${plantDisplay(p.lng)}</strong></div></div></div><div class="panel-lite full"><h3>Technical Characteristics</h3><div class="info-grid"><div><span>Commissioning Date</span><strong>${plantDisplay(p.commissioned)}</strong></div><div><span>Installed Capacity DC</span><strong>${plantDisplay(p.capacityDc)} MWp</strong></div><div><span>Installed Capacity AC</span><strong>${plantDisplay(p.capacityAc)} MW</strong></div><div><span>Grid Connection Capacity</span><strong>${plantDisplay(p.gridCapacity)} MW</strong></div><div><span>Number of Panels</span><strong>${p.panels === undefined || p.panels === null ? '—' : Number(p.panels).toLocaleString()}</strong></div><div><span>Battery Installed</span><strong>${plantDisplay(p.battery)}</strong></div></div></div></div>`;
   if (tab === 'structure') return `<div class="split-grid"><div class="panel-lite"><h3>Plant Structure</h3><div class="empty-state"><strong>No backend topology hierarchy returned</strong><small>The current Plant Registry / Platform Live contracts provide device relations and counts, but no verified Area A / Area B hierarchy. Zentrid does not generate a synthetic topology.</small></div></div><div class="panel-lite"><h3>Asset Relationships</h3><p class="muted">Open Device Registry to inspect real devices related to this administrative plant record.</p><div class="drawer-actions"><button class="primary-action" onclick="localStorage.setItem('zentrid_device_filter_plant','${plantAdministrativeId(p) || p.id}'); location.href='devices.html'">Open Device Registry</button></div></div><div class="panel-lite full"><h3>Device Summary</h3>${devicePreview(p)}</div></div>`;
-  if (tab === 'energy') return `<div class="split-grid"><div class="panel-lite"><h3>Energy KPIs</h3><div class="info-grid"><div><span>Live Power</span><strong>${plantDisplay(p.livePower)}</strong></div><div><span>Today Energy</span><strong>${plantDisplay(p.today)}</strong></div><div><span>Month Energy</span><strong>${plantDisplay(p.month)}</strong></div><div><span>Performance Ratio</span><strong>${plantDisplay(p.pr)}</strong></div></div></div><div class="panel-lite"><h3>Alerts Preview</h3><div class="timeline-mini"><p><strong>${plantDisplay(p.alerts)}</strong> active alert(s)</p><p>${p.status === 'Normal' ? 'No critical status is reported by the current Plant record.' : 'Attention required: review plant status and last data freshness.'}</p><p>Click Alerts to open filtered operational events.</p></div><div class="drawer-actions"><button class="primary-action" onclick='void openPlantAlerts(selectedPlant())'>Open Alerts</button></div></div><div class="panel-lite full"><h3>Production Telemetry</h3><div class="empty-state"><strong>No synthetic trend is displayed</strong><small>Open Telemetry Governance to load actual current_power_kw records for this canonical plant.</small></div><div class="drawer-actions"><button class="primary-action" onclick='localStorage.setItem("zentrid_telemetry_context", JSON.stringify({tenant:"${p.tenant}", plant:"${p.name}", plantId:"${plantOperationalId(p) || ''}", device:"All Devices", metric:"current_power_kw", range:localStorage.getItem("zentrid_time")||"Last 24h", layer:"Normalized", source:"Plant Detail"})); location.href="telemetry.html"'>Open Telemetry Explorer</button></div></div></div>`;
+  if (tab === 'energy') return `<div class="split-grid"><div class="panel-lite"><h3>Energy KPIs</h3><div class="info-grid"><div><span>Live Power</span><strong>${plantDisplay(p.livePower)}</strong></div><div><span>Today Energy</span><strong>${plantDisplay(p.today)}</strong></div><div><span>Month Energy</span><strong>${plantDisplay(p.month)}</strong></div><div><span>Performance Ratio</span><strong>${plantDisplay(p.pr)}</strong></div></div></div><div class="panel-lite"><h3>Alerts Preview</h3><div class="timeline-mini"><p><strong>${plantDisplay(p.alerts)}</strong> active alert(s)</p><p>${p.health === 'Normal' ? 'No critical operational status is reported by the current Plant record.' : 'Attention required: review operational status and last data freshness.'}</p><p>Click Alerts to open filtered operational events.</p></div><div class="drawer-actions"><button class="primary-action" onclick='void openPlantAlerts(selectedPlant())'>Open Alerts</button></div></div><div class="panel-lite full"><h3>Production Telemetry</h3><div class="empty-state"><strong>No synthetic trend is displayed</strong><small>Open Telemetry Governance to load actual current_power_kw records for this canonical plant.</small></div><div class="drawer-actions"><button class="primary-action" onclick='void openPlantTelemetry(selectedPlant())'>Open Telemetry Explorer</button></div></div></div>`;
   if (tab === 'commercial') return `<div class="split-grid"><div class="panel-lite full"><h3>Commercial</h3><div class="empty-state"><strong>No verified commercial contract is connected to Plant Detail</strong><small>The Plant Registry and Platform Live APIs audited in this build do not return buyer, sale price, settlement, bank account or revenue-split data. Those values are intentionally not fabricated in the browser.</small></div></div></div>`;
   if (tab === 'documents') return `<div class="split-grid"><div class="panel-lite full"><h3>Plant Documents</h3>${plantDocumentsPanel(p)}</div></div>`;
   if (tab === 'parties') return `<div class="split-grid"><div class="panel-lite"><h3>Related Parties</h3><div class="info-grid"><div><span>Client / Owner</span><strong>${plantDisplay(p.owner)}</strong></div><div><span>Tenant</span><strong>${plantDisplay(p.tenant)}</strong></div><div><span>Operator</span><strong>${plantDisplay(p.operator || p.tenant)}</strong></div><div><span>O&M Provider</span><strong>${plantDisplay(p.om)}</strong></div></div><p class="muted">Only relationships returned or derived from current Plant/Device/Alert contracts are shown. Energy trader, grid operator and assigned-user relations are not invented.</p></div><div class="panel-lite"><h3>Assigned Users</h3><div class="empty-state"><strong>No plant-scoped user assignment API is connected</strong><small>User roles are not generated from generic role assumptions.</small></div></div></div>`;
   if (tab === 'audit') return `<div class="split-grid"><div class="panel-lite full"><h3>Plant Audit</h3><div class="empty-state"><strong>No Plant audit timeline endpoint is connected</strong><small>Zentrid does not fabricate Created, Client linked, Commercial activated or other lifecycle events. Use Source & Sync for verified timestamps and identity information.</small></div><div class="info-grid"><div><span>Last Data</span><strong>${plantDisplay(p.lastData)}</strong></div><div><span>UI Freshness</span><strong>${plantFreshnessHtml(p)}</strong></div><div><span>Backend Data Quality</span><strong>${plantDisplay(p.freshness)}</strong></div></div></div></div>`;
-  if (tab === 'source') return `<div class="split-grid"><div class="panel-lite"><h3>Integration Source</h3><div class="info-grid"><div><span>Vendor</span><strong>${p.vendor}</strong></div><div><span>Integration</span><strong>${p.integration}</strong></div><div><span>Registry Plant ID</span><strong>${plantDisplay(plantAdministrativeId(p) || p.id)}</strong></div><div><span>Canonical / Platform Live ID</span><strong>${plantDisplay(plantOperationalId(p) || 'Not linked')}</strong></div><div><span>Source Plant ID</span><strong>${plantDisplay(p.sourcePlantId || p.operationalExternalId || p.externalId)}</strong></div><div><span>Last Sync</span><strong>${p.lastData}</strong></div><div><span>UI Freshness</span><strong>${plantFreshnessHtml(p)}</strong></div><div><span>Backend Data Quality</span><strong>${plantDisplay(p.freshness)}</strong></div><div><span>Status</span><strong>${p.status}</strong></div></div></div><div class="panel-lite"><h3>Mapping Logic</h3><div class="timeline-mini"><p><strong>Discovery</strong> · Vendor plant found</p><p><strong>Registry</strong> · Administrative UUID identifies the Plant Registry record</p><p><strong>Canonical</strong> · Operational UUID is used by Alerts, Telemetry and Platform Live</p><p><strong>Source</strong> · Vendor sourcePlantId remains the external identity</p></div></div></div>`;
-  return `<div class="split-grid"><div class="panel-lite"><h3>Plant Summary</h3><div class="info-grid"><div><span>Status</span><strong>${p.status}</strong></div><div><span>Tenant</span><strong>${p.tenant}</strong></div><div><span>Client / Owner</span><strong>${p.owner}</strong></div><div><span>Operator</span><strong>${p.operator || p.tenant}</strong></div><div><span>Location</span><strong>${p.country} · ${p.city}</strong></div><div><span>Capacity</span><strong>${p.capacityDc} MWp</strong></div><div><span>Devices</span><strong>${p.devices}</strong></div><div><span>Last Data</span><strong>${p.lastData}</strong></div></div></div><div class="panel-lite"><h3>Location</h3><div class="info-grid"><div><span>Country / City</span><strong>${plantDisplay(p.country)} · ${plantDisplay(p.city)}</strong></div><div><span>Latitude</span><strong>${plantDisplay(p.lat)}</strong></div><div><span>Longitude</span><strong>${plantDisplay(p.lng)}</strong></div><div><span>Timezone</span><strong>${plantDisplay(p.timezone)}</strong></div></div><p class="muted">No synthetic map position is rendered. Coordinates above come from the Plant record when available.</p></div><div class="panel-lite full"><h3>Operational Chain</h3><div class="plant-flow-chain-v91"><span>Tenant</span><b>→</b><span>Client</span><b>→</b><span>Plant</span><b>→</b><span>Devices</span><b>→</b><span>Telemetry</span><b>→</b><span>Alerts / Reports</span></div></div><div class="panel-lite full"><h3>Devices Preview</h3>${devicePreview(p)}</div></div>`;
+  if (tab === 'source') return `<div class="split-grid"><div class="panel-lite"><h3>Integration Source</h3><div class="info-grid"><div><span>Vendor</span><strong>${p.vendor}</strong></div><div><span>Integration</span><strong>${p.integration}</strong></div><div><span>Registry Plant ID</span><strong>${plantDisplay(plantAdministrativeId(p) || p.id)}</strong></div><div><span>Canonical / Platform Live ID</span><strong>${plantDisplay(plantOperationalId(p) || 'Not linked')}</strong></div><div><span>Source Plant ID</span><strong>${plantDisplay(p.sourcePlantId || p.operationalExternalId || p.externalId)}</strong></div><div><span>Provider Account</span><strong>${plantDisplay((p as ZentridLegacyCompat).providerAccount || (p as ZentridLegacyCompat).providerPlantAssignment?.providerAccount)}</strong></div><div><span>Provider Assignment</span><strong>${plantDisplay((p as ZentridLegacyCompat).providerPlantAssignmentStatus || 'Not resolved')}</strong><small>${plantDisplay((p as ZentridLegacyCompat).providerPlantAssignment?.id || 'GET /api/admin/provider-plant-assignments')}</small></div><div><span>Last Sync</span><strong>${plantDisplay(p.lastSyncAt)}</strong></div><div><span>UI Freshness</span><strong>${plantFreshnessHtml(p)}</strong></div><div><span>Backend Data Quality</span><strong>${plantDisplay(p.freshness)}</strong></div><div><span>Backend Data Freshness</span><strong>${plantDisplay((p as ZentridLegacyCompat).dataFreshness)}</strong></div><div><span>Lifecycle Status</span><strong>${plantDisplay(p.status)}</strong></div><div><span>Operational Status</span><strong>${plantDisplay(p.health)}</strong></div></div></div><div class="panel-lite"><h3>Mapping Logic</h3><div class="timeline-mini"><p><strong>Discovery</strong> · Vendor plant found</p><p><strong>Assignment</strong> · provider + sourcePlantId maps to the authoritative Plant Registry UUID</p><p><strong>Registry</strong> · Administrative UUID identifies the Plant Registry record</p><p><strong>Canonical</strong> · Operational UUID is resolved separately and used by Alerts, Telemetry and Platform Live</p><p><strong>Source</strong> · Vendor sourcePlantId remains the external identity</p></div></div></div>`;
+  return `<div class="split-grid"><div class="panel-lite"><h3>Plant Summary</h3><div class="info-grid"><div><span>Operational Status</span><strong>${plantDisplay(p.health)}</strong></div><div><span>Lifecycle Status</span><strong>${plantDisplay(p.status)}</strong></div><div><span>Tenant</span><strong>${p.tenant}</strong></div><div><span>Client / Owner</span><strong>${p.owner}</strong></div><div><span>Operator</span><strong>${p.operator || p.tenant}</strong></div><div><span>Location</span><strong>${p.country} · ${p.city}</strong></div><div><span>Capacity</span><strong>${p.capacityDc} MWp</strong></div><div><span>Devices</span><strong>${p.devices}</strong></div><div><span>Last Data</span><strong>${p.lastData}</strong></div></div></div><div class="panel-lite"><h3>Location</h3><div class="info-grid"><div><span>Country / City</span><strong>${plantDisplay(p.country)} · ${plantDisplay(p.city)}</strong></div><div><span>Latitude</span><strong>${plantDisplay(p.lat)}</strong></div><div><span>Longitude</span><strong>${plantDisplay(p.lng)}</strong></div><div><span>Timezone</span><strong>${plantDisplay(p.timezone)}</strong></div></div><p class="muted">No synthetic map position is rendered. Coordinates above come from the Plant record when available.</p></div><div class="panel-lite full"><h3>Operational Chain</h3><div class="plant-flow-chain-v91"><span>Tenant</span><b>→</b><span>Client</span><b>→</b><span>Plant</span><b>→</b><span>Devices</span><b>→</b><span>Telemetry</span><b>→</b><span>Alerts / Reports</span></div></div><div class="panel-lite full"><h3>Devices Preview</h3>${devicePreview(p)}</div></div>`;
 }
 function renderPlantDetail(){
   const p = selectedPlant();
   if (!p.id) return window.ZentridApiOnly?.emptyState('Plant Detail', 'The plant endpoint has not returned a selected record.', '/api/plants') || '';
   return `<section class="page-hero"><div><p class="eyebrow">Plant Detail Workspace ${ZentridDataSource.badge(p, 'plant', true)}</p><h1>${p.name}</h1><p class="muted">${p.tenant} · ${p.country}, ${p.city} · ${p.vendor} source · ${p.id}</p></div><div class="hero-actions"><button class="freshness-card" id="plantSync"><span class="pulse"></span><div><strong>Run Plant Sync</strong><small>${p.lastData}</small></div></button><button class="freshness-card" onclick="location.href='plants.html'"><span class="pulse"></span><div><strong>Back to Registry</strong><small>All plants</small></div></button></div></section>
-  <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Plant Status</span><strong>${p.status}</strong><small>${p.alerts} active alerts</small></article><article class="kpi-card"><span>Live Power</span><strong>${p.livePower}</strong><small>Real-time layer</small></article><article class="kpi-card"><span>Today Energy</span><strong>${p.today}</strong><small>Accounting period</small></article><article class="kpi-card"><span>Installed DC</span><strong>${p.capacityDc} MWp</strong><small>${p.capacityAc} MW AC</small></article><article class="kpi-card"><span>Devices</span><strong>${p.devices}</strong><small>${p.inverters} inverters · ${p.meters} meters</small></article><article class="kpi-card"><span>UI Freshness</span><strong>${plantFreshnessHtml(p)}</strong></article></section>
+  <section class="kpi-grid detail-kpis"><article class="kpi-card"><span>Plant Status</span><strong>${plantDisplay(p.health)}</strong><small>${p.alerts} active alerts · lifecycle ${plantDisplay(p.status)}</small></article><article class="kpi-card"><span>Live Power</span><strong>${p.livePower}</strong><small>Real-time layer</small></article><article class="kpi-card"><span>Today Energy</span><strong>${p.today}</strong><small>Accounting period</small></article><article class="kpi-card"><span>Installed DC</span><strong>${p.capacityDc} MWp</strong><small>${p.capacityAc} MW AC</small></article><article class="kpi-card"><span>Devices</span><strong>${p.devices}</strong><small>${p.inverters} inverters · ${p.meters} meters</small></article><article class="kpi-card"><span>UI Freshness</span><strong>${plantFreshnessHtml(p)}</strong></article></section>
   <section class="client-layout-v17 detail-layout-standard">
     <aside class="glass-card plant-side-card-v17">
       <h3>Plant Navigation</h3>

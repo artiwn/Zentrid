@@ -53,6 +53,9 @@ interface ZentridDeviceRecord {
   liveWarrantyDetail?: unknown;
   liveTelemetryLatest?: unknown;
   auditDetail?: unknown;
+  detailSourceMode?: 'registry-live' | 'registry' | 'snapshot';
+  registryLoaded?: boolean;
+  operationalLoaded?: boolean;
   relatedAlerts?: Array<Record<string, unknown>>;
   alertsLoaded?: boolean;
   relatedPlant?: Record<string, unknown> | null;
@@ -121,6 +124,23 @@ function deviceLiveSourcePlantId(d: ZentridDeviceRecord): string { const live=de
 function deviceLiveDataQuality(d: ZentridDeviceRecord): string { const live=deviceLiveRecord(d); return String(live.dataQualityStatus || d.sourceStatus || '—'); }
 function deviceLiveLookupStatus(d: ZentridDeviceRecord): string { return String(d.liveLookupStatus || (deviceLiveId(d) ? 'matched' : 'not-linked')); }
 function deviceOperationalSourceLabel(d: ZentridDeviceRecord): string { return deviceLiveId(d) ? 'Platform Live' : 'Device Registry / plant relation'; }
+function deviceDetailSourceMode(d: ZentridDeviceRecord): 'registry-live' | 'registry' | 'snapshot' {
+  const explicit=String(d.detailSourceMode || '').trim();
+  if (explicit === 'registry-live' || explicit === 'registry' || explicit === 'snapshot') return explicit;
+  if (deviceLiveId(d)) return 'registry-live';
+  return d.registryLoaded === false ? 'snapshot' : 'registry';
+}
+function deviceDetailSourceLabel(d: ZentridDeviceRecord): string {
+  const mode=deviceDetailSourceMode(d);
+  if (mode === 'registry-live') return 'Registry + Live';
+  if (mode === 'snapshot') return 'Session Snapshot';
+  return 'Device Registry';
+}
+function deviceDetailSourceBadge(d: ZentridDeviceRecord): string {
+  const mode=deviceDetailSourceMode(d);
+  const tone=mode === 'registry-live' ? 'mixed' : mode === 'snapshot' ? 'local' : 'live';
+  return `<span class="record-origin-chip ${tone} compact" data-record-origin="${tone}" title="Data source: ${optionText(deviceDetailSourceLabel(d))}">${optionText(deviceDetailSourceLabel(d))}</span>`;
+}
 function deviceLifecycleTone(value: unknown): ZentridDeviceStatusTone { const text=String(value||'').toLowerCase(); if(text.includes('inactive')||text.includes('archived')||text.includes('retired')) return 'neutral'; if(text.includes('draft')||text.includes('pending')) return 'warning'; if(text.includes('active')||text.includes('commissioned')) return 'success'; return 'info'; }
 function deviceLifecyclePill(d: ZentridDeviceRecord): string { return `<span class="badge ${deviceLifecycleTone(d.lifecycle)}">${optionText(d.lifecycle || 'Unknown')}</span>`; }
 function deviceApiHumanValue(label: string, value: unknown): string {
@@ -220,20 +240,6 @@ function canonicalDeviceCandidateMatches(candidate: Record<string, unknown>, dev
 async function resolveDeviceCanonicalId(device: ZentridDeviceRecord): Promise<string> {
   const existing = String(device.canonicalDeviceId || deviceLiveId(device) || '').trim();
   if (existing) return existing;
-  const registryPlantId = String(device.plantId || '').trim();
-  if (registryPlantId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
-    try {
-      const payload = await window.ZentridPlatformAPI.plantRegistry.devices(registryPlantId);
-      const match = deviceIdentityRows(payload).find(candidate => canonicalDeviceCandidateMatches(candidate, device));
-      const canonicalId = String(match?.id || match?.deviceId || '').trim();
-      if (canonicalId) {
-        device.canonicalDeviceId = canonicalId;
-        device.liveId = canonicalId;
-        device.registryDeviceId = String(device.id || '').trim();
-        return canonicalId;
-      }
-    } catch { /* Fall through to the live collection compatibility lookup. */ }
-  }
   const sourceDeviceId = String(device.sourceDeviceId || device.externalId || device.serial || '').trim();
   if (sourceDeviceId && sourceDeviceId !== '—' && window.ZentridPlatformAPI?.liveDevices?.list) {
     try {
@@ -916,7 +922,7 @@ function renderDevices(): string {
   return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Groups</p><h1>Device List</h1><p class="muted">All devices connected to Plants, grouped by plant, tenant, vendor source and operational status.</p></div><div class="hero-actions"><button class="create-action" id="openDeviceCreate" type="button"><span class="pulse"></span><div><strong>+ Add Device</strong><small>POST /api/admin/devices</small></div></button><button class="freshness-card" id="openDeviceSource"><span class="pulse"></span><div><strong>Source Traceability</strong><small>Vendor ID → Zentrid Device</small></div></button></div></section>
   ${filterBanner}
   <section class="context-bar glass-card"><div class="ctx-item"><span>Registry Records</span><strong>${(serverPagination?.totalCount || list.length).toLocaleString()}</strong></div><div class="ctx-item"><span>Registry Page</span><strong>${registryPage} / ${registryPages}</strong></div><div class="ctx-item"><span>Rows Loaded</span><strong>${list.length}</strong></div><div class="ctx-item"><span>Plants on Page</span><strong>${plantsOnPage}</strong></div><div class="ctx-item"><span>Types on Page</span><strong>${typesOnPage}</strong></div><div class="ctx-item"><span>Draft on Page</span><strong>${draftOnPage}</strong></div></section>
-  <section class="panel glass-card"><div class="panel-head"><div><p class="eyebrow">Master data · /api/admin/devices</p><h2>Device Registry</h2><p>Administrative identity, plant relation, lifecycle and technical passport fields. Global operational KPI values are not calculated from this page.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search current page by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${optionText(t)}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${statuses.map(value=>`<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
+  <section class="panel glass-card"><div class="panel-head"><div><p class="eyebrow">Master data · /api/admin/devices</p><h2>Device Registry</h2><p>Administrative identity, plant relation, lifecycle and technical passport fields. Global operational KPI values are not calculated from this page.</p></div><div class="toolbar"><input id="deviceSearch" value="${String(initialSearch).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Search Device Registry by device, serial, plant..."/><select id="deviceTypeFilter"><option ${initialType === 'All Types' ? 'selected' : ''}>All Types</option>${types.map(t=>`<option ${t === initialType ? 'selected' : ''}>${optionText(t)}</option>`).join('')}</select><select id="deviceStatusFilter"><option ${initialStatus === 'All Statuses' ? 'selected' : ''}>All Statuses</option>${statuses.map(value=>`<option ${value === initialStatus ? 'selected' : ''}>${optionText(value)}</option>`).join('')}</select></div></div><div id="deviceFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('devices') || ''}</div><div id="deviceTable">${deviceRows(list)}</div></section>
   <section class="panel glass-card" id="deviceOperationalSnapshot"><div class="panel-head"><div><p class="eyebrow">Operational data · /api/devices</p><h2>Operational Device Snapshot</h2><p>Operational status, provider, freshness and global device KPI values are loaded separately from the administrative registry.</p></div><button class="go" type="button" data-live-refresh="devices">Refresh</button></div>${deviceOperationalSnapshotHtml()}</section>
   <aside class="modal" id="deviceCreateModal"><div class="modal-card wide-modal device-create-modal-v2"><button class="modal-close" id="closeDeviceCreate" type="button">×</button><div class="panel-head device-create-panel-head"><div><h2>Add Device</h2><p>Create a typed administrative device. Common identity fields stay fixed; technical specification changes by Device Type.</p></div><span class="badge info">Typed Admin API</span></div><form id="deviceCreateForm" class="client-form-grid two-col" data-zentrid-form-readiness="api" data-zentrid-form-contract="DeviceCreateRequest" data-zentrid-form-method="POST" data-zentrid-form-validation="native" data-zentrid-form-api-note="POST /api/admin/devices with type-specific specification, capabilities and communication objects."><div class="full device-form-section-title"><strong>Classification & identity</strong><small>Fields shared by every device type.</small></div><label>Device Name<input name="name" required placeholder="Inverter 01"></label><label>Device Type<select name="type"><option>Inverter</option><option>Microinverter</option><option>Battery</option><option>Meter</option><option>Weather Station</option><option>Transformer</option><option>Gateway</option><option>Logger</option><option>PV Module</option><option>Other</option></select></label><label>Plant<select name="plantId" id="devicePlantSelect" required></select></label><label>Administrative Status<select name="status"><option>Draft</option><option>Active</option><option>Inactive</option></select></label><label>Manufacturer / Vendor<select name="vendorId" id="deviceVendorSelect" required><option value="">Loading vendors…</option></select></label><label>Model<input name="model" placeholder="Device model"></label><label>Serial Number<input name="serial" required placeholder="Serial number"></label><label>Firmware<input name="firmware" placeholder="Firmware version"></label><label>Location<select name="locationId" id="deviceLocationSelect" required><option value="">Select a plant first</option></select><small>Location is loaded from the selected plant record.</small></label><div id="deviceTypeSpecificFields" class="full client-form-grid two-col device-type-specific-fields"></div><div class="modal-actions full"><button class="secondary-action" id="cancelDeviceCreate" type="button">Cancel</button><button class="primary-action" type="submit">Create Device via API</button></div></form></div></aside><aside class="detail-drawer" id="deviceSourceDrawer"><button class="drawer-close" id="closeDeviceSource">x</button><h2>Device Source Traceability</h2><div class="drawer-body"><p>Each device is stored as Zentrid master data and keeps the source reference from the vendor platform.</p><ul><li>External Device ID</li><li>Vendor and integration name</li><li>Plant relationship</li><li>Parent / child topology</li><li>Last seen and freshness</li></ul></div><div class="drawer-actions"><button class="primary-action" onclick="location.href='plants.html'">Open Groups</button></div></aside>`;
 }
@@ -1346,7 +1352,7 @@ function wireDeviceEdit(d: ZentridDeviceRecord): void {
 function renderDeviceDetail(): string {
   const d=selectedDevice();
   if (!d.id) return window.ZentridApiOnly?.emptyState('Device Detail', 'The device endpoint has not returned a selected record.', '/api/admin/devices') || '';
-  const sourceBadge=deviceLiveId(d) ? '<span class="record-origin-chip mixed compact" data-record-origin="mixed" title="Data source: Device Registry + Platform Live">Registry + Live</span>' : '<span class="record-origin-chip live compact" data-record-origin="live" title="Data source: Device Registry API">Device Registry API</span>';
+  const sourceBadge=deviceDetailSourceBadge(d);
   return `<section class="page-hero device-hero-v58 device-hero-v59"><div><p class="eyebrow">Global Admin · Device Detail ${sourceBadge}</p><h1>${d.name}</h1><p class="muted">${deviceTypeLabel(d)} · ${d.manufacturer || d.vendor} ${d.model} · ${d.serial}</p></div><div class="hero-actions">${deviceHeroActions(d)}</div></section>
   <section class="context-bar glass-card device-context-v58"><div><span>Plant</span><strong>${d.plant}</strong></div><div><span>Tenant</span><strong>${d.tenant}</strong></div><div><span>Device Type</span><strong>${deviceTypeLabel(d)}</strong></div><div><span>Last Communication</span><strong>${d.lastSeen}</strong></div></section>
   ${deviceKpis(d)}

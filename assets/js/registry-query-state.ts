@@ -1,7 +1,7 @@
 /* Zentrid registry query state.
    URL parameters are the source of truth for server page/pageSize and current-page UI filters. */
 (function () {
-  type ZentridRegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts';
+  type ZentridRegistryEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
   type ZentridRegistryPatch = Record<string, string | number | boolean | null | undefined>;
 
   interface ZentridRegistryQueryState {
@@ -151,7 +151,20 @@
   function filterScopeHtml(entity: ZentridRegistryEntity): string {
     const active = activeCurrentPageFilters(entity);
     if (!active.length) return '';
-    return `<p class="registry-filter-scope" role="status">Search and filters currently apply to the loaded server page. Active URL state: ${active.join(', ')}.</p>`;
+    const serverKeys: Record<ZentridRegistryEntity, Set<string>> = {
+      clients: new Set(['search']),
+      tenants: new Set(['search']),
+      plants: new Set(['search']),
+      devices: new Set(['search', 'deviceType', 'deviceStatus', 'plantId']),
+      alerts: new Set(['search', 'severity', 'alertStatus', 'tenant', 'plant', 'vendor', 'plantId', 'deviceId', 'tenantId']),
+      integrations: new Set([])
+    };
+    const server = active.filter(key => serverKeys[entity].has(key));
+    const currentPage = active.filter(key => !serverKeys[entity].has(key));
+    const parts: string[] = [];
+    if (server.length) parts.push(`Backend before pagination: ${server.join(', ')}`);
+    if (currentPage.length) parts.push(`Current loaded page only: ${currentPage.join(', ')}`);
+    return `<p class="registry-filter-scope" role="status">${parts.join(' · ')}.</p>`;
   }
 
   function requestedPage(entity: ZentridRegistryEntity, action: string): number {
@@ -190,7 +203,7 @@
 
   window.addEventListener('popstate', () => {
     const page = location.pathname.split('/').pop() || '';
-    const entity = page === 'clients.html' ? 'clients' : page === 'plants.html' ? 'plants' : page === 'devices.html' ? 'devices' : page === 'alerts.html' ? 'alerts' : null;
+    const entity = page === 'clients.html' ? 'clients' : page === 'tenants.html' ? 'tenants' : page === 'plants.html' ? 'plants' : page === 'devices.html' ? 'devices' : page === 'alerts.html' ? 'alerts' : page === 'integrations.html' ? 'integrations' : null;
     if (entity) dispatch(entity);
   });
 

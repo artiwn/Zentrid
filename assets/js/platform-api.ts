@@ -142,6 +142,9 @@ type ZentridPlatformAPIShape = {
     deleteDocument(id: string, documentId: string): Promise<unknown>;
   };
   adminAlerts: ZentridAlertApiModule;
+  providerPlantAssignments: {
+    list(options?: ZentridRequestOptions): Promise<unknown>;
+  };
   providerIntegrations: {
     templates(): Promise<unknown>;
     template(providerType: string): Promise<unknown>;
@@ -189,6 +192,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     /^\/api\/plants$/,
     /^\/api\/Providers$/,
     /^\/api\/telemetry$/,
+    /^\/api\/admin\/provider-plant-assignments$/,
     /^\/api\/admin\/provider-integrations$/,
     /^\/api\/admin\/provider-integrations\/templates(?:\/[^/]+)?$/,
     /^\/api\/admin\/provider-integrations\/[^/]+(?:\/(validate|test-connection|test-sample-data|activate|suspend|archive|failed))?$/
@@ -501,6 +505,10 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     createTask: (id: string, payload: unknown = {}) => mutationRequest(`/api/admin/alerts/${encodeURIComponent(id)}/tasks`, jsonOptions('POST', payload), ['alerts'], 'alert.task.create')
   };
 
+  const providerPlantAssignments = {
+    list: (options: ZentridRequestOptions = {}) => ZentridAPI.request('/api/admin/provider-plant-assignments', options)
+  };
+
   const providerIntegrations = {
     templates: () => ZentridAPI.request('/api/admin/provider-integrations/templates'),
     template: (providerType: string) => ZentridAPI.request(`/api/admin/provider-integrations/templates/${encodeURIComponent(providerType)}`),
@@ -534,7 +542,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Clients', label: 'Suspend Client', method: 'POST', path: '/api/admin/clients/{id}/suspend', safe: false, used: true, notes: 'Used by Client Detail lifecycle actions.' },
     { group: 'Clients', label: 'Archive Client', method: 'POST', path: '/api/admin/clients/{id}/archive', safe: false, used: true, notes: 'Used by Client Detail lifecycle actions.' },
     { group: 'Clients', label: 'Upload Client Document', method: 'POST', path: '/api/admin/clients/{id}/documents', safe: false, used: true, notes: 'Used by Create Client after the client UUID is returned. Sends multipart/form-data fields file, name, type and optional expiry.' },
-    { group: 'Clients', label: 'Get Client Document', method: 'GET', path: '/api/admin/clients/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document read API method is available; binary download UX remains deferred.' },
+    { group: 'Clients', label: 'Get Client Document', method: 'GET', path: '/api/admin/clients/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Client Detail to download persisted backend documents.' },
     { group: 'Clients', label: 'Delete Client Document', method: 'DELETE', path: '/api/admin/clients/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Client Detail for persisted document deletion.' },
 
     { group: 'PlantRegistry', label: 'List Admin Plants', method: 'GET', path: '/api/admin/plants', safe: true, used: true, notes: 'Admin plant registry list.' },
@@ -549,7 +557,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'PlantRegistry', label: 'Get Plant Document', method: 'GET', path: '/api/admin/plants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Plant Detail document actions.' },
     { group: 'PlantRegistry', label: 'Delete Plant Document', method: 'DELETE', path: '/api/admin/plants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Plant Detail document actions.' },
 
-    { group: 'Platform Live API', label: 'Live Alerts', method: 'GET', path: '/api/alerts', safe: true, used: false, notes: 'Connected normalized operational alert list. Current Global Admin registry keeps its admin list source.' },
+    { group: 'Platform Live API', label: 'Live Alerts', method: 'GET', path: '/api/alerts', safe: true, used: true, notes: 'Used for operational alert snapshots and Overview enrichment; the Global Admin registry list remains /api/admin/alerts.' },
     { group: 'Platform Live API', label: 'Live Alert Export', method: 'GET', path: '/api/alerts/export', safe: false, used: true, notes: 'Used by Alerts export; verified CSV attachment response.' },
     { group: 'Platform Live API', label: 'Live Alert Detail', method: 'GET', path: '/api/alerts/{id}', safe: false, used: true, notes: 'Mapped into Alert Detail operational context alongside the admin registry record.' },
     { group: 'Platform Live API', label: 'Live Alert Acknowledge', method: 'POST', path: '/api/alerts/{id}/acknowledge', safe: false, used: false, notes: 'Connected operational mutation API; not auto-invoked from Global Admin while admin workflow actions remain authoritative there.' },
@@ -604,6 +612,8 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Admin Alerts', label: 'Update Alert SOP', method: 'PUT', path: '/api/admin/alerts/{id}/sop', safe: false, used: true, notes: 'Persists Alert SOP state.' },
     { group: 'Admin Alerts', label: 'Create Alert Task', method: 'POST', path: '/api/admin/alerts/{id}/tasks', safe: false, used: true, notes: 'Creates a task linked to an alert; request DTO remains backend-defined.' },
 
+    { group: 'ProviderPlantAssignments', label: 'List Provider Plant Assignments', method: 'GET', path: '/api/admin/provider-plant-assignments', safe: true, used: true, notes: 'Read-only vendor sourcePlantId → Plant Registry UUID mapping used for canonical identity resolution.' },
+
     { group: 'ProviderIntegrations', label: 'List Provider Templates', method: 'GET', path: '/api/admin/provider-integrations/templates', safe: true, used: true, notes: 'Returns available provider template names.' },
     { group: 'ProviderIntegrations', label: 'Provider Template by Type', method: 'GET', path: '/api/admin/provider-integrations/templates/{providerType}', safe: false, used: true, notes: 'Used by the existing Connector Wizard after provider selection.' },
     { group: 'ProviderIntegrations', label: 'List Provider Integrations', method: 'GET', path: '/api/admin/provider-integrations', safe: true, used: true, notes: 'Provider integration registry list.' },
@@ -625,7 +635,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     { group: 'Tenants', label: 'Deactivate Tenant', method: 'POST', path: '/api/admin/tenants/{id}/deactivate', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
     { group: 'Tenants', label: 'Archive Tenant', method: 'POST', path: '/api/admin/tenants/{id}/archive', safe: false, used: true, notes: 'Used by the existing Tenant Detail lifecycle action.' },
     { group: 'Tenants', label: 'Upload Tenant Document', method: 'POST', path: '/api/admin/tenants/{id}/documents', safe: false, used: true, notes: 'Used by Tenant create/detail document upload flows.' },
-    { group: 'Tenants', label: 'Get Tenant Document', method: 'GET', path: '/api/admin/tenants/{id}/documents/{documentId}', safe: false, used: false, notes: 'Available in backend Swagger; document read API method is available; binary download UX remains deferred.' },
+    { group: 'Tenants', label: 'Get Tenant Document', method: 'GET', path: '/api/admin/tenants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Tenant Detail to download persisted backend documents.' },
     { group: 'Tenants', label: 'Delete Tenant Document', method: 'DELETE', path: '/api/admin/tenants/{id}/documents/{documentId}', safe: false, used: true, notes: 'Used by Tenant Detail for persisted document deletion.' }
   ];
 
@@ -662,6 +672,7 @@ const ZentridPlatformAPI: ZentridPlatformAPIShape = (() => {
     plantRegistry,
     deviceRegistry,
     adminAlerts,
+    providerPlantAssignments,
     providerIntegrations,
     endpointCatalog,
     allowedEndpointPatterns,

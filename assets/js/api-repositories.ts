@@ -56,6 +56,7 @@
     requestGroup?: string;
     supersede?: boolean;
     cacheVariant?: string;
+    allowListFallback?: boolean;
     timeoutMs?: number;
     page?: number;
     pageSize?: number;
@@ -746,12 +747,14 @@
     let payload: unknown = null;
     let successfulResponse = false;
     let lastError: unknown = null;
+    const search = String(options.search || '').trim();
+    const sortBy = String(options.sortBy || '').trim();
+    const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
 
     try {
       // Server pagination contract: ?page=${page}&pageSize=${pageSize}
       const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-      const sortBy = String(options.sortBy || '').trim();
-      const sortDirection = options.sortDirection === 'asc' || options.sortDirection === 'desc' ? options.sortDirection : '';
+      if (search) query.set('search', search);
       if (sortBy) query.set('sortBy', sortBy);
       if (sortDirection) query.set('sortDirection', sortDirection);
       payload = await ZentridAPI.request(`${path}?${query}`, requestOptions);
@@ -759,11 +762,14 @@
     } catch (error) {
       lastError = error;
       if (options.signal?.aborted) throw error;
-      try {
-        payload = await direct(requestOptions);
-        successfulResponse = true;
-      } catch (directError) {
-        lastError = directError;
+      const canUseUnpagedCompatibilityRead = page === 1 && !search && !sortBy && !sortDirection;
+      if (canUseUnpagedCompatibilityRead) {
+        try {
+          payload = await direct(requestOptions);
+          successfulResponse = true;
+        } catch (directError) {
+          lastError = directError;
+        }
       }
     }
 
@@ -880,10 +886,12 @@
           );
           const item = result.items.find(candidate => itemMatches(candidate, expected)) || result.items[0] || null;
           if (item) return { ...result, item };
+          if (options.allowListFallback === false) return { ...result, item: null };
           const fallback = await list(options);
           return { ...fallback, item: fallback.items.find(candidate => itemMatches(candidate, expected)) || null };
         } catch (error) {
           if (options.signal?.aborted) throw error;
+          if (options.allowListFallback === false) throw error;
           const fallback = await list(options);
           return {
             ...fallback,
@@ -954,16 +962,6 @@
   }
 
   const plants = withGet('plants', async options => {
-    if (options?.cacheVariant === 'admin-registry') {
-      const adminPage = await fetchCollectionPage(
-        '/api/admin/plants',
-        requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions),
-        'plant',
-        options
-      );
-      return mappedResult('plants', adminPage.rows, '/api/admin/plants', [], adminPage.pagination);
-    }
-
     if (options?.cacheVariant === 'live') {
       const livePage = await fetchCollectionPage(
         '/api/plants',
@@ -974,25 +972,17 @@
       return mappedResult('plants', livePage.rows, '/api/plants', [], livePage.pagination);
     }
 
-    const [liveResult, adminResult] = await Promise.allSettled([
-      fetchCollectionPage('/api/plants', requestOptions => ZentridPlatformAPI.live.plants(requestOptions), 'plant', options),
-      fetchCollectionPage('/api/admin/plants', requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions), 'plant', options)
-    ]);
-    const livePage = liveResult.status === 'fulfilled' ? liveResult.value : null;
-    const adminPage = adminResult.status === 'fulfilled' ? adminResult.value : null;
-    const liveRows = livePage?.rows || [];
-    const adminRows = adminPage?.rows || [];
-    const errors = [liveResult, adminResult]
-      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-      .map(result => result.reason);
-    const requested = normalizedPageOptions(options);
-    const mergedRows = mergePlantSources(liveRows, adminRows);
-    const rawItems = mergedRows.slice(0, requested.pageSize);
-    const source = liveRows.length && adminRows.length
-      ? '/api/plants + /api/admin/plants'
-      : liveRows.length ? '/api/plants' : adminRows.length ? '/api/admin/plants' : '/api/plants + /api/admin/plants';
-    const pagination = selectPlantPagination(livePage, adminPage, rawItems.length, options || {});
-    return mappedResult('plants', rawItems, source, errors, pagination);
+    // Registry-first by default. List pages from /api/admin/plants and /api/plants
+    // are independently paginated/sorted, so implicitly merging their current
+    // pages can attach live values to the wrong administrative row. Live data
+    // must be requested explicitly with cacheVariant='live'.
+    const adminPage = await fetchCollectionPage(
+      '/api/admin/plants',
+      requestOptions => ZentridPlatformAPI.plantRegistry.list(requestOptions),
+      'plant',
+      options
+    );
+    return mappedResult('plants', adminPage.rows, '/api/admin/plants', [], adminPage.pagination);
   }, async (id, options = {}) => {
     const requestOptions: ZentridRequestOptions = {
       ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
@@ -1130,17 +1120,31 @@
       ...(options?.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
       ...(options?.signal ? { signal: options.signal } : {})
     };
-    const [payload, timeline, related, sop, telemetryCurve] = await Promise.all([
-      ZentridPlatformAPI.adminAlerts.get(id, requestOptions),
-      ZentridPlatformAPI.adminAlerts.timeline(id, requestOptions).catch(() => []),
-      ZentridPlatformAPI.adminAlerts.related(id, requestOptions).catch(() => ({})),
-      ZentridPlatformAPI.adminAlerts.sop(id, requestOptions).catch(() => null),
-      ZentridPlatformAPI.adminAlerts.telemetryCurve(id, { windowMinutes: 60 }, requestOptions).catch(() => null)
+    const payload = await ZentridPlatformAPI.adminAlerts.get(id, requestOptions);
+    const [timelineResult, relatedResult, sopResult, telemetryCurveResult] = await Promise.allSettled([
+      ZentridPlatformAPI.adminAlerts.timeline(id, requestOptions),
+      ZentridPlatformAPI.adminAlerts.related(id, requestOptions),
+      ZentridPlatformAPI.adminAlerts.sop(id, requestOptions),
+      ZentridPlatformAPI.adminAlerts.telemetryCurve(id, { windowMinutes: 60 }, requestOptions)
     ]);
+    const errors: unknown[] = [];
     const record = directRecord(payload);
-    const enrichedRecord = record ? { ...record, __timeline: timeline, __related: related, __sop: sop, __telemetryCurve: telemetryCurve } : null;
+    let enrichedRecord: RepositoryRecord | null = record ? { ...record } : null;
+    const attach = (key: string, loadedKey: string, result: PromiseSettledResult<unknown>): void => {
+      if (!enrichedRecord) return;
+      if (result.status === 'fulfilled') {
+        enrichedRecord[key] = result.value;
+        enrichedRecord[loadedKey] = true;
+      } else {
+        errors.push(result.reason);
+      }
+    };
+    attach('__timeline', '__timelineLoaded', timelineResult);
+    attach('__related', '__relatedLoaded', relatedResult);
+    attach('__sop', '__sopLoaded', sopResult);
+    attach('__telemetryCurve', '__telemetryCurveLoaded', telemetryCurveResult);
     const rawItems = enrichedRecord ? [enrichedRecord] : [];
-    return mappedResult('alerts', rawItems, `/api/admin/alerts/${encodeURIComponent(id)}`, [], fallbackPagination(rawItems.length, { page: 1, pageSize: 1 }));
+    return mappedResult('alerts', rawItems, `/api/admin/alerts/${encodeURIComponent(id)}`, errors, fallbackPagination(rawItems.length, { page: 1, pageSize: 1 }));
   });
 
   const telemetry = withGet('telemetry', async options => {

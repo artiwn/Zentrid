@@ -325,6 +325,7 @@ function renderClientsPage() {
   const initialStatus = queryState?.params.clientStatus || 'all';
   const clientTypes = Array.from(new Set(['Legal Entity', 'Individual', ...rows.map(row => String(row.type || '').trim()).filter(Boolean)]));
   const clientStatuses = Array.from(new Set(['Active', 'Review', 'Pending', ...rows.map(row => String(row.status || '').trim()).filter(Boolean)]));
+  const displayRows = rows.filter(c => (initialType === 'all' || c.type === initialType) && (initialStatus === 'all' || c.status === initialStatus));
   const pager = window.ZentridRegistryQuery?.pagerHtml('clients', rows.length) || '';
   ZentridLayout.mount(`
     <section class="page-hero">
@@ -340,42 +341,41 @@ function renderClientsPage() {
     <section class="panel glass-card">
       <div class="panel-head"><div><h2>Client Registry</h2><p class="muted">Global Admin can create the canonical client record and link it to the managing tenant. Operational plant access is still controlled through assignment scope.</p></div></div>
       <div class="toolbar">
-        <input id="clientSearchV28" value="${clientDetailAttr(initialSearch)}" placeholder="Search current page by client, code, contact, country..." />
+        <input id="clientSearchV28" value="${clientDetailAttr(initialSearch)}" placeholder="Search Client Registry by client, code, contact, country..." />
         <select id="clientTypeV28"><option value="all" ${initialType === 'all' ? 'selected' : ''}>All types</option>${clientTypes.map(value => `<option value="${clientDetailAttr(value)}" ${initialType === value ? 'selected' : ''}>${clientDetailEscape(value)}</option>`).join('')}</select>
         <select id="clientStatusV28"><option value="all" ${initialStatus === 'all' ? 'selected' : ''}>All statuses</option>${clientStatuses.map(value => `<option value="${clientDetailAttr(value)}" ${initialStatus === value ? 'selected' : ''}>${clientDetailEscape(value)}</option>`).join('')}</select>
       </div>
       <div id="clientFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('clients') || ''}</div>
       ${pager}
       <div class="data-table client-table-v17 client-registry-table-v28" id="clientRowsV28">
-        ${clientRowsMarkup(rows)}
+        ${clientRowsMarkup(displayRows)}
       </div>
       ${pager}
     </section>
     ${clientCreateModal()}
   `);
-  const render = () => {
-    const query = (document.getElementById('clientSearchV28')?.value || '').toLowerCase().trim();
+  const renderCurrentPageFilters = () => {
     const type = document.getElementById('clientTypeV28')?.value || 'all';
     const status = document.getElementById('clientStatusV28')?.value || 'all';
-    const filtered = rows.filter(c => {
-      const haystack = [c.name, c.code, c.id, c.type, c.country, c.city, c.primaryContact, c.contactEmail, c.tenant, c.status].join(' ').toLowerCase();
-      return (!query || haystack.includes(query)) && (type === 'all' || c.type === type) && (status === 'all' || c.status === status);
-    });
+    const filtered = rows.filter(c => (type === 'all' || c.type === type) && (status === 'all' || c.status === status));
     const target = document.getElementById('clientRowsV28');
     if (target) ZentridRuntimeStability.replaceHtml(target, clientRowsMarkup(filtered));
     window.ZentridRegistryQuery?.update('clients', {
-      search: query || null,
       clientType: type === 'all' ? null : type,
       clientStatus: status === 'all' ? null : status
     }, { replace: true, emit: false });
     const scope = document.getElementById('clientFilterScopeV126');
     if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('clients') || '';
   };
-  document.getElementById('clientSearchV28')?.addEventListener('input', () => {
-    ZentridRuntimeStability.debounce('registry:clients:search', render, 220);
+  document.getElementById('clientSearchV28')?.addEventListener('input', event => {
+    const target = event.target instanceof HTMLInputElement ? event.target : null;
+    if (!target) return;
+    ZentridRuntimeStability.debounce('registry:clients:search', () => {
+      window.ZentridRegistryQuery?.update('clients', { page: 1, search: target.value.trim() || null }, { replace: false, emit: true });
+    }, 220);
   });
-  document.getElementById('clientTypeV28')?.addEventListener('change', render);
-  document.getElementById('clientStatusV28')?.addEventListener('change', render);
+  document.getElementById('clientTypeV28')?.addEventListener('change', renderCurrentPageFilters);
+  document.getElementById('clientStatusV28')?.addEventListener('change', renderCurrentPageFilters);
   document.getElementById('openClientCreate')?.addEventListener('click', openClientCreateModal);
   document.getElementById('clientCreateBackdrop')?.addEventListener('click', e => {
     const target = e.target;
@@ -1628,6 +1628,29 @@ function clientDetailDocumentsData(client: ZentridClientRecord): ZentridClientDo
   if (Array.isArray(client.documentRecords)) return client.documentRecords.map(item => ({ ...item }));
   return [];
 }
+async function downloadClientDetailDocument(client: ZentridClientRecord, documentRecord: ZentridClientDocumentRecord): Promise<void> {
+  const documentId = String(documentRecord.id || documentRecord.filePath || '').trim();
+  if (!clientDetailBackendManaged(client) || !client.id || !documentId) {
+    ZentridLayout.toast('Client document is not available from the backend.');
+    return;
+  }
+  try {
+    const payload = await ZentridPlatformAPI.clients.getDocument(client.id, documentId);
+    const blob = payload instanceof Blob ? payload : new Blob([typeof payload === 'string' ? payload : JSON.stringify(payload ?? {})], { type:'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = documentRecord.fileName || documentRecord.name || 'client-document';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    ZentridLayout.toast('Client document download started.');
+  } catch (error) {
+    console.error('[Client Document] Unable to download document.', { clientId:client.id, documentId, error });
+    ZentridLayout.toast('Unable to download client document.');
+  }
+}
 function clientDetailPortalUsersData(client: ZentridClientRecord, plants: ZentridPlantRecord[]): ZentridPortalUser[] {
   if (Array.isArray(client.portalUsers) && client.portalUsers.length) return client.portalUsers.map(user => ({ ...user }));
   return clientPortalUsers(client, plants).map(user => ({ ...user }));
@@ -1688,7 +1711,7 @@ function clientDetailDocumentsEditor(client: ZentridClientRecord): string {
   return `<div class="tenant-detail-table-head-v117"><div><h3>Client Documents</h3><p class="muted">Upload a new client document through POST /api/admin/clients/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div><button class="small-btn primary" type="button" data-add-client-document>Add Document</button></div>
     <div class="data-table compact-table client-document-editor-v118">
       <div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Document File</span><span>Actions</span></div>
-      ${rows.length ? rows.map((doc,index) => { const isNew = !doc.id && !doc.filePath; return `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" ${isNew ? '' : 'readonly'} required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type" ${isNew ? '' : 'disabled'}>${allowedTypes.map(type => `<option ${doc.type===type?'selected':''}>${type}</option>`).join('')}</select></label><label><span class="sr-only">Document status</span><input value="${clientDetailAttr(doc.status || (isNew ? 'Pending' : ''))}" readonly></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry" ${isNew ? '' : 'readonly'}></label><div class="tenant-document-file-field">${isNew ? `<label class="tenant-document-file-picker"><span class="small-btn">Choose File</span><input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-client-document-file="${index}"></label>` : `<strong>${clientDetailEscape(doc.fileName || doc.name || 'Uploaded')}</strong>`}</div><div class="row-actions single-action">${isNew ? `<button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button>` : `<button class="danger-action" type="button" data-delete-client-document="${clientDetailAttr(String(doc.id || doc.filePath || ''))}">Delete</button>`}</div></div>`; }).join('') : `<div class="empty-state"><strong>No client documents</strong><small>Click Add Document to attach the first backend document.</small></div>`}
+      ${rows.length ? rows.map((doc,index) => { const isNew = !doc.id && !doc.filePath; const persistedId = String(doc.id || doc.filePath || ''); return `<div class="data-row" data-client-document-row="${index}"><label><span class="sr-only">Document name</span><input value="${clientDetailAttr(doc.name)}" data-client-document-field="name" ${isNew ? '' : 'readonly'} required></label><label><span class="sr-only">Document type</span><select data-client-document-field="type" ${isNew ? '' : 'disabled'}>${allowedTypes.map(type => `<option ${doc.type===type?'selected':''}>${type}</option>`).join('')}</select></label><label><span class="sr-only">Document status</span><input value="${clientDetailAttr(doc.status || (isNew ? 'Pending' : ''))}" readonly></label><label><span class="sr-only">Expiry</span><input type="date" value="${clientDetailAttr(doc.expiry || '')}" data-client-document-field="expiry" ${isNew ? '' : 'readonly'}></label><div class="tenant-document-file-field">${isNew ? `<label class="tenant-document-file-picker"><span class="small-btn">Choose File</span><input class="tenant-document-file-input-v117" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" data-client-document-file="${index}"></label>` : `<strong>${clientDetailEscape(doc.fileName || doc.name || 'Uploaded')}</strong>`}</div><div class="row-actions">${isNew ? `<button class="danger-action" type="button" data-remove-client-document="${index}">Remove</button>` : `<button class="small-btn" type="button" data-download-client-document="${clientDetailAttr(persistedId)}">Download</button><button class="danger-action" type="button" data-delete-client-document="${clientDetailAttr(persistedId)}">Delete</button>`}</div></div>`; }).join('') : `<div class="empty-state"><strong>No client documents</strong><small>Click Add Document to attach the first backend document.</small></div>`}
     </div>`;
 }
 function clientDetailUsersEditor(client: ZentridClientRecord): string {
@@ -2178,8 +2201,9 @@ function renderClientDetailPage() {
   const requestedEditTab = localStorage.getItem('zentrid_client_detail_edit') as ClientDetailTabKey | null;
   if (requestedEditTab && ['identity','location','portal','users','commercial'].includes(requestedEditTab)) clientDetailActiveTab = requestedEditTab;
   if (requestedEditTab) localStorage.removeItem('zentrid_client_detail_edit');
-  const client = ZentridClientModel.selectedClient();
-  if (!client.id) { window.ZentridApiOnly?.mountEmpty('Client Detail', 'The client endpoint has not returned a selected record.', '/api/admin/clients'); return; }
+  const selectedId = String(localStorage.getItem('zentrid_selected_client') || '').trim();
+  const client: ZentridClientRecord = selectedId ? (ZentridClientModel.clients.find(item => item.id === selectedId) || ({} as ZentridClientRecord)) : ({} as ZentridClientRecord);
+  if (!client.id) { window.ZentridApiOnly?.mountEmpty('Client Detail', 'The client endpoint has not returned the selected record.', selectedId ? `/api/admin/clients/${encodeURIComponent(selectedId)}` : '/api/admin/clients'); return; }
   const plants = ZentridClientModel.plantsForClient(client.id);
   ZentridLayout.mount(`
     <section class="page-hero client-hero-v17 client-detail-stable-hero">
@@ -2240,6 +2264,14 @@ function renderClientDetailPage() {
     if (!(target instanceof Element)) return;
     const lifecycle = target.closest<HTMLElement>('[data-client-lifecycle]');
     if (lifecycle) { void runClientDetailLifecycle(client, lifecycle.dataset.clientLifecycle as 'activate'|'deactivate'|'suspend'|'archive'); return; }
+    const downloadClientDocument = target.closest<HTMLElement>('[data-download-client-document]');
+    if (downloadClientDocument) {
+      const documentId = String(downloadClientDocument.dataset.downloadClientDocument || '').trim();
+      const documentRecord = clientDetailDocumentsData(client).find(item => String(item.id || item.filePath || '').trim() === documentId);
+      if (documentRecord) void downloadClientDetailDocument(client, documentRecord);
+      else ZentridLayout.toast('Client document metadata is unavailable.');
+      return;
+    }
     const deleteClientDocument = target.closest<HTMLElement>('[data-delete-client-document]');
     if (deleteClientDocument) {
       const documentId = String(deleteClientDocument.dataset.deleteClientDocument || '').trim();
@@ -2471,7 +2503,7 @@ function accessScopeMatrix(client: ZentridClientRecord, plants: ZentridPlantReco
 
 function clientDocuments(client: ZentridClientRecord): string {
   const rows = clientDetailDocumentsData(client);
-  return `<div class="section-title-v17 mini"><div><h3>Documents</h3><p class="muted">Client-level legal, commercial and access metadata. Technical device manuals stay inside Plant Detail.</p></div><span class="badge ${rows.length ? 'success' : 'warning'}">${rows.length ? `${rows.length} records` : 'No records'}</span></div>${rows.length ? `<div class="data-table compact-table client-document-view-v118"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span></div>${rows.map(row => `<div class="data-row"><div><strong>${clientDetailEscape(row.name)}</strong><small>Client document metadata</small></div><div><strong>${clientDetailEscape(row.type)}</strong></div><div><span class="badge ${['Verified','Active','Signed','Updated'].includes(row.status) ? 'success' : row.status === 'Expired' ? 'danger' : 'warning'}">${clientDetailEscape(row.status)}</span></div><div><strong>${clientDetailEscape(row.expiry || 'Not set')}</strong></div></div>`).join('')}</div>` : `<div class="empty-state"><strong>No client documents</strong><small>The backend has not returned any document records for this client.</small></div>`}`;
+  return `<div class="section-title-v17 mini"><div><h3>Documents</h3><p class="muted">Client-level legal, commercial and access metadata. Technical device manuals stay inside Plant Detail.</p></div><span class="badge ${rows.length ? 'success' : 'warning'}">${rows.length ? `${rows.length} records` : 'No records'}</span></div>${rows.length ? `<div class="data-table compact-table client-document-view-v118"><div class="data-head"><span>Document</span><span>Type</span><span>Status</span><span>Expiry</span><span>Action</span></div>${rows.map(row => { const persistedId=String(row.id || row.filePath || '').trim(); return `<div class="data-row"><div><strong>${clientDetailEscape(row.name)}</strong><small>${clientDetailEscape(row.fileName || 'Client document metadata')}</small></div><div><strong>${clientDetailEscape(row.type)}</strong></div><div><span class="badge ${['Verified','Active','Signed','Updated'].includes(row.status) ? 'success' : row.status === 'Expired' ? 'danger' : 'warning'}">${clientDetailEscape(row.status)}</span></div><div><strong>${clientDetailEscape(row.expiry || 'Not set')}</strong></div><div class="row-actions single-action">${persistedId ? `<button class="small-btn" type="button" data-download-client-document="${clientDetailAttr(persistedId)}">Download</button>` : '<span>—</span>'}</div></div>`; }).join('')}</div>` : `<div class="empty-state"><strong>No client documents</strong><small>The backend has not returned any document records for this client.</small></div>`}`;
 }
 
 
@@ -2860,6 +2892,32 @@ function plantDetailEscape(value: unknown): string {
 function plantDetailAttr(value: unknown): string { return plantDetailEscape(value).replace(/`/g, '&#096;'); }
 function plantDetailClone(record: ZentridPlantRecord): ZentridPlantRecord { return JSON.parse(JSON.stringify(record)) as ZentridPlantRecord; }
 function plantDetailOrigin(record: ZentridPlantRecord): ZentridDataOrigin { return ZentridEntityDetailUX.origin(record, 'plant'); }
+function plantDetailSourceMode(record: ZentridPlantRecord): 'registry-live' | 'registry' | 'live-only' | 'local' | 'unavailable' {
+  if (plantDetailOrigin(record) === 'local') return 'local';
+  const raw = record.raw || {};
+  const hasRegistry = Boolean(record.adminId || record.registryPlantId || (raw.adminRecord && typeof raw.adminRecord === 'object'));
+  const hasLive = Boolean(record.operationalId || record.canonicalPlantId || (raw.liveRecord && typeof raw.liveRecord === 'object'));
+  const explicit = String(record.detailSourceMode || '').trim();
+  if (explicit === 'registry-live' || explicit === 'registry' || explicit === 'live-only') return explicit;
+  if (hasRegistry && hasLive) return 'registry-live';
+  if (hasRegistry) return 'registry';
+  if (hasLive) return 'live-only';
+  return 'unavailable';
+}
+function plantDetailSourceLabel(record: ZentridPlantRecord): string {
+  const mode = plantDetailSourceMode(record);
+  if (mode === 'registry-live') return 'Registry + Live';
+  if (mode === 'registry') return 'Plant Registry';
+  if (mode === 'live-only') return 'Platform Live';
+  if (mode === 'local') return 'Local changes';
+  return 'Unavailable';
+}
+function plantDetailSourceBadge(record: ZentridPlantRecord): string {
+  const mode = plantDetailSourceMode(record);
+  const tone = mode === 'registry-live' ? 'mixed' : mode === 'local' ? 'local' : mode === 'unavailable' ? 'unavailable' : 'live';
+  const label = plantDetailSourceLabel(record);
+  return `<span class="record-origin-chip ${tone} compact" data-record-origin="${tone}" title="Data source: ${plantDetailAttr(label)}">${plantDetailEscape(label)}</span>`;
+}
 function plantDetailAdminId(record: ZentridPlantRecord): string {
   const raw = record.raw || {};
   const adminRecord = raw.adminRecord && typeof raw.adminRecord === 'object' && !Array.isArray(raw.adminRecord) ? raw.adminRecord as Record<string, unknown> : {};
@@ -2922,7 +2980,7 @@ function renderPlantDetailControl(record: ZentridPlantRecord): string {
   const origin = plantDetailOrigin(record);
   const copy = plantDetailModeCopy(record);
   return `<section class="plant-detail-control-v119 ${copy.tone}" id="plantDetailControl" aria-busy="false">
-    <div class="plant-detail-control-source-v119"><span>Record source</span><strong>${ZentridDataSource.badge(record, 'plant', true)} ${plantDetailEscape(ZentridDataSource.label(origin))}</strong><small>${plantDetailEscape(plantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="plant"></span></div>
+    <div class="plant-detail-control-source-v119"><span>Record source</span><strong>${plantDetailSourceBadge(record)} ${plantDetailEscape(plantDetailSourceLabel(record))}</strong><small>${plantDetailEscape(plantDetailFreshness(record))}</small><span class="permission-profile-v121" data-permission-summary data-permission-resource="plant"></span></div>
     <div class="plant-detail-control-copy-v119"><strong>${plantDetailEscape(copy.title)}</strong><small>${plantDetailEscape(copy.message)}</small></div>
     <div class="plant-detail-feedback-v119 info" id="plantDetailFeedback" role="status" aria-live="polite" hidden></div>
   </section>`;
@@ -3468,7 +3526,7 @@ function plantTab(plant: ZentridPlantRecord, devices: ZentridDeviceRecord[], tab
   if (activeTab === 'inverters') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Inverters</h2><p class="muted">Inverter records returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /invert/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
   if (activeTab === 'batteries') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>BESS / PCS</h2><p class="muted">Storage devices returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /battery|bess|pcs|storage/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
   if (activeTab === 'gateways') return plantLazyTab(activeTab, `${context}<div class="section-title-v17"><div><h2>Loggers & Gateways</h2><p class="muted">Logger, gateway and collector devices returned for this plant.</p></div></div>${plantDevicesLoaded(plant) ? deviceRows(plantDevicesMatching(devices, /logger|gateway|collector/), plant) : '<div class="plant-data-state-v119 empty"><strong>Devices not loaded yet</strong><small>Plant-scoped device relations are loaded on demand.</small></div>'}`);
-  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(ZentridDataSource.label(plantDetailOrigin(plant)))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Operational provider</b><span>${plantDetailEscape(plant.sourceSystem || '—')}</span></div><div><b>Provisioning source</b><span>${plantDetailEscape(plant.sourceScheme || '—')}</span></div><div><b>External mapping</b><span>${plantDetailEscape(plant.externalId)}</span></div></div>`;
+  if (activeTab === 'activity') return `${context}<div class="section-title-v17"><div><h2>Activity</h2><p class="muted">Recent plant-level operational and governance timeline.</p></div></div><div class="timeline-v17"><div><b>Current source</b><span>${plantDetailEscape(plantDetailSourceLabel(plant))} · ${plantDetailEscape(plantDetailFreshness(plant))}</span></div><div><b>Plant record</b><span>${plantDetailEscape(plant.name)} · ${plantDetailEscape(plant.id)}</span></div><div><b>Operational provider</b><span>${plantDetailEscape(plant.sourceSystem || '—')}</span></div><div><b>Provisioning source</b><span>${plantDetailEscape(plant.sourceScheme || '—')}</span></div><div><b>External mapping</b><span>${plantDetailEscape(plant.externalId)}</span></div></div>`;
   const locationParts = [plant.country, plant.region, plant.city].map(value => String(value || '').trim()).filter(value => value && value !== '—');
   const coordinates = [String(plant.latitude || '').trim(), String(plant.longitude || '').trim()].filter(Boolean).join(', ');
   const lifecycle = plantDetailBackendManaged(plant) ? (plant.status || '—') : 'Not linked';
@@ -3486,7 +3544,7 @@ function renderPlantDetailPage() {
   const devices = ZentridClientModel.devicesForPlant(plant.id);
   ZentridLayout.mount(`
     <section class="page-hero plant-hero-v17">
-      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(clientName)} ${ZentridDataSource.badge(plant, 'plant', true)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.sourceSystem || '—')}</p></div>
+      <div><p class="eyebrow">Plant Detail · ${plantDetailEscape(clientName)} ${plantDetailSourceBadge(plant)}</p><h1 id="plantDetailHeroName">${plantDetailEscape(plant.name)}</h1><p class="muted" id="plantDetailHeroMeta">${plantDetailEscape(plant.code)} · ${plantDetailEscape(plant.type)} · ${plantDetailEscape(plant.sourceSystem || '—')}</p></div>
       <div class="hero-actions-v19">${client ? `<button class="freshness-card" id="backToClient" type="button"><span class="pulse"></span><div><strong>Back to Client</strong><small>${plantDetailEscape(clientName)}</small></div></button>` : ''}<button class="freshness-card" id="backToPlantRegistry" type="button"><span class="pulse"></span><div><strong>Plant Registry</strong><small>All plants</small></div></button></div>
     </section>
     ${renderPlantDetailControl(plant)}

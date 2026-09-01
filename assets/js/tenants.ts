@@ -630,8 +630,8 @@ async function reconcileCreatedTenant(candidate: ZentridTenantRecord): Promise<s
 }
 function selectedTenant(): ZentridTenantRecord {
   const rows = getTenants();
-  const id = localStorage.getItem('zentrid_selected_tenant');
-  return rows.find(x => x.id === id) || rows[0] || ({} as ZentridTenantRecord);
+  const id = String(localStorage.getItem('zentrid_selected_tenant') || '').trim();
+  return id ? (rows.find(x => x.id === id) || ({} as ZentridTenantRecord)) : ({} as ZentridTenantRecord);
 }
 function tenantClientRecord(tenant: ZentridTenantRecord): ZentridTenantClientRecordV42 | null {
   if (typeof ZentridClientModel === 'undefined') return null;
@@ -1551,9 +1551,17 @@ function newestTenantRows(rows: ZentridTenantRecord[]): ZentridTenantRecord[] {
 function tenantRows(rows: ZentridTenantRecord[]): string { return `<div class="data-table tenant-table"><div class="data-head"><span>Tenant</span><span>Legal / Country</span><span>Registry</span><span>Classification</span><span>Compliance</span><span>Actions</span></div>${rows.map((c: ZentridTenantRecord)=>{ const compliance = tenantComplianceValue(c); const status = tenantStatusValue(c); const setupText = Number.isFinite(Number(c.setup)) ? ` · Setup ${Number(c.setup)}%` : ''; return `<div class="data-row" data-id="${c.id}"><div>${ZentridDataSource.badge(c, 'tenant')}<strong>${c.name}</strong><small>${c.code}<br>${c.legal}</small></div><div><strong>${c.country}, ${c.city}</strong><small>${Array.isArray(c.types) ? c.types.join(', ') : ''}<br>${c.address}</small></div><div><strong>${c.registration || 'Registered'}</strong><small>Tax ID / VAT: ${c.tax}</small></div><div><strong>${c.tier}</strong><small>${c.category} · Risk: ${c.risk}</small></div><div class="tenant-status-stack"><span class="badge ${cls(compliance)}">${compliance}</span><small>${status}${setupText}</small></div><div class="row-actions"><button data-action="view" data-permission-action="view" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}">Open</button><button data-action="integrate" data-permission-action="create" data-permission-resource="integration">Connect</button><button data-action="edit" data-permission-action="edit" data-permission-resource="tenant" data-permission-status="${tenantEscapeAttr(status)}" data-permission-origin="${tenantEscapeAttr(tenantDetailOrigin(c))}" data-permission-update-available="true" data-permission-local-override="false">Edit</button></div></div>`; }).join('')}</div>`; }
 function renderTenantRegistry(){
   const rows=newestTenantRows(getTenants());
+  const queryState=window.ZentridRegistryQuery?.read('tenants');
+  const pagination=window.ZentridRegistryQuery?.pagination('tenants');
+  const totalTenants=pagination?.totalCount || rows.length;
+  const initialSearch=queryState?.search || '';
+  const initialStatus=queryState?.params.tenantStatus || 'All Statuses';
   const statuses=Array.from(new Set(['Active','Inactive','Suspended','Archived',...rows.map(row=>String(row.status||'').trim()).filter(Boolean)]));
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${rows.length}</strong></button><button class="ctx-item"><span>Active</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Needs Compliance Review</span><strong>${rows.filter(x=>!['Approved','Compliant'].includes(String(x.compliance || ''))).length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" placeholder="Search tenant, country, tax id..."/><select id="tenantStatus"><option>All Statuses</option>${statuses.map(value=>`<option>${tenantEscapeHtml(value)}</option>`).join('')}</select></div></div><div id="tenantTable">${tenantRows(rows)}</div></section>${tenantWizard()}`;
+  const displayRows=rows.filter(tenant=>initialStatus==='All Statuses' || tenant.status===initialStatus);
+  const pager=window.ZentridRegistryQuery?.pagerHtml('tenants', rows.length) || '';
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Tenant Lifecycle</p><h1>Tenant Registry</h1><p class="muted">Create and maintain tenant legal identity, addresses, contacts, classification, communication preferences and compliance.</p></div><button class="create-action" id="openTenantWizard" type="button" data-permission-action="create" data-permission-resource="tenant"><span class="pulse"></span><div><strong>+ Create Tenant</strong><small>6-step documented form</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Tenants</span><strong>${totalTenants.toLocaleString()}</strong></button><button class="ctx-item"><span>Active on Page</span><strong>${rows.filter(x=>x.status==='Active').length}</strong></button><button class="ctx-item"><span>Armenia / USA on Page</span><strong>${rows.filter(x => ['Armenia','United States'].includes(String(x.country || ''))).length}</strong></button><button class="ctx-item"><span>Compliance Review on Page</span><strong>${rows.filter(x=>!['Approved','Compliant'].includes(String(x.compliance || ''))).length}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Tenants</h2><p>Only tenant data fields from the Client Data document are used. Portal Access and Internal Notes & Audit are intentionally excluded.</p></div><div class="toolbar"><input id="tenantSearch" value="${tenantEscapeAttr(initialSearch)}" placeholder="Search Tenant Registry by tenant, country, tax id..."/><select id="tenantStatus"><option ${initialStatus==='All Statuses'?'selected':''}>All Statuses</option>${statuses.map(value=>`<option ${value===initialStatus?'selected':''}>${tenantEscapeHtml(value)}</option>`).join('')}</select></div></div><div id="tenantFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('tenants') || ''}</div>${pager}<div id="tenantTable">${tenantRows(displayRows)}</div>${pager}</section>${tenantWizard()}`;
 }
+
 
 function stepIntro(name: string, text: string): string { return `<div class="wizard-description full"><strong>${name}</strong><p>${text}</p><textarea name="${name.toLowerCase().replace(/[^a-z0-9]+/g,'_')}_notes" placeholder="Notes for ${name}..."></textarea></div>`; }
 function yesNo(name: string, label: string, yes='Yes'): string { const options = yes === 'Yes' ? TENANT_YES_NO_OPTIONS : ['Yes','No'] as const; return `<label>${label}<select name="${name}">${tenantOptionTags(options, yes)}</select></label>`; }
@@ -2117,14 +2125,18 @@ function wireTenantRegistry(): void {
     show(step + 1);
   };
 
-  const filter = () => {
-    const query = tenantSearch.value.toLowerCase();
+  const filterCurrentPage = () => {
     const status = tenantStatus.value;
-    const rows = getTenants().filter(tenant => (status === 'All Statuses' || tenant.status === status) && `${tenant.name} ${tenant.legal} ${tenant.country} ${tenant.tax} ${tenant.registration}`.toLowerCase().includes(query));
+    const rows = newestTenantRows(getTenants()).filter(tenant => status === 'All Statuses' || tenant.status === status);
     tenantTable.innerHTML = tenantRows(rows);
+    window.ZentridRegistryQuery?.update('tenants', { tenantStatus: status === 'All Statuses' ? null : status }, { replace: true, emit: false });
+    const scope = document.getElementById('tenantFilterScopeV126');
+    if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('tenants') || '';
   };
-  tenantSearch.oninput = () => ZentridRuntimeStability.debounce('registry:tenants:search', filter, 220);
-  tenantStatus.onchange = filter;
+  tenantSearch.oninput = () => ZentridRuntimeStability.debounce('registry:tenants:search', () => {
+    window.ZentridRegistryQuery?.update('tenants', { page: 1, search: tenantSearch.value.trim() || null }, { replace: false, emit: true });
+  }, 220);
+  tenantStatus.onchange = filterCurrentPage;
   tenantTable.onclick = event => {
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -2332,8 +2344,32 @@ function tenantDocumentTypeControl(documentRecord: ZentridTenantDocument, index:
   const current = normalizeTenantDocumentType(documentRecord.type);
   return `<select data-tenant-edit-key="documents::${index}::type" aria-label="Document Type">${TENANT_DOCUMENT_TYPES.map(type => `<option value="${type}" ${current === type ? 'selected' : ''}>${type}</option>`).join('')}</select>`;
 }
+async function downloadTenantDetailDocument(tenant: ZentridTenantRecord, documentRecord: ZentridTenantDocument): Promise<void> {
+  const tenantId = String(tenant.id || '').trim();
+  const documentId = String(documentRecord.id || documentRecord.filePath || '').trim();
+  if (!tenantId || !documentId) {
+    ZentridLayout.toast('Tenant document is not available from the backend.');
+    return;
+  }
+  try {
+    const payload = await ZentridPlatformAPI.tenants.getDocument(tenantId, documentId);
+    const blob = payload instanceof Blob ? payload : new Blob([typeof payload === 'string' ? payload : JSON.stringify(payload ?? {})], { type:'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = String(documentRecord.fileName || documentRecord.file || documentRecord.name || 'tenant-document');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    ZentridLayout.toast('Tenant document download started.');
+  } catch (error) {
+    console.error('[Tenant Document] Unable to download document.', { tenantId, documentId, error });
+    ZentridLayout.toast('Unable to download tenant document.');
+  }
+}
 function tenantDocumentsTable(c: ZentridTenantRecord, editable = tenantDetailEditMode): string {
-  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">Tenant files are stored through POST /api/admin/tenants/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table ${editable ? 'editing-grid tenant-document-actions-v117' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span>${editable ? '<span>Actions</span>' : ''}</div>${(c.documents||[]).map((d,i)=>{ const persisted = Boolean(String(d.id || d.filePath || '').trim()); return `<div class="data-row" data-tenant-document-row="${i}"><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantDocumentTypeControl(d, i) : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantDocumentFilePicker(d, i) : `<span>${tenantEscapeHtml(d.fileName || d.file || d.name || '—')}</span>`}</div>${editable ? `<div class="mini-row-actions">${persisted ? `<button class="danger-action" type="button" data-delete-tenant-document="${tenantEscapeAttr(String(d.id || d.filePath || ''))}" aria-label="Delete document ${i + 1}">Delete</button>` : `<button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button>`}</div>` : ''}</div>`; }).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
+  return `<div class="tenant-detail-table-head-v117"><div><h3>Tenant Documents</h3><p class="muted">Tenant files are stored through POST /api/admin/tenants/{id}/documents. Allowed files: PDF, DOC, DOCX, JPG, JPEG, PNG.</p></div>${editable ? '<button class="small-btn primary" type="button" data-add-tenant-document>Add Document</button>' : ''}</div><div class="data-table compact-table tenant-document-table tenant-document-actions-v117 ${editable ? 'editing-grid' : ''}"><div class="data-head"><span>Document Name</span><span>Type</span><span>Expiry Date</span><span>Document File</span><span>Actions</span></div>${(c.documents||[]).map((d,i)=>{ const persistedId = String(d.id || d.filePath || '').trim(); const persisted=Boolean(persistedId); return `<div class="data-row" data-tenant-document-row="${i}"><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::name`, d.name, 'Document Name') : `<strong>${tenantEscapeHtml(d.name || '—')}</strong>`}</div><div>${editable ? tenantDocumentTypeControl(d, i) : `<span>${tenantEscapeHtml(d.type || '—')}</span>`}</div><div>${editable && !persisted ? tenantEditableControl(`documents::${i}::expiry`, d.expiry, 'Expiry Date') : `<span>${tenantEscapeHtml(d.expiry || '—')}</span>`}</div><div>${editable ? tenantDocumentFilePicker(d, i) : `<span>${tenantEscapeHtml(d.fileName || d.file || d.name || '—')}</span>`}</div><div class="mini-row-actions">${persisted ? `<button class="small-btn" type="button" data-download-tenant-document="${tenantEscapeAttr(persistedId)}" aria-label="Download document ${i + 1}">Download</button>${editable ? `<button class="danger-action" type="button" data-delete-tenant-document="${tenantEscapeAttr(persistedId)}" aria-label="Delete document ${i + 1}">Delete</button>` : ''}` : editable ? `<button class="danger-action" type="button" data-remove-tenant-document="${i}" aria-label="Remove document ${i + 1}">Remove</button>` : '<span>—</span>'}</div></div>`; }).join('') || '<div class="empty-state">No documents attached.</div>'}</div>`;
 }
 function tenantSectionContext(c: ZentridTenantRecord, tab: ZentridTenantTabKey, editable = tenantDetailEditMode): string {
   const origin = tenantDetailOrigin(c);
@@ -2404,6 +2440,15 @@ function wireTenantDetail(): void {
     const removeContact = target.closest<HTMLElement>('[data-remove-tenant-contact]');
     if (removeContact) { removeTenantDetailContact(Number(removeContact.dataset.removeTenantContact)); return; }
     if (target.closest('[data-add-tenant-document]')) { addTenantDetailDocument(); return; }
+    const downloadDocument = target.closest<HTMLElement>('[data-download-tenant-document]');
+    if (downloadDocument) {
+      const documentId = String(downloadDocument.dataset.downloadTenantDocument || '').trim();
+      const tenant = selectedTenant();
+      const documentRecord = (tenant?.documents || []).find(item => String(item.id || item.filePath || '').trim() === documentId);
+      if (tenant && documentRecord) void downloadTenantDetailDocument(tenant, documentRecord);
+      else ZentridLayout.toast('Tenant document metadata is unavailable.');
+      return;
+    }
     const deleteDocument = target.closest<HTMLElement>('[data-delete-tenant-document]');
     if (deleteDocument) {
       const documentId = String(deleteDocument.dataset.deleteTenantDocument || '').trim();

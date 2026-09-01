@@ -49,7 +49,7 @@
     integrationState?: BackgroundLoadState;
   };
 
-  type RegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts';
+  type RegistryEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
   const registryRequestVersions = new Map<RegistryEntity, number>();
 
   function isRegistryPage(entity: RegistryEntity): boolean {
@@ -59,6 +59,13 @@
   function registryReadOptions(entity: RegistryEntity, forceRefresh = false): ZentridRepositoryReadOptions {
     const state = window.ZentridRegistryQuery?.read(entity);
     const newestFirst = entity === 'clients' || entity === 'plants';
+    const clientFilters = entity === 'clients' ? { search: state?.search || '' } : {};
+    const tenantFilters = entity === 'tenants' ? { search: state?.search || '' } : {};
+    const plantFilters = entity === 'plants' ? {
+      // PlantRegistry explicitly supports search. Keep status/source dropdowns as
+      // current-page UI filters until backend exposes confirmed query parameters.
+      search: state?.search || ''
+    } : {};
     const deviceFilters = entity === 'devices' ? {
       search: state?.search || '',
       deviceType: state?.params?.deviceType || '',
@@ -98,6 +105,9 @@
     return {
       page: state?.page || 1,
       pageSize: state?.pageSize || 50,
+      ...clientFilters,
+      ...tenantFilters,
+      ...plantFilters,
       ...deviceFilters,
       ...alertFilters,
       ...(newestFirst ? {
@@ -1141,39 +1151,40 @@
     const errors: unknown[] = [];
     const sources: string[] = [];
     const rows: AnyRecord[] = [];
-    const plantId = safeText(plant.id, '').trim();
-    const externalId = safeText(plant.externalId, '').trim();
-    const adminId = safeText(plant.adminId || plant.raw?.adminRecord?.id || plant.raw?.adminRecord?.plantId, '').trim();
+    const registryPlantId = safeText(firstOf(plant, ['adminId', 'registryPlantId', 'raw.adminRecord.id', 'raw.adminRecord.plantId', 'id'], ''), '').trim();
+    const canonicalPlantId = safeText(firstOf(plant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.liveRecord.id'], ''), '').trim();
+    const externalId = safeText(firstOf(plant, ['sourcePlantId', 'operationalExternalId', 'externalId', 'code'], ''), '').trim();
 
-    if (adminId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
+    if (registryPlantId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
       try {
-        const payload = await window.ZentridPlatformAPI.plantRegistry.devices(adminId, detailReadOptions('plant-detail:admin-plant-devices', 100, forceRefresh));
+        const payload = await window.ZentridPlatformAPI.plantRegistry.devices(registryPlantId, detailReadOptions('plant-detail:admin-plant-devices', 100, forceRefresh));
         rows.push(...mappedDeviceRows(payload));
-        sources.push(`/api/admin/plants/${encodeURIComponent(adminId)}/devices`);
+        sources.push(`/api/admin/plants/${encodeURIComponent(registryPlantId)}/devices`);
+        return { rows: mergeDetailRows(rows), errors, sources };
       } catch (error) {
         errors.push(error);
       }
     }
 
-    if (plantId) {
+    if (registryPlantId) {
       try {
         const result = await ZentridAPIRepositories.devices.list({
-          ...detailReadOptions('plant-detail:devices-by-plant', 100, forceRefresh),
-          plantId
+          ...detailReadOptions('plant-detail:devices-by-registry-plant', 100, forceRefresh),
+          plantId: registryPlantId
         });
         rows.push(...result.items.filter(row => plantMatchesDevice(plant, row)));
         errors.push(...result.errors);
-        sources.push(`${result.source}?plantId=${encodeURIComponent(plantId)}`);
+        sources.push(`${result.source}?plantId=${encodeURIComponent(registryPlantId)}`);
       } catch (error) {
         errors.push(error);
       }
     }
 
-    if (!rows.length && window.ZentridPlatformAPI?.liveDevices?.list && plantId) {
+    if (!rows.length && window.ZentridPlatformAPI?.liveDevices?.list && canonicalPlantId) {
       try {
-        const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 100, plantId }, detailReadOptions('plant-detail:live-devices-by-plant', 100, forceRefresh));
+        const payload = await window.ZentridPlatformAPI.liveDevices.list({ page: 1, pageSize: 100, plantId: canonicalPlantId }, detailReadOptions('plant-detail:live-devices-by-plant', 100, forceRefresh));
         rows.push(...mappedDeviceRows(payload).filter(row => plantMatchesDevice(plant, row)));
-        sources.push(`/api/devices?plantId=${encodeURIComponent(plantId)}`);
+        sources.push(`/api/devices?plantId=${encodeURIComponent(canonicalPlantId)}`);
       } catch (error) {
         errors.push(error);
       }
@@ -1219,7 +1230,7 @@
         plant: plant?.name || device.plant,
         plantPortfolioId: plant?.id || '',
         tenant: plant?.tenant || device.tenant,
-        alerts: relatedAlerts.length || device.alerts,
+        alerts: device.alertsLoaded ? relatedAlerts.length : (relatedAlerts.length ? relatedAlerts.length : device.alerts),
         relatedPlant: plant || null,
         relatedAlerts
       };
@@ -1258,35 +1269,59 @@
   }
 
   function mergeIntegrationSummaries(registry: AnyRecord[], summaries: AnyRecord[]): AnyRecord[] {
-    if (!summaries.length) return registry;
-    if (!registry.length) return summaries;
-    const matched = new Set<number>();
-    const merged = registry.map(record => {
+    // Connector identity belongs to /api/admin/provider-integrations. The
+    // provider-level /api/integrations dataset may enrich a connector, but it
+    // must never create a synthetic Connector Registry row or overwrite
+    // connector-level Registry fields with provider-wide operational counts.
+    if (!registry.length) return registry;
+
+    const registryCounts = new Map<string, number>();
+    registry.forEach(record => {
       const key = integrationMatchKey(record);
-      const summaryIndex = summaries.findIndex(item => integrationMatchKey(item) === key);
-      const summary = summaryIndex >= 0 ? summaries[summaryIndex] : undefined;
-      if (!summary) return record;
-      matched.add(summaryIndex);
+      if (key) registryCounts.set(key, (registryCounts.get(key) || 0) + 1);
+    });
+    const summaryBuckets = new Map<string, AnyRecord[]>();
+    summaries.forEach(summary => {
+      const key = integrationMatchKey(summary);
+      if (!key) return;
+      const bucket = summaryBuckets.get(key) || [];
+      bucket.push(summary);
+      summaryBuckets.set(key, bucket);
+    });
+
+    return registry.map(record => {
+      const key = integrationMatchKey(record);
+      if (!key) return { ...record, operationalSummaryLinkStatus: 'unmatched-provider' };
+      if ((registryCounts.get(key) || 0) !== 1) {
+        return { ...record, operationalSummaryLinkStatus: 'ambiguous-registry-provider' };
+      }
+      const candidates = summaryBuckets.get(key) || [];
+      if (candidates.length !== 1) {
+        return {
+          ...record,
+          operationalSummaryLinkStatus: candidates.length > 1 ? 'ambiguous-operational-provider' : 'not-found'
+        };
+      }
+      const summary = candidates[0];
+      if (!summary) return { ...record, operationalSummaryLinkStatus: 'not-found' };
       return {
         ...record,
-        plants: Number(summary.plants ?? record.plants ?? 0),
-        devices: Number(summary.devices ?? record.devices ?? 0),
-        alerts: Number(summary.alerts ?? record.alerts ?? 0),
-        activeIntegrations: Number(summary.activeIntegrations ?? record.activeIntegrations ?? 0),
-        stalePlants: Number(summary.stalePlants ?? record.stalePlants ?? 0),
-        errorRate: summary.errorRate ?? record.errorRate,
-        health: summary.health || record.health,
+        operationalSummaryLinkStatus: 'matched-by-unique-provider',
+        operationalPlants: summary.plants,
+        operationalDevices: summary.devices,
+        operationalAlerts: summary.alerts,
+        operationalActiveIntegrations: summary.activeIntegrations,
+        operationalStalePlants: summary.stalePlants,
+        operationalErrorRate: summary.errorRate,
+        operationalHealth: summary.health || summary.status || '',
         operationalStatus: summary.status || summary.health || '',
-        lastSync: summary.lastSync || record.lastSync,
-        lastActivity: summary.lastActivity || record.lastActivity,
-        lastSuccessfulSync: summary.lastSuccessfulSync || record.lastSuccessfulSync,
-        lastErrorMessage: summary.lastErrorMessage || record.lastErrorMessage,
+        operationalLastSync: summary.lastSync || summary.lastSuccessfulSync || summary.lastActivity || '',
+        operationalLastErrorMessage: summary.lastErrorMessage || '',
         liveSummary: summary
       };
     });
-    summaries.forEach((summary, index) => { if (!matched.has(index)) merged.push(summary); });
-    return merged;
   }
+
 
   function renderOverviewLiveSnapshot(payload: Required<LiveSnapshotPayload>): void {
     applyOverviewDataFromLive(payload);
@@ -1384,8 +1419,11 @@
 
     void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 20, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
       .then(result => {
-        payload.integrations = mergeIntegrationSummaries(payload.integrations || [], result.items);
-        payload.integrationTotalCount = Math.max(payload.integrationTotalCount || 0, result.pagination.totalCount || result.items.length);
+        // Overview intentionally shows the operational provider dataset itself.
+        // It is not a Connector Registry view, so do not run Registry identity
+        // merge rules here.
+        payload.integrations = result.items;
+        payload.integrationTotalCount = result.pagination.totalCount || result.items.length;
         payload.integrationState = 'ready';
         errors.push(...result.errors);
         renderOverviewLiveSnapshot(payload);
@@ -1398,17 +1436,20 @@
       .finally(() => { pending.delete('integration summaries'); updateState(); });
   }
 
-  async function applyIntegrations(forceRefresh = false): Promise<void> {
+  async function applyIntegrations(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/integrations\.html$/.test(location.pathname)) return;
+    const requestVersion = beginRegistryRequest('integrations');
     ensureVendorTemplateAliases();
-    setLiveDataState('loading', 'Loading the fast integration registry first. Operational summaries will be added in the background.', { source: '/api/admin/provider-integrations' });
+    if (!backgroundRefresh) setLiveDataState('loading', 'Loading the requested Connector Registry page. Operational summaries will be added separately.', { source: '/api/admin/provider-integrations' });
     try {
       const [registryResult, providersResult, templatesResult] = await Promise.allSettled([
-        ZentridAPIRepositories.integrations.list({ ...detailReadOptions('integration-registry', 50, forceRefresh), sortBy: 'createdAtUtc', sortDirection: 'desc', cacheVariant: 'newest-first' }),
+        ZentridAPIRepositories.integrations.list(registryReadOptions('integrations', forceRefresh)),
         ZentridPlatformAPI.live.providers(),
         ZentridPlatformAPI.providerIntegrations.templates()
       ]);
+      if (!isCurrentRegistryRequest('integrations', requestVersion)) return;
       const registry = registryResult.status === 'fulfilled' ? registryResult.value : null;
+      if (registry) publishRegistryPagination('integrations', registry);
       const data = registry?.items || [];
       const providers = providersResult.status === 'fulfilled' ? asArray(providersResult.value) : [];
       const templates = templatesResult.status === 'fulfilled' ? asArray(templatesResult.value) : [];
@@ -1417,65 +1458,65 @@
       if (providersResult.status === 'rejected') errors.push(providersResult.reason);
       if (templatesResult.status === 'rejected') errors.push(templatesResult.reason);
 
+      integrations = data;
+      window.ZentridLiveIntegrations = integrations;
+      ZentridLayout.mount(renderIntegrations());
+      wireIntegrations();
+
       if (data.length) {
-        integrations = data;
-        window.ZentridLiveIntegrations = integrations;
-        ZentridLayout.mount(renderIntegrations());
-        wireIntegrations();
-        setLiveDataState('partial', `${data.length} integration registry record(s) are ready. Operational counts and sync health continue loading in the background.`, {
+        setLiveDataState('partial', `Connector Registry page ${registry?.pagination.page || 1} of ${registry?.pagination.totalPages || 1} is ready. Operational counts and sync health continue loading separately.`, {
           source: registry?.source || '/api/admin/provider-integrations',
-          details: 'Background: /api/integrations',
-          recordCount: data.length
+          details: `Server pagination · ${registry?.pagination.pageSize || data.length} rows per page · Background: /api/integrations`,
+          recordCount: registry?.pagination.totalCount || data.length
         });
+      } else if (errors.length) {
+        setRequestFailure('/api/admin/provider-integrations', errors[0], 'No prototype connector records are displayed.');
       } else {
-        integrations = [];
-        window.ZentridLiveIntegrations = [];
-        ZentridLayout.mount(renderIntegrations());
-        wireIntegrations();
-        if (errors.length) setRequestFailure('/api/admin/provider-integrations', errors[0], 'No prototype connector records are displayed.');
-        else setLiveDataState('empty', 'The integration registry returned no records. The registry is empty.', { source: '/api/admin/provider-integrations', recordCount: 0 });
+        setLiveDataState('empty', 'The requested Connector Registry page returned no records.', { source: '/api/admin/provider-integrations', recordCount: registry?.pagination.totalCount || 0 });
       }
 
       insertIntegrationLiveSummary([
-        { label: 'Integration Registry', value: `${data.length} row(s)`, meta: 'Fast administrative endpoint' },
+        { label: 'Integration Registry', value: `${registry?.pagination.totalCount ?? data.length} record(s)`, meta: `Page ${registry?.pagination.page || 1} · administrative source` },
         { label: '/api/Providers', value: `${providers.length} provider(s)`, meta: providers.join(', ') || 'Endpoint empty' },
         { label: 'Templates', value: `${templates.length} template(s)`, meta: templates.join(', ') || 'Endpoint empty' },
-        { label: 'Operational Summary', value: 'Loading…', meta: 'Slow endpoint does not block the registry' }
+        { label: 'Operational Summary', value: 'Loading…', meta: 'Provider-level enrichment; never creates connector rows' }
       ]);
 
+      if (!data.length) return;
       void ZentridAPIRepositories.integrations.summary({ ...detailReadOptions('integration-summary', 20, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
         .then(summary => {
+          if (!isCurrentRegistryRequest('integrations', requestVersion)) return;
           const enriched = mergeIntegrationSummaries(data, summary.items);
-          if (enriched.length) {
-            integrations = enriched;
-            window.ZentridLiveIntegrations = integrations;
-            ZentridLayout.mount(renderIntegrations());
-            wireIntegrations();
-          }
+          integrations = enriched;
+          window.ZentridLiveIntegrations = integrations;
+          ZentridLayout.mount(renderIntegrations());
+          wireIntegrations();
           setLiveDataState(summary.errors.length ? 'partial' : 'live', summary.errors.length
-            ? 'The integration registry is visible, but part of the operational summary could not be loaded.'
-            : 'The fast integration registry was enriched with operational counts and sync health.', {
+            ? 'The Connector Registry is visible, but part of the optional operational summary could not be loaded.'
+            : 'The Connector Registry page was enriched with provider-level operational counts and sync health.', {
             source: `${registry?.source || '/api/admin/provider-integrations'} + ${summary.source}`,
-            details: summary.errors.length ? `${summary.errors.length} summary error(s)` : 'Progressive loading complete',
-            recordCount: enriched.length
+            details: summary.errors.length ? `${summary.errors.length} summary error(s)` : 'Registry identities preserved · progressive enrichment complete',
+            recordCount: registry?.pagination.totalCount || enriched.length
           });
           insertIntegrationLiveSummary([
-            { label: 'Integration Registry', value: `${data.length} row(s)`, meta: 'Administrative records' },
+            { label: 'Integration Registry', value: `${registry?.pagination.totalCount ?? data.length} record(s)`, meta: `Page ${registry?.pagination.page || 1} · administrative records` },
             { label: 'Operational Summary', value: `${summary.items.length} provider row(s)`, meta: summary.items.map(item => item.vendor || item.name).filter(Boolean).join(', ') || 'No summary rows' },
             { label: 'Providers / Templates', value: `${providers.length}/${templates.length}`, meta: 'Fast supporting endpoints' }
           ]);
         })
         .catch(error => {
-          setLiveDataState('partial', 'The integration registry is ready. The optional operational summary did not complete, so registry values remain visible.', {
+          if (!isCurrentRegistryRequest('integrations', requestVersion)) return;
+          setLiveDataState('partial', 'The Connector Registry is ready. The optional operational summary did not complete, so Registry values remain visible.', {
             source: registry?.source || '/api/admin/provider-integrations',
             details: liveErrorMessage(error),
-            recordCount: data.length
+            recordCount: registry?.pagination.totalCount || data.length
           });
         });
     } catch (error) {
-      setRequestFailure('/api/admin/provider-integrations', error, 'No prototype connector records are displayed.');
+      if (isCurrentRegistryRequest('integrations', requestVersion)) setRequestFailure('/api/admin/provider-integrations', error, 'No prototype connector records are displayed.');
     }
   }
+
 
   async function applyPlants(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/plants\.html$/.test(location.pathname)) return;
@@ -2120,7 +2161,7 @@
 
   async function loadLiveDeviceDetail(device: AnyRecord, forceRefresh: boolean): Promise<{ id: string; detail: AnyRecord } | null> {
     const sourceDeviceId = String(firstOf(device, ['externalId', 'raw.source.sourceDeviceId', 'raw.sourceDeviceId', 'serial'], '') || '').trim();
-    const explicitLiveId = String(firstOf(device, ['liveId'], '') || '').trim();
+    const explicitLiveId = String(firstOf(device, ['liveId', 'canonicalDeviceId'], '') || '').trim();
 
     // Device Registry UUIDs are administrative/canonical identifiers. The Platform Live
     // detail endpoint does not necessarily accept that UUID (confirmed by real 404s), so
@@ -2130,23 +2171,6 @@
         const direct = await window.ZentridPlatformAPI?.liveDevices?.get(explicitLiveId, detailReadOptions('device-detail:live-direct', 20, forceRefresh));
         if (direct && typeof direct === 'object') return { id: explicitLiveId, detail: direct as AnyRecord };
       } catch (_error) { /* Re-resolve below from source identity. */ }
-    }
-
-    const registryPlantId = String(firstOf(device, ['plantId', 'raw.plantRelation.plantId'], '') || '').trim();
-    if (registryPlantId && window.ZentridPlatformAPI?.plantRegistry?.devices) {
-      try {
-        const plantDevices = await window.ZentridPlatformAPI.plantRegistry.devices(registryPlantId, detailReadOptions('device-detail:canonical-by-registry-plant', 100, forceRefresh));
-        const canonicalMatch = asArray(plantDevices).find(candidate => liveDeviceMatchesAdmin(candidate, device));
-        const canonicalId = String(firstOf(canonicalMatch || {}, ['deviceId', 'id'], '') || '').trim();
-        if (canonicalMatch && canonicalId) {
-          try {
-            const detail = await window.ZentridPlatformAPI?.liveDevices?.get(canonicalId, detailReadOptions('device-detail:live-core-from-registry-plant', 20, forceRefresh));
-            return { id: canonicalId, detail: (detail && typeof detail === 'object' ? detail as AnyRecord : canonicalMatch as AnyRecord) };
-          } catch {
-            return { id: canonicalId, detail: canonicalMatch as AnyRecord };
-          }
-        }
-      } catch (_error) { /* Source identity fallbacks remain available below. */ }
     }
 
     if (!sourceDeviceId || sourceDeviceId === '—') return null;
@@ -2175,47 +2199,41 @@
     const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_device');
     const selectedSnapshot = readDetailSelection('device', selectedId);
     setLiveDataState('loading', selectedSnapshot
-      ? 'Restoring the selected device while the current API page is checked for a fresher copy.'
+      ? 'Loading the selected Device Registry record. A preserved browser snapshot is used only if the direct detail endpoint is unavailable.'
       : 'Loading the device record. Parent plant, alerts and telemetry sections will load only when opened.', { source: '/api/admin/devices' });
     try {
-      const deviceResult = selectedId
-        ? await ZentridAPIRepositories.devices.get(selectedId, detailReadOptions('device-detail:core', 20, forceRefresh))
-        : await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:core', 20, forceRefresh));
-      const networkRows = deviceResult.items;
-      const selectedDeviceFromNetwork = selectedId
-        ? (networkRows.find(record => detailSelectionMatches(record, selectedId)) || networkRows[0])
-        : networkRows[0];
-      const preserveSnapshotValue = (networkValue: unknown, snapshotValue: unknown): unknown => {
-        const text = String(networkValue ?? '').trim();
-        return (!text || text === '—' || text.toLowerCase() === 'unknown') && snapshotValue !== undefined && snapshotValue !== null && String(snapshotValue).trim() !== ''
-          ? snapshotValue
-          : networkValue;
-      };
-      const selectedRecord = selectedDeviceFromNetwork && selectedSnapshot
+      let requestedRegistryId = String(selectedId || '').trim();
+      if (!requestedRegistryId) {
+        const registryList = await ZentridAPIRepositories.devices.list(detailReadOptions('device-detail:registry-selection', 20, forceRefresh));
+        const firstRegistryDevice = registryList.items[0];
+        requestedRegistryId = String(firstOf(firstRegistryDevice || {}, ['adminId', 'registryDeviceId', 'id'], '') || '').trim();
+        if (!requestedRegistryId) {
+          const message = 'The Device Registry returned no records. No prototype device detail is displayed.';
+          window.ZentridApiOnly?.mountEmpty('Device Detail', message, '/api/admin/devices');
+          setLiveDataState('empty', message, { source: '/api/admin/devices', recordCount: registryList.pagination.totalCount });
+          return;
+        }
+      }
+      const deviceResult = await ZentridAPIRepositories.devices.get(requestedRegistryId, {
+        ...detailReadOptions('device-detail:registry-direct', 20, forceRefresh),
+        allowListFallback: false
+      });
+      const registryRecord = deviceResult.item || deviceResult.items.find(record => detailSelectionMatches(record, requestedRegistryId));
+      const selectedRecord: AnyRecord | undefined = registryRecord
         ? {
-            ...selectedSnapshot,
-            ...selectedDeviceFromNetwork,
-            lastSeen: preserveSnapshotValue(selectedDeviceFromNetwork.lastSeen, selectedSnapshot.lastSeen),
-            alerts: selectedDeviceFromNetwork.alerts ?? selectedSnapshot.alerts,
-            plant: preserveSnapshotValue(selectedDeviceFromNetwork.plant, selectedSnapshot.plant),
-            tenant: preserveSnapshotValue(selectedDeviceFromNetwork.tenant, selectedSnapshot.tenant),
-            capacity: preserveSnapshotValue(selectedDeviceFromNetwork.capacity, selectedSnapshot.capacity),
-            sourceStatus: preserveSnapshotValue(selectedDeviceFromNetwork.sourceStatus, selectedSnapshot.sourceStatus),
-            raw: selectedDeviceFromNetwork.raw
+            ...registryRecord,
+            adminId: String(firstOf(registryRecord, ['adminId', 'registryDeviceId', 'id'], requestedRegistryId) || requestedRegistryId).trim(),
+            registryDeviceId: String(firstOf(registryRecord, ['registryDeviceId', 'adminId', 'id'], requestedRegistryId) || requestedRegistryId).trim(),
+            detailSourceMode: 'registry',
+            registryLoaded: true,
+            operationalLoaded: false
           }
-        : selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined);
+        : undefined;
       if (!selectedRecord) {
-        const message = selectedId
-          ? 'The selected device endpoint returned no record and no preserved selection snapshot is available.'
-          : 'The device endpoint returned no records. No prototype device detail is displayed.';
-        window.ZentridApiOnly?.mountEmpty('Device Detail', message, '/api/admin/devices');
-        setLiveDataState('empty', message, { source: '/api/admin/devices', recordCount: deviceResult.pagination.totalCount });
-        return;
+        throw new Error(`GET /api/admin/devices/${requestedRegistryId} returned no Device Registry record.`);
       }
 
-      const deviceRows = selectedDeviceFromNetwork
-        ? [selectedRecord, ...networkRows.filter(record => record !== selectedDeviceFromNetwork)]
-        : [selectedRecord, ...networkRows.filter(record => !detailSelectionMatches(record, selectedId))];
+      const deviceRows = [selectedRecord];
       let plantRows: AnyRecord[] = [];
       let alertRows: AnyRecord[] = [];
       let telemetryRows: AnyRecord[] = [];
@@ -2225,9 +2243,7 @@
         window.ZentridLivePlants = plantRows;
         window.ZentridLiveDevices = mappedDevices;
         window.ZentridLiveAlerts = alertRows;
-        const device = selectedId
-          ? mappedDevices.find(record => detailSelectionMatches(record, selectedId))
-          : mappedDevices[0];
+        const device = mappedDevices.find(record => detailSelectionMatches(record, requestedRegistryId)) || mappedDevices[0];
         if (device) {
           localStorage.setItem('zentrid_selected_device', device.id);
           saveDetailSelection('device', device);
@@ -2235,12 +2251,10 @@
         return device;
       };
       let device = sync();
-      const selectedAdminDeviceId = String(device?.adminId || device?.id || selectedId || '').trim();
+      const selectedAdminDeviceId = String(device?.adminId || device?.registryDeviceId || requestedRegistryId || '').trim();
       let selectedLiveDeviceId = '';
       const applyDeviceResource = (field: string, payload: unknown): AnyRecord | undefined => {
-        const target = selectedId
-          ? deviceRows.find(record => detailSelectionMatches(record, selectedId))
-          : deviceRows[0];
+        const target = deviceRows.find(record => detailSelectionMatches(record, requestedRegistryId)) || deviceRows[0];
         if (target) target[field] = payload;
         return sync();
       };
@@ -2251,8 +2265,13 @@
           selectedLiveDeviceId = liveMatch.id;
           applyDeviceResource('liveLookupStatus', 'matched');
           applyDeviceResource('liveId', liveMatch.id);
+          applyDeviceResource('canonicalDeviceId', liveMatch.id);
+          applyDeviceResource('operationalLoaded', true);
+          applyDeviceResource('detailSourceMode', 'registry-live');
           device = applyDeviceResource('liveDetail', liveMatch.detail);
         } else {
+          applyDeviceResource('operationalLoaded', false);
+          applyDeviceResource('detailSourceMode', 'registry');
           device = applyDeviceResource('liveLookupStatus', 'not-linked');
         }
       } catch (error) {
@@ -2266,9 +2285,22 @@
           label: 'Parent plant and topology',
           loader: async () => {
             const parentPlantId = String(firstOf(device || {}, ['plantId', 'raw.plantRelation.plantId'], '') || '').trim();
-            const result = parentPlantId
-              ? await ZentridAPIRepositories.plants.get(parentPlantId, { ...detailReadOptions('device-detail:parent-plant', 20, forceRefresh), cacheVariant: 'admin-registry' })
-              : await ZentridAPIRepositories.plants.list({ ...detailReadOptions('device-detail:parent-plant', 20, forceRefresh), cacheVariant: 'admin-registry' });
+            if (!parentPlantId) {
+              plantRows = [];
+              sync();
+              setLiveDataState('partial', 'The Device Registry record does not include a parent Plant Registry ID, so no plant was substituted.', {
+                source: deviceResult.source,
+                details: 'Parent Plant Registry relation was not returned by backend',
+                recordCount: deviceResult.pagination.totalCount,
+                dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live'
+              });
+              return;
+            }
+            const result = await ZentridAPIRepositories.plants.get(parentPlantId, {
+              ...detailReadOptions('device-detail:parent-plant', 20, forceRefresh),
+              cacheVariant: 'admin-registry',
+              allowListFallback: false
+            });
             plantRows = result.items;
             relationErrors.push(...result.errors);
             if (!plantRows.length && result.errors.length) throw result.errors[0];
@@ -2367,23 +2399,28 @@
       if (!mountExistingRenderer('renderDeviceDetail', 'wireDeviceDetail') && device) {
         console.warn('Zentrid live API: existing Device Detail renderer was not found; keeping current page markup.');
       }
-      const usingSnapshot = Boolean(selectedSnapshot && !selectedDeviceFromNetwork);
-      setLiveDataState(deviceResult.errors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
-        ? 'The exact selected device was restored from this browser session because it is not present on API page 1. Lazy relations remain available.'
-        : selectedLiveDeviceId ? 'The Device Registry record and matching Platform Live device are mapped. Lazy relation and operational subresources load when their tabs are opened.' : 'The Device Registry record is ready. No matching Platform Live device was found by provider + sourceDeviceId; admin sections remain available.', {
-        source: usingSnapshot ? `${deviceResult.source} + selected session record` : deviceResult.source,
-        details: usingSnapshot ? 'Selected record preserved · detail endpoint checked' : `Live device: ${selectedLiveDeviceId || 'not matched'} · Lazy sections: parent plant · alerts · telemetry · connectivity · warranty`,
+      setLiveDataState(deviceResult.errors.length ? 'partial' : 'live', selectedLiveDeviceId
+        ? 'The direct Device Registry record and matching Platform Live device are mapped. Lazy relation and operational subresources load when their tabs are opened.'
+        : 'The direct Device Registry record is ready. No matching Platform Live device was found by explicit canonical id or provider/source identity; administrative sections remain available.', {
+        source: deviceResult.source,
+        details: `Direct Registry detail · Live device: ${selectedLiveDeviceId || 'not matched'} · Lazy sections: parent plant · alerts · telemetry · connectivity · warranty`,
         recordCount: deviceResult.pagination.totalCount,
         dataOrigin: selectedLiveDeviceId ? 'mixed' : 'live'
       });
     } catch (error) {
       if (selectedSnapshot) {
+        const snapshotRecord = {
+          ...selectedSnapshot,
+          detailSourceMode: 'snapshot',
+          registryLoaded: false,
+          operationalLoaded: false
+        };
         window.ZentridLivePlants = [];
-        window.ZentridLiveDevices = [selectedSnapshot];
+        window.ZentridLiveDevices = [snapshotRecord];
         window.ZentridLiveAlerts = [];
-        saveDetailSelection('device', selectedSnapshot);
+        saveDetailSelection('device', snapshotRecord);
         mountExistingRenderer('renderDeviceDetail', 'wireDeviceDetail');
-        setLiveDataState('partial', 'The selected device was restored from this browser session while the live device request failed.', {
+        setLiveDataState('partial', 'The selected device was restored from this browser session because the direct Device Registry detail request failed. Snapshot values are not merged into a successful Registry response.', {
           source: 'Selected session record',
           details: liveErrorMessage(error),
           recordCount: 1,
@@ -2448,11 +2485,13 @@
     const preferOperational = (operationalValue: unknown, adminValue: unknown): unknown => plantOperationalValue(operationalValue) ? operationalValue : adminValue;
     const adminRaw = adminPlant.raw && typeof adminPlant.raw === 'object' ? adminPlant.raw as AnyRecord : {};
     const liveRaw = operationalPlant.raw && typeof operationalPlant.raw === 'object' ? operationalPlant.raw as AnyRecord : {};
+    const administrativeId = safeText(adminPlant.adminId || adminPlant.registryPlantId || adminPlant.id, '').trim();
     return {
       ...adminPlant,
+      adminId: administrativeId,
+      registryPlantId: administrativeId,
       operationalId: safeText(operationalPlant.id || adminPlant.operationalId || adminPlant.canonicalPlantId, '').trim(),
       canonicalPlantId: safeText(operationalPlant.id || adminPlant.canonicalPlantId || adminPlant.operationalId, '').trim(),
-      registryPlantId: safeText(adminPlant.registryPlantId || adminPlant.adminId || adminPlant.id, '').trim(),
       operationalExternalId: safeText(operationalPlant.externalId || adminPlant.operationalExternalId || adminPlant.sourcePlantId, '').trim(),
       sourcePlantId: safeText(adminPlant.sourcePlantId || operationalPlant.externalId || adminPlant.externalId, '').trim(),
       livePower: preferOperational(operationalPlant.livePower, adminPlant.livePower),
@@ -2465,11 +2504,139 @@
       lastSyncAt: preferOperational(operationalPlant.lastSyncAt, adminPlant.lastSyncAt),
       dataQualityStatus: preferOperational(operationalPlant.dataQualityStatus, adminPlant.dataQualityStatus),
       freshness: preferOperational(operationalPlant.freshness, adminPlant.freshness),
+      detailSourceMode: 'registry-live',
+      registryLoaded: true,
+      operationalLoaded: true,
       raw: {
         ...adminRaw,
         adminRecord: adminRaw,
         liveRecord: liveRaw
       }
+    };
+  }
+
+  function administrativePlantId(record: AnyRecord | null | undefined): string {
+    if (!record) return '';
+    return safeText(firstOf(record, ['adminId', 'registryPlantId', 'raw.adminRecord.id', 'raw.adminRecord.plantId', 'raw.id', 'raw.plantId', 'id'], ''), '').trim();
+  }
+
+  function providerPlantAssignmentRows(payload: unknown): AnyRecord[] {
+    if (Array.isArray(payload)) return payload.filter(item => item && typeof item === 'object') as AnyRecord[];
+    if (!payload || typeof payload !== 'object') return [];
+    const record = payload as AnyRecord;
+    for (const key of ['items', 'data', 'results']) {
+      const value = record[key];
+      if (Array.isArray(value)) return value.filter(item => item && typeof item === 'object') as AnyRecord[];
+    }
+    return [];
+  }
+
+  function providerPlantAssignmentMatches(assignment: AnyRecord, selectedId: string | null, operationalPlant: AnyRecord | null, adminId = ''): boolean {
+    const registryId = safeText(assignment.plantRegistryId, '').trim();
+    const sourcePlantId = safeText(assignment.sourcePlantId, '').trim();
+    const provider = safeText(assignment.provider, '').trim();
+    const requested = safeText(selectedId, '').trim();
+    const expectedAdminId = safeText(adminId, '').trim();
+    if (expectedAdminId && registryId && sameId(registryId, expectedAdminId)) return true;
+    if (requested && registryId && sameId(registryId, requested)) return true;
+
+    const operationalSourceId = safeText(firstOf(operationalPlant || {}, ['sourcePlantId', 'externalId', 'operationalExternalId', 'code', 'raw.sourcePlantId'], ''), '').trim();
+    const operationalProvider = safeText(firstOf(operationalPlant || {}, ['sourceSystem', 'vendor', 'provider', 'raw.provider'], ''), '').trim();
+    const sourceMatches = Boolean(sourcePlantId) && (
+      (requested && sameId(sourcePlantId, requested)) ||
+      (operationalSourceId && sameId(sourcePlantId, operationalSourceId))
+    );
+    if (!sourceMatches) return false;
+    if (provider && operationalProvider && !sameLabel(provider, operationalProvider)) return false;
+    return true;
+  }
+
+  async function resolveProviderPlantAssignment(selectedId: string | null, operationalPlant: AnyRecord | null, adminId = ''): Promise<{ assignment: AnyRecord | null; ambiguous: boolean }> {
+    if (!window.ZentridPlatformAPI?.providerPlantAssignments?.list) return { assignment: null, ambiguous: false };
+    try {
+      const payload = await window.ZentridPlatformAPI.providerPlantAssignments.list({ timeoutMs: 15000 });
+      const matches = providerPlantAssignmentRows(payload).filter(row => providerPlantAssignmentMatches(row, selectedId, operationalPlant, adminId));
+      if (matches.length !== 1) return { assignment: null, ambiguous: matches.length > 1 };
+      return { assignment: matches[0] || null, ambiguous: false };
+    } catch {
+      // Assignment mapping is an identity accelerator. Plant Registry resolution below remains the fallback.
+      return { assignment: null, ambiguous: false };
+    }
+  }
+
+  function plantRegistryMatchesSelection(adminPlant: AnyRecord, selectedId: string | null, operationalPlant?: AnyRecord | null): boolean {
+    const requested = safeText(selectedId, '').trim();
+    if (requested && detailSelectionMatches(adminPlant, requested)) return true;
+    if (!operationalPlant) return false;
+
+    const operationalId = safeText(firstOf(operationalPlant, ['id', 'operationalId', 'canonicalPlantId', 'raw.id'], ''), '').trim();
+    const registryOperationalId = safeText(firstOf(adminPlant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId'], ''), '').trim();
+    if (operationalId && registryOperationalId && sameId(operationalId, registryOperationalId)) return true;
+
+    const operationalExternalId = safeText(firstOf(operationalPlant, ['sourcePlantId', 'externalId', 'operationalExternalId', 'code', 'raw.sourcePlantId'], ''), '').trim();
+    const registryExternalId = safeText(firstOf(adminPlant, ['sourcePlantId', 'externalId', 'operationalExternalId', 'code', 'raw.sourcePlantId', 'raw.plantCode'], ''), '').trim();
+    if (operationalExternalId && registryExternalId && sameId(operationalExternalId, registryExternalId)) return true;
+
+    const sameProvider = sameLabel(operationalPlant.sourceSystem || operationalPlant.vendor, adminPlant.sourceSystem || adminPlant.vendor);
+    return sameProvider && sameLabel(operationalPlant.name, adminPlant.name);
+  }
+
+  async function resolveSelectedAdministrativePlantId(selectedId: string | null, operationalPlant: AnyRecord | null, forceRefresh: boolean): Promise<{ adminId: string; errors: unknown[] }> {
+    const paired = selectedPlantAdministrativeId(selectedId);
+    if (paired) return { adminId: paired, errors: [] };
+
+    const providerAssignment = await resolveProviderPlantAssignment(selectedId, operationalPlant);
+    const assignedRegistryId = safeText(providerAssignment.assignment?.plantRegistryId, '').trim();
+    if (assignedRegistryId) return { adminId: assignedRegistryId, errors: [] };
+
+    const terms = Array.from(new Set([
+      safeText(selectedId, '').trim(),
+      safeText(firstOf(operationalPlant || {}, ['id', 'operationalId', 'canonicalPlantId'], ''), '').trim(),
+      safeText(firstOf(operationalPlant || {}, ['sourcePlantId', 'externalId', 'operationalExternalId', 'code'], ''), '').trim(),
+      safeText(operationalPlant?.name, '').trim()
+    ].filter(Boolean)));
+    const errors: unknown[] = [];
+
+    for (const term of terms) {
+      try {
+        const result = await ZentridAPIRepositories.plants.list({
+          ...detailReadOptions(`plant-detail:registry-resolve:${term}`, 50, forceRefresh),
+          cacheVariant: 'admin-registry',
+          search: term,
+          page: 1,
+          pageSize: 50
+        });
+        errors.push(...result.errors);
+        const match = result.items.find(item => plantRegistryMatchesSelection(item as AnyRecord, selectedId, operationalPlant));
+        if (match) return { adminId: administrativePlantId(match as AnyRecord), errors };
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    return { adminId: '', errors };
+  }
+
+  function registryBackedPlant(record: AnyRecord, adminId: string): AnyRecord {
+    const raw = record.raw && typeof record.raw === 'object' ? record.raw as AnyRecord : {};
+    return {
+      ...record,
+      adminId: safeText(adminId || record.adminId || record.registryPlantId || record.id, '').trim(),
+      registryPlantId: safeText(adminId || record.registryPlantId || record.id, '').trim(),
+      detailSourceMode: 'registry',
+      registryLoaded: true,
+      operationalLoaded: false,
+      raw: { ...raw, adminRecord: raw }
+    };
+  }
+
+  function liveOnlyPlant(record: AnyRecord): AnyRecord {
+    const raw = record.raw && typeof record.raw === 'object' ? record.raw as AnyRecord : {};
+    return {
+      ...record,
+      detailSourceMode: 'live-only',
+      registryLoaded: false,
+      operationalLoaded: true,
+      raw: { ...raw, liveRecord: raw }
     };
   }
 
@@ -2502,49 +2669,112 @@
       return;
     }
     let selectedAdminId = selectedPlantAdministrativeId(selectedId);
-    let detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/plants';
-    setLiveDataState('loading', selectedAdminId ? 'Loading the selected Global Admin plant record.' : 'Resolving the selected plant from the live plant collection.', { source: detailSource });
+    let detailSource = selectedAdminId ? `/api/admin/plants/${encodeURIComponent(selectedAdminId)}` : '/api/admin/plants';
+    setLiveDataState('loading', selectedAdminId ? 'Loading the selected Plant Registry record.' : 'Resolving the selected plant against Plant Registry.', { source: detailSource });
     try {
-      let live = selectedAdminId
-        ? await ZentridAPIRepositories.plants.get(selectedAdminId, { ...detailReadOptions('plant-detail:core', 100, forceRefresh), cacheVariant: 'admin-registry' })
-        : await resolveSelectedLivePlant(selectedId, forceRefresh);
+      let operationalSelection: ZentridRepositoryListResult | null = null;
+      const resolutionErrors: unknown[] = [];
 
-      // Backward-compatible recovery for selections created before registry rows stored admin context.
-      // If a selected UUID is not a live plant id, probe the administrative detail endpoint before
-      // declaring the record missing. This keeps deep links / previously stored registry selections valid.
-      if (!live.items.length && selectedId && !selectedAdminId) {
-        try {
-          const adminFallback = await ZentridAPIRepositories.plants.get(selectedId, {
-            ...detailReadOptions('plant-detail:admin-recovery', 20, forceRefresh),
+      if (!selectedAdminId && selectedId) {
+        const registryResolution = await resolveSelectedAdministrativePlantId(selectedId, null, forceRefresh);
+        selectedAdminId = registryResolution.adminId;
+        resolutionErrors.push(...registryResolution.errors);
+      }
+
+      let live: ZentridRepositoryListResult;
+      if (selectedAdminId) {
+        detailSource = `/api/admin/plants/${encodeURIComponent(selectedAdminId)}`;
+        const adminDetail = await ZentridAPIRepositories.plants.get(selectedAdminId, {
+          ...detailReadOptions('plant-detail:registry-core', 20, forceRefresh),
+          cacheVariant: 'admin-registry'
+        });
+        live = {
+          ...adminDetail,
+          items: adminDetail.items.map(item => registryBackedPlant(item as AnyRecord, selectedAdminId)),
+          rawItems: adminDetail.rawItems.map(item => registryBackedPlant(item as AnyRecord, selectedAdminId)),
+          errors: [...resolutionErrors, ...adminDetail.errors]
+        };
+      } else {
+        operationalSelection = await resolveSelectedLivePlant(selectedId, forceRefresh);
+        const operationalPlant = operationalSelection.items[0] as AnyRecord | undefined;
+
+        if (operationalPlant) {
+          const registryResolution = await resolveSelectedAdministrativePlantId(selectedId, operationalPlant, forceRefresh);
+          selectedAdminId = registryResolution.adminId;
+          resolutionErrors.push(...registryResolution.errors);
+        }
+
+        if (selectedAdminId) {
+          detailSource = `/api/admin/plants/${encodeURIComponent(selectedAdminId)}`;
+          const adminDetail = await ZentridAPIRepositories.plants.get(selectedAdminId, {
+            ...detailReadOptions('plant-detail:registry-core', 20, forceRefresh),
             cacheVariant: 'admin-registry'
           });
-          if (adminFallback.items.length) {
-            selectedAdminId = selectedId;
-            detailSource = `/api/admin/plants/${encodeURIComponent(selectedAdminId)}`;
-            live = adminFallback;
-            localStorage.setItem('zentrid_selected_plant_context', JSON.stringify({ selectedId, adminId: selectedAdminId }));
-          }
-        } catch {
-          // A live-only plant is allowed to have no corresponding admin record.
+          live = {
+            ...adminDetail,
+            items: adminDetail.items.map(item => registryBackedPlant(item as AnyRecord, selectedAdminId)),
+            rawItems: adminDetail.rawItems.map(item => registryBackedPlant(item as AnyRecord, selectedAdminId)),
+            errors: [...resolutionErrors, ...adminDetail.errors]
+          };
+        } else {
+          live = {
+            ...operationalSelection,
+            items: operationalSelection.items.map(item => liveOnlyPlant(item as AnyRecord)),
+            rawItems: operationalSelection.rawItems.map(item => liveOnlyPlant(item as AnyRecord)),
+            errors: [...resolutionErrors, ...operationalSelection.errors]
+          };
+          detailSource = '/api/plants';
         }
       }
 
       if (selectedAdminId && live.items.length) {
         try {
-          const adminPlant = live.items[0] as AnyRecord;
-          const canonicalPlantId = safeText(firstOf(adminPlant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId'], ''), '').trim();
-          const operational = canonicalPlantId ? await resolveSelectedLivePlant(canonicalPlantId, forceRefresh) : { ...live, items: [], rawItems: [], errors: [] };
-          const operationalPlant = operational.items[0];
-          if (operationalPlant) {
-            const enrichedPlant = enrichAdministrativePlantWithOperational(live.items[0] as AnyRecord, operationalPlant as AnyRecord);
+          let adminPlant = live.items[0] as AnyRecord;
+          const assignmentResolution = await resolveProviderPlantAssignment(selectedId, adminPlant, selectedAdminId);
+          const assignment = assignmentResolution.assignment;
+          if (assignment) {
+            const assignmentRaw = adminPlant.raw && typeof adminPlant.raw === 'object' ? adminPlant.raw as AnyRecord : {};
+            adminPlant = {
+              ...adminPlant,
+              sourcePlantId: safeText(adminPlant.sourcePlantId || assignment.sourcePlantId, '').trim(),
+              vendor: safeText(adminPlant.vendor || assignment.provider, '').trim(),
+              providerAccount: safeText(adminPlant.providerAccount || assignment.providerAccount, '').trim(),
+              providerPlantAssignment: assignment,
+              providerPlantAssignmentStatus: 'matched',
+              raw: { ...assignmentRaw, providerPlantAssignment: assignment }
+            };
+            live = { ...live, items: [adminPlant], rawItems: [adminPlant] };
+          } else if (assignmentResolution.ambiguous) {
+            adminPlant = { ...adminPlant, providerPlantAssignmentStatus: 'ambiguous' };
+            live = { ...live, items: [adminPlant], rawItems: [adminPlant] };
+          }
+
+          const canonicalPlantId = safeText(firstOf(adminPlant, ['operationalId', 'canonicalPlantId', 'raw.operationalData.canonicalPlantId', 'raw.adminRecord.operationalData.canonicalPlantId'], ''), '').trim();
+          const assignedSourcePlantId = safeText(assignment?.sourcePlantId, '').trim();
+          const liveLookupId = canonicalPlantId || assignedSourcePlantId;
+          const operational = operationalSelection && operationalSelection.items.length
+            ? operationalSelection
+            : liveLookupId
+              ? await resolveSelectedLivePlant(liveLookupId, forceRefresh)
+              : null;
+          const operationalPlant = operational?.items[0] as AnyRecord | undefined;
+          const operationalMatches = operationalPlant
+            ? (!canonicalPlantId || detailSelectionMatches(operationalPlant, canonicalPlantId) || plantRegistryMatchesSelection(adminPlant, selectedId, operationalPlant))
+            : false;
+          if (operationalPlant && operationalMatches) {
+            const enrichedPlant = {
+              ...enrichAdministrativePlantWithOperational(adminPlant, operationalPlant),
+              ...(assignment ? { providerPlantAssignment: assignment, providerPlantAssignmentStatus: 'matched' } : {}),
+              ...(assignmentResolution.ambiguous ? { providerPlantAssignmentStatus: 'ambiguous' } : {})
+            };
             live = {
               ...live,
               items: [enrichedPlant],
               rawItems: [enrichedPlant],
-              source: `${live.source} + /api/plants`,
-              errors: [...live.errors, ...operational.errors]
+              source: `${detailSource} + /api/plants${assignment ? ' + /api/admin/provider-plant-assignments' : ''}`,
+              errors: [...live.errors, ...(operational?.errors || [])]
             };
-          } else if (operational.errors.length) {
+          } else if (operational?.errors.length) {
             live = { ...live, errors: [...live.errors, ...operational.errors] };
           }
         } catch (error) {
@@ -2630,7 +2860,7 @@
         }
         return plant;
       };
-      const plant = sync();
+      sync();
 
       window.ZentridDetailLazyTabs?.register('plant', [
         {
@@ -2705,12 +2935,17 @@
       if (!mountExistingRenderer('renderPlantDetailPage', '')) {
         console.warn('Zentrid live API: existing Plant Detail renderer was not found; keeping current page markup.');
       }
-      const usedDirectDetail = Boolean(selectedId && live.source.startsWith(detailSource));
+      const renderedPlant = sync();
+      const sourceMode = safeText(renderedPlant?.detailSourceMode, selectedAdminId ? 'registry' : 'live-only');
       setLiveDataState(live.errors.length ? 'partial' : 'live', 'The plant overview is ready. Devices, alerts and telemetry remain idle until their tabs are opened.', {
         source: live.source,
         details: [
-          usedDirectDetail ? 'Direct detail endpoint with live operational enrichment' : selectedId ? 'Fallback list lookup' : 'Merged plant collection lookup',
-          live.errors.length ? (usedDirectDetail ? 'Live operational enrichment returned an error; administrative detail remains available.' : 'The direct detail request failed; the bounded list fallback was used.') : '',
+          sourceMode === 'registry-live'
+            ? 'Plant Registry detail is authoritative; Platform Live enriches operational fields.'
+            : sourceMode === 'registry'
+              ? 'Plant Registry detail is authoritative; no matching Platform Live record was available.'
+              : 'Live operational record only; no linked Plant Registry record was resolved.',
+          live.errors.length ? 'One or more enrichment or relation-resolution requests returned an error; available Registry data remains visible.' : '',
           'Lazy sections: devices · alerts · telemetry'
         ].filter(Boolean).join(' · '),
         recordCount: data.length
@@ -2749,31 +2984,102 @@
       if (!meaningfulAlertValue(adminAlert[key]) && meaningfulAlertValue(liveAlert[key])) merged[key] = liveAlert[key];
     });
 
-    const adminTimeline = Array.isArray(adminAlert.timeline) ? adminAlert.timeline : [];
-    const liveTimeline = Array.isArray(liveAlert.timeline) ? liveAlert.timeline : [];
-    merged.timeline = adminTimeline.length ? adminTimeline : liveTimeline;
-    merged.related = mergeAlertRelated(adminAlert.related, liveAlert.related);
-
     const adminRaw = adminAlert.raw && typeof adminAlert.raw === 'object' ? adminAlert.raw as AnyRecord : {};
-    const adminSopRaw = adminRaw.__sop;
-    const adminHasSop = Boolean(adminSopRaw && typeof adminSopRaw === 'object');
-    const liveHasSop = Boolean(liveAlert.sop && typeof liveAlert.sop === 'object');
-    merged.sop = adminHasSop ? adminAlert.sop : liveHasSop ? liveAlert.sop : adminAlert.sop ?? liveAlert.sop ?? null;
+    const adminTimelineLoaded = adminRaw.__timelineLoaded === true;
+    const adminRelatedLoaded = adminRaw.__relatedLoaded === true;
+    const adminSopLoaded = adminRaw.__sopLoaded === true;
+    const adminTelemetryCurveLoaded = adminRaw.__telemetryCurveLoaded === true;
+    const liveTimelineLoaded = livePayloads.timelineLoaded === true;
+    const liveRelatedLoaded = livePayloads.relatedLoaded === true;
+    const liveSopLoaded = livePayloads.sopLoaded === true;
+    const liveTelemetryCurveLoaded = livePayloads.telemetryCurveLoaded === true;
 
-    const liveCurve = liveAlert.telemetryCurve && typeof liveAlert.telemetryCurve === 'object' ? liveAlert.telemetryCurve : null;
-    const adminCurve = adminAlert.telemetryCurve && typeof adminAlert.telemetryCurve === 'object' ? adminAlert.telemetryCurve : null;
-    merged.telemetryCurve = liveCurve || adminCurve;
+    if (adminTimelineLoaded) merged.timeline = Array.isArray(adminAlert.timeline) ? adminAlert.timeline : [];
+    else if (liveTimelineLoaded) merged.timeline = Array.isArray(liveAlert.timeline) ? liveAlert.timeline : [];
+
+    if (adminRelatedLoaded) merged.related = adminAlert.related && typeof adminAlert.related === 'object' ? adminAlert.related : {};
+    else if (liveRelatedLoaded) merged.related = liveAlert.related && typeof liveAlert.related === 'object' ? liveAlert.related : {};
+
+    if (adminSopLoaded) merged.sop = adminAlert.sop ?? null;
+    else if (liveSopLoaded) merged.sop = liveAlert.sop ?? null;
+
+    if (adminTelemetryCurveLoaded) merged.telemetryCurve = adminAlert.telemetryCurve ?? null;
+    else if (liveTelemetryCurveLoaded) merged.telemetryCurve = liveAlert.telemetryCurve ?? null;
 
     merged.adminSnapshot = { ...adminAlert };
     merged.liveOperational = livePayloads;
     merged.dataOrigin = 'mixed';
     merged.subresourceSources = {
-      timeline: Object.prototype.hasOwnProperty.call(adminRaw, '__timeline') ? 'admin' : Array.isArray(livePayloads.timeline) ? 'live' : 'none',
-      related: Object.prototype.hasOwnProperty.call(adminRaw, '__related') ? 'admin' : livePayloads.related && typeof livePayloads.related === 'object' ? 'live' : 'none',
-      sop: adminHasSop ? 'admin' : liveHasSop ? 'live' : 'none',
-      telemetryCurve: liveCurve ? 'live' : Object.prototype.hasOwnProperty.call(adminRaw, '__telemetryCurve') ? 'admin' : 'none'
+      timeline: adminTimelineLoaded ? 'admin' : liveTimelineLoaded ? 'live' : 'none',
+      related: adminRelatedLoaded ? 'admin' : liveRelatedLoaded ? 'live' : 'none',
+      sop: adminSopLoaded ? 'admin' : liveSopLoaded ? 'live' : 'none',
+      telemetryCurve: adminTelemetryCurveLoaded ? 'admin' : liveTelemetryCurveLoaded ? 'live' : 'none'
     };
     return merged;
+  }
+
+  function alertExplicitLiveId(alert: AnyRecord): string {
+    return safeText(firstOf(alert, [
+      'liveAlertId', 'canonicalAlertId',
+      'raw.liveAlertId', 'raw.canonicalAlertId', 'raw.live.alertId'
+    ], ''), '').trim();
+  }
+
+  function alertSourceIdentity(alert: AnyRecord): string {
+    return normalizedSourceKey(firstOf(alert, [
+      'sourceAlertId', 'raw.vendor.sourceAlertId', 'raw.sourceAlertId', 'raw.vendorExtensions.sourceAlertId'
+    ], ''));
+  }
+
+  function alertSourceProvider(alert: AnyRecord): string {
+    return normalizedProviderIdentity(firstOf(alert, [
+      'vendor', 'provider', 'source', 'raw.vendor.provider', 'raw.provider'
+    ], ''));
+  }
+
+  function alertLiveIdentityMatch(candidate: AnyRecord, registryAlert: AnyRecord): boolean {
+    const wantedSource = alertSourceIdentity(registryAlert);
+    const candidateSource = alertSourceIdentity(candidate);
+    if (!wantedSource || !candidateSource || wantedSource !== candidateSource) return false;
+    const wantedProvider = alertSourceProvider(registryAlert);
+    const candidateProvider = alertSourceProvider(candidate);
+    if (wantedProvider && candidateProvider && wantedProvider !== candidateProvider) return false;
+
+    const wantedPlant = normalizedSourceKey(firstOf(registryAlert, ['sourcePlantId', 'raw.plant.sourcePlantId'], ''));
+    const candidatePlant = normalizedSourceKey(firstOf(candidate, ['sourcePlantId', 'raw.plant.sourcePlantId'], ''));
+    if (wantedPlant && candidatePlant && wantedPlant !== candidatePlant) return false;
+
+    const wantedDevice = normalizedSourceKey(firstOf(registryAlert, ['sourceDeviceId', 'raw.device.sourceDeviceId'], ''));
+    const candidateDevice = normalizedSourceKey(firstOf(candidate, ['sourceDeviceId', 'raw.device.sourceDeviceId'], ''));
+    if (wantedDevice && candidateDevice && wantedDevice !== candidateDevice) return false;
+    return true;
+  }
+
+  async function resolveAlertLiveId(alert: AnyRecord, forceRefresh: boolean): Promise<{ id: string; source: string; errors: unknown[] }> {
+    const explicitId = alertExplicitLiveId(alert);
+    if (explicitId) return { id: explicitId, source: 'explicit-live-id', errors: [] };
+
+    const sourceAlertId = alertSourceIdentity(alert);
+    if (!sourceAlertId) return { id: '', source: 'not-resolved', errors: [] };
+
+    try {
+      const result = await ZentridAPIRepositories.alerts.list({
+        page: 1,
+        pageSize: 50,
+        search: sourceAlertId,
+        cacheVariant: 'live',
+        forceRefresh,
+        timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+      });
+      const matches = (result.items as AnyRecord[]).filter(candidate => alertLiveIdentityMatch(candidate, alert));
+      if (matches.length === 1) {
+        const id = safeText(matches[0]?.id, '').trim();
+        return { id, source: id ? 'source-alert-id-search' : 'not-resolved', errors: result.errors };
+      }
+      return { id: '', source: matches.length > 1 ? 'ambiguous-source-alert-id' : 'not-resolved', errors: result.errors };
+    } catch (error) {
+      return { id: '', source: 'lookup-error', errors: [error] };
+    }
   }
 
   function alertDeviceSourceId(alert: AnyRecord): string {
@@ -2952,65 +3258,92 @@
     const selectedId = new URLSearchParams(location.search).get('id') || localStorage.getItem('zentrid_selected_alert');
     const selectedSnapshot = readDetailSelection('alert', selectedId);
     setLiveDataState('loading', selectedSnapshot
-      ? 'Restoring the selected alert while the current API page is checked for a fresher copy.'
-      : 'Loading normalized alert data for this detail page.', { source: '/api/admin/alerts' });
+      ? 'Loading the selected Alert Registry record. A preserved browser snapshot is used only if the direct detail endpoint is unavailable.'
+      : 'Loading the selected Alert Registry record and its backend subresources.', { source: '/api/admin/alerts' });
     try {
-      const result = selectedId
-        ? await ZentridAPIRepositories.alerts.get(selectedId, { ...detailReadOptions('alerts', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS })
-        : await ZentridAPIRepositories.alerts.list({ ...detailReadOptions('alerts', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS });
-      const data = result.items;
-      const selectedAlertFromNetwork = selectedId && 'item' in result ? result.item : data[0];
-      let selectedRecord = (selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined)) as AnyRecord | undefined;
-      const uiErrors: unknown[] = [...result.errors];
-      if (!selectedRecord) {
-        const message = selectedId
-          ? 'The selected alert is not present on the loaded API page and no preserved selection snapshot is available.'
-          : 'The alert endpoint returned no records.';
-        window.ZentridApiOnly?.mountEmpty('Alert Detail', message, '/api/admin/alerts');
-        setLiveDataState('empty', message, { source: '/api/admin/alerts', recordCount: result.pagination.totalCount });
-        return;
+      let requestedRegistryId = String(selectedId || '').trim();
+      if (!requestedRegistryId) {
+        const registryList = await ZentridAPIRepositories.alerts.list(detailReadOptions('alert-detail:registry-selection', 20, forceRefresh));
+        const firstRegistryAlert = registryList.items[0] as AnyRecord | undefined;
+        requestedRegistryId = safeText(firstOf(firstRegistryAlert || {}, ['id', 'adminId', 'registryAlertId'], ''), '').trim();
+        if (!requestedRegistryId) {
+          const message = 'The Alert Registry returned no records. No prototype alert detail is displayed.';
+          window.ZentridApiOnly?.mountEmpty('Alert Detail', message, '/api/admin/alerts');
+          setLiveDataState('empty', message, { source: '/api/admin/alerts', recordCount: registryList.pagination.totalCount });
+          return;
+        }
       }
 
-      const selectedAdminRaw = selectedRecord.raw && typeof selectedRecord.raw === 'object' ? selectedRecord.raw as AnyRecord : {};
-      selectedRecord = {
-        ...selectedRecord,
-        subresourceSources: {
-          timeline: Object.prototype.hasOwnProperty.call(selectedAdminRaw, '__timeline') ? 'admin' : 'none',
-          related: Object.prototype.hasOwnProperty.call(selectedAdminRaw, '__related') ? 'admin' : 'none',
-          sop: selectedAdminRaw.__sop && typeof selectedAdminRaw.__sop === 'object' ? 'admin' : 'none',
-          telemetryCurve: selectedAdminRaw.__telemetryCurve && typeof selectedAdminRaw.__telemetryCurve === 'object' ? 'admin' : 'none'
-        }
+      const result = await ZentridAPIRepositories.alerts.get(requestedRegistryId, {
+        ...detailReadOptions('alert-detail:registry-direct', 1, forceRefresh),
+        allowListFallback: false,
+        timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS
+      });
+      const registryRecord = (result.item || result.items.find(record => detailSelectionMatches(record, requestedRegistryId))) as AnyRecord | undefined;
+      if (!registryRecord) throw new Error(`GET /api/admin/alerts/${requestedRegistryId} returned no Alert Registry record.`);
+
+      let selectedRecord: AnyRecord = {
+        ...registryRecord,
+        registryAlertId: requestedRegistryId,
+        liveAlertId: '',
+        liveAlertResolution: 'not-resolved'
+      };
+      const uiErrors: unknown[] = [...result.errors];
+      const adminRaw = selectedRecord.raw && typeof selectedRecord.raw === 'object' ? selectedRecord.raw as AnyRecord : {};
+      selectedRecord.subresourceSources = {
+        timeline: adminRaw.__timelineLoaded === true ? 'admin' : 'none',
+        related: adminRaw.__relatedLoaded === true ? 'admin' : 'none',
+        sop: adminRaw.__sopLoaded === true ? 'admin' : 'none',
+        telemetryCurve: adminRaw.__telemetryCurveLoaded === true ? 'admin' : 'none'
       };
 
-      if (selectedId && selectedRecord && window.ZentridPlatformAPI?.liveAlerts) {
+      const liveResolution = await resolveAlertLiveId(selectedRecord, forceRefresh);
+      selectedRecord.liveAlertId = liveResolution.id;
+      selectedRecord.liveAlertResolution = liveResolution.source;
+      uiErrors.push(...liveResolution.errors);
+
+      if (liveResolution.id && window.ZentridPlatformAPI?.liveAlerts) {
+        type LiveLoad = { loaded: boolean; value: unknown };
         const liveErrors: unknown[] = [];
-        const safeLive = async <T>(promise: Promise<T>, fallback: T): Promise<T> => {
-          try { return await promise; } catch (error) { liveErrors.push(error); return fallback; }
+        const safeLive = async (promise: Promise<unknown>): Promise<LiveLoad> => {
+          try { return { loaded: true, value: await promise }; }
+          catch (error) { liveErrors.push(error); return { loaded: false, value: null }; }
         };
         const requestOptions = { ...detailReadOptions('alert-detail:live', 1, forceRefresh), timeoutMs: SLOW_ENDPOINT_TIMEOUT_MS };
+        const liveId = liveResolution.id;
         const [liveDetail, liveTimeline, liveRelated, liveSop, liveTelemetryCurve] = await Promise.all([
-          safeLive(window.ZentridPlatformAPI.liveAlerts.get(selectedId, requestOptions), null as unknown),
-          safeLive(window.ZentridPlatformAPI.liveAlerts.timeline(selectedId, requestOptions), [] as unknown),
-          safeLive(window.ZentridPlatformAPI.liveAlerts.related(selectedId, requestOptions), {} as unknown),
-          safeLive(window.ZentridPlatformAPI.liveAlerts.sop(selectedId, requestOptions), null as unknown),
-          safeLive(window.ZentridPlatformAPI.liveAlerts.telemetryCurve(selectedId, { windowMinutes: 60 }, requestOptions), null as unknown)
+          safeLive(window.ZentridPlatformAPI.liveAlerts.get(liveId, requestOptions)),
+          adminRaw.__timelineLoaded === true ? Promise.resolve({ loaded: false, value: null } as LiveLoad) : safeLive(window.ZentridPlatformAPI.liveAlerts.timeline(liveId, requestOptions)),
+          adminRaw.__relatedLoaded === true ? Promise.resolve({ loaded: false, value: null } as LiveLoad) : safeLive(window.ZentridPlatformAPI.liveAlerts.related(liveId, requestOptions)),
+          adminRaw.__sopLoaded === true ? Promise.resolve({ loaded: false, value: null } as LiveLoad) : safeLive(window.ZentridPlatformAPI.liveAlerts.sop(liveId, requestOptions)),
+          adminRaw.__telemetryCurveLoaded === true ? Promise.resolve({ loaded: false, value: null } as LiveLoad) : safeLive(window.ZentridPlatformAPI.liveAlerts.telemetryCurve(liveId, { windowMinutes: 60 }, requestOptions))
         ]);
-        if (liveDetail && typeof liveDetail === 'object') {
-          const liveRaw = {
-            ...(liveDetail as AnyRecord),
-            __timeline: liveTimeline,
-            __related: liveRelated,
-            __sop: liveSop,
-            __telemetryCurve: liveTelemetryCurve
-          } as AnyRecord;
+
+        const detailObject = liveDetail.loaded && liveDetail.value && typeof liveDetail.value === 'object' ? liveDetail.value as AnyRecord : null;
+        const hasLiveFallback = liveTimeline.loaded || liveRelated.loaded || liveSop.loaded || liveTelemetryCurve.loaded;
+        if (detailObject || hasLiveFallback) {
+          const liveRaw: AnyRecord = detailObject ? { ...detailObject } : { id: liveId };
+          if (liveTimeline.loaded) { liveRaw.__timeline = liveTimeline.value; liveRaw.__timelineLoaded = true; }
+          if (liveRelated.loaded) { liveRaw.__related = liveRelated.value; liveRaw.__relatedLoaded = true; }
+          if (liveSop.loaded) { liveRaw.__sop = liveSop.value; liveRaw.__sopLoaded = true; }
+          if (liveTelemetryCurve.loaded) { liveRaw.__telemetryCurve = liveTelemetryCurve.value; liveRaw.__telemetryCurveLoaded = true; }
           const liveMapped = ZentridAPIContracts.alerts.map(liveRaw, 0, contractMapperContext) as AnyRecord;
           selectedRecord = mergeAlertRegistryWithLive(selectedRecord, liveMapped, {
-            detail: liveDetail,
-            timeline: liveTimeline,
-            related: liveRelated,
-            sop: liveSop,
-            telemetryCurve: liveTelemetryCurve
+            liveAlertId: liveId,
+            resolution: liveResolution.source,
+            detail: detailObject,
+            detailLoaded: Boolean(detailObject),
+            timeline: liveTimeline.value,
+            timelineLoaded: liveTimeline.loaded,
+            related: liveRelated.value,
+            relatedLoaded: liveRelated.loaded,
+            sop: liveSop.value,
+            sopLoaded: liveSop.loaded,
+            telemetryCurve: liveTelemetryCurve.value,
+            telemetryCurveLoaded: liveTelemetryCurve.loaded
           });
+          selectedRecord.liveAlertId = liveId;
+          selectedRecord.liveAlertResolution = liveResolution.source;
         }
         uiErrors.push(...liveErrors);
       }
@@ -3032,41 +3365,35 @@
 
       if (Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
         const target = window.ZentridAlerts || ZentridAlerts;
-        const detailRows = selectedRecord
-          ? [selectedRecord, ...data.filter(record => !detailSelectionMatches(record, selectedId))]
-          : data;
-        target.splice(0, target.length, ...detailRows);
+        target.splice(0, target.length, selectedRecord);
         localStorage.setItem('zentrid_selected_alert', selectedRecord.id);
         saveDetailSelection('alert', selectedRecord);
         ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
-        const usingSnapshot = Boolean(selectedSnapshot && !selectedAlertFromNetwork);
-        const hasLiveOperational = Boolean(selectedRecord.liveOperational && typeof selectedRecord.liveOperational === 'object' && (selectedRecord.liveOperational as AnyRecord).detail);
-        setLiveDataState(uiErrors.length || usingSnapshot ? 'partial' : 'live', usingSnapshot
-          ? 'The exact selected alert was restored from this browser session because it is not present on API page 1.'
-          : hasLiveOperational
-            ? 'Alert Registry detail is authoritative; matching Platform Live alert data is attached as operational enrichment.'
-            : 'Alert Registry detail is ready. No matching Platform Live alert detail was attached.', {
-          source: usingSnapshot
-            ? `${result.source} + selected session record`
-            : hasLiveOperational
-              ? `${result.source} + /api/alerts/${encodeURIComponent(selectedId || selectedRecord.id)}`
-              : result.source,
-          details: usingSnapshot
-            ? `Selected record preserved · API page ${result.pagination.page} checked`
-            : `${hasLiveOperational ? 'Registry-authoritative + live operational enrichment' : 'Registry-only detail'} · ${uiErrors.length} non-blocking enrichment error(s)`,
-          recordCount: result.pagination.totalCount,
+        const hasLiveOperational = Boolean(selectedRecord.liveOperational && typeof selectedRecord.liveOperational === 'object');
+        const liveId = safeText(selectedRecord.liveAlertId, '').trim();
+        setLiveDataState(uiErrors.length ? 'partial' : 'live', hasLiveOperational
+          ? 'Alert Registry detail is authoritative; a separately resolved Platform Live alert is attached only as operational enrichment or failed-subresource fallback.'
+          : liveId
+            ? 'Alert Registry detail is authoritative. A Platform Live identity was resolved, but no live enrichment payload was applied.'
+            : 'Alert Registry detail is authoritative. No safe Platform Live alert identity was resolved, so the Registry UUID was not sent to /api/alerts/{id}.', {
+          source: hasLiveOperational && liveId
+            ? `${result.source} + /api/alerts/${encodeURIComponent(liveId)}`
+            : result.source,
+          details: `${hasLiveOperational ? `Live match: ${selectedRecord.liveAlertResolution}` : `Live match: ${selectedRecord.liveAlertResolution || 'not-resolved'}`} · ${uiErrors.length} non-blocking enrichment/subresource error(s)`,
+          recordCount: 1,
           dataOrigin: hasLiveOperational ? 'mixed' : 'live'
         });
       }
     } catch (error) {
       if (selectedSnapshot && Array.isArray(window.ZentridAlerts || ZentridAlerts)) {
         const target = window.ZentridAlerts || ZentridAlerts;
-        target.splice(0, target.length, selectedSnapshot);
-        saveDetailSelection('alert', selectedSnapshot);
+        const snapshot = { ...selectedSnapshot, detailSourceMode: 'session-snapshot' } as AnyRecord;
+        target.splice(0, target.length, snapshot);
+        saveDetailSelection('alert', snapshot);
         ZentridLayout.mount(renderAlertDetailContent(selectedAlert()));
         wireAlertDetailPage();
-        setLiveDataState('partial', 'The selected alert was restored from this browser session while the live alert request failed.', {
+        setLiveDataState('partial', 'The selected alert was restored from this browser session because the direct Alert Registry detail request failed.', {
           source: 'Selected session record',
           details: liveErrorMessage(error),
           recordCount: 1,
@@ -3074,7 +3401,7 @@
         });
         return;
       }
-      setRequestFailure('/api/admin/alerts', error, 'No prototype alert detail is displayed.');
+      setRequestFailure('/api/admin/alerts/{id}', error, 'No prototype alert detail is displayed.');
     }
   }
 
@@ -3107,16 +3434,15 @@
     const detailSource = selectedId
       ? `/api/admin/provider-integrations/${encodeURIComponent(selectedId)}`
       : '/api/admin/provider-integrations';
-    setLiveDataState('loading', selectedId
-      ? 'Loading the selected integration registry record. Operational summary will remain idle until Synchronization is opened.'
-      : 'Loading the integration registry record. Operational summary will remain idle until Synchronization is opened.', { source: detailSource });
+    if (!selectedId) {
+      window.ZentridApiOnly?.mountEmpty('Integration Detail', 'Select a connector from Connector Registry before opening Integration Detail.', '/api/admin/provider-integrations/{id}');
+      setLiveDataState('empty', 'No connector is selected. Integration Detail does not substitute the first registry row.', { source: '/api/admin/provider-integrations/{id}', recordCount: 0 });
+      return;
+    }
+    setLiveDataState('loading', 'Loading the selected integration registry record. Operational summary will remain idle until Synchronization is opened.', { source: detailSource });
     try {
-      const registry = selectedId
-        ? await ZentridAPIRepositories.integrations.get(selectedId, detailReadOptions('integration-detail', 20, forceRefresh))
-        : await ZentridAPIRepositories.integrations.list(detailReadOptions('integration-detail:fallback', 20, forceRefresh));
-      const data: AnyRecord[] = selectedId
-        ? ('item' in registry && registry.item ? [registry.item as AnyRecord] : [])
-        : (registry.items as AnyRecord[]).slice(0, 1);
+      const registry = await ZentridAPIRepositories.integrations.get(selectedId, { ...detailReadOptions('integration-detail', 20, forceRefresh), allowListFallback: false });
+      const data: AnyRecord[] = 'item' in registry && registry.item ? [registry.item as AnyRecord] : [];
       if (!data.length) {
         if (registry.errors.length) setRequestFailure(registry.source, registry.errors[0], 'No prototype integration detail is displayed.');
         else { window.ZentridApiOnly?.mountEmpty('Integration Detail', selectedId ? 'The selected integration record was not returned.' : 'The integration registry returned no records.', registry.source); setLiveDataState('empty', selectedId ? 'The selected integration record was not returned. Integration Detail is empty.' : 'The integration registry returned no records. Integration Detail is empty.', { source: registry.source, recordCount: 0 }); }
@@ -3124,9 +3450,6 @@
       }
       integrations = data;
       window.ZentridLiveIntegrations = integrations;
-      const firstIntegrationId = integrations[0]?.id;
-      if (!selectedId && firstIntegrationId) localStorage.setItem('zentrid_selected_integration', firstIntegrationId);
-
       window.ZentridDetailLazyTabs?.register('integration', [
         {
           key: 'operational-summary',
@@ -3150,14 +3473,9 @@
 
       ZentridLayout.mount(renderIntegrationDetail());
       wireIntegrationDetail();
-      const usedDirectDetail = Boolean(selectedId && registry.source.startsWith(detailSource));
       setLiveDataState(registry.errors.length ? 'partial' : 'live', 'The integration registry record is ready. Operational health has not been requested yet.', {
         source: registry.source,
-        details: [
-          usedDirectDetail ? 'Direct detail endpoint' : selectedId ? 'Fallback list lookup' : 'Registry preview lookup',
-          registry.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
-          'Lazy section: Synchronization operational summary'
-        ].filter(Boolean).join(' · '),
+        details: ['Direct detail endpoint', 'Lazy section: Synchronization operational summary'].join(' · '),
         recordCount: data.length
       });
     } catch (error) {
@@ -3187,16 +3505,20 @@
     const detailSource = selectedId ? `/api/admin/clients/${encodeURIComponent(selectedId)}` : '/api/admin/clients';
     if (!backgroundRefresh) setLiveDataState('loading', registry ? 'Loading the requested Global Admin client page.' : selectedId ? 'Loading the selected Global Admin client record.' : 'Loading Global Admin client records.', { source: registry ? '/api/admin/clients' : detailSource });
     try {
+      if (!registry && !selectedId) {
+        setLiveClients([]);
+        window.ZentridApiOnly?.mountEmpty('Client Detail', 'Select a client from Client Registry before opening Client Detail.', '/api/admin/clients/{id}');
+        setLiveDataState('empty', 'No client is selected. Client Detail does not substitute the first registry row.', { source: '/api/admin/clients/{id}', recordCount: 0 });
+        return;
+      }
       const result = registry
         ? await ZentridAPIRepositories.clients.list(registryReadOptions('clients', forceRefresh))
-        : selectedId
-          ? await ZentridAPIRepositories.clients.get(selectedId, detailReadOptions('client-detail', 20, forceRefresh))
-          : await ZentridAPIRepositories.clients.list(detailReadOptions('client-detail:fallback', 20, forceRefresh));
+        : await ZentridAPIRepositories.clients.get(selectedId, { ...detailReadOptions('client-detail', 20, forceRefresh), allowListFallback: false });
       if (registry && !isCurrentRegistryRequest('clients', requestVersion)) return;
       if (registry) publishRegistryPagination('clients', result);
       const data: AnyRecord[] = registry
         ? result.items as AnyRecord[]
-        : ('item' in result && result.item ? [result.item as AnyRecord] : (result.items as AnyRecord[]).slice(0, 1));
+        : ('item' in result && result.item ? [result.item as AnyRecord] : []);
       if (!data.length) {
         setLiveClients([]);
         if (registry) renderClientsPage();
@@ -3211,8 +3533,6 @@
         return;
       }
       if (registry) {
-        const currentSelectedId = localStorage.getItem('zentrid_selected_client');
-        if (!mapped.some(x => x.id === currentSelectedId) && mapped[0]) clientModel?.selectClient(mapped[0].id);
         renderClientsPage();
       } else {
         if (mapped[0]?.id) clientModel?.selectClient(mapped[0].id);
@@ -3222,11 +3542,10 @@
       const usedDirectDetail = !registry && Boolean(selectedId) && result.source.includes('/api/admin/clients/');
       setLiveDataState(result.errors.length ? 'partial' : cacheInfo.state, `${cacheInfo.prefix}${registry
         ? `Client page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`
-        : usedDirectDetail ? 'The selected client record was loaded by ID.' : 'A client record was loaded from the bounded list fallback.'}`, {
+        : 'The selected client record was loaded by ID.'}`, {
         source: result.source || detailSource,
         details: [
-          registry ? `Server pagination · ${result.pagination.pageSize} rows per page` : usedDirectDetail ? 'Direct detail endpoint' : 'Fallback list lookup',
-          result.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
+          registry ? `Server pagination · ${result.pagination.pageSize} rows per page` : 'Direct detail endpoint',
           cacheInfo.details
         ].filter(Boolean).join(' · '),
         recordCount: registry ? result.pagination.totalCount : data.length,
@@ -3237,9 +3556,10 @@
     }
   }
 
-  async function applyTenants(forceRefresh = false): Promise<void> {
+  async function applyTenants(backgroundRefresh = false, forceRefresh = false): Promise<void> {
     if (!/tenants\.html$/.test(location.pathname) && !/tenant-detail\.html$/.test(location.pathname)) return;
     const registry = /tenants\.html$/.test(location.pathname);
+    const requestVersion = registry ? beginRegistryRequest('tenants') : 0;
     const selectedId = registry ? '' : String(localStorage.getItem('zentrid_selected_tenant') || '').trim();
     let selectedLocalTenant: AnyRecord | null = null;
     if (!registry && selectedId) {
@@ -3247,7 +3567,7 @@
         const raw = sessionStorage.getItem('zentrid_tenant_create_fallback');
         const parsed = raw ? JSON.parse(raw) as AnyRecord : null;
         if (parsed && String(parsed.id || '').trim() === selectedId && parsed.dataOrigin === 'local') selectedLocalTenant = parsed;
-      } catch (error) {
+      } catch {
         sessionStorage.removeItem('zentrid_tenant_create_fallback');
       }
     }
@@ -3264,52 +3584,55 @@
       return;
     }
     const detailSource = selectedId ? `/api/admin/tenants/${encodeURIComponent(selectedId)}` : '/api/admin/tenants';
-    setLiveDataState('loading', registry ? 'Loading Global Admin tenant records.' : selectedId ? 'Loading the selected Global Admin tenant record.' : 'Loading Global Admin tenant records.', { source: registry ? '/api/admin/tenants' : detailSource });
+    if (!registry && !selectedId) {
+      setLiveTenants([]);
+      window.ZentridApiOnly?.mountEmpty('Tenant Detail', 'Select a tenant from Tenant Registry before opening Tenant Detail.', '/api/admin/tenants/{id}');
+      setLiveDataState('empty', 'No tenant is selected. Tenant Detail does not substitute the first registry row.', { source: '/api/admin/tenants/{id}', recordCount: 0 });
+      return;
+    }
+    if (!backgroundRefresh) setLiveDataState('loading', registry ? 'Loading the requested Global Admin tenant page.' : 'Loading the selected Global Admin tenant record.', { source: registry ? '/api/admin/tenants' : detailSource });
     try {
       const result = registry
-        ? await ZentridAPIRepositories.tenants.list({ ...detailReadOptions('tenants', 100, forceRefresh), sortBy: 'createdAtUtc', sortDirection: 'desc', cacheVariant: 'newest-first' })
-        : selectedId
-          ? await ZentridAPIRepositories.tenants.get(selectedId, detailReadOptions('tenant-detail', 20, forceRefresh))
-          : await ZentridAPIRepositories.tenants.list(detailReadOptions('tenant-detail:fallback', 20, forceRefresh));
+        ? await ZentridAPIRepositories.tenants.list(registryReadOptions('tenants', forceRefresh))
+        : await ZentridAPIRepositories.tenants.get(selectedId, { ...detailReadOptions('tenant-detail', 20, forceRefresh), allowListFallback: false });
+      if (registry && !isCurrentRegistryRequest('tenants', requestVersion)) return;
+      if (registry) publishRegistryPagination('tenants', result);
       const data: AnyRecord[] = registry
         ? result.items as AnyRecord[]
-        : ('item' in result && result.item ? [result.item as AnyRecord] : (result.items as AnyRecord[]).slice(0, 1));
+        : ('item' in result && result.item ? [result.item as AnyRecord] : []);
       if (!data.length) {
         setLiveTenants([]);
-        if (!registry) window.ZentridApiOnly?.mountEmpty('Tenant Detail', selectedId ? 'The selected tenant endpoint returned no matching record.' : 'The tenant endpoint returned no records.', detailSource);
+        if (!registry) window.ZentridApiOnly?.mountEmpty('Tenant Detail', 'The selected tenant endpoint returned no matching record.', detailSource);
         else { ZentridLayout.mount(renderTenantRegistry()); wireTenantRegistry(); }
         if (result.errors.length) setRequestFailure(detailSource, result.errors[0], 'No prototype tenant records are displayed.');
-        else setLiveDataState('empty', selectedId ? 'The selected tenant endpoint responded successfully but returned no matching record.' : 'The tenant endpoint responded successfully but returned no records. Tenant screens are empty.', { source: detailSource, recordCount: registry ? result.pagination.totalCount : 0 });
+        else setLiveDataState('empty', registry ? 'The requested Tenant Registry page returned no records.' : 'The selected tenant endpoint responded successfully but returned no matching record.', { source: detailSource, recordCount: registry ? result.pagination.totalCount : 0 });
         return;
       }
-      const mapped = data;
-      setLiveTenants(mapped);
-      if (!registry) {
-        if (mapped[0]?.id) localStorage.setItem('zentrid_selected_tenant', mapped[0].id);
-        ZentridLayout.mount(renderTenantDetail());
-        wireTenantDetail();
-      } else {
+      setLiveTenants(data);
+      if (registry) {
         ZentridLayout.mount(renderTenantRegistry());
         wireTenantRegistry();
+      } else {
+        ZentridLayout.mount(renderTenantDetail());
+        wireTenantDetail();
       }
       const cacheInfo = repositoryCachePresentation(result);
-      const usedDirectDetail = !registry && Boolean(selectedId) && result.source.includes('/api/admin/tenants/');
       setLiveDataState(result.errors.length ? 'partial' : cacheInfo.state, `${cacheInfo.prefix}${registry
-        ? `${data.length} tenant record(s) were applied.`
-        : usedDirectDetail ? 'The selected tenant record was loaded by ID.' : 'A tenant record was loaded from the bounded list fallback.'}`, {
+        ? `Tenant page ${result.pagination.page} of ${result.pagination.totalPages} was applied.`
+        : 'The selected tenant record was loaded by ID.'}`, {
         source: result.source || detailSource,
         details: [
-          registry ? 'Bounded tenant registry read' : usedDirectDetail ? 'Direct detail endpoint' : 'Fallback list lookup',
-          result.errors.length ? 'The direct detail request failed; the bounded list fallback was used.' : '',
+          registry ? `Server pagination · ${result.pagination.pageSize} rows per page` : 'Direct detail endpoint',
           cacheInfo.details
         ].filter(Boolean).join(' · '),
         recordCount: registry ? result.pagination.totalCount : data.length,
         ...cacheFreshnessOptions(cacheInfo)
       });
     } catch (error) {
-      setRequestFailure(registry ? '/api/admin/tenants' : detailSource, error, 'No prototype tenant records are displayed.');
+      if (!registry || isCurrentRegistryRequest('tenants', requestVersion)) setRequestFailure(registry ? '/api/admin/tenants' : detailSource, error, 'No prototype tenant records are displayed.');
     }
   }
+
 
   const repositoryRefreshTimers = new Map<RegistryEntity | 'telemetry', number>();
 
@@ -3334,9 +3657,11 @@
     repositoryRefreshTimers.set(entity, window.setTimeout(() => {
       repositoryRefreshTimers.delete(entity);
       if (entity === 'clients') void applyClients(true);
+      if (entity === 'tenants') void applyTenants(true);
       if (entity === 'plants') void applyPlants(true);
       if (entity === 'devices') void applyDevices(true);
       if (entity === 'alerts') void applyAlerts(true);
+      if (entity === 'integrations') void applyIntegrations(true);
     }, 40));
   }
 
@@ -3345,9 +3670,11 @@
     const entity = detail?.entity;
     if (!entity || !isRegistryPage(entity)) return;
     if (entity === 'clients') void applyClients();
+    if (entity === 'tenants') void applyTenants();
     if (entity === 'plants') void applyPlants();
     if (entity === 'devices') void applyDevices();
     if (entity === 'alerts') void applyAlerts();
+    if (entity === 'integrations') void applyIntegrations();
   }
 
   function handleDataRefreshRequest(event: Event): void {
@@ -3357,7 +3684,7 @@
     if (resource === 'overview') void applyOverview(forceRefresh);
     if (resource === 'clients') void applyClients(true, forceRefresh);
     if (resource === 'client-detail') void applyClients(false, forceRefresh);
-    if (resource === 'tenants' || resource === 'tenant-detail') void applyTenants(forceRefresh);
+    if (resource === 'tenants' || resource === 'tenant-detail') void applyTenants(false, forceRefresh);
     if (resource === 'plants') void applyPlants(true, forceRefresh);
     if (resource === 'plant-detail') void applyPlantDetail(forceRefresh);
     if (resource === 'devices') void applyDevices(true, forceRefresh);
@@ -3365,7 +3692,7 @@
     if (resource === 'alerts') void applyAlerts(true, forceRefresh);
     if (resource === 'telemetry') void applyTelemetry(false, forceRefresh);
     if (resource === 'alert-detail') void applyAlertDetail(forceRefresh);
-    if (resource === 'integrations') void applyIntegrations(forceRefresh);
+    if (resource === 'integrations') void applyIntegrations(false, forceRefresh);
     if (resource === 'integration-detail') void applyIntegrationDetail(forceRefresh);
   }
 

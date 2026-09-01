@@ -734,8 +734,17 @@ function integrationRows(rows: IntegrationRecord[]): string{
 function renderIntegrations(): string{
   const tenant = localStorage.getItem('zentrid_integration_tenant') || 'All Tenants';
   const orderedIntegrations = newestIntegrationRows(integrations);
-  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry</p><h1>Connector Registry</h1><p class="muted">Reusable vendor connector definitions with status, tenant assignment and registry metadata.</p></div><button class="create-action" id="openIntegrationWizard" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>+ New Connector</strong><small>${tenant}</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Visible Integrations</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x)).length}</strong></button><button class="ctx-item"><span>Active</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Active').length}</strong></button><button class="ctx-item"><span>Inactive</span><strong>${orderedIntegrations.filter(x=>!isArchivedIntegration(x) && connectorStatus(x)==='Inactive').length}</strong></button><button class="ctx-item"><span>Tenant Scope</span><strong>${tenant}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Vendor Connectors</h2><p>Click a connector row to open registry details. Operational sync monitoring belongs to Connector Operations.</p></div><div class="toolbar"><input id="intSearch" placeholder="Search connector, vendor, tenant..."/><select id="vendorFilter"><option>All Vendors</option>${allVendorTemplateKeys().map(v=>`<option>${v}</option>`).join('')}</select></div></div><div id="integrationTable">${integrationRows(orderedIntegrations.filter(x=>!isArchivedIntegration(x)))}</div></section>${integrationWizard(tenant)}`;
+  const queryState = window.ZentridRegistryQuery?.read('integrations');
+  const pagination = window.ZentridRegistryQuery?.pagination('integrations');
+  const totalIntegrations = pagination?.totalCount || orderedIntegrations.length;
+  const initialSearch = queryState?.search || '';
+  const initialVendor = queryState?.params.vendorFilter || 'All Vendors';
+  const visibleRows = orderedIntegrations.filter(x=>!isArchivedIntegration(x));
+  const displayRows = visibleRows.filter(item => (initialVendor === 'All Vendors' || item.vendor === initialVendor) && (!initialSearch || `${item.name} ${item.code} ${item.vendor} ${item.tenant}`.toLowerCase().includes(initialSearch.toLowerCase())));
+  const pager = window.ZentridRegistryQuery?.pagerHtml('integrations', orderedIntegrations.length) || '';
+  return `<section class="page-hero"><div><p class="eyebrow">Global Admin · Connector Registry</p><h1>Connector Registry</h1><p class="muted">Reusable vendor connector definitions with status, tenant assignment and registry metadata.</p></div><button class="create-action" id="openIntegrationWizard" type="button" data-permission-action="create" data-permission-resource="integration"><span class="pulse"></span><div><strong>+ New Connector</strong><small>${tenant}</small></div></button></section><section class="context-bar glass-card"><button class="ctx-item"><span>Total Integrations</span><strong>${totalIntegrations.toLocaleString()}</strong></button><button class="ctx-item"><span>Active on Page</span><strong>${visibleRows.filter(x=>connectorStatus(x)==='Active').length}</strong></button><button class="ctx-item"><span>Inactive on Page</span><strong>${visibleRows.filter(x=>connectorStatus(x)==='Inactive').length}</strong></button><button class="ctx-item"><span>Tenant Scope</span><strong>${tenant}</strong></button></section><section class="panel glass-card"><div class="panel-head"><div><h2>Vendor Connectors</h2><p>Click a connector row to open registry details. Operational sync monitoring belongs to Connector Operations.</p></div><div class="toolbar"><input id="intSearch" value="${integrationDetailEscape(initialSearch)}" placeholder="Search current page by connector, vendor, tenant..."/><select id="vendorFilter"><option ${initialVendor==='All Vendors'?'selected':''}>All Vendors</option>${allVendorTemplateKeys().map(v=>`<option ${v===initialVendor?'selected':''}>${integrationDetailEscape(v)}</option>`).join('')}</select></div></div><div id="integrationFilterScopeV126">${window.ZentridRegistryQuery?.filterScopeHtml('integrations') || ''}</div>${pager}<div id="integrationTable">${integrationRows(displayRows)}</div>${pager}</section>${integrationWizard(tenant)}`;
 }
+
 function integrationWizard(_tenant?: string): string{
   const steps = ['General','Connection & Authentication','API Request','Synchronization','Partner Account'];
   const stepDescriptions: Record<string, string> = {
@@ -1269,10 +1278,17 @@ function wireIntegrations(): void{
     ZentridLayout.toast(`Connector will be created as ${status}`);
   };
   const renderFilteredRows = () => {
-    const query = intSearch.value.toLowerCase().trim();
+    const rawQuery = intSearch.value.trim();
+    const query = rawQuery.toLowerCase();
     const vendor = vendorFilter.value;
-    const rows = integrations.filter(item => !isArchivedIntegration(item)).filter(item => (vendor === 'All Vendors' || item.vendor === vendor) && `${item.name} ${item.vendor} ${item.tenant}`.toLowerCase().includes(query));
-    ZentridRuntimeStability.replaceHtml(integrationTable, rows.length ? integrationRows(rows) : '<div class="empty-state"><strong>No matching connectors</strong><span>Try another keyword or vendor.</span></div>');
+    const rows = integrations.filter(item => !isArchivedIntegration(item)).filter(item => (vendor === 'All Vendors' || item.vendor === vendor) && `${item.name} ${item.code} ${item.vendor} ${item.tenant}`.toLowerCase().includes(query));
+    ZentridRuntimeStability.replaceHtml(integrationTable, rows.length ? integrationRows(rows) : '<div class="empty-state"><strong>No matching connectors</strong><span>Try another keyword or vendor on this loaded page.</span></div>');
+    window.ZentridRegistryQuery?.update('integrations', {
+      search: rawQuery || null,
+      vendorFilter: vendor === 'All Vendors' ? null : vendor
+    }, { replace: true, emit: false });
+    const scope = document.getElementById('integrationFilterScopeV126');
+    if (scope) scope.innerHTML = window.ZentridRegistryQuery?.filterScopeHtml('integrations') || '';
   };
   const openIntegrationDetail = (id: string) => {
     localStorage.setItem('zentrid_selected_integration', id);
@@ -1773,14 +1789,29 @@ function integrationDetailTab(x: IntegrationRecord, tab: string, editable = inte
     ['Rate Limit', x.rateLimit || '1000', 'rateLimit'],
     ['Rate Limit Period', x.rateLimitPeriod || 'Hour', 'rateLimitPeriod']
   ], editable)}</div>${detailNote('API Request Notes', x.api_request_notes || 'Shows the same request-limit fields configured in the API Request step.')}</div>`;
-  if(tab === 'synchronization') return integrationLazyTab(tab, `<div class="split-grid"><div class="panel-lite"><h3>Synchronization</h3>${detailInfoGrid([
-    ['Sync Frequency', x.syncFrequency || '5 min', 'syncFrequency'],
-    ['Sync Start Time', x.syncStartTime || '00:00', 'syncStartTime'],
-    ['Last Sync Timestamp Field', x.lastSyncTimestampField || 'updated_at', 'lastSyncTimestampField'],
-    ['Last Operational Sync', x.lastSync || x.lastSuccessfulSync || 'Not loaded'],
-    ['Operational Health', x.operationalStatus || x.health || 'Not loaded'],
-    ['Active Alerts', x.alerts || 0]
-  ], editable)}</div>${detailNote('Synchronization Notes', x.synchronization_notes || 'Operational summary is requested only when this tab is opened. Failed sync actions remain in Connector Operations.')}</div>`);
+  if(tab === 'synchronization') {
+    const operationalMatched = x.operationalSummaryLinkStatus === 'matched-by-unique-provider';
+    const linkLabel = operationalMatched
+      ? 'Matched by unique provider'
+      : x.operationalSummaryLinkStatus === 'ambiguous-registry-provider'
+        ? 'Not applied: multiple Registry connectors use this provider'
+        : x.operationalSummaryLinkStatus === 'ambiguous-operational-provider'
+          ? 'Not applied: multiple operational provider rows matched'
+          : x.operationalSummaryLinkStatus === 'not-found'
+            ? 'No operational provider row matched'
+            : 'Not loaded';
+    return integrationLazyTab(tab, `<div class="split-grid"><div class="panel-lite"><h3>Synchronization</h3>${detailInfoGrid([
+      ['Sync Frequency', x.syncFrequency || '5 min', 'syncFrequency'],
+      ['Sync Start Time', x.syncStartTime || '00:00', 'syncStartTime'],
+      ['Last Sync Timestamp Field', x.lastSyncTimestampField || 'updated_at', 'lastSyncTimestampField'],
+      ['Operational Summary Link', linkLabel],
+      ['Last Operational Sync', operationalMatched ? (x.operationalLastSync || '—') : '—'],
+      ['Operational Health', operationalMatched ? (x.operationalHealth || x.operationalStatus || '—') : '—'],
+      ['Provider Plants With Data', operationalMatched ? (x.operationalActiveIntegrations ?? '—') : '—'],
+      ['Provider Stale Plants', operationalMatched ? (x.operationalStalePlants ?? '—') : '—'],
+      ['Provider Active Alerts', operationalMatched ? (x.operationalAlerts ?? '—') : '—']
+    ], editable)}</div>${detailNote('Synchronization Notes', x.synchronization_notes || 'Operational summary is provider-level and is requested only when this tab is opened. It is linked to a connector only when the provider match is unique; provider-wide counts never overwrite Connector Registry fields.')}</div>`);
+  }
   if(tab === 'partner') return `<div class="split-grid"><div class="panel-lite"><h3>Partner Account</h3>${detailInfoGrid([
     ['Partner ID in Vendor System', x.partnerVendorId || '', 'partnerVendorId'],
     ['Account ID', x.accountId || '', 'accountId'],

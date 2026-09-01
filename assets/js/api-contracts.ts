@@ -383,16 +383,16 @@
       entity: 'alerts', label: 'Alert',
       requirements: [
         requirement('identity', ['id', 'alertId', 'sourceAlertId']),
-        requirement('display text', ['canonical.canonicalName', 'guidance.description', 'vendor.vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'title', 'message', 'name']),
-        requirement('severity', ['canonical.canonicalSeverity', 'severity'], 'warning'),
+        requirement('display text', ['canonical.canonicalName', 'canonicalName', 'guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'title', 'message', 'name']),
+        requirement('severity', ['canonical.canonicalSeverity', 'canonicalSeverity', 'severity', 'vendorSeverity'], 'warning'),
         requirement('provider', ['vendor.provider', 'provider'], 'warning')
       ]
     },
     telemetry: {
       entity: 'telemetry', label: 'Telemetry',
       requirements: [
-        requirement('metric', ['metric', 'metricName', 'name', 'key', 'parameter', 'measurement', 'field'], 'warning'),
-        requirement('value', ['value', 'metricValue', 'numericValue', 'reading', 'currentValue'], 'warning')
+        requirement('metric', ['metric', 'metricCode', 'metricName', 'name', 'key', 'parameter', 'measurement', 'field'], 'warning'),
+        requirement('value', ['value', 'metricValue', 'numericValue', 'textValue', 'booleanValue', 'reading', 'currentValue'], 'warning')
       ]
     },
     integrations: {
@@ -414,122 +414,233 @@
     clients: [
       field('id', ['id', 'clientId', 'canonicalId', 'sourceEntityId', 'externalId'], ['Client Registry row ID', 'Client Detail identity'], 'identifier', '—', 'warning'),
       field('code', ['clientCode', 'code', 'externalId'], ['Client Registry code', 'Client Detail code'], 'identifier', 'ID'),
-      field('name', ['vendorExtensions.clientName', 'sourceClientName', 'clientName', 'displayName', 'legalName', 'companyName', 'fullName', 'name'], ['Client Registry name', 'Client Detail heading'], 'text', '—', 'error'),
+      field('name', ['vendorExtensions.clientName', 'sourceClientName', 'clientName', 'displayName', 'legalName', 'companyName', 'fullName', 'name', 'identity.fullName', 'identity.companyName', 'identity.firstName', 'identity.lastName', 'identity.middleName'], ['Client Registry name', 'Client Detail heading'], 'text', '—', 'error'),
       field('managingTenant', ['tenantLink.managingTenantName', 'tenantLink.managingTenantId', 'managingTenant', 'tenant', 'tenantName', 'organizationName'], ['Client Registry tenant', 'Client Detail tenant'], 'relation', '—'),
-      field('clientType', ['clientType', 'type', 'entityType'], ['Client Registry type', 'Client Detail identity'], 'text', '—'),
-      field('accountActivation', ['accountActivation', 'status', 'accountStatus', 'lifecycleStatus'], ['Client Registry status', 'Client Detail status'], 'status', '—'),
+      field('clientType', ['tenantLink.clientType', 'clientType', 'type', 'entityType'], ['Client Registry type', 'Client Detail identity'], 'text', '—'),
+      field('accountActivation', ['tenantLink.status', 'accountActivation', 'status', 'accountStatus', 'lifecycleStatus'], ['Client Registry status', 'Client Detail status'], 'status', '—'),
+      field('activationAt', ['tenantLink.activationAt', 'activationAt'], ['Client Detail lifecycle'], 'date', ''),
+      field('firstName', ['identity.firstName', 'firstName'], ['Client Detail identity'], 'text', ''),
+      field('lastName', ['identity.lastName', 'lastName'], ['Client Detail identity'], 'text', ''),
+      field('middleName', ['identity.middleName', 'middleName'], ['Client Detail identity'], 'text', ''),
+      field('companyName', ['identity.companyName', 'companyName'], ['Client Detail identity'], 'text', ''),
+      field('legalForm', ['identity.legalForm', 'legalForm', 'companyType'], ['Client Detail identity'], 'text', ''),
+      field('registrationNumber', ['identity.registrationNumber', 'registrationNo', 'registrationNumber', 'registryNumber'], ['Client Detail identity'], 'identifier', ''),
+      field('taxIdVatNumber', ['identity.taxIdVatNumber', 'generalInformation.taxIdVatNumber', 'generalInformation.taxId', 'taxIdVatNumber', 'taxId', 'tin', 'vat', 'taxNumber'], ['Client Detail identity'], 'identifier', ''),
+      field('identityRole', ['identity.role', 'identityRole', 'role'], ['Client Detail identity'], 'text', ''),
+      field('dateOfBirth', ['identity.dateOfBirth', 'dateOfBirth'], ['Client Detail identity'], 'date', ''),
+      field('preferredLanguage', ['identity.preferredLanguage', 'preferences.language', 'language'], ['Client Detail preferences'], 'text', ''),
       field('country', ['country', 'address.country'], ['Client Registry location', 'Client Detail location'], 'text', '—'),
       field('region', ['address.stateRegion', 'region', 'address.region'], ['Client Detail location'], 'text', '—'),
       field('city', ['city', 'address.city'], ['Client Registry city', 'Client Detail location'], 'text', '—'),
       field('address', ['address.streetAddress', 'detailedAddress', 'addressLine'], ['Client Detail address'], 'text', '—'),
-      field('email', ['email', 'contactEmail', 'contact.email'], ['Client Registry contact', 'Client Detail contacts'], 'email', '—'),
-      field('phoneNumber1', ['phoneNumber1', 'contactPhone', 'phone1', 'phone', 'contact.phone'], ['Client Detail primary phone'], 'phone', '—'),
+      field('primaryContact', ['primaryContact.fullName', 'contactName', 'contact.name'], ['Client Detail contacts'], 'text', ''),
+      field('email', ['primaryContact.email', 'email', 'contactEmail', 'contact.email'], ['Client Registry contact', 'Client Detail contacts'], 'email', '—'),
+      field('phoneNumber1', ['primaryContact.phoneNumber1', 'phoneNumber1', 'contactPhone', 'phone1', 'phone', 'contact.phone'], ['Client Detail primary phone'], 'phone', '—'),
       field('phoneNumber2', ['primaryContact.phoneNumber2', 'phoneNumber2', 'phone2', 'secondaryPhone'], ['Client Detail secondary phone'], 'phone', ''),
+      field('timeZone', ['preferences.timeZone', 'timezone', 'timeZone'], ['Client Detail preferences'], 'text', ''),
+      field('temperatureUnit', ['preferences.temperatureUnit', 'temperatureUnit'], ['Client Detail preferences'], 'text', ''),
+      field('currency', ['preferences.currency', 'currency'], ['Client Detail preferences'], 'text', ''),
+      field('irradiationUnit', ['preferences.irradiationUnit', 'irradiationUnit'], ['Client Detail preferences'], 'text', ''),
       field('username', ['portalAccount.username', 'username', 'portalUsername'], ['Client Detail portal access'], 'identifier', ''),
-      field('documents', ['hasClientPassportFile', 'hasStateRegistrationDocumentFile', 'hasProjectDocFile', 'documents', 'documentCount'], ['Client Detail documents KPI'], 'boolean', '0'),
+      field('portalRole', ['portalAccount.role', 'portalRole'], ['Client Detail portal access'], 'text', ''),
+      field('documents', ['documentation', 'documentRecords', 'hasClientPassportFile', 'hasStateRegistrationDocumentFile', 'hasProjectDocFile', 'documents', 'documentCount'], ['Client Detail documents KPI', 'Client Detail documents'], 'raw', ''),
+      field('bankAccounts', ['bankAccounts'], ['Client Detail commercial & payments'], 'raw', ''),
+      field('verification', ['verification', 'verificationStatus', 'kycStatus'], ['Client Detail identity'], 'status', ''),
+      field('accessScope', ['accessScope', 'dataScope'], ['Client Detail portal access', 'Client Detail commercial scope'], 'raw', ''),
+      field('exportPolicy', ['exportPolicy'], ['Client Detail portal access', 'Client Detail commercial scope'], 'raw', ''),
+      field('portalUsers', ['portalUsers'], ['Client Detail portal access'], 'raw', ''),
+      field('accountManager', ['accountManager', 'account', 'manager'], ['Client Detail identity'], 'text', ''),
       field('createdAt', ['createdAtUtc'], ['Client Detail source/freshness'], 'date', 'No backend timestamp'),
       field('updatedAt', ['updatedAtUtc'], ['Client Registry updated', 'Client Detail source/freshness'], 'date', 'createdAtUtc'),
       field('plants', ['plants', 'plantCount', 'plantsCount', 'assignedPlantCount'], ['Client Registry plants', 'Client Detail assigned plants'], 'count', '0'),
       field('devices', ['deviceCount', 'devicesCount'], ['Client Registry devices'], 'count', '0')
     ],
     tenants: [
-      field('id', ['id', 'tenantId', 'canonicalId', 'sourceEntityId'], ['Tenant Registry row ID', 'Tenant Detail identity'], 'identifier', '—', 'warning'),
-      field('tenantCode', ['tenantCode', 'code', 'organizationCode', 'externalId'], ['Tenant Registry code', 'Tenant Detail code'], 'identifier', 'ID'),
-      field('tenantName', ['vendorExtensions.tenantName', 'vendorExtensions.organizationName', 'vendorExtensions.displayName', 'vendorExtensions.name', 'generalInformation.tenantName', 'generalInformation.displayName', 'generalInformation.legalName',
-      'tenant.name', 'tenant.tenantName', 'organization.name', 'organization.organizationName', 'company.name', 'profile.displayName', 'sourceTenantName', 'tenantName', 'organizationName', 'displayName', 'legalName', 'companyName', 'name', 'tenantCode', 'organizationCode', 'externalId', 'tenantId', 'sourceEntityId', 'id'], ['Tenant Registry name', 'Tenant Detail heading'], 'text', '—', 'warning'),
+      field('id', ['id', 'generalInformation.tenantId', 'tenantId', 'canonicalId', 'sourceEntityId'], ['Tenant Registry row ID', 'Tenant Detail identity'], 'identifier', '—', 'warning'),
+      field('tenantCode', ['generalInformation.tenantCode', 'tenantCode', 'code', 'organizationCode', 'externalId'], ['Tenant Registry code', 'Tenant Detail code'], 'identifier', 'ID'),
+      field('tenantName', ['vendorExtensions.tenantName', 'vendorExtensions.organizationName', 'vendorExtensions.displayName', 'vendorExtensions.name', 'generalInformation.tenantName', 'generalInformation.displayName', 'generalInformation.legalName', 'tenant.name', 'tenant.tenantName', 'organization.name', 'organization.organizationName', 'company.name', 'profile.displayName', 'sourceTenantName', 'tenantName', 'organizationName', 'displayName', 'legalName', 'companyName', 'name', 'tenantCode', 'organizationCode', 'externalId', 'tenantId', 'sourceEntityId', 'id'], ['Tenant Registry name', 'Tenant Detail heading'], 'text', '—', 'warning'),
       field('legalName', ['generalInformation.legalName', 'legalName', 'companyName', 'organizationName'], ['Tenant Detail legal name'], 'text', '—'),
+      field('tradeName', ['generalInformation.tradeName', 'tradeName'], ['Tenant Detail general information'], 'text', ''),
+      field('registrationNumber', ['generalInformation.registrationNumber', 'registrationNo', 'registrationNumber', 'registration', 'registryNumber'], ['Tenant Detail general information'], 'identifier', ''),
+      field('taxIdVatNumber', ['generalInformation.taxIdVatNumber', 'generalInformation.taxId', 'taxIdVatNumber', 'taxId', 'tin', 'vat', 'taxNumber'], ['Tenant Detail general information'], 'identifier', ''),
+      field('tenantStatus', ['generalInformation.tenantStatus', 'tenantStatus', 'status', 'lifecycleStatus', 'accountStatus'], ['Tenant Registry status', 'Tenant lifecycle'], 'status', '—'),
+      field('entityType', ['generalInformation.entityType', 'entityType', 'legalEntityType', 'personType'], ['Tenant Detail entity type'], 'text', '—'),
+      field('tenantType', ['generalInformation.tenantType', 'tenantType', 'type', 'organizationType'], ['Tenant Registry type', 'Tenant Detail tenant type'], 'text', '—'),
+      field('accountManager', ['generalInformation.accountManager', 'accountManager'], ['Tenant Detail general information'], 'text', ''),
+      field('industrySector', ['generalInformation.industrySector', 'industrySector'], ['Tenant Detail general information'], 'text', ''),
+      field('businessCategory', ['generalInformation.businessCategory', 'businessCategory'], ['Tenant Detail general information', 'Tenant classification'], 'text', ''),
+      field('parentCompany', ['generalInformation.parentCompany', 'parentCompany'], ['Tenant Detail general information'], 'text', ''),
+      field('numberOfEmployees', ['generalInformation.numberOfEmployees', 'numberOfEmployees'], ['Tenant Detail general information'], 'count', ''),
+      field('annualRevenueRange', ['generalInformation.annualRevenueRange', 'annualRevenueRange'], ['Tenant Detail general information'], 'text', ''),
+      field('website', ['generalInformation.website', 'website'], ['Tenant Detail general information'], 'text', ''),
       field('country', ['generalInformation.country', 'addressInformation.legalAddress.country', 'country', 'address.country', 'vendorExtensions.country'], ['Tenant Registry country', 'Tenant Detail location'], 'text', '—'),
-      field('region', ['addressInformation.legalAddress.region', 'region', 'address.region', 'vendorExtensions.region'], ['Tenant Detail location'], 'text', '—'),
+      field('region', ['addressInformation.legalAddress.stateRegion', 'addressInformation.legalAddress.region', 'region', 'address.region', 'vendorExtensions.region'], ['Tenant Detail location'], 'text', '—'),
       field('city', ['addressInformation.legalAddress.city', 'city', 'address.city', 'vendorExtensions.city'], ['Tenant Detail location'], 'text', '—'),
-      field('tenantStatus', ['tenantStatus', 'status', 'lifecycleStatus', 'accountStatus'], ['Tenant Registry status', 'Tenant lifecycle'], 'status', '—'),
-      field('entityType', ['entityType', 'legalEntityType', 'personType'], ['Tenant Detail entity type'], 'text', '—'),
-      field('tenantType', ['tenantType', 'type', 'organizationType'], ['Tenant Registry type', 'Tenant Detail tenant type'], 'text', '—'),
-      field('createdAt', ['createdAtUtc'], ['Tenant Detail source/freshness'], 'date', 'No backend timestamp'),
-      field('updatedAt', ['updatedAtUtc'], ['Tenant Registry updated', 'Tenant Detail source/freshness'], 'date', 'createdAtUtc'),
+      field('streetAddress', ['addressInformation.legalAddress.streetAddress', 'addressInformation.legalAddress.address', 'streetAddress', 'address'], ['Tenant Detail legal address'], 'text', ''),
+      field('buildingNumber', ['addressInformation.legalAddress.buildingNumber', 'buildingNumber'], ['Tenant Detail legal address'], 'text', ''),
+      field('postalCode', ['addressInformation.legalAddress.postalCode', 'postalCode'], ['Tenant Detail legal address'], 'text', ''),
+      field('businessAddressSameAsLegalAddress', ['addressInformation.businessAddressSameAsLegalAddress', 'addressInformation.businessAddressSameAsLegal', 'businessAddressSameAsLegalAddress', 'businessAddressSameAsLegal'], ['Tenant Detail business address'], 'boolean', ''),
+      field('businessCountry', ['addressInformation.businessAddress.country', 'businessCountry'], ['Tenant Detail business address'], 'text', ''),
+      field('businessRegion', ['addressInformation.businessAddress.stateRegion', 'addressInformation.businessAddress.region', 'businessStateRegion', 'businessRegion'], ['Tenant Detail business address'], 'text', ''),
+      field('businessCity', ['addressInformation.businessAddress.city', 'businessCity'], ['Tenant Detail business address'], 'text', ''),
+      field('businessStreetAddress', ['addressInformation.businessAddress.streetAddress', 'addressInformation.businessAddress.address', 'businessStreetAddress', 'businessAddress'], ['Tenant Detail business address'], 'text', ''),
+      field('businessBuildingNumber', ['addressInformation.businessAddress.buildingNumber', 'businessBuildingNumber'], ['Tenant Detail business address'], 'text', ''),
+      field('businessPostalCode', ['addressInformation.businessAddress.postalCode', 'businessPostalCode'], ['Tenant Detail business address'], 'text', ''),
       field('contact', ['contactPersons.contacts.0.fullName', 'contactPersons.contacts.0.name', 'contactName', 'primaryContact', 'contact.name'], ['Tenant Detail contacts'], 'text', '—'),
       field('email', ['primaryContact.email', 'contactEmail', 'email', 'contact.email'], ['Tenant Detail contacts'], 'email', '—'),
-      field('phone', ['contactPersons.contacts.0.mobilePhone', 'contactPersons.contacts.0.phone', 'contactPhone', 'phone', 'contact.phone'], ['Tenant Detail contacts'], 'phone', '—')
+      field('phone', ['contactPersons.contacts.0.mobilePhone', 'contactPersons.contacts.0.phone', 'contactPhone', 'phone', 'contact.phone'], ['Tenant Detail contacts'], 'phone', '—'),
+      field('tenantCategory', ['tenantClassification.tenantCategory', 'generalInformation.businessCategory', 'category', 'businessArea', 'tenantCategory'], ['Tenant Detail classification'], 'text', ''),
+      field('accountTier', ['tenantClassification.accountTier', 'servicePlan', 'supportTier', 'tier'], ['Tenant Detail classification'], 'text', ''),
+      field('tenantPriority', ['tenantClassification.tenantPriority', 'tenantClassification.priority', 'tenantPriority', 'priority'], ['Tenant Detail classification'], 'text', ''),
+      field('riskCategory', ['tenantClassification.riskCategory', 'risk', 'riskLevel'], ['Tenant Detail classification'], 'text', ''),
+      field('acquisitionSource', ['tenantClassification.acquisitionSource', 'acquisitionSource'], ['Tenant Detail classification'], 'text', ''),
+      field('preferredLanguage', ['communicationPreferences.preferredLanguage', 'preferredLanguage'], ['Tenant Detail communication preferences'], 'text', ''),
+      field('preferredTimeZone', ['communicationPreferences.preferredTimeZone', 'communicationPreferences.timezone', 'preferredTimeZone', 'timezone'], ['Tenant Detail communication preferences'], 'text', ''),
+      field('preferredCommunicationChannel', ['communicationPreferences.preferredCommunicationChannel', 'communicationPreferences.communicationChannel', 'preferredCommunicationChannel', 'communicationChannel'], ['Tenant Detail communication preferences'], 'text', ''),
+      field('businessHours', ['communicationPreferences.businessHours', 'businessHours'], ['Tenant Detail communication preferences'], 'text', ''),
+      field('receivePlatformNotifications', ['communicationPreferences.receivePlatformNotifications', 'communicationPreferences.platformNotifications', 'receivePlatformNotifications', 'platformNotifications'], ['Tenant Detail communication preferences'], 'boolean', ''),
+      field('receiveServiceNotifications', ['communicationPreferences.receiveServiceNotifications', 'communicationPreferences.serviceNotifications', 'receiveServiceNotifications', 'serviceNotifications'], ['Tenant Detail communication preferences'], 'boolean', ''),
+      field('receiveInvoiceNotifications', ['communicationPreferences.receiveInvoiceNotifications', 'communicationPreferences.invoiceNotifications', 'receiveInvoiceNotifications', 'invoiceNotifications'], ['Tenant Detail communication preferences'], 'boolean', ''),
+      field('receiveSecurityNotifications', ['communicationPreferences.receiveSecurityNotifications', 'communicationPreferences.securityNotifications', 'receiveSecurityNotifications', 'securityNotifications'], ['Tenant Detail communication preferences'], 'boolean', ''),
+      field('notificationRecipients', ['communicationPreferences.notificationRecipients', 'notificationRecipients'], ['Tenant Detail communication preferences'], 'raw', ''),
+      field('dataProcessingAgreement', ['legalCompliance.dataProcessingAgreement', 'legalCompliance.dataProcessingAgreementStatus', 'dataProcessingAgreement', 'dataProcessingAgreementStatus'], ['Tenant Detail legal compliance'], 'status', ''),
+      field('ndaStatus', ['legalCompliance.ndaStatus', 'ndaStatus'], ['Tenant Detail legal compliance'], 'status', ''),
+      field('complianceStatus', ['legalCompliance.complianceStatus', 'compliance', 'complianceStatus', 'certificationState'], ['Tenant Detail legal compliance'], 'status', ''),
+      field('confidentialityLevel', ['legalCompliance.confidentialityLevel', 'confidentialityLevel'], ['Tenant Detail legal compliance'], 'text', ''),
+      field('dataControllerType', ['legalCompliance.dataControllerType', 'dataControllerType'], ['Tenant Detail legal compliance'], 'text', ''),
+      field('consentStatus', ['legalCompliance.consentStatus', 'consentStatus'], ['Tenant Detail legal compliance'], 'status', ''),
+      field('consentExpiryDate', ['legalCompliance.consentExpiryDate', 'consentExpiryDate'], ['Tenant Detail legal compliance'], 'date', ''),
+      field('documents', ['legalCompliance.documents', 'documents'], ['Tenant Detail documents'], 'raw', ''),
+      field('notes', ['generalInformation.notes', 'addressInformation.notes', 'contactPersons.notes', 'tenantClassification.notes', 'communicationPreferences.notes', 'legalCompliance.notes'], ['Tenant Detail notes'], 'raw', ''),
+      field('createdAt', ['createdAtUtc'], ['Tenant Detail source/freshness'], 'date', 'No backend timestamp'),
+      field('updatedAt', ['updatedAtUtc'], ['Tenant Registry updated', 'Tenant Detail source/freshness'], 'date', 'createdAtUtc')
     ],
     plants: [
       field('id', ['id', 'plantId', 'canonicalId', 'adminRecord.id'], ['Plant Registry row ID', 'Plant Detail identity'], 'identifier', '—', 'error'),
       field('plantCode', ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode', 'vendorExtensions.plantCode'], ['Plant Registry code', 'Plant Detail code'], 'identifier', '—'),
-      field('plantName', ['adminName', 'liveName', 'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name', 'adminRecord.plantName', 'liveRecord.plantName'], ['Plant Registry name', 'Plant Detail heading'], 'text', '—', 'error'),
-      field('provider', ['provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
-      field('clientId', ['clientAssignment.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ['Plant Detail client relation'], 'relation', ''),
-      field('client', ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], ['Plant Registry owner', 'Plant Detail client'], 'relation', '—'),
-      field('managingTenant', ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], ['Plant Registry tenant', 'Plant Detail operator'], 'relation', '—'),
-      field('recordStatus', ['recordStatus', 'lifecycleStatus', 'lifecycle.status', 'status', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], ['Plant Registry status', 'Plant Detail lifecycle'], 'status', '—'),
+      field('plantName', ['adminName', 'liveName', 'technical.plantName', 'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name', 'adminRecord.plantName', 'adminRecord.technical.plantName', 'liveRecord.plantName'], ['Plant Registry name', 'Plant Detail heading'], 'text', '—', 'error'),
+      field('provider', ['providerData.provider', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
+      field('clientId', ['clientAssignment.clientId', 'operationalData.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ['Plant Detail client relation'], 'relation', ''),
+      field('client', ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'operationalData.clientName', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], ['Plant Registry owner', 'Plant Detail client'], 'relation', '—'),
+      field('managingTenant', ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'operationalData.tenantName', 'operationalData.tenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], ['Plant Registry tenant', 'Plant Detail operator'], 'relation', '—'),
+      field('recordStatus', ['vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], ['Plant Registry status', 'Plant Detail lifecycle'], 'status', '—'),
       field('plantType', ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], ['Plant Registry type', 'Plant Detail type'], 'text', '—'),
       field('countryRegion', ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], ['Plant Registry country', 'Plant Detail location'], 'text', '—'),
       field('region', ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], ['Plant Detail location'], 'text', '—'),
       field('city', ['location.city', 'city', 'vendorExtensions.city', 'adminRecord.location.city', 'adminRecord.city'], ['Plant Detail location'], 'text', '—'),
+      field('address', ['location.address', 'location.street', 'location.detailedAddress', 'address', 'detailedAddress', 'vendorExtensions.address', 'adminRecord.location.address', 'adminRecord.location.street', 'adminRecord.location.detailedAddress', 'adminRecord.address'], ['Plant Detail location'], 'text', ''),
+      field('latitude', ['location.latitude', 'location.lat', 'latitude', 'lat', 'vendorExtensions.latitude', 'adminRecord.location.latitude', 'adminRecord.location.lat'], ['Plant Detail coordinates'], 'text', ''),
+      field('longitude', ['location.longitude', 'location.lng', 'longitude', 'lng', 'vendorExtensions.longitude', 'adminRecord.location.longitude', 'adminRecord.location.lng'], ['Plant Detail coordinates'], 'text', ''),
+      field('creationMode', ['vendorPlatform.creationMode', 'creationMode', 'adminRecord.vendorPlatform.creationMode', 'adminRecord.creationMode'], ['Plant Detail source & sync'], 'text', ''),
       field('plantTimeZone', ['location.plantTimeZone', 'location.timezone', 'location.timeZone', 'plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.location.timezone', 'adminRecord.location.timeZone', 'adminRecord.plantTimeZone'], ['Plant Detail timezone'], 'text', '—'),
-      field('devicesCount', ['devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount', 'vendorExtensions.onlineDeviceCount'], ['Plant Registry devices', 'Plant Detail devices KPI'], 'count', '0'),
-      field('alertsCount', ['vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], ['Plant Registry alerts', 'Plant Detail alerts KPI'], 'count', '0'),
-      field('currentPowerKw', ['currentPowerKw'], ['Plant Registry live power', 'Plant Detail telemetry'], 'power', '—'),
-      field('installedPowerKw', ['technical.installedPowerKw', 'installedPowerKw', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], ['Plant Detail installed capacity'], 'power', '0'),
-      field('todayEnergyKwh', ['todayEnergyKwh'], ['Plant Registry today energy', 'Plant Detail telemetry'], 'energy', '—'),
-      field('totalEnergyKwh', ['totalEnergyKwh'], ['Plant Detail lifetime energy'], 'energy', '—'),
-      field('lastDataAt', ['lastDataAt', 'lastSyncAt'], ['Plant Registry freshness', 'Plant Detail telemetry freshness'], 'date', 'No live data'),
-      field('dataQualityStatus', ['dataQualityStatus', 'vendorExtensions.dataFreshness'], ['Plant Registry quality', 'Plant Detail freshness'], 'status', '—'),
-      field('batteryCapacityKwh', ['vendorExtensions.batteryCapacityKwh'], ['Plant Detail storage metadata'], 'energy', '—'),
+      field('devicesCount', ['operationalData.deviceCount', 'devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount', 'vendorExtensions.onlineDeviceCount', 'devices'], ['Plant Registry devices', 'Plant Detail devices KPI'], 'count', '0'),
+      field('alertsCount', ['operationalData.openAlertCount', 'alertsCount', 'vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], ['Plant Registry alerts', 'Plant Detail alerts KPI'], 'count', '0'),
+      field('currentPowerKw', ['operationalData.currentPowerKw', 'providerData.currentPowerKw', 'currentPowerKw', 'liveRecord.currentPowerKw'], ['Plant Registry live power', 'Plant Detail telemetry'], 'power', '—'),
+      field('installedPowerKw', ['technical.installedPowerKw', 'operationalData.installedCapacityKwp', 'installedPowerKw', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], ['Plant Detail installed capacity'], 'power', '0'),
+      field('todayEnergyKwh', ['operationalData.todayEnergyKwh', 'todayEnergyKwh', 'liveRecord.todayEnergyKwh'], ['Plant Registry today energy', 'Plant Detail telemetry'], 'energy', '—'),
+      field('totalEnergyKwh', ['operationalData.totalEnergyKwh', 'totalEnergyKwh', 'liveRecord.totalEnergyKwh'], ['Plant Detail lifetime energy'], 'energy', '—'),
+      field('lastDataAt', ['operationalData.lastDataAtUtc', 'lastDataAtUtc', 'lastDataAt', 'lastSyncAt', 'liveRecord.lastDataAt'], ['Plant Registry freshness', 'Plant Detail telemetry freshness'], 'date', 'No live data'),
+      field('dataQualityStatus', ['operationalData.dataQualityStatus', 'dataQualityStatus', 'liveRecord.dataQualityStatus'], ['Plant Registry quality', 'Plant Detail freshness'], 'status', '—'),
+      field('batteryCapacityKwh', ['technical.batteryCapacityKwh', 'operationalData.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh'], ['Plant Detail storage metadata'], 'energy', '—'),
       field('monthlyYieldKwh', ['vendorExtensions.monthlyYieldKwh'], ['Plant Detail telemetry metadata'], 'energy', '—'),
       field('yearlyYieldKwh', ['vendorExtensions.yearlyYieldKwh'], ['Plant Detail telemetry metadata'], 'energy', '—'),
       field('warningCount', ['vendorExtensions.warningCount'], ['Plant Detail alert metadata'], 'count', '0'),
       field('offlineDeviceCount', ['vendorExtensions.offlineDeviceCount'], ['Plant Detail device metadata'], 'count', '0'),
       field('createdAt', ['createdAtUtc', 'adminRecord.createdAtUtc'], ['Plant Detail source/freshness'], 'date', '—'),
       field('updatedAt', ['updatedAtUtc', 'adminRecord.updatedAtUtc'], ['Plant Registry updated', 'Plant Detail source/freshness'], 'date', 'createdAtUtc'),
-      field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceSystem', 'vendorExtensions.sourceEntityType', 'vendorExtensions.communicationStatus', 'vendorExtensions.canonicalSource'], ['Raw payload diagnostics'], 'raw', '')
+      field('sourcePlantId', ['providerData.sourceEntityId', 'providerData.sourcePlantCode', 'providerData.sourcePlantId', 'sourcePlantId'], ['Plant Detail source identity', 'Provider assignment resolution'], 'identifier', ''),
+      field('canonicalPlantId', ['operationalData.canonicalPlantId', 'canonicalPlantId', 'liveRecord.id'], ['Plant Detail canonical / Platform Live identity'], 'identifier', ''),
+      field('providerAccount', ['providerData.providerAccount', 'providerAccount'], ['Plant Detail source & sync'], 'identifier', ''),
+      field('providerStatus', ['providerData.providerStatus'], ['Plant Detail provider status'], 'status', ''),
+      field('operationalStatus', ['operationalData.status', 'providerData.providerStatus', 'operationalStatus', 'liveRecord.status'], ['Plant Detail operational health'], 'status', ''),
+      field('communicationStatus', ['operationalData.communicationStatus', 'communicationStatus'], ['Plant Detail operational connectivity'], 'status', ''),
+      field('dataFreshness', ['operationalData.dataFreshness', 'vendorExtensions.dataFreshness', 'dataFreshness'], ['Plant Detail source/freshness'], 'status', ''),
+      field('lastSyncAt', ['operationalData.lastSyncAtUtc', 'providerData.lastSyncAtUtc', 'lastSyncAtUtc', 'lastSyncAt', 'liveRecord.lastSyncAt'], ['Plant Detail source/freshness'], 'date', ''),
+      field('capacityDc', ['technical.installedCapacityDcMw', 'technical.installedPowerKw', 'operationalData.installedCapacityKwp', 'installedCapacityDcMw', 'installedPowerKw'], ['Plant Detail installed DC capacity'], 'power', ''),
+      field('capacityAc', ['technical.installedCapacityAcMw', 'installedCapacityAcMw', 'capacityAcMw', 'capacityAc'], ['Plant Detail installed AC capacity'], 'power', ''),
+      field('gridCapacity', ['technical.gridConnectionCapacityMw', 'gridConnectionCapacityMw', 'gridCapacityMw', 'gridCapacity'], ['Plant Detail grid capacity'], 'power', ''),
+      field('commissioningDate', ['technical.commissioningDate', 'commissioningDate'], ['Plant Detail commissioning'], 'date', ''),
+      field('serviceProvider', ['technical.serviceProvider', 'commercial.serviceProvider', 'serviceProvider', 'omProvider'], ['Plant Detail O&M provider'], 'relation', ''),
+      field('payloadStrategy', ['vendorPlatform.payloadStrategy', 'payloadStrategy', 'adminRecord.vendorPlatform.payloadStrategy'], ['Plant Detail source diagnostics'], 'text', ''),
+      field('rawPayloadRef', ['providerData.rawPayloadRef', 'rawPayloadRef'], ['Plant Detail raw payload diagnostics'], 'raw', ''),
+      field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceSystem', 'vendorExtensions.sourceEntityType', 'vendorExtensions.communicationStatus', 'vendorExtensions.canonicalSource', 'providerData.extensions', 'technical.company', 'technical.evChargerOnlyPlant', 'technical.gridConnectionType', 'technical.tilt', 'technical.azimuth', 'technical.externalReference', 'technical.plantOverview', 'commercial.currency', 'commercial.unitPrice', 'commercial.tariffType', 'commercial.totalCost', 'commercial.subsidy', 'commercial.dailyRepayment', 'commercial.ownerEmail', 'stringCapacity.stringCapacities', 'otherInfo.plantLogoFileName', 'otherInfo.safeRunningStartDate', 'otherInfo.totalYieldStatistics', 'documents'], ['Raw payload diagnostics'], 'raw', '')
     ],
     devices: [
       field('id', ['id', 'deviceId', 'canonicalId'], ['Device Registry row ID', 'Device Detail identity'], 'identifier', '—', 'error'),
-      field('provider', ['provider', 'vendorExtensions.provider'], ['Device Registry provider', 'Device Detail source'], 'text', '—', 'warning'),
-      field('sourceDeviceId', ['sourceDeviceId', 'deviceId', 'serialNumber'], ['Device Registry code', 'Device Detail external ID'], 'identifier', '—', 'error'),
-      field('sourcePlantId', ['sourcePlantId', 'plantId', 'vendorExtensions.sourcePlantId'], ['Device Registry plant relation', 'Device Detail plant'], 'relation', '—', 'warning'),
-      field('deviceName', ['vendorExtensions.deviceName', 'sourceDeviceName', 'deviceName', 'equipmentName', 'displayName', 'sourceEntityName', 'name'], ['Device Registry name', 'Device Detail heading'], 'text', '—', 'error'),
-      field('deviceType', ['deviceType', 'vendorExtensions.deviceType', 'vendorExtensions.rawDeviceType', 'type'], ['Device Registry type', 'Device Detail type'], 'text', '—'),
-      field('status', ['status', 'vendorExtensions.onlineStatus', 'vendorExtensions.rawStatus'], ['Device Registry status', 'Device Detail status'], 'status', '—'),
-      field('serialNumber', ['serialNumber'], ['Device Registry serial', 'Device Detail serial'], 'identifier', '—'),
-      field('plantName', ['plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName'], ['Device Registry plant', 'Device Detail plant'], 'relation', '—'),
-      field('lastSeenAt', ['lastSeenAt'], ['Device Registry last seen', 'Device Detail freshness'], 'date', 'No live data'),
-      field('lastSyncAt', ['lastSyncAt'], ['Device Detail sync metadata'], 'date', 'No sync'),
-      field('dataQualityStatus', ['dataQualityStatus', 'vendorExtensions.dataFreshness'], ['Device Registry data quality', 'Device Detail source status'], 'status', '—'),
+      field('provider', ['source.provider', 'provider', 'vendorExtensions.provider'], ['Device Registry provider', 'Device Detail source'], 'text', '—', 'warning'),
+      field('sourceDeviceId', ['source.sourceDeviceId', 'sourceDeviceId', 'identity.deviceCode', 'deviceCode', 'deviceId', 'serialNumber'], ['Device Registry code', 'Device Detail external ID'], 'identifier', '—', 'error'),
+      field('sourcePlantId', ['plantRelation.plantId', 'sourcePlantId', 'plantId', 'vendorExtensions.sourcePlantId'], ['Device Registry plant relation', 'Device Detail plant'], 'relation', '—', 'warning'),
+      field('deviceName', ['identity.deviceName', 'vendorExtensions.deviceName', 'vendorExtensions.equipmentName', 'vendorExtensions.displayName', 'vendorExtensions.name', 'sourceDeviceName', 'deviceName', 'equipmentName', 'displayName', 'sourceEntityName', 'name'], ['Device Registry name', 'Device Detail heading'], 'text', '—', 'error'),
+      field('deviceType', ['identity.deviceType', 'deviceType', 'vendorExtensions.deviceType', 'vendorExtensions.rawDeviceType', 'type'], ['Device Registry type', 'Device Detail type'], 'text', '—'),
+      field('manufacturer', ['identity.manufacturer', 'manufacturer'], ['Device Detail manufacturer'], 'text', ''),
+      field('subtype', ['specification.inverterCategory', 'specification.deviceCategory', 'vendorExtensions.subtype', 'subtype', 'vendorExtensions.rawDeviceType'], ['Device Detail subtype'], 'text', ''),
+      field('status', ['status.operationalStatus', 'operationalStatus', 'status', 'vendorExtensions.onlineStatus', 'vendorExtensions.rawStatus'], ['Device Registry status', 'Device Detail status'], 'status', '—'),
+      field('serialNumber', ['identity.serialNumber', 'serialNumber'], ['Device Registry serial', 'Device Detail serial'], 'identifier', '—'),
+      field('plantName', ['plantRelation.plantName', 'plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName', 'vendorExtensions.stationName'], ['Device Registry plant', 'Device Detail plant'], 'relation', '—'),
+      field('tenantId', ['plantRelation.tenantId', 'tenantId'], ['Device Registry tenant relation', 'Device Detail tenant'], 'relation', ''),
+      field('tenant', ['plantRelation.tenantName', 'plantRelation.managingTenant', 'tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], ['Device Registry tenant relation', 'Device Detail tenant'], 'relation', ''),
+      field('integration', ['source.integration', 'integration', 'integrationName', 'sourceIntegrationName'], ['Device Detail source'], 'relation', ''),
+      field('lastSeenAt', ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], ['Device Registry last seen', 'Device Detail freshness'], 'date', 'No live data'),
+      field('lastSyncAt', ['lastSyncAt', 'vendorExtensions.collectionTime', 'collectionTime'], ['Device Detail sync metadata'], 'date', 'No sync'),
+      field('dataQualityStatus', ['status.dataQualityStatus', 'dataQualityStatus', 'vendorExtensions.dataFreshness'], ['Device Registry data quality', 'Device Detail source status'], 'status', '—'),
       field('alarmStatus', ['vendorExtensions.alarmStatus', 'alarmStatus'], ['Device Detail alarm state'], 'status', '—'),
-      field('vendorModel', ['vendorExtensions.vendorModel', 'vendorExtensions.model', 'model'], ['Device Registry model', 'Device Detail model'], 'text', '—'),
+      field('alertsCount', ['alertsCount', 'vendorExtensions.alertsCount'], ['Device Registry alerts', 'Device Detail alerts'], 'count', ''),
+      field('vendorModel', ['identity.model', 'technical.vendorModel', 'vendorModel', 'vendorExtensions.vendorModel', 'vendorExtensions.model', 'model'], ['Device Registry model', 'Device Detail model'], 'text', '—'),
       field('productModel', ['vendorExtensions.productModel'], ['Device Detail product model'], 'text', '—'),
-      field('ratedPowerKw', ['vendorExtensions.ratedPowerKw', 'ratedPowerKw'], ['Device Registry capacity', 'Device Detail rated power'], 'power', '—'),
-      field('firmwareVersion', ['vendorExtensions.firmwareVersion', 'vendorExtensions.firmware', 'firmwareVersion'], ['Device Registry firmware', 'Device Detail firmware'], 'text', '—'),
-      field('protocolVersion', ['vendorExtensions.protocolVersion'], ['Device Detail protocol'], 'text', '—'),
-      field('parentDeviceId', ['vendorExtensions.parentDeviceId', 'parentDeviceId'], ['Device Detail topology'], 'relation', '—'),
-      field('sourceSystem', ['vendorExtensions.sourceSystem', 'sourceSystem'], ['Device Detail source'], 'text', 'Provider'),
-      field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceEntityType', 'vendorExtensions.canonicalSource'], ['Raw payload diagnostics'], 'raw', '')
+      field('productId', ['vendorExtensions.productId', 'productId'], ['Device Detail source identity'], 'identifier', ''),
+      field('ratedPowerKw', ['specification.ratedActivePowerKw', 'technical.ratedPowerKw', 'vendorExtensions.ratedPowerKw', 'ratedPowerKw'], ['Device Registry capacity', 'Device Detail rated power'], 'power', '—'),
+      field('firmwareVersion', ['technical.firmwareVersion', 'firmwareVersion', 'vendorExtensions.firmwareVersion', 'vendorExtensions.firmware'], ['Device Registry firmware', 'Device Detail firmware'], 'text', '—'),
+      field('protocolVersion', ['technical.protocolVersion', 'communication.protocol', 'vendorExtensions.protocolVersion', 'protocolVersion', 'protocol'], ['Device Detail protocol'], 'text', '—'),
+      field('parentDeviceId', ['topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'parentDeviceId'], ['Device Detail topology'], 'relation', '—'),
+      field('parentDeviceName', ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'parentDeviceName', 'vendorExtensions.parent'], ['Device Detail topology'], 'relation', ''),
+      field('childCount', ['topology.childCount', 'childCount', 'vendorExtensions.childCount', 'vendorExtensions.children', 'children'], ['Device Detail topology'], 'count', ''),
+      field('connectivityStatus', ['vendorExtensions.connectStatus', 'connectStatus', 'connectivityStatus'], ['Device Detail connectivity'], 'status', ''),
+      field('collectionTime', ['vendorExtensions.collectionTime', 'collectionTime'], ['Device Detail source/freshness'], 'date', ''),
+      field('sourceSystem', ['source.provider', 'vendorExtensions.sourceSystem', 'sourceSystem'], ['Device Detail source'], 'text', 'Provider'),
+      field('rawPayloadRef', ['vendorExtensions.rawPayloadRef', 'rawPayloadRef'], ['Device Detail source diagnostics'], 'raw', ''),
+      field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceEntityType', 'vendorExtensions.canonicalSource', 'deviceCode', 'identity.deviceCode', 'status.deviceStatus', 'technical.role', 'locationRelation.locationId', 'lifecycle.installDate', 'lifecycle.commissionedAt', 'lifecycle.warrantyExpiresAt', 'relations.protectionRelayDeviceId', 'relations.stringId', 'relations.mpptId', 'linkedDevices', 'documents', 'auditHistory'], ['Raw payload diagnostics'], 'raw', '')
     ],
     alerts: [
       field('id', ['id', 'alertId'], ['Alert Registry row ID', 'Alert Detail identity'], 'identifier', '—', 'error'),
       field('provider', ['vendor.provider', 'provider'], ['Alert Registry provider', 'Alert Detail source'], 'text', '—', 'warning'),
-      field('sourceAlertId', ['sourceAlertId', 'vendorExtensions.alarmCode'], ['Alert Registry vendor code', 'Alert Detail source code'], 'identifier', '—', 'error'),
-      field('sourcePlantId', ['sourcePlantId'], ['Alert Registry plant relation', 'Alert Detail plant'], 'relation', '—'),
-      field('sourceDeviceId', ['sourceDeviceId', 'vendorExtensions.deviceSn'], ['Alert Registry device relation', 'Alert Detail device'], 'relation', '—'),
-      field('plantName', ['plantName', 'sourcePlantName', 'vendorExtensions.plantName'], ['Alert Registry plant', 'Alert Detail plant'], 'relation', '—'),
-      field('deviceName', ['deviceName', 'vendorExtensions.deviceName'], ['Alert Registry device', 'Alert Detail device'], 'relation', '—'),
-      field('title', ['canonical.canonicalName', 'title', 'guidance.description', 'vendor.vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'name'], ['Alert Registry title', 'Alert Detail heading'], 'text', '—', 'error'),
-      field('message', ['guidance.description', 'vendor.vendorMessage', 'message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
-      field('severity', ['canonical.canonicalSeverity', 'severity'], ['Alert Registry severity', 'Alert Detail severity'], 'status', '—', 'warning'),
+      field('sourceAlertId', ['vendor.sourceAlertId', 'sourceAlertId', 'vendorRawCode', 'vendorExtensions.alarmCode'], ['Alert Registry vendor code', 'Alert Detail source code'], 'identifier', '—', 'error'),
+      field('zentridCode', ['canonical.canonicalCode', 'canonicalCode', 'zentridCode', 'vendorExtensions.zentridCode'], ['Alert Registry canonical code', 'Alert Detail canonical code'], 'identifier', ''),
+      field('sourcePlantId', ['plant.sourcePlantId', 'sourcePlantId'], ['Alert Registry source plant relation', 'Alert Detail source plant'], 'relation', '—'),
+      field('sourceDeviceId', ['device.sourceDeviceId', 'sourceDeviceId', 'vendorExtensions.deviceSn'], ['Alert Registry source device relation', 'Alert Detail source device'], 'relation', '—'),
+      field('plantId', ['plant.plantId', 'plantId'], ['Alert Registry canonical plant relation', 'Alert Detail plant'], 'relation', ''),
+      field('deviceId', ['device.deviceId', 'deviceId'], ['Alert Registry canonical device relation', 'Alert Detail device'], 'relation', ''),
+      field('plantName', ['plant.plantName', 'plantName', 'sourcePlantName', 'plant', 'vendorExtensions.plantName'], ['Alert Registry plant', 'Alert Detail plant'], 'relation', '—'),
+      field('deviceName', ['device.deviceName', 'deviceName', 'device', 'vendorExtensions.deviceName'], ['Alert Registry device', 'Alert Detail device'], 'relation', '—'),
+      field('tenantId', ['tenant.tenantId', 'tenantId'], ['Alert Registry tenant relation', 'Alert Detail tenant'], 'relation', ''),
+      field('tenant', ['tenant.tenantName', 'tenant'], ['Alert Registry tenant relation', 'Alert Detail tenant'], 'relation', ''),
+      field('title', ['canonical.canonicalName', 'canonicalName', 'title', 'guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'name'], ['Alert Registry title', 'Alert Detail heading'], 'text', '—', 'error'),
+      field('message', ['guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
+      field('canonicalCategory', ['canonical.canonicalCategory', 'canonicalCategory', 'category'], ['Alert Registry canonical category', 'Alert Detail category'], 'text', ''),
+      field('severity', ['canonical.canonicalSeverity', 'canonicalSeverity', 'severity', 'vendorSeverity'], ['Alert Registry severity', 'Alert Detail severity'], 'status', '—', 'warning'),
+      field('vendorSeverity', ['vendor.vendorSeverity', 'vendorSeverity'], ['Alert Detail source severity'], 'status', ''),
       field('status', ['workflow.status', 'status'], ['Alert Registry status', 'Alert Detail status'], 'status', '—'),
-      field('occurredAtUtc', ['workflow.occurredAtUtc', 'occurredAtUtc'], ['Alert Registry occurred', 'Alert Detail timeline'], 'date', 'No occurrence time'),
-      field('lastSyncAt', ['lastSyncAt'], ['Alert Registry updated', 'Alert Detail timeline'], 'date', 'No sync'),
-      field('alarmType', ['canonical.canonicalCategory', 'vendorExtensions.alarmType', 'vendorExtensions.category'], ['Alert Registry category', 'Alert Detail category'], 'text', '—'),
-      field('reason', ['guidance.probableCause', 'vendorExtensions.reason', 'vendorExtensions.probableCause'], ['Alert Detail probable cause'], 'text', 'No backend probable cause'),
-      field('solution', ['guidance.recommendation', 'vendorExtensions.solution', 'vendorExtensions.recommendation'], ['Alert Detail recommendation'], 'text', 'Review source data'),
+      field('priority', ['workflow.priority', 'priority'], ['Alert Registry priority', 'Alert Detail workflow'], 'status', ''),
+      field('occurrenceStatus', ['workflow.occurrenceStatus', 'occurrenceStatus'], ['Alert Detail workflow'], 'status', ''),
+      field('occurredAtUtc', ['workflow.occurredAtUtc', 'occurredAtUtc', 'created'], ['Alert Registry occurred', 'Alert Detail timeline'], 'date', 'No occurrence time'),
+      field('lastSyncAt', ['workflow.lastSyncAtUtc', 'lastSyncAt', 'updated'], ['Alert Registry updated', 'Alert Detail timeline'], 'date', 'No sync'),
+      field('created', ['created', 'workflow.occurredAtUtc', 'occurredAtUtc'], ['Alert Detail timeline'], 'date', ''),
+      field('updated', ['updated', 'audit.updatedAtUtc', 'workflow.lastSyncAtUtc', 'lastSyncAt'], ['Alert Detail timeline'], 'date', ''),
+      field('alarmType', ['canonical.canonicalCategory', 'canonicalCategory', 'category', 'vendorExtensions.alarmType', 'vendorExtensions.category'], ['Alert Registry category', 'Alert Detail category'], 'text', '—'),
+      field('reason', ['guidance.probableCause', 'probableCause', 'vendorExtensions.reason', 'vendorExtensions.probableCause'], ['Alert Detail probable cause'], 'text', 'No backend probable cause'),
+      field('solution', ['guidance.recommendation', 'recommendation', 'solution', 'vendorExtensions.suggestion', 'vendorExtensions.solution', 'vendorExtensions.recommendation'], ['Alert Detail recommendation'], 'text', 'Review source data'),
+      field('mappingStatus', ['mapping.mappingStatus', 'mappingStatus'], ['Alert Detail mapping diagnostics'], 'status', ''),
+      field('source', ['vendor.sourceSystem', 'source', 'vendor.provider', 'provider'], ['Alert Detail source'], 'text', ''),
+      field('owner', ['assignment.assigneeName', 'owner'], ['Alert Detail assignment'], 'text', ''),
+      field('sla', ['sla.text', 'sla.status', 'sla'], ['Alert Detail SLA'], 'text', ''),
       field('acknowledgedAtUtc', ['vendorExtensions.acknowledgedAtUtc'], ['Alert Detail timeline metadata'], 'date', '—'),
       field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.canonicalSource'], ['Raw payload diagnostics'], 'raw', '')
     ],
     telemetry: [
       field('id', ['id', 'telemetryId', 'metricId', 'canonicalId', 'sourceEntityId', 'telemetry.id', 'measurement.id', 'reading.id', 'data.id', 'payload.id'], ['Telemetry record identity', 'Raw payload diagnostics'], 'identifier', ''),
-      field('metric', ['metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], ['Telemetry metric label', 'Telemetry filters'], 'text', '—', 'warning'),
-      field('value', ['value.value', 'measurement.value', 'reading.value', 'telemetry.value', 'data.value', 'payload.value', 'metric.value', 'latest.value', 'point.value', 'sample.value', 'metricValue', 'numericValue', 'currentValue', 'rawValue', 'reading', 'value'], ['Telemetry value', 'Telemetry stream preview'], 'raw', '—', 'warning'),
+      field('metric', ['metricCode', 'metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], ['Telemetry metric label', 'Telemetry filters'], 'text', '—', 'warning'),
+      field('value', ['value.value', 'measurement.value', 'reading.value', 'telemetry.value', 'data.value', 'payload.value', 'metric.value', 'latest.value', 'point.value', 'sample.value', 'metricValue', 'numericValue', 'textValue', 'booleanValue', 'currentValue', 'rawValue', 'reading', 'value'], ['Telemetry value', 'Telemetry stream preview'], 'raw', '—', 'warning'),
       field('unit', ['value.unit', 'measurement.unit', 'reading.unit', 'telemetry.unit', 'data.unit', 'payload.unit', 'metric.unit', 'latest.unit', 'point.unit', 'sample.unit', 'unit', 'unitSymbol', 'uom', 'measurementUnit'], ['Telemetry value unit', 'Telemetry stream preview'], 'text', ''),
-      field('timestamp', ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], ['Telemetry timestamp', 'Telemetry freshness'], 'date', 'No timestamp'),
+      field('timestamp', ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestampUtc', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], ['Telemetry timestamp', 'Telemetry freshness'], 'date', 'No timestamp'),
       field('quality', ['quality.status', 'measurement.quality', 'reading.quality', 'telemetry.quality', 'data.quality', 'payload.quality', 'dataQualityStatus', 'quality', 'qualityStatus', 'freshness', 'status'], ['Telemetry quality', 'Telemetry freshness'], 'status', '—'),
       field('provider', ['source.provider', 'source.vendor', 'source.system', 'integration.provider', 'telemetry.provider', 'data.provider', 'payload.provider', 'provider', 'vendor', 'sourceSystem', 'providerName', 'vendorExtensions.provider'], ['Telemetry source provider'], 'text', '—'),
       field('tenantId', ['tenant.id', 'tenant.tenantId', 'telemetry.tenantId', 'data.tenantId', 'payload.tenantId', 'tenantId', 'sourceTenantId'], ['Telemetry tenant relation'], 'relation', ''),
@@ -539,6 +650,7 @@
       field('deviceId', ['device.id', 'device.deviceId', 'device.sourceDeviceId', 'device.serialNumber', 'telemetry.deviceId', 'data.deviceId', 'payload.deviceId', 'sourceDeviceId', 'deviceId', 'serialNumber'], ['Telemetry device relation'], 'relation', ''),
       field('deviceName', ['device.name', 'device.deviceName', 'device.equipmentName', 'telemetry.deviceName', 'data.deviceName', 'payload.deviceName', 'deviceName', 'sourceDeviceName', 'equipmentName', 'vendorExtensions.deviceName'], ['Telemetry device relation'], 'relation', '—'),
       field('deviceType', ['device.type', 'device.deviceType', 'telemetry.deviceType', 'data.deviceType', 'payload.deviceType', 'deviceType', 'type', 'vendorExtensions.deviceType'], ['Telemetry device type'], 'text', '—'),
+      field('granularity', ['granularity', 'aggregationGranularity', 'interval'], ['Telemetry filters', 'Telemetry stream metadata'], 'text', ''),
       field('sourceMetadata', ['metadata', 'tags', 'dimensions', 'source', 'vendorExtensions', 'telemetry.metadata', 'data.metadata', 'payload.metadata'], ['Raw payload diagnostics'], 'raw', '')
     ],
     integrations: [
@@ -672,7 +784,7 @@
 
   function normalizedId(row: ContractRecord, context: ZentridContractMapperContext): string {
     return context.safeText(context.firstOf(row, [
-      'id', 'tenantId', 'clientId', 'plantId', 'deviceId', 'integrationId', 'telemetryId', 'metricId',
+      'id', 'generalInformation.tenantId', 'tenantId', 'clientId', 'plantId', 'deviceId', 'integrationId', 'telemetryId', 'metricId',
       'canonicalId', 'sourceEntityId', 'sourcePlantId', 'sourceDeviceId', 'sourceAlertId'
     ], ''), '');
   }
@@ -933,13 +1045,26 @@
 
   const clients = createContract<ZentridClientDto>(CONTRACT_DEFINITIONS.clients, (row, _index, context) => {
     const id = normalizedId(row, context);
-    const name = strictDisplayName(row, context, [
+    const identityFirstName = context.safeText(context.firstOf(row, ['identity.firstName', 'firstName'], ''), '').trim();
+    const identityLastName = context.safeText(context.firstOf(row, ['identity.lastName', 'lastName'], ''), '').trim();
+    const identityMiddleName = context.safeText(context.firstOf(row, ['identity.middleName', 'middleName'], ''), '').trim();
+    const composedIdentityName = [identityFirstName, identityLastName, identityMiddleName].filter(Boolean).join(' ');
+    const explicitName = context.safeText(context.firstOf(row, [
       'vendorExtensions.clientName', 'vendorExtensions.displayName', 'vendorExtensions.name',
-      'sourceClientName', 'clientName', 'displayName', 'legalName', 'companyName', 'fullName', 'name'
-    ], ['clientId', 'sourceEntityId', 'externalId', 'id']);
+      'sourceClientName', 'clientName', 'displayName', 'legalName', 'companyName', 'fullName', 'name',
+      'identity.fullName', 'identity.companyName'
+    ], ''), '').trim();
+    const identityFallback = context.safeText(context.firstOf(row, ['clientId', 'sourceEntityId', 'externalId', 'id'], ''), '').trim();
+    const name = explicitName || composedIdentityName || identityFallback || '—';
     const explicitDocuments = context.firstOf(row, ['documents', 'documentCount'], undefined);
-    const documentFlags = ['hasClientPassportFile', 'hasStateRegistrationDocumentFile', 'hasProjectDocFile']
-      .filter(key => row[key] !== undefined && row[key] !== null);
+    const nestedDocumentation = context.firstOf(row, ['documentation'], undefined);
+    const documentFlags = [
+      context.firstOf(row, ['hasClientPassportFile'], undefined),
+      context.firstOf(row, ['hasStateRegistrationDocumentFile'], undefined),
+      context.firstOf(row, ['hasProjectDocFile'], undefined),
+      context.firstOf(row, ['documentation.identityDocument'], undefined),
+      context.firstOf(row, ['documentation.registrationDocument'], undefined)
+    ].filter(value => value !== undefined && value !== null && value !== '');
     return {
       dataOrigin: 'live', id,
       code: context.safeText(context.firstOf(row, ['code', 'clientCode', 'externalId'], ''), ''),
@@ -949,6 +1074,10 @@
       deviceCount: optionalNumber(context.firstOf(row, ['deviceCount', 'devicesCount'], undefined)),
       totalCapacity: context.safeText(context.firstOf(row, ['totalCapacity', 'capacity', 'capacityDc', 'installedCapacity'], '—')),
       type: normalization.clientType(context.firstOf(row, ['tenantLink.clientType', 'type', 'clientType', 'entityType'], '—')),
+      firstName: identityFirstName,
+      lastName: identityLastName,
+      middleName: identityMiddleName,
+      companyName: context.safeText(context.firstOf(row, ['identity.companyName', 'companyName'], ''), ''),
       legalForm: context.safeText(context.firstOf(row, ['identity.legalForm', 'legalForm', 'companyType'], '—')),
       registrationNo: context.safeText(context.firstOf(row, ['identity.registrationNumber', 'registrationNo', 'registrationNumber', 'registryNumber'], '—')),
       taxId: context.safeText(context.firstOf(row, ['identity.taxIdVatNumber', 'generalInformation.taxIdVatNumber', 'generalInformation.taxId', 'taxIdVatNumber', 'taxId', 'tin', 'vat', 'taxNumber'], '—')),
@@ -976,7 +1105,7 @@
       users: Array.isArray(row.portalUsers) ? row.portalUsers.length : optionalNumber(context.firstOf(row, ['users', 'userCount'], undefined)),
       documents: explicitDocuments !== undefined
         ? optionalNumber(explicitDocuments)
-        : (Array.isArray(row.documentRecords) ? row.documentRecords.length : (documentFlags.length ? documentFlags.reduce((count, key) => count + Number(Boolean(row[key])), 0) : null)),
+        : (Array.isArray(row.documentRecords) ? row.documentRecords.length : (documentFlags.length ? documentFlags.reduce<number>((count, value) => count + Number(Boolean(value)), 0) : (nestedDocumentation && typeof nestedDocumentation === 'object' ? Object.values(nestedDocumentation as Record<string, unknown>).filter(Boolean).length : null))),
       billing: context.safeText(context.firstOf(row, ['billing', 'billingPlan', 'servicePlan'], '—')),
       supportTier: context.safeText(context.firstOf(row, ['supportTier', 'supportPlan'], '—')),
       accessScope: context.safeText(context.firstOf(row, ['accessScope', 'dataScope'], '—')),
@@ -1126,7 +1255,7 @@
   const plants = createContract<ZentridPlantDto>(CONTRACT_DEFINITIONS.plants, (row, _index, context) => {
     const id = normalizedId(row, context);
     const provider = normalization.provider(context.firstOf(row, [
-      'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceSystem',
+      'providerData.provider', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceSystem',
       'source.provider', 'source.vendor', 'integration.provider', 'vendorExtensions.sourceSystem',
       'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor',
       'adminRecord.vendorName', 'adminRecord.sourceSystem'
@@ -1140,10 +1269,10 @@
       'technical.plantName', 'adminRecord.technical.plantName',
       'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name'
     ], ['plantId', 'sourcePlantId', 'plantCode', 'id']);
-    const powerKw = optionalNumber(row.currentPowerKw);
-    const installedKw = optionalNumber(context.firstOf(row, ['technical.installedPowerKw', 'installedPowerKw', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], undefined));
+    const powerKw = optionalNumber(context.firstOf(row, ['operationalData.currentPowerKw', 'providerData.currentPowerKw', 'currentPowerKw', 'liveRecord.currentPowerKw'], undefined));
+    const installedKw = optionalNumber(context.firstOf(row, ['technical.installedPowerKw', 'installedPowerKw', 'operationalData.installedCapacityKwp', 'adminRecord.technical.installedPowerKw', 'adminRecord.installedPowerKw'], undefined));
     const installedDcMw = optionalNumber(context.firstOf(row, ['technical.installedCapacityDcMw', 'installedCapacityDcMw', 'technical.capacityDcMw', 'capacityDcMw', 'adminRecord.technical.installedCapacityDcMw', 'adminRecord.installedCapacityDcMw'], undefined));
-    const todayEnergy = optionalNumber(row.todayEnergyKwh);
+    const todayEnergy = optionalNumber(context.firstOf(row, ['operationalData.todayEnergyKwh', 'todayEnergyKwh', 'liveRecord.todayEnergyKwh'], undefined));
     const integration = context.safeText(context.firstOf(row, ['integrationName', 'integration', 'sourceIntegrationName', 'adminRecord.integration'], '—'));
     const embeddedCanonicalPlantId = context.safeText(context.firstOf(row, ['operationalData.canonicalPlantId', 'canonicalPlantId', 'liveRecord.id'], ''), '');
     const explicitAdminPlantId = context.safeText(context.firstOf(row, ['adminRecord.id', 'adminRecord.plantId', 'adminRecord.canonicalId', 'adminRecord.sourceEntityId'], ''), '');
@@ -1156,20 +1285,25 @@
       registryPlantId,
       canonicalPlantId,
       operationalId: canonicalPlantId,
-      sourcePlantId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
-      operationalExternalId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
-      externalId: context.safeText(context.firstOf(row, ['providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], '—')),
+      sourcePlantId: context.safeText(context.firstOf(row, ['providerData.sourceEntityId', 'providerData.sourcePlantCode', 'providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
+      sourcePlantCode: context.safeText(context.firstOf(row, ['providerData.sourcePlantCode', 'providerData.sourceEntityId', 'sourcePlantId', 'plantCode'], ''), ''),
+      providerAccount: context.safeText(context.firstOf(row, ['providerData.providerAccount', 'providerAccount'], ''), ''),
+      providerStatus: context.safeText(context.firstOf(row, ['providerData.providerStatus', 'operationalData.status'], ''), ''),
+      rawPayloadRef: context.safeText(context.firstOf(row, ['providerData.rawPayloadRef', 'rawPayloadRef'], ''), ''),
+      operationalExternalId: context.safeText(context.firstOf(row, ['providerData.sourceEntityId', 'providerData.sourcePlantCode', 'providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], ''), ''),
+      externalId: context.safeText(context.firstOf(row, ['providerData.sourceEntityId', 'providerData.sourcePlantCode', 'providerData.sourcePlantId', 'sourcePlantId', 'plantCode', 'externalId', 'adminRecord.plantCode'], '—')),
       code: context.safeText(context.firstOf(row, ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode'], ''), ''),
       name, vendorDisplayName: name,
       registeredName: context.safeText(context.firstOf(row, ['sourcePlantId', 'plantId', 'code', 'id'], ''), ''),
-      tenant: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
-      clientId: context.safeText(context.firstOf(row, ['clientAssignment.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ''), ''),
+      tenant: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'operationalData.tenantName', 'operationalData.tenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
+      clientId: context.safeText(context.firstOf(row, ['clientAssignment.clientId', 'operationalData.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ''), ''),
       portfolio: context.safeText(context.firstOf(row, ['portfolio', 'portfolioName', 'groupName'], '—')),
       integration, vendor: provider,
       sourceScheme: context.safeText(context.firstOf(row, ['sourceScheme', 'vendorPlatform.sourceScheme', 'adminRecord.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], '—')),
-      creationMode: context.safeText(context.firstOf(row, ['creationMode', 'adminRecord.creationMode'], '—')),
+      creationMode: context.safeText(context.firstOf(row, ['vendorPlatform.creationMode', 'creationMode', 'adminRecord.vendorPlatform.creationMode', 'adminRecord.creationMode'], '—')),
+      payloadStrategy: context.safeText(context.firstOf(row, ['vendorPlatform.payloadStrategy', 'payloadStrategy', 'adminRecord.vendorPlatform.payloadStrategy'], '—')),
       status: normalization.plantStatus(context.firstOf(row, ['adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status', 'vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status'], '—')),
-      health: normalization.plantStatus(context.firstOf(row, ['liveRecord.status', 'liveRecord.operationalStatus', 'health', 'operationalStatus', 'status', 'vendorPlatform.operationalStatus'], 'Unknown')),
+      health: normalization.plantStatus(context.firstOf(row, ['operationalData.status', 'providerData.providerStatus', 'liveRecord.status', 'liveRecord.operationalStatus', 'health', 'operationalStatus', 'status', 'vendorPlatform.operationalStatus'], 'Unknown')),
       type: context.safeText(context.firstOf(row, ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], '—')),
       country: normalization.country(context.firstOf(row, ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], '—')),
       region: context.safeText(context.firstOf(row, ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], '—')),
@@ -1186,25 +1320,26 @@
       strings: optionalNumber(context.firstOf(row, ['strings', 'stringCount', 'vendorExtensions.stringCount'], undefined)),
       transformers: optionalNumber(context.firstOf(row, ['transformers', 'transformerCount', 'vendorExtensions.transformerCount'], undefined)),
       meters: optionalNumber(context.firstOf(row, ['meters', 'meterCount', 'vendorExtensions.meterCount'], undefined)),
-      battery: (() => { const explicit = context.firstOf(row, ['technical.batteryInstalled', 'batteryInstalled', 'battery', 'vendorExtensions.batteryInstalled', 'adminRecord.technical.batteryInstalled'], ''); if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '') return context.safeText(explicit, '—'); const capacity = optionalNumber(context.firstOf(row, ['technical.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh', 'adminRecord.technical.batteryCapacityKwh', 'adminRecord.batteryCapacityKwh'], '')); return capacity !== null ? (capacity > 0 ? `Yes · ${capacity} kWh` : 'No') : '—'; })(),
-      devices: optionalNumber(context.firstOf(row, ['devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount'], undefined)),
-      alerts: optionalNumber(context.firstOf(row, ['alertsCount', 'vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], undefined)),
+      battery: (() => { const explicit = context.firstOf(row, ['technical.batteryInstalled', 'batteryInstalled', 'battery', 'vendorExtensions.batteryInstalled', 'adminRecord.technical.batteryInstalled'], ''); if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '') return context.safeText(explicit, '—'); const capacity = optionalNumber(context.firstOf(row, ['technical.batteryCapacityKwh', 'operationalData.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh', 'adminRecord.technical.batteryCapacityKwh', 'adminRecord.batteryCapacityKwh'], '')); return capacity !== null ? (capacity > 0 ? `Yes · ${capacity} kWh` : 'No') : '—'; })(),
+      devices: (() => { const explicit = optionalNumber(context.firstOf(row, ['operationalData.deviceCount', 'devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount'], undefined)); return explicit !== null ? explicit : (Array.isArray(row.devices) ? row.devices.length : null); })(),
+      alerts: optionalNumber(context.firstOf(row, ['operationalData.openAlertCount', 'alertsCount', 'vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], undefined)),
       livePower: powerKw === null ? '—' : `${powerKw} kW`,
       today: todayEnergy === null ? '—' : `${todayEnergy} kWh`,
       month: context.safeText(context.firstOf(row, ['monthEnergy', 'monthlyEnergyKwh', 'vendorExtensions.monthlyEnergyKwh'], '—')),
       pr: context.safeText(context.firstOf(row, ['performanceRatio', 'pr', 'vendorExtensions.performanceRatio'], '—')),
-      lastData: context.formatDate(row.lastDataAt, '—'),
-      freshness: context.safeText(row.dataQualityStatus, '—'),
+      lastData: context.formatDate(context.firstOf(row, ['operationalData.lastDataAtUtc', 'lastDataAtUtc', 'lastDataAt', 'liveRecord.lastDataAt'], undefined), '—'),
+      freshness: context.safeText(context.firstOf(row, ['operationalData.dataQualityStatus', 'dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
+      dataFreshness: context.safeText(context.firstOf(row, ['operationalData.dataFreshness', 'vendorExtensions.dataFreshness', 'dataFreshness'], '—')),
       commissioned: context.formatDate(context.firstOf(row, ['commissioningDate', 'technical.commissioningDate', 'adminRecord.commissioningDate', 'adminRecord.technical.commissioningDate'], undefined), '—'),
       owner: context.safeText(context.firstOf(row, ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'ownerName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], '—')),
       operator: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'operator.name', 'operator.tenantName', 'operator.id', 'operatorName', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
       om: context.safeText(context.firstOf(row, ['serviceProvider.name', 'serviceProvider', 'omProvider.name', 'omProvider', 'commercial.serviceProvider', 'technical.serviceProvider', 'adminRecord.serviceProvider.name', 'adminRecord.serviceProvider'], '—')),
-      sourceSystem: context.safeText(context.firstOf(row, ['sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
+      sourceSystem: context.safeText(context.firstOf(row, ['providerData.provider', 'sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
       updated: context.formatDate(context.firstOf(row, ['updatedAtUtc', 'createdAtUtc', 'adminRecord.updatedAtUtc', 'adminRecord.createdAtUtc'], undefined), '—'),
-      lastDataAt: context.safeText(context.firstOf(row, ['lastDataAt', 'liveRecord.lastDataAt'], ''), ''),
-      lastSyncAt: context.safeText(context.firstOf(row, ['lastSyncAt', 'lastSyncAtUtc', 'liveRecord.lastSyncAt', 'updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
-      dataQualityStatus: context.safeText(context.firstOf(row, ['dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
-      totalEnergy: optionalNumber(row.totalEnergyKwh), raw: row
+      lastDataAt: context.safeText(context.firstOf(row, ['operationalData.lastDataAtUtc', 'lastDataAtUtc', 'lastDataAt', 'liveRecord.lastDataAt'], ''), ''),
+      lastSyncAt: context.safeText(context.firstOf(row, ['operationalData.lastSyncAtUtc', 'providerData.lastSyncAtUtc', 'lastSyncAt', 'lastSyncAtUtc', 'liveRecord.lastSyncAt', 'updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
+      dataQualityStatus: context.safeText(context.firstOf(row, ['operationalData.dataQualityStatus', 'dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
+      totalEnergy: optionalNumber(context.firstOf(row, ['operationalData.totalEnergyKwh', 'totalEnergyKwh', 'liveRecord.totalEnergyKwh'], undefined)), raw: row
     };
   });
 
@@ -1230,8 +1365,8 @@
       name, vendorDisplayName: name,
       registeredName: context.safeText(context.firstOf(row, ['deviceCode', 'identity.deviceCode', 'source.sourceDeviceId', 'sourceDeviceId', 'deviceId', 'identity.serialNumber', 'serialNumber', 'code', 'id'], ''), ''),
       type: deviceType,
-      subtype: context.safeText(context.firstOf(row, ['specification.inverterCategory', 'specification.deviceCategory', 'vendorExtensions.subtype', 'vendorExtensions.rawDeviceType'], '—')),
-      manufacturer: context.safeText(context.firstOf(row, ['identity.manufacturer', 'manufacturer'], provider), provider),
+      subtype: context.safeText(context.firstOf(row, ['specification.inverterCategory', 'specification.deviceCategory', 'vendorExtensions.subtype', 'subtype', 'vendorExtensions.rawDeviceType'], '—')),
+      manufacturer: context.safeText(context.firstOf(row, ['identity.manufacturer', 'manufacturer'], '—'), '—'),
       model: context.safeText(context.firstOf(row, ['identity.model', 'technical.vendorModel', 'vendorModel', 'vendorExtensions.vendorModel', 'vendorExtensions.productModel', 'vendorExtensions.model', 'model'], '—')),
       serial: context.safeText(context.firstOf(row, ['identity.serialNumber', 'serialNumber'], '—')),
       firmware: context.safeText(context.firstOf(row, ['technical.firmwareVersion', 'firmwareVersion', 'vendorExtensions.firmwareVersion', 'vendorExtensions.firmware'], '—')),
@@ -1240,6 +1375,7 @@
       mac: context.safeText(context.firstOf(row, ['technical.macAddress', 'network.macAddress', 'vendorExtensions.mac'], '—')),
       plantId: context.safeText(context.firstOf(row, ['plantRelation.plantId', 'plantId', 'sourcePlantId'], ''), ''),
       plant: context.safeText(context.firstOf(row, ['plantRelation.plantName', 'plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName', 'vendorExtensions.stationName'], '—')),
+      tenantId: context.safeText(context.firstOf(row, ['plantRelation.tenantId', 'tenantId'], ''), ''),
       tenant: context.safeText(context.firstOf(row, ['plantRelation.tenantName', 'plantRelation.managingTenant', 'tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], '—')),
       vendor: provider,
       integration: context.safeText(context.firstOf(row, ['source.integration', 'integration', 'integrationName', 'sourceIntegrationName'], '—')),
@@ -1251,8 +1387,8 @@
       installation: context.formatDate(context.firstOf(row, ['lifecycle.installedAt', 'lifecycle.installDate', 'installationDate', 'installDate'], undefined), '—'),
       installDate: context.formatDate(context.firstOf(row, ['lifecycle.installDate', 'lifecycle.installedAt', 'installationDate', 'installDate'], undefined), '—'),
       warranty: context.safeText(context.firstOf(row, ['technical.warranty', 'lifecycle.warrantyExpiresAt', 'warranty', 'warrantyStatus', 'warrantyEndDate'], '—')),
-      lastSeen: context.formatDate(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt'], undefined), '—'),
-      lastSeenAt: context.safeText(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt'], ''), ''),
+      lastSeen: context.formatDate(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], undefined), '—'),
+      lastSeenAt: context.safeText(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], ''), ''),
       alerts: optionalNumber(context.firstOf(row, ['alertsCount', 'vendorExtensions.alertsCount'], undefined)),
       power: context.safeText(context.firstOf(row, ['telemetry.power', 'telemetry.currentPowerKw', 'power', 'currentPowerKw', 'vendorExtensions.power'], '—')),
       voltage: context.safeText(context.firstOf(row, ['telemetry.voltage', 'voltage', 'vendorExtensions.voltage'], '—')),
@@ -1261,9 +1397,13 @@
       sourceStatus: context.safeText(context.firstOf(row, ['status.dataQualityStatus', 'vendorExtensions.dataFreshness', 'dataQualityStatus'], '—')),
       dataQualityStatus: context.safeText(context.firstOf(row, ['status.dataQualityStatus', 'dataQualityStatus'], '—')),
       alarmStatus: context.safeText(context.firstOf(row, ['vendorExtensions.alarmStatus', 'alarmStatus'], '—')),
+      productId: context.safeText(context.firstOf(row, ['vendorExtensions.productId', 'productId'], ''), ''),
+      connectivityStatus: context.safeText(context.firstOf(row, ['vendorExtensions.connectStatus', 'connectStatus', 'connectivityStatus'], ''), ''),
+      collectionTime: context.safeText(context.firstOf(row, ['vendorExtensions.collectionTime', 'collectionTime'], ''), ''),
+      rawPayloadRef: context.safeText(context.firstOf(row, ['vendorExtensions.rawPayloadRef', 'rawPayloadRef'], ''), ''),
       sourceSystem: context.safeText(context.firstOf(row, ['source.provider', 'vendorExtensions.sourceSystem', 'sourceSystem'], provider), provider),
-      parent: context.safeText(context.firstOf(row, ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'vendorExtensions.parent', 'parentDeviceId'], '—')),
-      children: context.firstOf(row, ['topology.childCount', 'childCount', 'vendorExtensions.children', 'children'], null),
+      parent: context.safeText(context.firstOf(row, ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'parentDeviceName', 'topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'vendorExtensions.parent', 'parentDeviceId'], '—')),
+      children: context.firstOf(row, ['topology.childCount', 'childCount', 'vendorExtensions.childCount', 'vendorExtensions.children', 'children'], null),
       location: context.safeText(context.firstOf(row, ['locationRelation.locationName', 'technical.location', 'location'], '—')),
       documents: Array.isArray(context.firstOf(row, ['documents'], [])) ? context.firstOf(row, ['documents'], []) : [],
       raw: row
@@ -1273,9 +1413,9 @@
   const alerts = createContract<ZentridAlertDto>(CONTRACT_DEFINITIONS.alerts, (row, _index, context) => {
     const id = normalizedId(row, context);
     const provider = normalization.provider(context.firstOf(row, ['vendor.provider', 'provider'], 'Unknown'));
-    const severity = normalization.alertSeverity(context.firstOf(row, ['canonical.canonicalSeverity', 'severity'], 'Unknown'));
-    const title = context.safeText(context.firstOf(row, ['canonical.canonicalName', 'title', 'message', 'vendor.vendorMessage'], 'Unknown alert'));
-    const occurredRaw = context.firstOf(row, ['workflow.occurredAtUtc', 'occurredAtUtc'], undefined);
+    const severity = normalization.alertSeverity(context.firstOf(row, ['canonical.canonicalSeverity', 'canonicalSeverity', 'severity', 'vendorSeverity'], 'Unknown'));
+    const title = context.safeText(context.firstOf(row, ['canonical.canonicalName', 'canonicalName', 'title', 'message', 'vendor.vendorMessage', 'vendorMessage'], 'Unknown alert'));
+    const occurredRaw = context.firstOf(row, ['workflow.occurredAtUtc', 'occurredAtUtc', 'created'], undefined);
     const updatedRaw = context.firstOf(row, ['audit.updatedAtUtc', 'workflow.lastSyncAtUtc', 'lastSyncAt', 'updated'], undefined);
     const occurredAt = context.formatDate(occurredRaw, '—');
     const updatedAt = context.formatDate(updatedRaw, '—');
@@ -1286,17 +1426,22 @@
     const sop = (row.__sop && typeof row.__sop === 'object') ? row.__sop as Record<string, unknown> : null;
     return {
       dataOrigin: 'live', id,
-      zentridCode: context.safeText(context.firstOf(row, ['canonical.canonicalCode', 'zentridCode', 'vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], ''), ''),
+      zentridCode: context.safeText(context.firstOf(row, ['canonical.canonicalCode', 'canonicalCode', 'zentridCode', 'vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], ''), ''),
       vendorRawCode: context.safeText(context.firstOf(row, ['vendor.vendorCode', 'vendorRawCode', 'sourceAlertId'], ''), ''),
       vendorCode: context.safeText(context.firstOf(row, ['vendor.vendorCode', 'vendorRawCode', 'sourceAlertId'], ''), ''),
-      vendorMessage: context.safeText(context.firstOf(row, ['vendor.vendorMessage', 'message'], ''), ''),
+      vendorMessage: context.safeText(context.firstOf(row, ['vendor.vendorMessage', 'vendorMessage', 'message'], ''), ''),
+      vendorSeverity: context.safeText(context.firstOf(row, ['vendor.vendorSeverity', 'vendorSeverity'], ''), ''),
+      canonicalCode: context.safeText(context.firstOf(row, ['canonical.canonicalCode', 'canonicalCode', 'zentridCode'], ''), ''),
+      canonicalName: context.safeText(context.firstOf(row, ['canonical.canonicalName', 'canonicalName', 'title'], title), title),
+      canonicalCategory: context.safeText(context.firstOf(row, ['canonical.canonicalCategory', 'canonicalCategory', 'category'], ''), ''),
+      canonicalSeverity: context.safeText(context.firstOf(row, ['canonical.canonicalSeverity', 'canonicalSeverity'], ''), ''),
       severity,
       priority: context.safeText(context.firstOf(row, ['workflow.priority', 'priority'], '—')),
       title, vendorDisplayName: title,
       registeredName: context.safeText(context.firstOf(row, ['vendor.sourceAlertId', 'sourceAlertId', 'id'], ''), ''),
       status: normalization.alertStatus(context.firstOf(row, ['workflow.status', 'status'], 'Unknown')),
       occurrenceStatus: context.safeText(context.firstOf(row, ['workflow.occurrenceStatus', 'occurrenceStatus'], '—')),
-      category: context.safeText(context.firstOf(row, ['canonical.canonicalCategory', 'category', 'vendorExtensions.alarmType'], '—')),
+      category: context.safeText(context.firstOf(row, ['canonical.canonicalCategory', 'canonicalCategory', 'category', 'vendorExtensions.alarmType'], '—')),
       tenant: context.safeText(context.firstOf(row, ['tenant.tenantName', 'tenant'], '—')),
       tenantId: context.safeText(context.firstOf(row, ['tenant.tenantId', 'tenantId'], ''), ''),
       plantId: context.safeText(context.firstOf(row, ['plant.plantId', 'plantId'], ''), ''),
@@ -1313,7 +1458,7 @@
       sla: context.safeText(context.firstOf(row, ['sla.text', 'sla.status', 'sla'], '—')),
       owner: context.safeText(context.firstOf(row, ['assignment.assigneeName', 'owner'], '—')),
       telemetry: context.safeText(telemetryCurve.metricCode || relatedPayload.telemetryMetric || '—'),
-      description: context.safeText(context.firstOf(row, ['guidance.description', 'vendor.vendorMessage', 'message', 'vendorExtensions.alarmName'], '—')),
+      description: context.safeText(context.firstOf(row, ['guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'message', 'vendorExtensions.alarmName'], '—')),
       probableCause: context.safeText(context.firstOf(row, ['guidance.probableCause', 'probableCause', 'vendorExtensions.reason'], '—')),
       recommendation: context.safeText(context.firstOf(row, ['guidance.recommendation', 'recommendation', 'solution', 'vendorExtensions.suggestion', 'vendorExtensions.solution'], '—')),
       sourceAlertId: context.safeText(context.firstOf(row, ['vendor.sourceAlertId', 'sourceAlertId'], ''), ''),
@@ -1344,10 +1489,10 @@
   });
 
   const telemetry = createContract<ZentridTelemetryDto>(CONTRACT_DEFINITIONS.telemetry, (row, _index, context) => {
-    const rawValue = context.firstOf(row, ['value.value', 'measurement.value', 'reading.value', 'telemetry.value', 'data.value', 'payload.value', 'metric.value', 'latest.value', 'point.value', 'sample.value', 'metricValue', 'numericValue', 'currentValue', 'rawValue', 'reading', 'value'], null);
-    const metric = context.safeText(context.firstOf(row, ['metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], '—'));
+    const rawValue = context.firstOf(row, ['value.value', 'measurement.value', 'reading.value', 'telemetry.value', 'data.value', 'payload.value', 'metric.value', 'latest.value', 'point.value', 'sample.value', 'metricValue', 'numericValue', 'textValue', 'booleanValue', 'currentValue', 'rawValue', 'reading', 'value'], null);
+    const metric = context.safeText(context.firstOf(row, ['metricCode', 'metricName', 'metric.name', 'metric.key', 'metric.code', 'measurement.name', 'measurement.metricName', 'reading.metricName', 'telemetry.metricName', 'data.metricName', 'payload.metricName', 'name', 'key', 'parameter', 'measurementName', 'field', 'metric'], '—'));
     const unit = normalizeTelemetryUnit(context.firstOf(row, ['value.unit', 'measurement.unit', 'reading.unit', 'telemetry.unit', 'data.unit', 'payload.unit', 'metric.unit', 'latest.unit', 'point.unit', 'sample.unit', 'unit', 'unitSymbol', 'uom', 'measurementUnit'], ''));
-    const timestampRaw = context.firstOf(row, ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], undefined);
+    const timestampRaw = context.firstOf(row, ['measurement.timestamp', 'measurement.measuredAtUtc', 'reading.timestamp', 'reading.measuredAtUtc', 'telemetry.timestamp', 'data.timestamp', 'payload.timestamp', 'latest.timestamp', 'point.timestamp', 'sample.timestamp', 'timestampUtc', 'timestamp', 'occurredAtUtc', 'measuredAtUtc', 'recordedAtUtc', 'collectedAtUtc', 'capturedAtUtc', 'createdAtUtc', 'lastDataAt', 'lastSyncAt'], undefined);
     const quality = context.safeText(context.firstOf(row, ['quality.status', 'measurement.quality', 'reading.quality', 'telemetry.quality', 'data.quality', 'payload.quality', 'dataQualityStatus', 'quality', 'qualityStatus', 'freshness', 'status'], '—'));
     return {
       dataOrigin: 'live',
@@ -1371,6 +1516,7 @@
       plant: context.safeText(context.firstOf(row, ['plant.name', 'plant.plantName', 'plant.stationName', 'telemetry.plantName', 'data.plantName', 'payload.plantName', 'plantName', 'sourcePlantName', 'stationName', 'siteName', 'vendorExtensions.plantName'], '—')),
       deviceId: context.safeText(context.firstOf(row, ['device.id', 'device.deviceId', 'device.sourceDeviceId', 'device.serialNumber', 'telemetry.deviceId', 'data.deviceId', 'payload.deviceId', 'sourceDeviceId', 'deviceId', 'serialNumber'], ''), ''),
       device: context.safeText(context.firstOf(row, ['device.name', 'device.deviceName', 'device.equipmentName', 'telemetry.deviceName', 'data.deviceName', 'payload.deviceName', 'deviceName', 'sourceDeviceName', 'equipmentName', 'vendorExtensions.deviceName'], '—')),
+      granularity: context.safeText(context.firstOf(row, ['granularity', 'aggregationGranularity', 'interval'], ''), ''),
       deviceType: context.safeText(context.firstOf(row, ['device.type', 'device.deviceType', 'telemetry.deviceType', 'data.deviceType', 'payload.deviceType', 'deviceType', 'type', 'vendorExtensions.deviceType'], '—')),
       metadata: context.firstOf(row, ['metadata', 'tags', 'dimensions', 'source', 'vendorExtensions', 'telemetry.metadata', 'data.metadata', 'payload.metadata'], null),
       raw: row
