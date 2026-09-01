@@ -25,12 +25,12 @@ expect(globals.includes('declare const ZentridAPIRepositories'), 'ZentridAPIRepo
 
 [
   'fetchCollectionPage', 'paginationFromPayload', 'mergePlantSources', 'uniqueByIdentity', 'mappedResult',
-  'directRecord', 'itemCacheVariant', 'ZentridPlatformAPI.clients.get(id, requestOptions)', 'ZentridPlatformAPI.tenants.get(id, requestOptions)',
-  'ZentridPlatformAPI.plantRegistry.get(id, requestOptions)', 'ZentridPlatformAPI.providerIntegrations.get(id, requestOptions)',
-  "fetchCollectionPage('/api/admin/clients'", "fetchCollectionPage('/api/admin/tenants'",
-  "fetchCollectionPage('/api/plants'", "fetchCollectionPage('/api/devices'",
-  "fetchCollectionPage('/api/alerts'", "fetchCollectionPage('/api/telemetry'", "'/api/integrations'",
-  "fetchCollectionPage('/api/admin/provider-integrations'", 'contract.mapList'
+  'directRecord', 'itemCacheVariant', 'allowListFallback', 'ZentridPlatformAPI.clients.get(id, requestOptions)',
+  'ZentridPlatformAPI.tenants.get(id, requestOptions)', 'ZentridPlatformAPI.plantRegistry.get(id, requestOptions)',
+  'ZentridPlatformAPI.providerIntegrations.get(id, requestOptions)', "'/api/admin/clients'", '/api/admin/tenants?',
+  "'/api/admin/plants'", "'/api/plants'", '/api/admin/devices?', "'/api/devices'",
+  '/api/admin/alerts?', "'/api/alerts'", '/api/telemetry?', "'/api/integrations'",
+  "'/api/admin/provider-integrations'", 'contract.mapList'
 ].forEach(token => expect(repositorySource.includes(token), `Repository implementation token is missing: ${token}.`));
 
 ['clients', 'tenants', 'plants', 'devices', 'alerts', 'telemetry', 'integrations'].forEach(entity => {
@@ -38,8 +38,6 @@ expect(globals.includes('declare const ZentridAPIRepositories'), 'ZentridAPIRepo
 });
 
 const forbiddenLiveBridgeTokens = [
-  'ZentridAPIContracts.clients.map', 'ZentridAPIContracts.tenants.map', 'ZentridAPIContracts.plants.map',
-  'ZentridAPIContracts.devices.map', 'ZentridAPIContracts.alerts.map', 'ZentridAPIContracts.integrations.map',
   'ZentridPlatformAPI.clients.list()', 'ZentridPlatformAPI.tenants.list()',
   'ZentridPlatformAPI.live.plants()', 'ZentridPlatformAPI.live.devices()',
   'ZentridPlatformAPI.live.alerts(', 'ZentridPlatformAPI.live.integrations(',
@@ -99,15 +97,20 @@ const livePlant = { id: 'P-1', sourcePlantId: 'EXT-P-1', provider: 'Huawei', cur
 const adminPlant = { id: 'ADMIN-P-1', sourcePlantId: 'EXT-P-1', plantName: 'Yerevan North', installedPowerKw: 2500 };
 const requests = [];
 const sandbox = {
-  AbortController,
+  AbortController, URLSearchParams,
   window: {}, console, String, Number, Boolean, Array, Object, Math, Set, Promise,
   ZentridAPI: {
     async request(path) {
       requests.push(path);
+      if (path.startsWith('/api/admin/clients?')) return { items: [{ clientId: 'C-1', clientName: 'Client One' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/admin/tenants?')) return { items: [{ tenantId: 'T-1', tenantName: 'Tenant One' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/plants?')) return { items: [livePlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/admin/plants?')) return { items: [adminPlant], page: 1, pageSize: 50, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false };
       if (path.startsWith('/api/admin/devices?')) return { items: [{ id: 'D-1', sourceDeviceId: 'INV-1', sourcePlantId: 'EXT-P-1', deviceName: 'Inverter A', provider: 'Huawei' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/admin/alerts?')) return { items: [{ id: 'A-ADMIN-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/alerts?')) return { items: [{ id: 'A-1', sourceAlertId: 'AL-1', title: 'Low Output', provider: 'Huawei', severity: 'Warning' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/admin/provider-integrations?')) return { items: [{ id: 'I-1', provider: 'DeyeCloud', integrationName: 'Deye Main', status: 'Active' }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
+      if (path.startsWith('/api/integrations?')) return { items: [{ provider: 'DeyeCloud', displayName: 'DeyeCloud', status: 'Warning', plantsCount: 10 }], page: 1, pageSize: 50, totalCount: 1, totalPages: 1 };
       if (path.startsWith('/api/telemetry?')) return { telemetry: [{ metricName: 'Current Power', value: 1200, unit: 'kW', sourcePlantId: 'EXT-P-1', sourceDeviceId: 'INV-1', measuredAtUtc: '2026-07-22T08:00:00Z', dataQualityStatus: 'Fresh' }, { telemetry: { id: 'TM-2', metricName: 'Voltage' }, measurement: { value: 380, unit: 'V', measuredAtUtc: '2026-07-22T08:00:00Z', quality: 'Fresh' }, plant: { id: 'EXT-P-1', name: 'Yerevan North' }, device: { id: 'INV-1', name: 'Inverter A', type: 'Inverter' }, source: { provider: 'Huawei' } }], page: 1, pageSize: 50, totalCount: 2, totalPages: 1 };
       throw new Error(`Unexpected ZentridAPI path: ${path}`);
     }
@@ -175,10 +178,15 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     expect(requests.includes('/api/admin/tenants/T-99'), 'Tenant repository did not call the direct detail endpoint.');
 
     const plants = await repositories.plants.list();
-    expect(plants.items.length === 1, 'Plant repository did not deduplicate merged sources.');
-    expect(plants.items[0].name === 'Yerevan North', 'Plant repository did not preserve the administrative display name.');
-    expect(plants.items[0].capacityDc === 2.5 && plants.items[0].livePower === '1200 kW', 'Plant repository did not merge the exact live and administrative API metrics.');
-    expect(plants.source === '/api/plants + /api/admin/plants', 'Plant repository source metadata is incorrect.');
+    expect(plants.items.length === 1, 'Plant Registry repository did not return the administrative page.');
+    expect(plants.items[0].name === 'Yerevan North', 'Plant Registry repository did not preserve the administrative display name.');
+    expect(plants.items[0].capacityDc === 2.5, 'Plant Registry repository did not preserve administrative capacity.');
+    expect(plants.items[0].livePower !== '1200 kW', 'Plant Registry list implicitly mixed Platform Live data into an independently paginated Registry page.');
+    expect(plants.source === '/api/admin/plants', 'Plant Registry list source metadata is incorrect.');
+
+    const livePlants = await repositories.plants.list({ cacheVariant: 'live', forceRefresh: true });
+    expect(livePlants.items.length === 1 && livePlants.items[0].livePower === '1200 kW', 'Explicit Platform Live plant list did not preserve operational power.');
+    expect(livePlants.source === '/api/plants', 'Explicit Platform Live plant list source metadata is incorrect.');
 
     const directPlant = await repositories.plants.get('ADMIN-P-1', { forceRefresh: true });
     expect(directPlant.item && directPlant.item.name === 'Yerevan North', 'Plant repository did not map the direct administrative detail response.');
@@ -194,7 +202,7 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
 
     const telemetry = await repositories.telemetry.list();
     expect(telemetry.items.length === 2 && telemetry.items[0].metric === 'Current Power' && telemetry.items[0].displayValue === '1200 kW', 'Telemetry repository mapping is incorrect.');
-    expect(telemetry.items[1].metric === 'Voltage' && telemetry.items[1].displayValue === '380 V' && telemetry.source === '/api/telemetry', 'Nested telemetry envelope/record mapping is incorrect or records sharing one device were deduplicated.');
+    expect(telemetry.items[1].metric === 'Voltage' && telemetry.items[1].displayValue === '380 V' && telemetry.source.startsWith('/api/telemetry?'), 'Nested telemetry envelope/record mapping is incorrect or records sharing one device were deduplicated.');
     expect(telemetry.items[1].id === 'TM-2' && telemetry.items[1].plant === 'Yerevan North' && telemetry.items[1].device === 'Inverter A' && telemetry.items[1].provider === 'Huawei', 'Nested telemetry relationships are not preserved by the repository.');
     expect(telemetry.items[0].raw.metricName === telemetry.rawItems[0].metricName, 'Telemetry repository provenance is incorrect.');
 
@@ -205,11 +213,12 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     expect(directIntegration.source === '/api/admin/provider-integrations/I-99', 'Integration detail repository source is incorrect.');
     expect(requests.includes('/api/admin/provider-integrations/I-99'), 'Integration repository did not call the direct detail endpoint.');
     const integrationSummary = await repositories.integrations.summary({ timeoutMs: 90000 });
-    expect(integrationSummary.items.length === 1 && integrationSummary.source === '/api/integrations', 'Integration summary repository is incorrect.');
+    expect(integrationSummary.items.length === 1 && integrationSummary.source === '/api/integrations?pageSize=1', 'Integration summary repository is incorrect.');
 
     const item = await repositories.devices.get('INV-1');
     expect(item.item && item.item.id === 'D-1', 'Repository get() did not resolve an external identity.');
-    expect(requests.some(path => path.startsWith('/api/plants?page=1&size=50')), 'Plant repository did not use server-paged collection loading.');
+    expect(requests.some(path => path.startsWith('/api/admin/plants?page=1&pageSize=50')), 'Plant Registry repository did not use the server-paged collection contract.');
+    expect(requests.some(path => path.startsWith('/api/plants?page=1&pageSize=50')), 'Explicit Platform Live plant list did not use the server-paged collection contract.');
     expect(plants.pagination.totalCount === 1 && plants.pagination.page === 1, 'Plant repository pagination metadata is incorrect.');
   }
 
@@ -218,7 +227,7 @@ expect(Boolean(repositories), 'ZentridAPIRepositories did not initialize.');
     failures.forEach(message => console.error(`  ${message}`));
     process.exit(1);
   }
-  console.log(`API repository checks OK: 7 typed repositories, direct Client/Tenant/Plant/Integration Detail lookup, bounded preview/merge behavior and ${repositoryPages} page load orders verified.`);
+  console.log(`API repository checks OK: 7 typed repositories, Registry-first Plant list, explicit Platform Live list, direct Client/Tenant/Plant/Integration Detail lookup and ${repositoryPages} page load orders verified.`);
 })().catch(error => {
   console.error('API repository checks failed with an unexpected error.');
   console.error(error);

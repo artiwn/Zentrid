@@ -410,7 +410,7 @@ declare const ZentridDetailLazyTabs: ZentridDetailLazyTabsApi;
 interface Window { ZentridDetailLazyTabs: ZentridDetailLazyTabsApi; }
 
 interface ZentridRegistryQueryState {
-  entity: 'clients' | 'plants' | 'devices' | 'alerts';
+  entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations';
   page: number;
   pageSize: number;
   search: string;
@@ -429,13 +429,13 @@ interface ZentridRegistryPaginationState {
   source?: string;
 }
 interface ZentridRegistryQueryApi {
-  read(entity: 'clients' | 'plants' | 'devices' | 'alerts'): ZentridRegistryQueryState;
-  update(entity: 'clients' | 'plants' | 'devices' | 'alerts', patch: Record<string, string | number | boolean | null | undefined>, options?: { replace?: boolean; emit?: boolean }): ZentridRegistryQueryState;
-  setPagination(entity: 'clients' | 'plants' | 'devices' | 'alerts', pagination: Partial<ZentridRegistryPaginationState>): ZentridRegistryPaginationState;
-  pagination(entity: 'clients' | 'plants' | 'devices' | 'alerts'): ZentridRegistryPaginationState | null;
-  pagerHtml(entity: 'clients' | 'plants' | 'devices' | 'alerts', fallbackTotal?: number): string;
-  filterScopeHtml(entity: 'clients' | 'plants' | 'devices' | 'alerts'): string;
-  activeCurrentPageFilters(entity: 'clients' | 'plants' | 'devices' | 'alerts'): string[];
+  read(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations'): ZentridRegistryQueryState;
+  update(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations', patch: Record<string, string | number | boolean | null | undefined>, options?: { replace?: boolean; emit?: boolean }): ZentridRegistryQueryState;
+  setPagination(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations', pagination: Partial<ZentridRegistryPaginationState>): ZentridRegistryPaginationState;
+  pagination(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations'): ZentridRegistryPaginationState | null;
+  pagerHtml(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations', fallbackTotal?: number): string;
+  filterScopeHtml(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations'): string;
+  activeCurrentPageFilters(entity: 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations'): string[];
   supportedPageSizes: number[];
 }
 declare const ZentridRegistryQuery: ZentridRegistryQueryApi;
@@ -485,6 +485,7 @@ interface ZentridRepositoryReadOptions {
   requestGroup?: string;
   supersede?: boolean;
   cacheVariant?: string;
+  allowListFallback?: boolean;
   timeoutMs?: number;
   page?: number;
   pageSize?: number;

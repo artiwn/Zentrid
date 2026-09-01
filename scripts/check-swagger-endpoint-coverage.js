@@ -13,9 +13,9 @@ const platformSource = read('assets/js/platform-api.ts');
 const diagnosticsSource = read('assets/js/api-diagnostics.ts');
 const packageJson = JSON.parse(read('package.json'));
 
-expect(manifest.operationCount === 97, `Active Swagger manifest must contain 97 operations (99 total minus 2 unfinished ProviderPlantAssignments), received ${manifest.operationCount}.`);
+expect(manifest.operationCount === 98, `Active Swagger manifest must contain 98 operations after enabling the verified read-only ProviderPlantAssignments list, received ${manifest.operationCount}.`);
 expect(Array.isArray(manifest.operations) && manifest.operations.length === manifest.operationCount, 'Swagger operation manifest count is inconsistent.');
-expect(Array.isArray(manifest.excludedOperations) && manifest.excludedOperations.length === 2, 'Swagger manifest must explicitly document the 2 unfinished ProviderPlantAssignments operations.');
+expect(Array.isArray(manifest.excludedOperations) && manifest.excludedOperations.length === 3, 'Swagger manifest must document the ProviderPlantAssignments POST, failing ownership GET and bootstrap-test exclusions.');
 
 const storage = new Map();
 const sandbox = {
@@ -77,7 +77,10 @@ if (api) {
   expect(typeof api.liveAlerts?.acknowledge === 'function' && typeof api.liveAlerts?.assign === 'function' && typeof api.liveAlerts?.escalate === 'function' && typeof api.liveAlerts?.resolve === 'function', 'Live Alert workflow mutation methods are incomplete.');
   expect(typeof api.liveAlerts?.timeline === 'function' && typeof api.liveAlerts?.related === 'function' && typeof api.liveAlerts?.telemetryCurve === 'function' && typeof api.liveAlerts?.sop === 'function', 'Live Alert related read methods are incomplete.');
   expect(typeof api.liveAlerts?.updateSop === 'function' && typeof api.liveAlerts?.createTask === 'function', 'Live Alert SOP/task mutation methods are incomplete.');
-  expect(!api.isAllowedPath('/api/admin/provider-plant-assignments'), 'Unfinished ProviderPlantAssignments must remain outside the active allow-list.');
+  expect(api.isAllowedPath('/api/admin/provider-plant-assignments'), 'Verified read-only ProviderPlantAssignments list must be available for identity resolution.');
+  expect(typeof api.providerPlantAssignments?.list === 'function', 'ProviderPlantAssignments read-only list API method is missing.');
+  expect(!api.isAllowedPath('/api/admin/provider-plant-assignments/ownership'), 'Failing ProviderPlantAssignments ownership endpoint must remain outside the active allow-list.');
+  expect(!api.isAllowedPath('/api/admin/provider-plant-assignments/bootstrap-test'), 'ProviderPlantAssignments bootstrap-test mutation must remain outside the active allow-list.');
 
   Promise.resolve(api.rawRequest('/api/telemetry', { method: 'GET' })).then(result => {
     expect(result.ok === true, 'Nested telemetry diagnostic request did not succeed.');
@@ -102,5 +105,5 @@ function finish() {
     process.exitCode = 1;
     return;
   }
-  console.log('Swagger endpoint coverage OK: 97 active platform/admin operations covered; 2 unfinished ProviderPlantAssignments are explicitly excluded. Exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified. Auth endpoints are validated separately.');
+  console.log('Swagger endpoint coverage OK: 98 active platform/admin operations covered; verified ProviderPlantAssignments GET is enabled; ownership/write/bootstrap operations remain explicitly excluded. Exact allow-list coverage, runtime usage flags and nested telemetry diagnostics verified. Auth endpoints are validated separately.');
 }

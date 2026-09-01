@@ -18,10 +18,12 @@ const clients = read('assets/js/client-hierarchy.ts');
 const plants = read('assets/js/plants.ts');
 const devices = read('assets/js/devices.ts');
 const alerts = read('assets/js/alerts.ts');
+const tenants = read('assets/js/tenants.ts');
+const integrations = read('assets/js/integrations.ts');
 const css = read('assets/css/src/80-auth-and-api-console.css');
 
 [
-  "type ZentridRegistryEntity = 'clients' | 'plants' | 'devices' | 'alerts'",
+  "type ZentridRegistryEntity = 'clients' | 'tenants' | 'plants' | 'devices' | 'alerts' | 'integrations'",
   "search.get('page')", "search.get('pageSize')", "history[method]",
   "zentrid:registry-query-change", "window.addEventListener('popstate'",
   'data-registry-page-size', 'data-registry-page-jump', 'filterScopeHtml'
@@ -34,7 +36,7 @@ const css = read('assets/css/src/80-auth-and-api-console.css');
 ].forEach(token => expect(repositories.includes(token), `Repository pagination token missing: ${token}`));
 expect(repositories.includes("new Map<string, RepositoryCacheEntry>()"), 'Repository cache is not keyed per server page.');
 
-['clients', 'plants', 'devices', 'alerts'].forEach(entity => {
+['clients', 'tenants', 'plants', 'devices', 'alerts', 'integrations'].forEach(entity => {
   expect(live.includes(`registryReadOptions('${entity}', forceRefresh)`) || live.includes(`registryReadOptions('${entity}')`), `Live bridge pagination token missing: registryReadOptions('${entity}')`);
 });
 [
@@ -50,12 +52,16 @@ expect(devices.includes("pagination('devices')"), 'Device Registry does not swit
 expect(devices.includes("update('devices'"), 'Device Registry does not persist filters in URL state.');
 expect(alerts.includes("pagination('alerts')"), 'Alert Registry does not switch to server pagination.');
 expect(alerts.includes("update('alerts'"), 'Alert Registry does not persist filters in URL state.');
+expect(tenants.includes("pagerHtml('tenants'"), 'Tenant Registry does not render server pager.');
+expect(tenants.includes("update('tenants'"), 'Tenant Registry does not persist query/filter state in URL.');
+expect(integrations.includes("pagerHtml('integrations'"), 'Connector Registry does not render server pager.');
+expect(integrations.includes("update('integrations'"), 'Connector Registry does not persist current-page filters in URL state.');
 
-['pages/clients.html','pages/plants.html','pages/devices.html','pages/alerts.html'].forEach(file => {
+['pages/clients.html','pages/tenants.html','pages/plants.html','pages/devices.html','pages/alerts.html','pages/integrations.html'].forEach(file => {
   const html = read(file);
   const queryIndex = html.indexOf('registry-query-state.js');
   expect(queryIndex >= 0, `${file} is missing registry-query-state.js.`);
-  const consumer = file.includes('clients') ? 'client-hierarchy.js' : file.includes('plants') ? 'plants.js' : file.includes('devices') ? 'devices.js' : 'alerts.js';
+  const consumer = file.includes('clients') ? 'client-hierarchy.js' : file.includes('tenants') ? 'tenants.js' : file.includes('plants') ? 'plants.js' : file.includes('devices') ? 'devices.js' : file.includes('integrations') ? 'integrations.js' : 'alerts.js';
   expect(queryIndex < html.indexOf(consumer), `${file} must load registry query state before ${consumer}.`);
 });
 
@@ -69,4 +75,4 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('Server pagination and query-state checks OK: URL state, paged repository reads, race guards and four registry integrations verified.');
+console.log('Server pagination and query-state checks OK: URL state, paged repository reads, race guards and six registry integrations verified.');

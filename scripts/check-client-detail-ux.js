@@ -21,7 +21,7 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'clientDetailValidationIssues', 'Another client already uses this name',
   'Another client already uses this contact email', 'Portal user emails must be unique',
   'Bank account numbers must be unique', 'Select one primary bank account',
-  'addClientDetailDocument', 'removeClientDetailDocument',
+  'addClientDetailDocument', 'removeClientDetailDocument', 'downloadClientDetailDocument', 'data-download-client-document',
   'addClientDetailUser', 'removeClientDetailUser',
   'addClientDetailBank', 'removeClientDetailBank',
   'Client updated', 'PUT /api/admin/clients/{id}',
@@ -35,6 +35,7 @@ expect(liveBridge.includes("ZentridAPIRepositories.clients.get(selectedId"), 'Cl
 expect(liveBridge.includes("The selected client record was loaded by ID."), 'Client Detail direct-load state is missing.');
 expect(liveBridge.includes("selectedLocalClient") && liveBridge.includes("No backend detail request was sent for the local fallback identifier."), 'Client Detail must avoid backend GET-by-ID for local fallback records.');
 expect(repositories.includes("ZentridPlatformAPI.clients.get(id, requestOptions)"), 'Client repository does not use the backend detail endpoint.');
+expect(clients.includes('ZentridPlatformAPI.clients.getDocument(client.id, documentId)'), 'Client Detail must download persisted documents through GET /api/admin/clients/{id}/documents/{documentId}.');
 expect(clients.includes('ZentridAPIMutations.clients.update(baseRecord.id, payload)'), 'Client Detail must save backend-managed edits through the Client PUT mutation.');
 expect(clients.includes('clientDetailApiPayload'), 'Client Detail backend payload builder is missing.');
 expect(repositories.includes("The direct detail request failed") === false, 'Repository layer must not own UI fallback copy.');

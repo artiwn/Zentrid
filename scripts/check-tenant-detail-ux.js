@@ -21,7 +21,7 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'validateTenantDetailEdits', 'At least one active contact must have the Primary role',
   'Email duplicates another contact', 'A tenant named',
   'addTenantDetailContact', 'removeTenantDetailContact',
-  'addTenantDetailDocument', 'removeTenantDetailDocument',
+  'addTenantDetailDocument', 'removeTenantDetailDocument', 'downloadTenantDetailDocument', 'data-download-tenant-document',
   'Tenant updated', 'ZentridAPIMutations.tenants.update', 'tenantUpdateApiPayload',
   'tenantDetailFreshness', 'Last backend sync',
   'role="status"', 'aria-live="polite"', 'aria-busy="false"',
@@ -30,6 +30,7 @@ const pkg = JSON.parse(read('package.json') || '{}');
 expect(!tenants.includes("['Tenant Status',tenantStatusValue(c),'status']"), 'Tenant lifecycle status must not be editable as a regular detail field.');
 expect(!tenants.includes("tenant.status = value"), 'Tenant Detail must not write lifecycle status through generic edit controls.');
 
+expect(tenants.includes('ZentridPlatformAPI.tenants.getDocument(tenantId, documentId)'), 'Tenant Detail must download persisted documents through GET /api/admin/tenants/{id}/documents/{documentId}.');
 expect(!tenants.includes('Discard unsaved changes and open another tenant section?'), 'Tenant Detail must preserve the edit draft when moving between editable tenant sections.');
 expect(tenants.includes("if (!tenantDetailEditMode) clearTenantDetailFeedback();"), 'Tenant Detail should keep backend validation feedback visible while switching sections in edit mode.');
 expect(tenants.includes("['legalCountry','region','city','address']"), 'Address validation must use the dedicated Legal Country field.');

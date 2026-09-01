@@ -21,13 +21,19 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'function saveDetailSelection(',
   'function readDetailSelection(',
   'window.ZentridLiveSelection = {',
-  'selectedDeviceFromNetwork || selectedSnapshot || (!selectedId ? networkRows[0] : undefined)',
-  'selectedAlertFromNetwork || selectedSnapshot || (!selectedId ? data[0] : undefined)',
-  "The exact selected device was restored from this browser session because it is not present on API page 1.",
-  "The exact selected alert was restored from this browser session because it is not present on API page 1."
+  'allowListFallback: false',
+  "detailSourceMode: 'snapshot'",
+  'const registryRecord = (result.item || result.items.find(record => detailSelectionMatches(record, requestedRegistryId)))',
+  'Snapshot values are not merged into a successful Registry response.',
+  "The selected alert was restored from this browser session because the direct Alert Registry detail request failed."
 ].forEach(token => expect(live.includes(token), `Detail selection snapshot token is missing: ${token}`));
 
 expect(!live.includes("mappedDevices.find(d => d.id === selectedId || d.externalId === selectedId || d.serial === selectedId) || mappedDevices[0]"), 'Device Detail still replaces a missing selected device with the first API row.');
+expect(live.includes('async function resolveAlertLiveId('), 'Alert Detail does not resolve a separate Platform Live alert identity.');
+expect(live.includes("cacheVariant: 'live'"), 'Alert live identity resolution is not using the live alert collection.');
+expect(!live.includes('liveAlerts.get(selectedId, requestOptions)'), 'Alert Detail still sends the Alert Registry id directly to Platform Live /api/alerts/{id}.');
+expect(live.includes('adminRaw.__timelineLoaded === true'), 'Alert Detail does not distinguish successful Registry subresource loads from failed requests.');
+expect(live.includes("adminTelemetryCurveLoaded ? 'admin' : liveTelemetryCurveLoaded ? 'live' : 'none'"), 'Alert telemetry-curve source priority is not Registry-first.');
 expect(devices.includes('window.ZentridLiveSelection?.selectDevice'), 'Device Registry does not preserve the selected live record before navigation.');
 expect(devices.includes('window.ZentridLiveSelection?.readDevice'), 'Device Detail renderer does not read the preserved selected record.');
 expect(alerts.includes('window.ZentridLiveSelection?.selectAlert'), 'Alert Registry does not preserve the selected live record before navigation.');
@@ -43,4 +49,4 @@ if (failures.length) {
   failures.forEach(message => console.error(`  ${message}`));
   process.exit(1);
 }
-console.log('Device/Alert detail selection snapshot checks OK: exact selected live records are preserved across paginated registry navigation without first-row substitution.');
+console.log('Device/Alert detail selection snapshot checks OK: Device Detail is direct-Registry-first with snapshot-only failure fallback; Alert Detail preserves exact selected records without first-row substitution.');

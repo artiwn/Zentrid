@@ -30,6 +30,7 @@ const pkg = JSON.parse(read('package.json') || '{}');
   'ZentridAPIMutations.plants.update', 'plantDetailUpdatePayload',
   'data-plant-lifecycle', 'plantDocumentUploadForm', 'data-plant-document-delete',
   'plantDetailFreshness', 'Last backend sync', 'plantTelemetryState',
+  'plantDetailSourceMode', 'Registry + Live', 'Platform Live',
   'No telemetry available', 'No device records',
   'A zero is shown only after a plant-scoped relation request confirms zero records.',
   'No synthetic Area / MPPT / String hierarchy is generated.',
@@ -43,13 +44,19 @@ expect(page.includes('entity-detail-ux.js'), 'Detail page must load the shared E
 expect(page.indexOf('form-ux.js') < page.indexOf('entity-detail-ux.js'), 'Entity Detail UX must load after form-ux.js.');
 expect(page.indexOf('form-ux.js') < page.indexOf('client-hierarchy.js'), 'form-ux.js must load before client-hierarchy.js on Plant Detail.');
 expect(live.includes("dataOrigin: 'live'") && live.includes('lastSyncAt: plant.lastSyncAt'), 'Live Plant Detail records must preserve origin and freshness.');
-expect(live.includes('ZentridAPIRepositories.plants.get(selectedAdminId'), 'Plant Detail must call GET by ID only with a confirmed administrative plant ID.');
+expect(live.includes('resolveProviderPlantAssignment') && live.includes('ZentridPlatformAPI.providerPlantAssignments.list'), 'Plant Detail must use ProviderPlantAssignments as an authoritative vendor-source to Registry identity bridge when available.');
+expect(live.includes('providerPlantAssignmentStatus') && live.includes('providerAccount'), 'Plant Detail must preserve ProviderPlantAssignment resolution diagnostics.');
+expect(plantsPage.includes('resolvePlantOperationalIdFromAssignment') && plantsPage.includes('sourcePlantId'), 'Plant Registry telemetry routing must resolve live identity through ProviderPlantAssignments when the Registry record lacks a canonical/live ID.');
+expect(live.includes('resolveSelectedAdministrativePlantId') && live.includes('ZentridAPIRepositories.plants.get(selectedAdminId'), 'Plant Detail must resolve a Registry identity before calling the administrative GET by ID endpoint.');
 expect(live.includes('selectedPlantAdministrativeId') && live.includes('zentrid_selected_plant_context'), 'Plant Detail must keep live and administrative plant identities paired.');
 expect(live.includes("sessionStorage.getItem('zentrid_plant_create_fallback')") && live.includes('No backend detail request was sent for the temporary local identifier.'), 'Plant Detail must open a temporary create fallback without sending its local ID to the backend.');
 expect(live.includes("localStorage.setItem('zentrid_selected_plant', renderedId)"), 'Plant Detail must retain the rendered plant identity without replacing it with an incompatible admin ID.');
 expect(plantsPage.includes('function rememberPlantSelection') && plantsPage.includes('plantAdministrativeId') && plantsPage.includes('zentrid_selected_plant_context'), 'Plant Registry must store a paired live/admin identity before opening Plant Detail.');
 expect(repositories.includes('ZentridPlatformAPI.plantRegistry.get(id, requestOptions)'), 'Plant repository does not use the backend administrative detail endpoint.');
-expect(repositories.includes("'/api/plants'") && repositories.includes('mergePlantSources(liveRecord ? [liveRecord] : [], [adminRecord])'), 'Plant Detail must preserve live operational enrichment after the direct administrative read.');
+expect(repositories.includes("'/api/plants'") && repositories.includes('mergePlantSources(liveRecord ? [liveRecord] : [], [adminRecord])'), 'Plant repository must preserve live operational enrichment after the direct administrative read.');
+expect(repositories.includes("if (search) query.set('search', search)"), 'Paginated repository reads must forward search so Plant Detail can resolve Registry identity without scanning full collections.');
+expect(live.includes("detailSourceMode: 'registry-live'") && live.includes("detailSourceMode: 'live-only'"), 'Plant Detail must distinguish Registry + Live from degraded live-only rendering.');
+expect(live.includes('/api/admin/plants/${encodeURIComponent(registryPlantId)}/devices') && live.includes('plantId: canonicalPlantId'), 'Plant device relations must use Registry ID for registry endpoints and canonical live ID for Platform Live endpoints.');
 expect(platform.includes("path: '/api/admin/plants/{id}'") && platform.includes("used: true") && platform.includes('Used by Plant Detail'), 'API Console must mark the Plant Detail endpoint as used.');
 expect(platform.includes("label: 'Create Admin Plant'") && platform.includes("path: '/api/admin/plants'") && platform.includes("used: true") && platform.includes('Used by the existing Create Plant wizard'), 'API Console must mark the Create Plant endpoint as used.');
 expect(data.includes("dataOrigin: p.dataOrigin || 'local'") && data.includes('sourceSystem: p.sourceSystem'), 'Local plant normalization must preserve source-aware metadata.');
