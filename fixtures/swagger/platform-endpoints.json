@@ -1,16 +1,21 @@
 {
-  "snapshot": "platform-swagger-2026-08-19-provider-assignments-excluded",
-  "operationCount": 97,
+  "snapshot": "platform-swagger-2026-08-31-provider-assignments-read-enabled",
+  "operationCount": 98,
   "excludedOperations": [
-    {
-      "method": "GET",
-      "path": "/api/admin/provider-plant-assignments",
-      "reason": "Backend unfinished; explicitly excluded by product owner."
-    },
     {
       "method": "POST",
       "path": "/api/admin/provider-plant-assignments",
       "reason": "Backend unfinished; explicitly excluded by product owner."
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/provider-plant-assignments/ownership",
+      "reason": "Live audit returned HTTP 500; endpoint remains outside the active frontend allow-list until backend semantics are stable."
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/provider-plant-assignments/bootstrap-test",
+      "reason": "Diagnostic mutation; intentionally not used by the production UI/runtime."
     }
   ],
   "operations": [
@@ -92,7 +97,7 @@
     {
       "method": "GET",
       "path": "/api/admin/clients/{id}/documents/{documentId}",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
@@ -277,7 +282,7 @@
     {
       "method": "GET",
       "path": "/api/alerts",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "GET",
@@ -391,6 +396,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/admin/provider-plant-assignments",
+      "expectedUsed": true
+    },
+    {
+      "method": "GET",
       "path": "/api/admin/provider-integrations/templates",
       "expectedUsed": true
     },
@@ -462,7 +472,7 @@
     {
       "method": "GET",
       "path": "/api/admin/tenants/{id}/documents/{documentId}",
-      "expectedUsed": false
+      "expectedUsed": true
     },
     {
       "method": "POST",
