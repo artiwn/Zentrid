@@ -185,17 +185,63 @@ if (contracts) {
   expect(realPlant.code === 'PLANT-001' && realPlant.status === 'Draft' && realPlant.timezone === 'Asia/Yerevan' && realPlant.devices === 3, 'Actual Plant Registry aliases are not mapped.');
   expect(realPlant.country === 'Armenia', 'Plant country normalization is incorrect.');
 
+  const mappingReportDeyePlant = contracts.plants.map({
+    id: '4505ed58-640e-413d-939b-2b6b5bd86e38',
+    plantCode: 'provider-deyecloud-0c79e3d213f67d1ad622cfd491cf947cdae128bdfeaf14fdb3da5d333ee995a4',
+    plantName: 'Deye Mapping Report Plant', sourceScheme: 'Provider synchronization', recordStatus: 'Draft', plantTimeZone: 'Asia/Yerevan'
+  }, 0, context);
+  expect(mappingReportDeyePlant.vendor === 'Deye', 'Plant provider must be recoverable from provider-prefixed Plant Registry code when an explicit provider field is absent.');
+
+  const mappingReportSungrowPlant = contracts.plants.map({
+    id: '8bd1e59a-f440-4eb5-a27b-3e75d8449440', plantCode: 'provider-sungrow-56da00db6cdf646a', plantName: 'Sungrow Mapping Report Plant',
+    location: { address: 'Aygeshat, Armenia', detailedAddress: 'Aygeshat, Armenia', postalCode: '1101', coordinates: '40.2374614, 44.2961942', latitude: '40.2374614', longitude: '44.2961942', plantTimeZone: 'GMT+4' },
+    technical: { installedCapacityDcMw: 0.00216, modulesCount: 6, gridConnectionType: 'Self-consumption', externalReference: 'sungrow:account:1689909' },
+    commercial: { currency: 'AMD', unitPrice: 30 },
+    providerData: { provider: 'sungrow', providerAccount: 'account', sourceEntityId: '1689909', rawPayloadRef: 'raw-1', extensions: { install_date: '2025-10-09 15:35:28', alarm_count: 0, fault_count: 3, ps_location: 'Aygeshat, Armenia' } },
+    operationalData: { status: 'Offline', installedCapacityKwp: 2.16, currentPowerKw: 0, todayEnergyKwh: 0, totalEnergyKwh: 1032.5, deviceCount: 2, openAlertCount: 184, dataQualityStatus: 'RawMapped', dataFreshness: 'Current' },
+    devices: [{ id: 'D-1' }, { id: 'D-2' }]
+  }, 0, context);
+  expect(mappingReportSungrowPlant.gridConnectionType === 'Self-consumption' && mappingReportSungrowPlant.externalReference === 'sungrow:account:1689909', 'Plant grid-connection type / external reference are not mapped.');
+  expect(mappingReportSungrowPlant.providerInstallDate === '2025-10-09 15:35:28' && mappingReportSungrowPlant.providerFaultCount === 3, 'Plant provider extensions are not surfaced without overwriting canonical alert counts.');
+  expect(mappingReportSungrowPlant.alerts === 184 && mappingReportSungrowPlant.providerAlarmCount === 0, 'Canonical open-alert count must remain separate from vendor extension alarm_count.');
+  expect(mappingReportSungrowPlant.panels === 6 && mappingReportSungrowPlant.deviceRecords.length === 2 && mappingReportSungrowPlant.batteryCapacityKwh === null, 'Plant technical/device details are not preserved by the mapper.');
+
   const normalizedPlant = contracts.plants.map({ id: 'P-NORM', plantName: 'Normalized Plant', provider: 'Huawei FusionSolar', status: 'Online', country: 'AM' }, 0, context);
   expect(normalizedPlant.vendor === 'Huawei' && normalizedPlant.status === 'Normal' && normalizedPlant.country === 'Armenia', 'Plant provider/status/country normalization is incorrect.');
 
   const realDevice = contracts.devices.map({ id: 'D-LIVE', provider: 'DeyeCloud', sourceDeviceId: 'INV-001', sourcePlantId: 'PLANT-001', name: 'Inverter 1', deviceType: 'Inverter', serialNumber: 'INV-001', dataQualityStatus: 'Complete', vendorExtensions: { vendorModel: 'Generated-DeyeCloud-Inverter', ratedPowerKw: 50, firmwareVersion: 'generated-1.0.0', parentDeviceId: 'LOGGER-1', dataFreshness: 'Fresh' } }, 0, context);
   expect(realDevice.model === 'Generated-DeyeCloud-Inverter' && realDevice.capacity === '50 kW' && realDevice.firmware === 'generated-1.0.0' && realDevice.parent === 'LOGGER-1', 'Actual Device vendorExtensions aliases are not mapped.');
 
+  const mappingReportDevice = contracts.devices.map({
+    id: 'ae0358fe-f9f4-4e17-8586-fbf33a986631',
+    identity: { deviceName: 'XAG332E3024001', deviceType: 'Unknown', serialNumber: 'XAG332E3024001', model: '4' },
+    source: { provider: 'solarx', integration: 'integration-1', sourceDeviceId: 'XAG332E3024001' },
+    status: { lifecycleStatus: 'Normal', operationalStatus: 'Online', dataQualityStatus: 'RawMapped' },
+    technical: { ratedPowerKw: 3.3, firmwareVersion: 'ARM 1.08; DSP 3.20', location: 'Roof', ipAddress: '10.0.0.2', macAddress: 'AA:BB:CC:DD:EE:FF', warranty: '2029-01-01' },
+    capabilities: { remoteRead: true }, communication: { protocol: 'Modbus' },
+    createdAtUtc: '2026-09-02T15:20:37.378545Z', updatedAtUtc: '2026-09-03T13:36:20.453847Z'
+  }, 0, context);
+  expect(mappingReportDevice.ratedPowerKw === 3.3 && mappingReportDevice.location === 'Roof' && mappingReportDevice.ip === '10.0.0.2' && mappingReportDevice.mac === 'AA:BB:CC:DD:EE:FF', 'Device technical fields from the Mapping Report are not mapped.');
+  expect(mappingReportDevice.createdAtUtc === '2026-09-02T15:20:37.378545Z' && mappingReportDevice.updatedAtUtc === '2026-09-03T13:36:20.453847Z', 'Device Registry created/updated timestamps are being lost.');
+  expect(mappingReportDevice.capabilities.remoteRead === true && mappingReportDevice.communication.protocol === 'Modbus', 'Device capabilities/communication objects are not preserved.');
+
   const normalizedDevice = contracts.devices.map({ id: 'D-NORM', deviceName: 'Normalized Device', provider: 'GoodWe SEMS', status: 'healthy' }, 0, context);
   expect(normalizedDevice.vendor === 'GoodWe' && normalizedDevice.status === 'Online', 'Device provider/status normalization is incorrect.');
 
   const realAlert = contracts.alerts.map({ id: 'A-LIVE', provider: 'DeyeCloud', sourceAlertId: 'ALARM-1', title: 'Alarm 1', message: 'Generated alarm', severity: 'Critical', vendorExtensions: { alarmCode: 'ALARM-1', alarmType: 'Operational', reason: 'Generated reason', solution: 'Inspect source' } }, 0, context);
   expect(realAlert.zentridCode === 'ALARM-1' && realAlert.category === 'Operational' && realAlert.probableCause === 'Generated reason' && realAlert.recommendation === 'Inspect source', 'Actual Alert vendorExtensions aliases are not mapped.');
+
+  const mappingReportAlert = contracts.alerts.map({
+    id: 'A-REPORT', provider: 'SolaX', sourceAlertId: 'SRC-A-1', title: 'Grid Overvoltage', severity: 'Warning', status: 'Open',
+    occurrenceStatus: 'Occurring', occurredAtUtc: '2026-09-02T15:19:04.358275Z', lastSyncAtUtc: '2026-09-03T13:36:20.564386Z',
+    description: 'Grid Volt Fault', probableCause: 'Grid outside range', recommendation: 'Check grid', mappingStatus: 'Mapped', mappingVersion: '2026.08-authoritative',
+    rawPayloadRef: 'raw-alert-1', acknowledgedAtUtc: '2026-09-03T13:00:00Z', integration: 'solax-main',
+    timeline: [{ occurredAtUtc: '2026-09-02T15:19:04.358275Z', eventType: 'Occurred' }],
+    sop: { id: 'SOP-1' }, telemetryCurve: { metricCode: 'grid_voltage' }
+  }, 0, context);
+  expect(mappingReportAlert.mappingVersion === '2026.08-authoritative' && mappingReportAlert.rawPayloadRef === 'raw-alert-1' && mappingReportAlert.acknowledgedAtUtc === '2026-09-03T13:00:00Z', 'Alert mapping/audit timestamps are being lost.');
+  expect(mappingReportAlert.description === 'Grid Volt Fault' && mappingReportAlert.integration === 'solax-main' && mappingReportAlert.timeline.length === 1, 'Alert direct detail fields are not mapped.');
+  expect(mappingReportAlert.sop.id === 'SOP-1' && mappingReportAlert.telemetryCurve.metricCode === 'grid_voltage', 'Alert SOP/telemetry detail payloads are not preserved.');
 
   const normalizedAlert = contracts.alerts.map({ id: 'A-NORM', title: 'Normalized Alert', provider: 'Sungrow iSolarCloud', status: 'raised', severity: 'major' }, 0, context);
   expect(normalizedAlert.vendor === 'Sungrow' && normalizedAlert.status === 'Open' && normalizedAlert.severity === 'High', 'Alert provider/status/severity normalization is incorrect.');
