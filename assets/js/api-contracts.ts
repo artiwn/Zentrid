@@ -519,9 +519,13 @@
       field('id', ['id', 'plantId', 'canonicalId', 'adminRecord.id'], ['Plant Registry row ID', 'Plant Detail identity'], 'identifier', '—', 'error'),
       field('plantCode', ['plantCode', 'sourcePlantId', 'code', 'adminRecord.plantCode', 'vendorExtensions.plantCode'], ['Plant Registry code', 'Plant Detail code'], 'identifier', '—'),
       field('plantName', ['adminName', 'liveName', 'technical.plantName', 'sourcePlantName', 'plantName', 'stationName', 'siteName', 'displayName', 'sourceEntityName', 'name', 'adminRecord.plantName', 'adminRecord.technical.plantName', 'liveRecord.plantName'], ['Plant Registry name', 'Plant Detail heading'], 'text', '—', 'error'),
-      field('provider', ['providerData.provider', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceScheme', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceScheme', 'adminRecord.sourceSystem', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
+      field('provider', ['providerData.provider', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceSystem', 'source.provider', 'source.vendor', 'integration.provider', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorName', 'adminRecord.sourceSystem', 'plantCode', 'code', 'sourcePlantId', 'adminRecord.plantCode', 'sourceScheme', 'adminRecord.sourceScheme', 'vendorPlatform.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], ['Plant Registry provider', 'Plant Detail source'], 'text', '—', 'warning'),
       field('clientId', ['clientAssignment.clientId', 'operationalData.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ['Plant Detail client relation'], 'relation', ''),
       field('client', ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'operationalData.clientName', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], ['Plant Registry owner', 'Plant Detail client'], 'relation', '—'),
+      field('clientContact', ['clientAssignment.clientContact', 'clientContact'], ['Plant Detail client assignment'], 'text', ''),
+      field('defaultTimeZone', ['clientAssignment.defaultTimeZone', 'defaultTimeZone'], ['Plant Detail client assignment'], 'text', ''),
+      field('defaultCountry', ['clientAssignment.defaultCountry', 'defaultCountry'], ['Plant Detail client assignment'], 'text', ''),
+      field('defaultRegion', ['clientAssignment.defaultRegion', 'defaultRegion'], ['Plant Detail client assignment'], 'text', ''),
       field('managingTenant', ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'operationalData.tenantName', 'operationalData.tenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], ['Plant Registry tenant', 'Plant Detail operator'], 'relation', '—'),
       field('recordStatus', ['vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'status', 'adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status'], ['Plant Registry status', 'Plant Detail lifecycle'], 'status', '—'),
       field('plantType', ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], ['Plant Registry type', 'Plant Detail type'], 'text', '—'),
@@ -529,6 +533,10 @@
       field('region', ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], ['Plant Detail location'], 'text', '—'),
       field('city', ['location.city', 'city', 'vendorExtensions.city', 'adminRecord.location.city', 'adminRecord.city'], ['Plant Detail location'], 'text', '—'),
       field('address', ['location.address', 'location.street', 'location.detailedAddress', 'address', 'detailedAddress', 'vendorExtensions.address', 'adminRecord.location.address', 'adminRecord.location.street', 'adminRecord.location.detailedAddress', 'adminRecord.address'], ['Plant Detail location'], 'text', ''),
+      field('detailedAddress', ['location.detailedAddress', 'detailedAddress', 'providerData.extensions.ps_location', 'adminRecord.location.detailedAddress'], ['Plant Detail location'], 'text', ''),
+      field('postalCode', ['location.postalCode', 'postalCode', 'zipCode', 'adminRecord.location.postalCode'], ['Plant Detail location'], 'text', ''),
+      field('coordinates', ['location.coordinates', 'coordinates', 'adminRecord.location.coordinates'], ['Plant Detail coordinates'], 'text', ''),
+      field('mapRef', ['location.mapRef', 'mapRef', 'adminRecord.location.mapRef'], ['Plant Detail location'], 'text', ''),
       field('latitude', ['location.latitude', 'location.lat', 'latitude', 'lat', 'vendorExtensions.latitude', 'adminRecord.location.latitude', 'adminRecord.location.lat'], ['Plant Detail coordinates'], 'text', ''),
       field('longitude', ['location.longitude', 'location.lng', 'longitude', 'lng', 'vendorExtensions.longitude', 'adminRecord.location.longitude', 'adminRecord.location.lng'], ['Plant Detail coordinates'], 'text', ''),
       field('creationMode', ['vendorPlatform.creationMode', 'creationMode', 'adminRecord.vendorPlatform.creationMode', 'adminRecord.creationMode'], ['Plant Detail source & sync'], 'text', ''),
@@ -559,10 +567,16 @@
       field('capacityDc', ['technical.installedCapacityDcMw', 'technical.installedPowerKw', 'operationalData.installedCapacityKwp', 'installedCapacityDcMw', 'installedPowerKw'], ['Plant Detail installed DC capacity'], 'power', ''),
       field('capacityAc', ['technical.installedCapacityAcMw', 'installedCapacityAcMw', 'capacityAcMw', 'capacityAc'], ['Plant Detail installed AC capacity'], 'power', ''),
       field('gridCapacity', ['technical.gridConnectionCapacityMw', 'gridConnectionCapacityMw', 'gridCapacityMw', 'gridCapacity'], ['Plant Detail grid capacity'], 'power', ''),
+      field('modulesCount', ['technical.modulesCount', 'modulesCount', 'panels', 'panelCount', 'vendorExtensions.panelCount'], ['Plant Detail module count'], 'count', ''),
       field('commissioningDate', ['technical.commissioningDate', 'commissioningDate'], ['Plant Detail commissioning'], 'date', ''),
+      field('providerInstallDate', ['providerData.extensions.install_date', 'providerData.extensions.installDate', 'vendorExtensions.install_date', 'vendorExtensions.installDate'], ['Plant Detail provider installation metadata'], 'date', ''),
+      field('gridConnectionType', ['technical.gridConnectionType', 'gridConnectionType', 'vendorExtensions.gridConnectionType', 'providerData.extensions.grid_connection_type', 'providerData.extensions.gridConnectionType'], ['Plant Detail grid configuration'], 'text', ''),
+      field('externalReference', ['technical.externalReference', 'externalReference'], ['Plant Detail source identity'], 'identifier', ''),
       field('serviceProvider', ['technical.serviceProvider', 'commercial.serviceProvider', 'serviceProvider', 'omProvider'], ['Plant Detail O&M provider'], 'relation', ''),
       field('payloadStrategy', ['vendorPlatform.payloadStrategy', 'payloadStrategy', 'adminRecord.vendorPlatform.payloadStrategy'], ['Plant Detail source diagnostics'], 'text', ''),
       field('rawPayloadRef', ['providerData.rawPayloadRef', 'rawPayloadRef'], ['Plant Detail raw payload diagnostics'], 'raw', ''),
+      field('providerExtensions', ['providerData.extensions'], ['Plant Detail provider diagnostics'], 'raw', ''),
+      field('vendorPayload', ['vendorPayload'], ['Plant Detail vendor payload'], 'raw', ''),
       field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceSystem', 'vendorExtensions.sourceEntityType', 'vendorExtensions.communicationStatus', 'vendorExtensions.canonicalSource', 'providerData.extensions', 'technical.company', 'technical.evChargerOnlyPlant', 'technical.gridConnectionType', 'technical.tilt', 'technical.azimuth', 'technical.externalReference', 'technical.plantOverview', 'commercial.currency', 'commercial.unitPrice', 'commercial.tariffType', 'commercial.totalCost', 'commercial.subsidy', 'commercial.dailyRepayment', 'commercial.ownerEmail', 'stringCapacity.stringCapacities', 'otherInfo.plantLogoFileName', 'otherInfo.safeRunningStartDate', 'otherInfo.totalYieldStatistics', 'documents'], ['Raw payload diagnostics'], 'raw', '')
     ],
     devices: [
@@ -581,7 +595,7 @@
       field('tenant', ['plantRelation.tenantName', 'plantRelation.managingTenant', 'tenant', 'tenantName', 'managingTenant', 'vendorExtensions.tenantName'], ['Device Registry tenant relation', 'Device Detail tenant'], 'relation', ''),
       field('integration', ['source.integration', 'integration', 'integrationName', 'sourceIntegrationName'], ['Device Detail source'], 'relation', ''),
       field('lastSeenAt', ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], ['Device Registry last seen', 'Device Detail freshness'], 'date', 'No live data'),
-      field('lastSyncAt', ['lastSyncAt', 'vendorExtensions.collectionTime', 'collectionTime'], ['Device Detail sync metadata'], 'date', 'No sync'),
+      field('lastSyncAt', ['lastSyncAt', 'lastSyncAtUtc', 'vendorExtensions.collectionTime', 'collectionTime', 'updatedAtUtc'], ['Device Detail sync metadata'], 'date', 'No sync'),
       field('dataQualityStatus', ['status.dataQualityStatus', 'dataQualityStatus', 'vendorExtensions.dataFreshness'], ['Device Registry data quality', 'Device Detail source status'], 'status', '—'),
       field('alarmStatus', ['vendorExtensions.alarmStatus', 'alarmStatus'], ['Device Detail alarm state'], 'status', '—'),
       field('alertsCount', ['alertsCount', 'vendorExtensions.alertsCount'], ['Device Registry alerts', 'Device Detail alerts'], 'count', ''),
@@ -591,6 +605,13 @@
       field('ratedPowerKw', ['specification.ratedActivePowerKw', 'technical.ratedPowerKw', 'vendorExtensions.ratedPowerKw', 'ratedPowerKw'], ['Device Registry capacity', 'Device Detail rated power'], 'power', '—'),
       field('firmwareVersion', ['technical.firmwareVersion', 'firmwareVersion', 'vendorExtensions.firmwareVersion', 'vendorExtensions.firmware'], ['Device Registry firmware', 'Device Detail firmware'], 'text', '—'),
       field('protocolVersion', ['technical.protocolVersion', 'communication.protocol', 'vendorExtensions.protocolVersion', 'protocolVersion', 'protocol'], ['Device Detail protocol'], 'text', '—'),
+      field('location', ['locationRelation.locationName', 'technical.location', 'location'], ['Device Detail location'], 'text', ''),
+      field('ipAddress', ['technical.ipAddress', 'network.ipAddress', 'vendorExtensions.ip', 'ipAddress', 'ip'], ['Device Detail network metadata'], 'text', ''),
+      field('macAddress', ['technical.macAddress', 'network.macAddress', 'vendorExtensions.mac', 'macAddress', 'mac'], ['Device Detail network metadata'], 'text', ''),
+      field('warranty', ['technical.warranty', 'lifecycle.warrantyExpiresAt', 'warranty', 'warrantyStatus', 'warrantyEndDate'], ['Device Detail warranty'], 'text', ''),
+      field('installedAt', ['lifecycle.installedAt', 'installedAt'], ['Device Detail lifecycle'], 'date', ''),
+      field('commissionedAt', ['lifecycle.commissionedAt', 'commissionedAt'], ['Device Detail lifecycle'], 'date', ''),
+      field('warrantyExpiresAt', ['lifecycle.warrantyExpiresAt', 'warrantyExpiresAt'], ['Device Detail lifecycle'], 'date', ''),
       field('parentDeviceId', ['topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'parentDeviceId'], ['Device Detail topology'], 'relation', '—'),
       field('parentDeviceName', ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'parentDeviceName', 'vendorExtensions.parent'], ['Device Detail topology'], 'relation', ''),
       field('childCount', ['topology.childCount', 'childCount', 'vendorExtensions.childCount', 'vendorExtensions.children', 'children'], ['Device Detail topology'], 'count', ''),
@@ -598,6 +619,21 @@
       field('collectionTime', ['vendorExtensions.collectionTime', 'collectionTime'], ['Device Detail source/freshness'], 'date', ''),
       field('sourceSystem', ['source.provider', 'vendorExtensions.sourceSystem', 'sourceSystem'], ['Device Detail source'], 'text', 'Provider'),
       field('rawPayloadRef', ['vendorExtensions.rawPayloadRef', 'rawPayloadRef'], ['Device Detail source diagnostics'], 'raw', ''),
+      field('createdAt', ['createdAtUtc', 'createdAt'], ['Device Detail registry metadata'], 'date', ''),
+      field('updatedAt', ['updatedAtUtc', 'updatedAt'], ['Device Detail registry metadata'], 'date', ''),
+      field('specification', ['specification'], ['Device Detail typed specification'], 'raw', ''),
+      field('capabilities', ['capabilities'], ['Device Detail capabilities'], 'raw', ''),
+      field('communication', ['communication'], ['Device Detail communication'], 'raw', ''),
+      field('security', ['security'], ['Device Detail security metadata'], 'raw', ''),
+      field('position', ['position'], ['Device Detail position metadata'], 'raw', ''),
+      field('relations', ['relations'], ['Device Detail technical relations'], 'raw', ''),
+      field('mpptChannels', ['mpptChannels'], ['Device Detail MPPT channels'], 'raw', ''),
+      field('pvStrings', ['pvStrings'], ['Device Detail PV strings'], 'raw', ''),
+      field('batteryModules', ['batteryModules'], ['Device Detail battery modules'], 'raw', ''),
+      field('inputChannels', ['inputChannels'], ['Device Detail input channels'], 'raw', ''),
+      field('linkedModules', ['linkedModules'], ['Device Detail linked modules'], 'raw', ''),
+      field('accounting', ['accounting'], ['Device Detail accounting metadata'], 'raw', ''),
+      field('vendorPayload', ['vendorPayload'], ['Device Detail vendor payload'], 'raw', ''),
       field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.sourceEntityType', 'vendorExtensions.canonicalSource', 'deviceCode', 'identity.deviceCode', 'status.deviceStatus', 'technical.role', 'locationRelation.locationId', 'lifecycle.installDate', 'lifecycle.commissionedAt', 'lifecycle.warrantyExpiresAt', 'relations.protectionRelayDeviceId', 'relations.stringId', 'relations.mpptId', 'linkedDevices', 'documents', 'auditHistory'], ['Raw payload diagnostics'], 'raw', '')
     ],
     alerts: [
@@ -614,7 +650,7 @@
       field('tenantId', ['tenant.tenantId', 'tenantId'], ['Alert Registry tenant relation', 'Alert Detail tenant'], 'relation', ''),
       field('tenant', ['tenant.tenantName', 'tenant'], ['Alert Registry tenant relation', 'Alert Detail tenant'], 'relation', ''),
       field('title', ['canonical.canonicalName', 'canonicalName', 'title', 'guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'vendorExtensions.alertName', 'sourceAlertName', 'alertName', 'name'], ['Alert Registry title', 'Alert Detail heading'], 'text', '—', 'error'),
-      field('message', ['guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
+      field('message', ['guidance.description', 'description', 'vendor.vendorMessage', 'vendorMessage', 'message'], ['Alert Registry message', 'Alert Detail description'], 'text', '—'),
       field('canonicalCategory', ['canonical.canonicalCategory', 'canonicalCategory', 'category'], ['Alert Registry canonical category', 'Alert Detail category'], 'text', ''),
       field('severity', ['canonical.canonicalSeverity', 'canonicalSeverity', 'severity', 'vendorSeverity'], ['Alert Registry severity', 'Alert Detail severity'], 'status', '—', 'warning'),
       field('vendorSeverity', ['vendor.vendorSeverity', 'vendorSeverity'], ['Alert Detail source severity'], 'status', ''),
@@ -629,10 +665,12 @@
       field('reason', ['guidance.probableCause', 'probableCause', 'vendorExtensions.reason', 'vendorExtensions.probableCause'], ['Alert Detail probable cause'], 'text', 'No backend probable cause'),
       field('solution', ['guidance.recommendation', 'recommendation', 'solution', 'vendorExtensions.suggestion', 'vendorExtensions.solution', 'vendorExtensions.recommendation'], ['Alert Detail recommendation'], 'text', 'Review source data'),
       field('mappingStatus', ['mapping.mappingStatus', 'mappingStatus'], ['Alert Detail mapping diagnostics'], 'status', ''),
+      field('mappingVersion', ['mapping.mappingVersion', 'mappingVersion'], ['Alert Detail mapping diagnostics'], 'text', ''),
+      field('rawPayloadRef', ['audit.rawPayloadRef', 'rawPayloadRef', 'vendorExtensions.rawPayloadRef'], ['Alert Detail source diagnostics'], 'raw', ''),
       field('source', ['vendor.sourceSystem', 'source', 'vendor.provider', 'provider'], ['Alert Detail source'], 'text', ''),
       field('owner', ['assignment.assigneeName', 'owner'], ['Alert Detail assignment'], 'text', ''),
       field('sla', ['sla.text', 'sla.status', 'sla'], ['Alert Detail SLA'], 'text', ''),
-      field('acknowledgedAtUtc', ['vendorExtensions.acknowledgedAtUtc'], ['Alert Detail timeline metadata'], 'date', '—'),
+      field('acknowledgedAtUtc', ['workflow.acknowledgedAtUtc', 'acknowledgedAtUtc', 'vendorExtensions.acknowledgedAtUtc'], ['Alert Detail timeline metadata'], 'date', '—'),
       field('sourceMetadata', ['vendorExtensions.runId', 'vendorExtensions.ordinal', 'vendorExtensions.seedMode', 'vendorExtensions.canonicalSource'], ['Raw payload diagnostics'], 'raw', '')
     ],
     telemetry: [
@@ -1254,12 +1292,17 @@
 
   const plants = createContract<ZentridPlantDto>(CONTRACT_DEFINITIONS.plants, (row, _index, context) => {
     const id = normalizedId(row, context);
-    const provider = normalization.provider(context.firstOf(row, [
+    const providerValue = context.firstOf(row, [
       'providerData.provider', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'sourceSystem',
       'source.provider', 'source.vendor', 'integration.provider', 'vendorExtensions.sourceSystem',
       'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor',
       'adminRecord.vendorName', 'adminRecord.sourceSystem'
-    ], '—'));
+    ], '');
+    const sourceSchemeValue = context.firstOf(row, ['vendorPlatform.sourceScheme', 'sourceScheme', 'adminRecord.vendorPlatform.sourceScheme', 'adminRecord.sourceScheme'], '');
+    const sourceSchemeText = String(sourceSchemeValue || '').trim();
+    const sourceSchemeLooksVendorSpecific = /huawei|fusion|deye|solarman|goodwe|sems|solis|solax|solarx|sungrow|isolarcloud|growatt|fronius|sma|sofar|peimar/i.test(sourceSchemeText);
+    const providerHint = providerValue || (sourceSchemeLooksVendorSpecific ? sourceSchemeValue : context.firstOf(row, ['plantCode', 'code', 'sourcePlantId', 'adminRecord.plantCode'], sourceSchemeValue || '—'));
+    const provider = normalization.provider(providerHint);
     const name = strictDisplayName(row, context, [
       'adminName', 'liveName', 'vendorExtensions.plantName', 'vendorExtensions.stationName',
       'vendorExtensions.siteName', 'vendorExtensions.displayName', 'vendorExtensions.name',
@@ -1297,33 +1340,48 @@
       registeredName: context.safeText(context.firstOf(row, ['sourcePlantId', 'plantId', 'code', 'id'], ''), ''),
       tenant: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'operationalData.tenantName', 'operationalData.tenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'tenantName', 'tenant', 'operator.name', 'operator.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
       clientId: context.safeText(context.firstOf(row, ['clientAssignment.clientId', 'operationalData.clientId', 'clientId', 'ClientId', 'client.id', 'client.clientId', 'owner.id', 'owner.clientId', 'adminRecord.clientId', 'adminRecord.ClientId', 'adminRecord.client.id'], ''), ''),
+      clientContact: context.safeText(context.firstOf(row, ['clientAssignment.clientContact', 'clientContact'], ''), ''),
+      defaultTimeZone: context.safeText(context.firstOf(row, ['clientAssignment.defaultTimeZone', 'defaultTimeZone'], ''), ''),
+      defaultCountry: context.safeText(context.firstOf(row, ['clientAssignment.defaultCountry', 'defaultCountry'], ''), ''),
+      defaultRegion: context.safeText(context.firstOf(row, ['clientAssignment.defaultRegion', 'defaultRegion'], ''), ''),
       portfolio: context.safeText(context.firstOf(row, ['portfolio', 'portfolioName', 'groupName'], '—')),
       integration, vendor: provider,
       sourceScheme: context.safeText(context.firstOf(row, ['sourceScheme', 'vendorPlatform.sourceScheme', 'adminRecord.sourceScheme', 'adminRecord.vendorPlatform.sourceScheme'], '—')),
       creationMode: context.safeText(context.firstOf(row, ['vendorPlatform.creationMode', 'creationMode', 'adminRecord.vendorPlatform.creationMode', 'adminRecord.creationMode'], '—')),
       payloadStrategy: context.safeText(context.firstOf(row, ['vendorPlatform.payloadStrategy', 'payloadStrategy', 'adminRecord.vendorPlatform.payloadStrategy'], '—')),
-      status: normalization.plantStatus(context.firstOf(row, ['adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status', 'vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status'], '—')),
+      status: normalization.plantStatus(context.firstOf(row, ['adminRecord.vendorPlatform.recordStatus', 'adminRecord.recordStatus', 'adminRecord.lifecycleStatus', 'adminRecord.lifecycle.status', 'vendorPlatform.recordStatus', 'recordStatus', 'lifecycleStatus', 'lifecycle.status', 'status'], '—')),
       health: normalization.plantStatus(context.firstOf(row, ['operationalData.status', 'providerData.providerStatus', 'liveRecord.status', 'liveRecord.operationalStatus', 'health', 'operationalStatus', 'status', 'vendorPlatform.operationalStatus'], 'Unknown')),
       type: context.safeText(context.firstOf(row, ['plantType', 'technical.plantType', 'type', 'adminRecord.plantType', 'adminRecord.technical.plantType'], '—')),
       country: normalization.country(context.firstOf(row, ['location.countryRegion', 'location.country', 'countryRegion', 'country', 'vendorExtensions.country', 'adminRecord.location.countryRegion', 'adminRecord.location.country', 'adminRecord.countryRegion'], '—')),
       region: context.safeText(context.firstOf(row, ['location.region', 'location.stateRegion', 'region', 'vendorExtensions.region', 'adminRecord.location.region', 'adminRecord.location.stateRegion', 'adminRecord.region'], '—')),
       city: context.safeText(context.firstOf(row, ['location.city', 'city', 'vendorExtensions.city', 'adminRecord.location.city', 'adminRecord.city'], '—')),
       address: context.safeText(context.firstOf(row, ['location.address', 'location.street', 'location.detailedAddress', 'address', 'detailedAddress', 'vendorExtensions.address', 'adminRecord.location.address', 'adminRecord.location.street', 'adminRecord.location.detailedAddress', 'adminRecord.address'], '—')),
+      detailedAddress: context.safeText(context.firstOf(row, ['location.detailedAddress', 'detailedAddress', 'providerData.extensions.ps_location', 'adminRecord.location.detailedAddress'], ''), ''),
+      postalCode: context.safeText(context.firstOf(row, ['location.postalCode', 'postalCode', 'zipCode', 'adminRecord.location.postalCode'], ''), ''),
+      coordinates: context.safeText(context.firstOf(row, ['location.coordinates', 'coordinates', 'adminRecord.location.coordinates'], ''), ''),
+      mapRef: context.safeText(context.firstOf(row, ['location.mapRef', 'mapRef', 'adminRecord.location.mapRef'], ''), ''),
+      street: context.safeText(context.firstOf(row, ['location.street', 'street', 'adminRecord.location.street'], ''), ''),
       lat: context.safeText(context.firstOf(row, ['location.latitude', 'location.lat', 'latitude', 'lat', 'vendorExtensions.latitude', 'adminRecord.location.latitude', 'adminRecord.location.lat'], '—')),
       lng: context.safeText(context.firstOf(row, ['location.longitude', 'location.lng', 'longitude', 'lng', 'vendorExtensions.longitude', 'adminRecord.location.longitude', 'adminRecord.location.lng'], '—')),
       timezone: context.safeText(context.firstOf(row, ['location.plantTimeZone', 'location.timezone', 'location.timeZone', 'plantTimeZone', 'timezone', 'vendorExtensions.timezone', 'adminRecord.location.timezone', 'adminRecord.location.timeZone', 'adminRecord.plantTimeZone'], '—')),
       capacityDc: installedDcMw !== null ? installedDcMw : installedKw === null ? null : installedKw / 1000,
+      installedPowerKw: installedKw,
       capacityAc: optionalNumber(context.firstOf(row, ['technical.installedCapacityAcMw', 'installedCapacityAcMw', 'technical.capacityAcMw', 'capacityAcMw', 'capacityAc', 'technical.installedPowerAcKw', 'installedPowerAcKw', 'vendorExtensions.capacityAc', 'adminRecord.technical.installedCapacityAcMw', 'adminRecord.installedCapacityAcMw'], undefined)),
       gridCapacity: optionalNumber(context.firstOf(row, ['technical.gridConnectionCapacityMw', 'gridConnectionCapacityMw', 'technical.gridCapacityMw', 'gridCapacityMw', 'gridCapacity', 'technical.gridCapacityKw', 'gridCapacityKw', 'vendorExtensions.gridCapacity', 'adminRecord.technical.gridConnectionCapacityMw', 'adminRecord.gridConnectionCapacityMw'], undefined)),
-      panels: optionalNumber(context.firstOf(row, ['panels', 'panelCount', 'vendorExtensions.panelCount'], undefined)),
+      panels: optionalNumber(context.firstOf(row, ['technical.modulesCount', 'modulesCount', 'panels', 'panelCount', 'vendorExtensions.panelCount'], undefined)),
+      modulesCount: optionalNumber(context.firstOf(row, ['technical.modulesCount', 'modulesCount', 'panels', 'panelCount', 'vendorExtensions.panelCount'], undefined)),
       inverters: optionalNumber(context.firstOf(row, ['inverters', 'inverterCount', 'vendorExtensions.inverterCount'], undefined)),
       strings: optionalNumber(context.firstOf(row, ['strings', 'stringCount', 'vendorExtensions.stringCount'], undefined)),
       transformers: optionalNumber(context.firstOf(row, ['transformers', 'transformerCount', 'vendorExtensions.transformerCount'], undefined)),
       meters: optionalNumber(context.firstOf(row, ['meters', 'meterCount', 'vendorExtensions.meterCount'], undefined)),
       battery: (() => { const explicit = context.firstOf(row, ['technical.batteryInstalled', 'batteryInstalled', 'battery', 'vendorExtensions.batteryInstalled', 'adminRecord.technical.batteryInstalled'], ''); if (explicit !== undefined && explicit !== null && String(explicit).trim() !== '') return context.safeText(explicit, '—'); const capacity = optionalNumber(context.firstOf(row, ['technical.batteryCapacityKwh', 'operationalData.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh', 'adminRecord.technical.batteryCapacityKwh', 'adminRecord.batteryCapacityKwh'], '')); return capacity !== null ? (capacity > 0 ? `Yes · ${capacity} kWh` : 'No') : '—'; })(),
+      batteryCapacityKwh: optionalNumber(context.firstOf(row, ['technical.batteryCapacityKwh', 'operationalData.batteryCapacityKwh', 'batteryCapacityKwh', 'vendorExtensions.batteryCapacityKwh', 'adminRecord.technical.batteryCapacityKwh', 'adminRecord.batteryCapacityKwh'], undefined)),
       devices: (() => { const explicit = optionalNumber(context.firstOf(row, ['operationalData.deviceCount', 'devicesCount', 'vendorExtensions.devicesCount', 'adminRecord.devicesCount'], undefined)); return explicit !== null ? explicit : (Array.isArray(row.devices) ? row.devices.length : null); })(),
+      deviceRecords: Array.isArray(row.devices) ? row.devices : [],
       alerts: optionalNumber(context.firstOf(row, ['operationalData.openAlertCount', 'alertsCount', 'vendorExtensions.alertsCount', 'vendorExtensions.alarmCount'], undefined)),
+      currentPowerKw: powerKw,
       livePower: powerKw === null ? '—' : `${powerKw} kW`,
+      todayEnergyKwh: todayEnergy,
       today: todayEnergy === null ? '—' : `${todayEnergy} kWh`,
       month: context.safeText(context.firstOf(row, ['monthEnergy', 'monthlyEnergyKwh', 'vendorExtensions.monthlyEnergyKwh'], '—')),
       pr: context.safeText(context.firstOf(row, ['performanceRatio', 'pr', 'vendorExtensions.performanceRatio'], '—')),
@@ -1331,15 +1389,42 @@
       freshness: context.safeText(context.firstOf(row, ['operationalData.dataQualityStatus', 'dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
       dataFreshness: context.safeText(context.firstOf(row, ['operationalData.dataFreshness', 'vendorExtensions.dataFreshness', 'dataFreshness'], '—')),
       commissioned: context.formatDate(context.firstOf(row, ['commissioningDate', 'technical.commissioningDate', 'adminRecord.commissioningDate', 'adminRecord.technical.commissioningDate'], undefined), '—'),
+      providerInstallDate: context.safeText(context.firstOf(row, ['providerData.extensions.install_date', 'providerData.extensions.installDate', 'vendorExtensions.install_date', 'vendorExtensions.installDate'], ''), ''),
+      gridConnectionType: context.safeText(context.firstOf(row, ['technical.gridConnectionType', 'gridConnectionType', 'vendorExtensions.gridConnectionType', 'providerData.extensions.grid_connection_type', 'providerData.extensions.gridConnectionType'], '—')),
+      externalReference: context.safeText(context.firstOf(row, ['technical.externalReference', 'externalReference'], ''), ''),
+      company: context.safeText(context.firstOf(row, ['technical.company', 'company'], ''), ''),
+      evChargerOnlyPlant: context.firstOf(row, ['technical.evChargerOnlyPlant', 'evChargerOnlyPlant'], null),
+      tilt: context.firstOf(row, ['technical.tilt', 'tilt'], null),
+      azimuth: context.firstOf(row, ['technical.azimuth', 'azimuth'], null),
+      plantOverview: context.firstOf(row, ['technical.plantOverview', 'plantOverview'], null),
+      currency: context.safeText(context.firstOf(row, ['commercial.currency', 'currency'], ''), ''),
+      unitPrice: context.firstOf(row, ['commercial.unitPrice', 'unitPrice'], null),
+      tariffType: context.safeText(context.firstOf(row, ['commercial.tariffType', 'tariffType'], ''), ''),
+      totalCost: context.firstOf(row, ['commercial.totalCost', 'totalCost'], null),
+      subsidy: context.firstOf(row, ['commercial.subsidy', 'subsidy'], null),
+      dailyRepayment: context.firstOf(row, ['commercial.dailyRepayment', 'dailyRepayment'], null),
+      ownerEmail: context.safeText(context.firstOf(row, ['commercial.ownerEmail', 'ownerEmail'], ''), ''),
+      providerExtensions: (context.firstOf(row, ['providerData.extensions'], null) && typeof context.firstOf(row, ['providerData.extensions'], null) === 'object')
+        ? context.firstOf(row, ['providerData.extensions'], {})
+        : {},
+      providerAlarmCount: optionalNumber(context.firstOf(row, ['providerData.extensions.alarm_count', 'providerData.extensions.alarmCount'], undefined)),
+      providerFaultCount: optionalNumber(context.firstOf(row, ['providerData.extensions.fault_count', 'providerData.extensions.faultCount'], undefined)),
+      vendorPayload: context.firstOf(row, ['vendorPayload'], null),
       owner: context.safeText(context.firstOf(row, ['clientAssignment.client.name', 'clientAssignment.client.clientName', 'clientAssignment.client.code', 'clientAssignment.client', 'client.name', 'client.clientName', 'client.code', 'client', 'Client', 'clientName', 'owner.name', 'owner.clientName', 'ownerName', 'adminRecord.client.name', 'adminRecord.client.clientName', 'adminRecord.client.code', 'adminRecord.client', 'adminRecord.Client'], '—')),
       operator: context.safeText(context.firstOf(row, ['clientAssignment.managingTenant.name', 'clientAssignment.managingTenant.tenantName', 'clientAssignment.managingTenant.code', 'clientAssignment.managingTenant.id', 'clientAssignment.managingTenant', 'clientAssignment.managingTenantId', 'managingTenant.name', 'managingTenant.tenantName', 'managingTenant.code', 'managingTenant.id', 'managingTenant', 'managingTenantId', 'operator.name', 'operator.tenantName', 'operator.id', 'operatorName', 'tenant.name', 'tenant.tenantName', 'tenant.code', 'tenant.id', 'adminRecord.managingTenant.name', 'adminRecord.managingTenant.tenantName', 'adminRecord.managingTenant.code', 'adminRecord.managingTenant.id', 'adminRecord.managingTenant', 'adminRecord.managingTenantId'], '—')),
       om: context.safeText(context.firstOf(row, ['serviceProvider.name', 'serviceProvider', 'omProvider.name', 'omProvider', 'commercial.serviceProvider', 'technical.serviceProvider', 'adminRecord.serviceProvider.name', 'adminRecord.serviceProvider'], '—')),
-      sourceSystem: context.safeText(context.firstOf(row, ['providerData.provider', 'sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor'], provider), provider),
+      sourceSystem: context.safeText(context.firstOf(row, ['providerData.provider', 'sourceSystem', 'provider', 'providerType', 'providerName', 'vendor', 'vendorName', 'source.provider', 'source.vendor', 'vendorPlatform.sourceScheme', 'sourceScheme', 'adminRecord.sourceSystem', 'adminRecord.provider', 'adminRecord.providerType', 'adminRecord.providerName', 'adminRecord.vendor', 'adminRecord.vendorPlatform.sourceScheme', 'adminRecord.sourceScheme'], provider), provider),
       updated: context.formatDate(context.firstOf(row, ['updatedAtUtc', 'createdAtUtc', 'adminRecord.updatedAtUtc', 'adminRecord.createdAtUtc'], undefined), '—'),
+      createdAtUtc: context.safeText(context.firstOf(row, ['createdAtUtc', 'adminRecord.createdAtUtc'], ''), ''),
+      updatedAtUtc: context.safeText(context.firstOf(row, ['updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
       lastDataAt: context.safeText(context.firstOf(row, ['operationalData.lastDataAtUtc', 'lastDataAtUtc', 'lastDataAt', 'liveRecord.lastDataAt'], ''), ''),
+      lastDataAtUtc: context.safeText(context.firstOf(row, ['operationalData.lastDataAtUtc', 'lastDataAtUtc', 'lastDataAt', 'liveRecord.lastDataAt'], ''), ''),
       lastSyncAt: context.safeText(context.firstOf(row, ['operationalData.lastSyncAtUtc', 'providerData.lastSyncAtUtc', 'lastSyncAt', 'lastSyncAtUtc', 'liveRecord.lastSyncAt', 'updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
+      lastSyncAtUtc: context.safeText(context.firstOf(row, ['operationalData.lastSyncAtUtc', 'providerData.lastSyncAtUtc', 'lastSyncAtUtc', 'lastSyncAt', 'liveRecord.lastSyncAt', 'updatedAtUtc', 'adminRecord.updatedAtUtc'], ''), ''),
       dataQualityStatus: context.safeText(context.firstOf(row, ['operationalData.dataQualityStatus', 'dataQualityStatus', 'liveRecord.dataQualityStatus'], '—')),
-      totalEnergy: optionalNumber(context.firstOf(row, ['operationalData.totalEnergyKwh', 'totalEnergyKwh', 'liveRecord.totalEnergyKwh'], undefined)), raw: row
+      totalEnergy: optionalNumber(context.firstOf(row, ['operationalData.totalEnergyKwh', 'totalEnergyKwh', 'liveRecord.totalEnergyKwh'], undefined)),
+      totalEnergyKwh: optionalNumber(context.firstOf(row, ['operationalData.totalEnergyKwh', 'totalEnergyKwh', 'liveRecord.totalEnergyKwh'], undefined)),
+      raw: row
     };
   });
 
@@ -1381,11 +1466,15 @@
       integration: context.safeText(context.firstOf(row, ['source.integration', 'integration', 'integrationName', 'sourceIntegrationName'], '—')),
       status: normalization.deviceStatus(operationalStatus),
       lifecycle: lifecycleStatus,
+      ratedPowerKw: ratedPower,
       capacity: ratedPower === null
         ? context.safeText(context.firstOf(row, ['technical.ratedPowerKw', 'vendorExtensions.capacity', 'capacity'], '—'))
         : `${ratedPower} kW`,
       installation: context.formatDate(context.firstOf(row, ['lifecycle.installedAt', 'lifecycle.installDate', 'installationDate', 'installDate'], undefined), '—'),
       installDate: context.formatDate(context.firstOf(row, ['lifecycle.installDate', 'lifecycle.installedAt', 'installationDate', 'installDate'], undefined), '—'),
+      installedAt: context.safeText(context.firstOf(row, ['lifecycle.installedAt', 'installedAt'], ''), ''),
+      commissionedAt: context.safeText(context.firstOf(row, ['lifecycle.commissionedAt', 'commissionedAt'], ''), ''),
+      warrantyExpiresAt: context.safeText(context.firstOf(row, ['lifecycle.warrantyExpiresAt', 'warrantyExpiresAt'], ''), ''),
       warranty: context.safeText(context.firstOf(row, ['technical.warranty', 'lifecycle.warrantyExpiresAt', 'warranty', 'warrantyStatus', 'warrantyEndDate'], '—')),
       lastSeen: context.formatDate(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], undefined), '—'),
       lastSeenAt: context.safeText(context.firstOf(row, ['telemetry.lastSeenAtUtc', 'lastSeenAtUtc', 'lastSeenAt', 'vendorExtensions.collectionTime', 'collectionTime'], ''), ''),
@@ -1401,10 +1490,28 @@
       connectivityStatus: context.safeText(context.firstOf(row, ['vendorExtensions.connectStatus', 'connectStatus', 'connectivityStatus'], ''), ''),
       collectionTime: context.safeText(context.firstOf(row, ['vendorExtensions.collectionTime', 'collectionTime'], ''), ''),
       rawPayloadRef: context.safeText(context.firstOf(row, ['vendorExtensions.rawPayloadRef', 'rawPayloadRef'], ''), ''),
+      lastSyncAt: context.safeText(context.firstOf(row, ['lastSyncAt', 'lastSyncAtUtc', 'vendorExtensions.collectionTime', 'collectionTime', 'updatedAtUtc'], ''), ''),
+      createdAtUtc: context.safeText(context.firstOf(row, ['createdAtUtc', 'createdAt'], ''), ''),
+      updatedAtUtc: context.safeText(context.firstOf(row, ['updatedAtUtc', 'updatedAt'], ''), ''),
+      created: context.formatDate(context.firstOf(row, ['createdAtUtc', 'createdAt'], undefined), '—'),
+      updated: context.formatDate(context.firstOf(row, ['updatedAtUtc', 'updatedAt', 'createdAtUtc'], undefined), '—'),
       sourceSystem: context.safeText(context.firstOf(row, ['source.provider', 'vendorExtensions.sourceSystem', 'sourceSystem'], provider), provider),
       parent: context.safeText(context.firstOf(row, ['topology.parentDeviceName', 'parentRelation.parentDeviceName', 'parentDeviceName', 'topology.parentDeviceId', 'parentRelation.parentDeviceId', 'vendorExtensions.parentDeviceId', 'vendorExtensions.parent', 'parentDeviceId'], '—')),
       children: context.firstOf(row, ['topology.childCount', 'childCount', 'vendorExtensions.childCount', 'vendorExtensions.children', 'children'], null),
       location: context.safeText(context.firstOf(row, ['locationRelation.locationName', 'technical.location', 'location'], '—')),
+      specification: context.firstOf(row, ['specification'], null),
+      capabilities: context.firstOf(row, ['capabilities'], null),
+      communication: context.firstOf(row, ['communication'], null),
+      security: context.firstOf(row, ['security'], null),
+      position: context.firstOf(row, ['position'], null),
+      relations: context.firstOf(row, ['relations'], null),
+      mpptChannels: context.firstOf(row, ['mpptChannels'], null),
+      pvStrings: context.firstOf(row, ['pvStrings'], null),
+      batteryModules: context.firstOf(row, ['batteryModules'], null),
+      inputChannels: context.firstOf(row, ['inputChannels'], null),
+      linkedModules: context.firstOf(row, ['linkedModules'], null),
+      accounting: context.firstOf(row, ['accounting'], null),
+      vendorPayload: context.firstOf(row, ['vendorPayload'], null),
       documents: Array.isArray(context.firstOf(row, ['documents'], [])) ? context.firstOf(row, ['documents'], []) : [],
       raw: row
     };
@@ -1415,15 +1522,19 @@
     const provider = normalization.provider(context.firstOf(row, ['vendor.provider', 'provider'], 'Unknown'));
     const severity = normalization.alertSeverity(context.firstOf(row, ['canonical.canonicalSeverity', 'canonicalSeverity', 'severity', 'vendorSeverity'], 'Unknown'));
     const title = context.safeText(context.firstOf(row, ['canonical.canonicalName', 'canonicalName', 'title', 'message', 'vendor.vendorMessage', 'vendorMessage'], 'Unknown alert'));
-    const occurredRaw = context.firstOf(row, ['workflow.occurredAtUtc', 'occurredAtUtc', 'created'], undefined);
-    const updatedRaw = context.firstOf(row, ['audit.updatedAtUtc', 'workflow.lastSyncAtUtc', 'lastSyncAt', 'updated'], undefined);
+    const occurredRaw = context.firstOf(row, ['workflow.occurredAtUtc', 'occurredAtUtc', 'createdAtUtc', 'created'], undefined);
+    const updatedRaw = context.firstOf(row, ['audit.updatedAtUtc', 'workflow.lastSyncAtUtc', 'lastSyncAtUtc', 'lastSyncAt', 'updatedAtUtc', 'updated'], undefined);
     const occurredAt = context.formatDate(occurredRaw, '—');
     const updatedAt = context.formatDate(updatedRaw, '—');
-    const timelineRows = Array.isArray(row.__timeline) ? row.__timeline : [];
+    const timelineRows = Array.isArray(row.__timeline) ? row.__timeline : (Array.isArray(row.timeline) ? row.timeline : []);
     const timeline = timelineRows.map((event: Record<string, unknown>) => `${context.formatDate(event.occurredAtUtc, '—')} · ${context.safeText(event.eventType, 'Event')}${event.actor ? ` · ${context.safeText(event.actor)}` : ''}${event.comment ? ` · ${context.safeText(event.comment)}` : ''}`);
     const relatedPayload = (row.__related && typeof row.__related === 'object') ? row.__related as Record<string, unknown> : (row.related as Record<string, unknown> || {});
-    const telemetryCurve = (row.__telemetryCurve && typeof row.__telemetryCurve === 'object') ? row.__telemetryCurve as Record<string, unknown> : {};
-    const sop = (row.__sop && typeof row.__sop === 'object') ? row.__sop as Record<string, unknown> : null;
+    const telemetryCurve = (row.__telemetryCurve && typeof row.__telemetryCurve === 'object')
+      ? row.__telemetryCurve as Record<string, unknown>
+      : ((row.telemetryCurve && typeof row.telemetryCurve === 'object') ? row.telemetryCurve as Record<string, unknown> : {});
+    const sop = (row.__sop && typeof row.__sop === 'object')
+      ? row.__sop as Record<string, unknown>
+      : ((row.sop && typeof row.sop === 'object') ? row.sop as Record<string, unknown> : null);
     return {
       dataOrigin: 'live', id,
       zentridCode: context.safeText(context.firstOf(row, ['canonical.canonicalCode', 'canonicalCode', 'zentridCode', 'vendorExtensions.zentridCode', 'vendorExtensions.alarmCode'], ''), ''),
@@ -1451,14 +1562,16 @@
       deviceType: context.safeText(context.firstOf(row, ['device.deviceType', 'deviceType'], '—')),
       vendor: provider,
       source: context.safeText(context.firstOf(row, ['vendor.sourceSystem', 'vendor.provider', 'source'], provider), provider),
-      integration: context.safeText(context.firstOf(row, ['integration.integrationName', 'integrationName'], '—')),
+      integration: context.safeText(context.firstOf(row, ['integration.integrationName', 'integrationName', 'integration'], '—')),
       created: occurredAt,
       updated: updatedAt,
+      occurredAtUtc: context.safeText(occurredRaw, ''),
+      updatedAtUtc: context.safeText(updatedRaw, ''),
       age: context.safeText(context.firstOf(row, ['age', 'ageText'], '—')),
       sla: context.safeText(context.firstOf(row, ['sla.text', 'sla.status', 'sla'], '—')),
       owner: context.safeText(context.firstOf(row, ['assignment.assigneeName', 'owner'], '—')),
       telemetry: context.safeText(telemetryCurve.metricCode || relatedPayload.telemetryMetric || '—'),
-      description: context.safeText(context.firstOf(row, ['guidance.description', 'vendor.vendorMessage', 'vendorMessage', 'message', 'vendorExtensions.alarmName'], '—')),
+      description: context.safeText(context.firstOf(row, ['guidance.description', 'description', 'vendor.vendorMessage', 'vendorMessage', 'message', 'vendorExtensions.alarmName'], '—')),
       probableCause: context.safeText(context.firstOf(row, ['guidance.probableCause', 'probableCause', 'vendorExtensions.reason'], '—')),
       recommendation: context.safeText(context.firstOf(row, ['guidance.recommendation', 'recommendation', 'solution', 'vendorExtensions.suggestion', 'vendorExtensions.solution'], '—')),
       sourceAlertId: context.safeText(context.firstOf(row, ['vendor.sourceAlertId', 'sourceAlertId'], ''), ''),
@@ -1466,8 +1579,9 @@
       sourceDeviceId: context.safeText(context.firstOf(row, ['device.sourceDeviceId', 'sourceDeviceId'], ''), ''),
       mappingStatus: context.safeText(context.firstOf(row, ['mapping.mappingStatus', 'mappingStatus'], '—')),
       mappingVersion: context.safeText(context.firstOf(row, ['mapping.mappingVersion', 'mappingVersion'], '—')),
-      rawPayloadRef: context.safeText(context.firstOf(row, ['audit.rawPayloadRef', 'vendorExtensions.rawPayloadRef'], '—')),
-      lastSyncAtUtc: context.safeText(context.firstOf(row, ['workflow.lastSyncAtUtc', 'lastSyncAt'], '—')),
+      rawPayloadRef: context.safeText(context.firstOf(row, ['audit.rawPayloadRef', 'rawPayloadRef', 'vendorExtensions.rawPayloadRef'], '—')),
+      lastSyncAtUtc: context.safeText(context.firstOf(row, ['workflow.lastSyncAtUtc', 'lastSyncAtUtc', 'lastSyncAt', 'updatedAtUtc'], '—')),
+      acknowledgedAtUtc: context.safeText(context.firstOf(row, ['workflow.acknowledgedAtUtc', 'acknowledgedAtUtc', 'vendorExtensions.acknowledgedAtUtc'], ''), ''),
       timeline,
       related: {
         telemetryMetric: context.safeText(relatedPayload.telemetryMetric || telemetryCurve.metricCode || '—'),

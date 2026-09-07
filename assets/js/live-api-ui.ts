@@ -2481,10 +2481,103 @@
     return value !== undefined && value !== null && String(value).trim() !== '' && String(value).trim() !== '—';
   }
 
+  function plantRawRecord(value: unknown): AnyRecord {
+    return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : {};
+  }
+
+  function mergePlantRawSection(preferredValue: unknown, fallbackValue: unknown): AnyRecord {
+    const preferred = plantRawRecord(preferredValue);
+    const fallback = plantRawRecord(fallbackValue);
+    const merged: AnyRecord = { ...fallback };
+    Object.entries(preferred).forEach(([key, value]) => {
+      const meaningfulCollection = Array.isArray(value) ? value.length > 0 : Boolean(value && typeof value === 'object' && Object.keys(value as object).length > 0);
+      if (plantOperationalValue(value) || meaningfulCollection || !(key in merged)) merged[key] = value as ZentridLegacyCompat;
+    });
+    return merged;
+  }
+
   function enrichAdministrativePlantWithOperational(adminPlant: AnyRecord, operationalPlant: AnyRecord): AnyRecord {
     const preferOperational = (operationalValue: unknown, adminValue: unknown): unknown => plantOperationalValue(operationalValue) ? operationalValue : adminValue;
+    const preferAdministrative = (adminValue: unknown, operationalValue: unknown): unknown => plantOperationalValue(adminValue) ? adminValue : operationalValue;
     const adminRaw = adminPlant.raw && typeof adminPlant.raw === 'object' ? adminPlant.raw as AnyRecord : {};
     const liveRaw = operationalPlant.raw && typeof operationalPlant.raw === 'object' ? operationalPlant.raw as AnyRecord : {};
+    const liveLocation = mergePlantRawSection(liveRaw.location, {
+      countryRegion: operationalPlant.country,
+      region: operationalPlant.region,
+      city: operationalPlant.city,
+      address: operationalPlant.address,
+      detailedAddress: operationalPlant.detailedAddress,
+      postalCode: operationalPlant.postalCode,
+      coordinates: operationalPlant.coordinates,
+      mapRef: operationalPlant.mapRef,
+      street: operationalPlant.street,
+      plantTimeZone: operationalPlant.timezone,
+      latitude: operationalPlant.lat,
+      longitude: operationalPlant.lng
+    });
+    const liveTechnical = mergePlantRawSection(liveRaw.technical, {
+      plantType: operationalPlant.type,
+      installedCapacityDcMw: operationalPlant.capacityDc,
+      installedPowerKw: operationalPlant.installedPowerKw,
+      installedCapacityAcMw: operationalPlant.capacityAc,
+      gridConnectionCapacityMw: operationalPlant.gridCapacity,
+      modulesCount: operationalPlant.panels,
+      batteryCapacityKwh: operationalPlant.batteryCapacityKwh,
+      gridConnectionType: operationalPlant.gridConnectionType,
+      commissioningDate: operationalPlant.commissioned,
+      serviceProvider: operationalPlant.om,
+      company: operationalPlant.company,
+      evChargerOnlyPlant: operationalPlant.evChargerOnlyPlant,
+      tilt: operationalPlant.tilt,
+      azimuth: operationalPlant.azimuth,
+      externalReference: operationalPlant.externalReference,
+      plantOverview: operationalPlant.plantOverview
+    });
+    const liveCommercial = mergePlantRawSection(liveRaw.commercial, {
+      currency: operationalPlant.currency,
+      unitPrice: operationalPlant.unitPrice,
+      tariffType: operationalPlant.tariffType,
+      totalCost: operationalPlant.totalCost,
+      subsidy: operationalPlant.subsidy,
+      dailyRepayment: operationalPlant.dailyRepayment,
+      ownerEmail: operationalPlant.ownerEmail
+    });
+    const liveProviderData = mergePlantRawSection(liveRaw.providerData, {
+      provider: operationalPlant.vendor || operationalPlant.sourceSystem,
+      providerAccount: operationalPlant.providerAccount,
+      sourceEntityId: operationalPlant.externalId || operationalPlant.sourcePlantId,
+      sourcePlantCode: operationalPlant.sourcePlantCode || operationalPlant.sourcePlantId,
+      providerStatus: operationalPlant.providerStatus || operationalPlant.health,
+      currentPowerKw: operationalPlant.currentPowerKw,
+      rawPayloadRef: operationalPlant.rawPayloadRef,
+      lastSyncAtUtc: operationalPlant.lastSyncAt,
+      extensions: operationalPlant.providerExtensions
+    });
+    liveProviderData.extensions = mergePlantRawSection(liveProviderData.extensions, operationalPlant.providerExtensions);
+    const liveOperationalData = mergePlantRawSection(liveRaw.operationalData, {
+      canonicalPlantId: operationalPlant.canonicalPlantId || operationalPlant.id,
+      status: operationalPlant.health,
+      communicationStatus: operationalPlant.communicationStatus,
+      dataQualityStatus: operationalPlant.dataQualityStatus,
+      dataFreshness: operationalPlant.dataFreshness,
+      installedCapacityKwp: typeof operationalPlant.capacityDc === 'number' ? operationalPlant.capacityDc * 1000 : undefined,
+      batteryCapacityKwh: operationalPlant.batteryCapacityKwh,
+      currentPowerKw: operationalPlant.currentPowerKw,
+      todayEnergyKwh: operationalPlant.todayEnergyKwh,
+      totalEnergyKwh: operationalPlant.totalEnergyKwh ?? operationalPlant.totalEnergy,
+      deviceCount: operationalPlant.devices,
+      openAlertCount: operationalPlant.alerts,
+      lastDataAtUtc: operationalPlant.lastDataAt,
+      lastSyncAtUtc: operationalPlant.lastSyncAt
+    });
+    const mergedProviderData = mergePlantRawSection(adminRaw.providerData, liveProviderData);
+    mergedProviderData.extensions = mergePlantRawSection(plantRawRecord(adminRaw.providerData).extensions, liveProviderData.extensions);
+    const mergedRaw = mergePlantRawSection(adminRaw, liveRaw);
+    mergedRaw.location = mergePlantRawSection(adminRaw.location, liveLocation);
+    mergedRaw.technical = mergePlantRawSection(adminRaw.technical, liveTechnical);
+    mergedRaw.commercial = mergePlantRawSection(adminRaw.commercial, liveCommercial);
+    mergedRaw.providerData = mergedProviderData;
+    mergedRaw.operationalData = mergePlantRawSection(adminRaw.operationalData, liveOperationalData);
     const administrativeId = safeText(adminPlant.adminId || adminPlant.registryPlantId || adminPlant.id, '').trim();
     return {
       ...adminPlant,
@@ -2494,21 +2587,85 @@
       canonicalPlantId: safeText(operationalPlant.id || adminPlant.canonicalPlantId || adminPlant.operationalId, '').trim(),
       operationalExternalId: safeText(operationalPlant.externalId || adminPlant.operationalExternalId || adminPlant.sourcePlantId, '').trim(),
       sourcePlantId: safeText(adminPlant.sourcePlantId || operationalPlant.externalId || adminPlant.externalId, '').trim(),
+      sourcePlantCode: preferOperational(operationalPlant.sourcePlantCode, adminPlant.sourcePlantCode),
+      providerAccount: preferOperational(operationalPlant.providerAccount, adminPlant.providerAccount),
+      providerStatus: preferOperational(operationalPlant.providerStatus, adminPlant.providerStatus),
+      rawPayloadRef: preferOperational(operationalPlant.rawPayloadRef, adminPlant.rawPayloadRef),
+      type: preferAdministrative(adminPlant.type, operationalPlant.type),
+      country: preferAdministrative(adminPlant.country, operationalPlant.country),
+      region: preferAdministrative(adminPlant.region, operationalPlant.region),
+      city: preferAdministrative(adminPlant.city, operationalPlant.city),
+      address: preferAdministrative(adminPlant.address, operationalPlant.address),
+      detailedAddress: preferAdministrative(adminPlant.detailedAddress, operationalPlant.detailedAddress),
+      postalCode: preferAdministrative(adminPlant.postalCode, operationalPlant.postalCode),
+      coordinates: preferAdministrative(adminPlant.coordinates, operationalPlant.coordinates),
+      mapRef: preferAdministrative(adminPlant.mapRef, operationalPlant.mapRef),
+      street: preferAdministrative(adminPlant.street, operationalPlant.street),
+      lat: preferAdministrative(adminPlant.lat, operationalPlant.lat),
+      lng: preferAdministrative(adminPlant.lng, operationalPlant.lng),
+      timezone: preferAdministrative(adminPlant.timezone, operationalPlant.timezone),
+      capacityDc: preferAdministrative(adminPlant.capacityDc, operationalPlant.capacityDc),
+      installedPowerKw: preferAdministrative(adminPlant.installedPowerKw, operationalPlant.installedPowerKw),
+      capacityAc: preferAdministrative(adminPlant.capacityAc, operationalPlant.capacityAc),
+      gridCapacity: preferAdministrative(adminPlant.gridCapacity, operationalPlant.gridCapacity),
+      panels: preferAdministrative(adminPlant.panels, operationalPlant.panels),
+      modulesCount: preferAdministrative(adminPlant.modulesCount, operationalPlant.modulesCount),
+      inverters: preferAdministrative(adminPlant.inverters, operationalPlant.inverters),
+      strings: preferAdministrative(adminPlant.strings, operationalPlant.strings),
+      transformers: preferAdministrative(adminPlant.transformers, operationalPlant.transformers),
+      meters: preferAdministrative(adminPlant.meters, operationalPlant.meters),
+      battery: preferAdministrative(adminPlant.battery, operationalPlant.battery),
+      batteryCapacityKwh: preferAdministrative(adminPlant.batteryCapacityKwh, operationalPlant.batteryCapacityKwh),
+      gridConnectionType: preferAdministrative(adminPlant.gridConnectionType, operationalPlant.gridConnectionType),
+      commissioned: preferAdministrative(adminPlant.commissioned, operationalPlant.commissioned),
+      providerInstallDate: preferAdministrative(adminPlant.providerInstallDate, operationalPlant.providerInstallDate),
+      externalReference: preferAdministrative(adminPlant.externalReference, operationalPlant.externalReference),
+      company: preferAdministrative(adminPlant.company, operationalPlant.company),
+      evChargerOnlyPlant: preferAdministrative(adminPlant.evChargerOnlyPlant, operationalPlant.evChargerOnlyPlant),
+      tilt: preferAdministrative(adminPlant.tilt, operationalPlant.tilt),
+      azimuth: preferAdministrative(adminPlant.azimuth, operationalPlant.azimuth),
+      plantOverview: preferAdministrative(adminPlant.plantOverview, operationalPlant.plantOverview),
+      currency: preferAdministrative(adminPlant.currency, operationalPlant.currency),
+      unitPrice: preferAdministrative(adminPlant.unitPrice, operationalPlant.unitPrice),
+      tariffType: preferAdministrative(adminPlant.tariffType, operationalPlant.tariffType),
+      totalCost: preferAdministrative(adminPlant.totalCost, operationalPlant.totalCost),
+      subsidy: preferAdministrative(adminPlant.subsidy, operationalPlant.subsidy),
+      dailyRepayment: preferAdministrative(adminPlant.dailyRepayment, operationalPlant.dailyRepayment),
+      ownerEmail: preferAdministrative(adminPlant.ownerEmail, operationalPlant.ownerEmail),
+      om: preferAdministrative(adminPlant.om, operationalPlant.om),
+      providerExtensions: mergePlantRawSection(adminPlant.providerExtensions, operationalPlant.providerExtensions),
+      providerAlarmCount: preferOperational(operationalPlant.providerAlarmCount, adminPlant.providerAlarmCount),
+      providerFaultCount: preferOperational(operationalPlant.providerFaultCount, adminPlant.providerFaultCount),
+      clientContact: preferAdministrative(adminPlant.clientContact, operationalPlant.clientContact),
+      defaultTimeZone: preferAdministrative(adminPlant.defaultTimeZone, operationalPlant.defaultTimeZone),
+      defaultCountry: preferAdministrative(adminPlant.defaultCountry, operationalPlant.defaultCountry),
+      defaultRegion: preferAdministrative(adminPlant.defaultRegion, operationalPlant.defaultRegion),
+      vendorPayload: preferAdministrative(adminPlant.vendorPayload, operationalPlant.vendorPayload),
+      deviceRecords: Array.isArray(adminPlant.deviceRecords) && adminPlant.deviceRecords.length ? adminPlant.deviceRecords : operationalPlant.deviceRecords,
+      devices: preferOperational(operationalPlant.devices, adminPlant.devices),
+      alerts: preferOperational(operationalPlant.alerts, adminPlant.alerts),
+      currentPowerKw: preferOperational(operationalPlant.currentPowerKw, adminPlant.currentPowerKw),
       livePower: preferOperational(operationalPlant.livePower, adminPlant.livePower),
+      todayEnergyKwh: preferOperational(operationalPlant.todayEnergyKwh, adminPlant.todayEnergyKwh),
       today: preferOperational(operationalPlant.today, adminPlant.today),
+      month: preferOperational(operationalPlant.month, adminPlant.month),
+      pr: preferOperational(operationalPlant.pr, adminPlant.pr),
       totalEnergy: operationalPlant.totalEnergy ?? adminPlant.totalEnergy ?? null,
+      totalEnergyKwh: operationalPlant.totalEnergyKwh ?? operationalPlant.totalEnergy ?? adminPlant.totalEnergyKwh ?? adminPlant.totalEnergy ?? null,
       health: preferOperational(operationalPlant.health, adminPlant.health),
       vendor: preferOperational(operationalPlant.vendor, adminPlant.vendor),
       sourceSystem: preferOperational(operationalPlant.sourceSystem, adminPlant.sourceSystem),
+      lastData: preferOperational(operationalPlant.lastData, adminPlant.lastData),
       lastDataAt: preferOperational(operationalPlant.lastDataAt, adminPlant.lastDataAt),
       lastSyncAt: preferOperational(operationalPlant.lastSyncAt, adminPlant.lastSyncAt),
       dataQualityStatus: preferOperational(operationalPlant.dataQualityStatus, adminPlant.dataQualityStatus),
       freshness: preferOperational(operationalPlant.freshness, adminPlant.freshness),
+      dataFreshness: preferOperational(operationalPlant.dataFreshness, adminPlant.dataFreshness),
       detailSourceMode: 'registry-live',
       registryLoaded: true,
       operationalLoaded: true,
       raw: {
-        ...adminRaw,
+        ...mergedRaw,
         adminRecord: adminRaw,
         liveRecord: liveRaw
       }
@@ -2978,7 +3135,7 @@
     const fillFromLive = [
       'occurrenceStatus', 'vendorMessage', 'sourceAlertId', 'sourcePlantId', 'sourceDeviceId',
       'rawPayloadRef', 'lastSyncAtUtc', 'telemetry', 'description', 'probableCause', 'recommendation',
-      'integration', 'age', 'sla', 'owner'
+      'integration', 'age', 'sla', 'owner', 'mappingVersion', 'acknowledgedAtUtc', 'occurredAtUtc', 'updatedAtUtc'
     ];
     fillFromLive.forEach(key => {
       if (!meaningfulAlertValue(adminAlert[key]) && meaningfulAlertValue(liveAlert[key])) merged[key] = liveAlert[key];
