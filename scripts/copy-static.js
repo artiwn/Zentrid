@@ -33,7 +33,6 @@ copyTree(join(root, 'assets'), join(dist, 'assets'), source => {
   const extension = extname(source).toLowerCase();
   const normalized = relative(root, source).replace(/\\/g, '/');
   if (normalized.startsWith('assets/css/src/')) return false;
-  if (normalized === 'assets/js/zentrid-locale.js') return true;
   return extension !== '.ts' && extension !== '.js' && extension !== '.bak';
 });
 
